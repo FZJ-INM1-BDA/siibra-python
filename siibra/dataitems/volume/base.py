@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import DefaultDict, Literal, Union
+from typing import Dict, Literal, Union
 
 from ..base import Data
 from ...commons_new.string import check_color, SUPPORTED_COLORMAPS
@@ -12,7 +12,7 @@ class Volume(Data):
     format: str = None
     url: str = None
     color: str = None
-    volume_selection_options: DefaultDict[Literal["label", "z", "t"], Union[int, str]] = None
+    volume_selection_options: Dict[Literal["label", "z", "t"], Union[int, str]] = None
 
     def __post_init__(self):
         if self.color and not check_color(self.color):

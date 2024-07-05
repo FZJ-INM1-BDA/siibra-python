@@ -14,8 +14,13 @@ class RegisterRecall(Generic[P]):
 
         self._registered_count: Dict[Type, int] = {}
         if cache:
+            # TODO this... doesn't work too well yet
+            # e.g. after register brainglobe, it claims cannot pickle
+            # in practice, it should ignore the function that was registered
             self._cached_iter = fn_call_cache(
-                self._cached_iter, cache_validation_callback=self._cache_invalidation_cb
+                self._cached_iter,
+                cache_validation_callback=self._cache_invalidation_cb,
+                ignore=["self"]
             )
 
     def register(self, _type: Type[T]):

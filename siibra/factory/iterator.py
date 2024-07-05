@@ -3,7 +3,10 @@ from typing import Type, TypeVar, Iterable
 from ..commons_new.register_recall import RegisterRecall
 
 T = TypeVar("T")
-attribute_collection_iterator = RegisterRecall[[]]()
+
+# TODO investigating why register recall fails
+# when encountering e.g. brainglobe register atlas elements
+attribute_collection_iterator = RegisterRecall[[]](cache=False)
 
 
 def iter_collection(_type: Type[T]) -> Iterable[T]:

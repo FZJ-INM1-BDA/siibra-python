@@ -1,11 +1,20 @@
 import json
 from typing import TypedDict, List, Dict, TYPE_CHECKING
+import numpy as np
+import nibabel as nib
+from PIL import Image as PILImage
+from io import BytesIO
+from hashlib import md5
+from pathlib import Path
+from dataclasses import replace
 
-from siibra.factory.iterator import attribute_collection_iterator
+from ...factory.iterator import attribute_collection_iterator
 from ...retrieval_new.file_fetcher import GitHttpRepository, TarRepository
 from ...concepts import Attribute, AttributeCollection
 from ...descriptions import Name, RGBColor, Url, SpeciesSpec, ID
+from ...dataitems import Image
 from ...commons import logger
+from ...commons_new.string import to_hex
 
 if TYPE_CHECKING:
     from ...atlases import Parcellation
@@ -107,13 +116,33 @@ def populate_regions(
         parent_region = _dict_id_to_region[parent_id]
         region.parent = parent_region
 
+def tiff_to_nii(tiff_bytes: bytes, affine: np.ndarray) -> str:
+    from ...cache import CACHE
+    filename = CACHE.build_filename(md5(tiff_bytes).hexdigest(), ".nii")
+    if Path(filename).exists():
+        return filename
+    
+    tiff_img = PILImage.open(BytesIO(tiff_bytes))
+    
+    stack = []
+    for i in range(tiff_img.n_frames):
+        tiff_img.seek(i)
+        stack.append(np.array(tiff_img))
+    stacked_array = np.stack(stack, axis=-1)
+    nii = nib.Nifti1Image(stacked_array, affine)
+    nib.save(nii, filename)
+    return filename
+
 
 def use(atlas_name: str):
-    from ...atlases import Parcellation, Space
+    from ...atlases import Parcellation, Space, Map
 
     if atlas_name in _registered_atlas:
         logger.info(f"{atlas_name} is already loaded.")
         return
+    
+    space_id = f"bg-{atlas_name}"
+    parcellation_id = f"bg-{atlas_name}"
 
     repo = TarRepository(fileurl.format(filename=atlas_name), gzip=True)
 
@@ -123,13 +152,19 @@ def use(atlas_name: str):
     speciesspec = SpeciesSpec(value=metadata["species"])
     parcellation = Parcellation(
         attributes=[
-            ID(value=f"bg-{atlas_name}"),
-            Name(value=metadata["name"] + " Parcellation"),
+            ID(value=parcellation_id),
+            Name(value=metadata["name"] + " bg parcellation"),
             Url(value=metadata["atlas_link"]),
             speciesspec,
         ],
         children=[],
     )
+
+    # "trasform_to_bg" typo seen in allen human 500um
+    affine = np.array(metadata.get("transform_to_bg") or metadata.get("trasform_to_bg"))
+    ref_img_filename = tiff_to_nii(repo.get(f"{atlas_name}/reference.tiff"), affine)
+    annot_img_filename = tiff_to_nii(repo.get(f"{atlas_name}/annotation.tiff"), affine)
+
     populate_regions(structures, parcellation, [speciesspec])
 
     @attribute_collection_iterator.register(Parcellation)
@@ -138,10 +173,11 @@ def use(atlas_name: str):
 
     space = Space(
         attributes=[
-            ID(value=f"bg-{atlas_name}"),
-            Name(value=metadata["name"] + " Space"),
+            ID(value=space_id),
+            Name(value=metadata["name"] + " bg space"),
             Url(value=metadata["atlas_link"]),
             speciesspec,
+            Image(format="nii", url=ref_img_filename, space_id=space_id),
         ]
     )
 
@@ -149,9 +185,30 @@ def use(atlas_name: str):
     def bg_space():
         return [space]
     
-    # TODO populate map
+    labelled_map_image = Image(format="nii", url=annot_img_filename, space_id=space_id)
+
+    labelled_map = Map(parcellation_id=parcellation_id,
+                       space_id=space_id,
+                       maptype="labelled",
+                       attributes=(ID(value=f"bg-{space_id}{parcellation_id}"),
+                                   Name(value=f"bg labelled-map {space_id} {parcellation_id}"),
+                                   labelled_map_image,
+                                   speciesspec),
+                       _region_attributes={
+                           structure["name"]: AttributeCollection(
+                               attributes=(
+                                   replace(labelled_map_image,
+                                           color=to_hex(structure["rgb_triplet"]),
+                                           volume_selection_options={ "label": structure["id"] }
+                                           ),
+                                   ))
+                            for structure in structures})
+    
+    @attribute_collection_iterator.register(Map)
+    def bg_map():
+        return [labelled_map]
 
     _registered_atlas.add(atlas_name)
     logger.info(f"{atlas_name} added to siibra.")
 
-    return space, parcellation
+    return space, parcellation, labelled_map

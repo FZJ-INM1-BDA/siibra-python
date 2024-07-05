@@ -1,5 +1,5 @@
 import re
-from typing import Union, Callable
+from typing import Union, Callable, List
 
 
 def splitstr(s: str):
@@ -118,3 +118,8 @@ def check_color(color: str) -> bool:
     if color in SUPPORTED_COLORMAPS or is_hex_color(color):
         return True
     return False
+
+def to_hex(color: List[int]) -> str:
+    assert len(color) == 3, f"expected 3 component to color, but got {len(color)=!r}"
+    assert all((isinstance(c, int) and c <= 255 and c >= 0 for c in color)), f"expected {color=!r} to be all 8uint, but is not"
+    return "#" + "".join([hex(c)[2:].rjust(2, "0") for c in color])

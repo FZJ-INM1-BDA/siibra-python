@@ -30,9 +30,9 @@ class Map(AtlasElement):
     _region_attributes: Dict[str, "AttributeCollection"] = field(default_factory=dict)
 
     def __post_init__(self):
-        essential_specs = {"parcellation_id", "space_id", "maptype", "index_mapping"}
+        essential_specs = {"parcellation_id", "space_id", "maptype", "_region_attributes"}
         assert all(
-            spec is not None for spec in essential_specs
+            self.__getattribute__(spec) is not None for spec in essential_specs
         ), f"Cannot create a parcellation `Map` without {essential_specs}"
         super().__post_init__()
 

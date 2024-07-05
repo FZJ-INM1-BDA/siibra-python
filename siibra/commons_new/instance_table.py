@@ -239,6 +239,9 @@ class InstanceTable(BaseInstanceTable[T]):
             return self
 
 
+# TODO . accessor is really slow, investigate why
+# I think python internally check each autocomplete value against __getattribute__
+# this makes things very slow
 class JitInstanceTable(BaseInstanceTable[T]):
     def __init__(
         self,
@@ -255,7 +258,11 @@ class JitInstanceTable(BaseInstanceTable[T]):
 
     @property
     def _elements(self):
-        return self.getitem()
+        try:
+            return self.getitem()
+        except Exception as e:
+            print(e)
+            return {}
 
     @_elements.setter
     def _elements(self, value):
