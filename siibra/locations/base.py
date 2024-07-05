@@ -14,11 +14,11 @@ class Location(Attribute):
         if self.space_id is None:
             return None
 
-        from ..assignment import iter_attr_col
+        from ..factory import iter_collection
         from ..atlases import Space
 
         return assert_ooo(
-            [space for space in iter_attr_col(Space) if space.ID == self.space_id]
+            [space for space in iter_collection(Space) if space.ID == self.space_id]
         )
 
 

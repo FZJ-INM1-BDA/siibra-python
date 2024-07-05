@@ -41,12 +41,11 @@ from .locations import DataClsLocation
 from .concepts import AtlasElement, QueryParam, Feature
 from .assignment import (
     string_search,
-    attr_col_as_dict,
-    iter_attr_col,
     find,
     collection_match,
     QueryCursor,
 )
+from .factory.iterator import iter_collection
 
 import os as _os
 
@@ -56,9 +55,9 @@ logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
-spaces = JitInstanceTable(getitem=partial(attr_col_as_dict, Space))
-parcellations = JitInstanceTable(getitem=partial(attr_col_as_dict, Parcellation))
-maps = JitInstanceTable(getitem=partial(attr_col_as_dict, parcellationmap.Map))
+spaces = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_collection(Space)})
+parcellations = JitInstanceTable(getitem=lambda: {parc.name: parc for parc in iter_collection(Parcellation)})
+maps = JitInstanceTable(getitem=lambda: {map.name: map for map in iter_collection(parcellationmap.Map)})
 
 
 def get_space(space_spec: str):
@@ -86,10 +85,38 @@ def find_parcellations(parc_spec: str):
     return list(string_search(parc_spec, Parcellation))
 
 
-def find_maps(parcellation: str = "", space: str = "", maptype: str = "labelled", extra_spec: str = ""):
+def find_maps(parcellation: str = None, space: str = None, maptype: str = "labelled", extra_spec: str = ""):
     """Convenient access to parcellation maps."""
-    map_spec = " ".join([parcellation, space, maptype, extra_spec])
-    return list(string_search(map_spec, parcellationmap.Map))
+
+    if parcellation:
+        try:
+            requested_parcellations = find_parcellations(parcellation)
+            assert len(requested_parcellations) > 0
+        except AssertionError as e:
+            raise RuntimeError(f"Requested parcellation {parcellation!r} cannot be found. {str(e)}") from e
+    else:
+        requested_parcellations = None
+
+    if space:
+        try:
+            requested_spaces = find_spaces(space)
+            assert len(requested_spaces) > 0
+        except AssertionError as e:
+            raise RuntimeError(f"Requested space {space!r} cannot be found. {str(e)}") from e
+    else:
+        requested_spaces = None
+
+    return_result = []
+    for _map in iter_collection(parcellationmap.Map):
+        if _map.maptype != maptype:
+            continue
+        if requested_parcellations and _map.parcellation not in requested_parcellations:
+            continue
+        if requested_spaces and _map.space not in requested_spaces:
+            continue
+        return_result.append(_map)
+
+    return return_result
 
 
 def get_map(parcellation: str, space: str, maptype: str = "labelled", extra_spec: str = ""):

@@ -7,7 +7,6 @@ from ..commons import logger
 from ..commons_new.comparison import Comparison
 from ..commons_new.string import fuzzy_match, clear_name
 from ..concepts import Attribute, QueryParam
-from ..concepts.attribute import TruthyAttr
 from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 from ..descriptions import Modality, RegionSpec, Name, ID, Paradigm, Cohort, AggregateBy
 from ..locations import Pt, PointCloud, BBox, intersect
@@ -17,6 +16,15 @@ from ..cache import fn_call_cache
 _attr_qual: Comparison[Attribute, Union[Qualification, None]] = Comparison()
 
 register_attr_qualifier = _attr_qual.register
+
+
+def simple_qualify(attra: Attribute, attrb: Attribute):
+    try:
+        return qualify(attra, attrb)
+    except UnregisteredAttrCompException:
+        return None
+    except InvalidAttrCompException:
+        return None
 
 
 def qualify(attra: Attribute, attrb: Attribute):
@@ -42,8 +50,6 @@ def qualify(attra: Attribute, attrb: Attribute):
         If the comparison of type(attra) and type(attrb) has been registered, but the their
         value could not directly be compared (e.g. locations in different spaces)
     """
-    if isinstance(attra, TruthyAttr) or isinstance(attrb, TruthyAttr):
-        return Qualification.EXACT
     val = _attr_qual.get(attra, attrb)
     if val is None:
         logger.debug(

@@ -1,4 +1,4 @@
-from typing import Iterable, Union, TYPE_CHECKING
+from typing import Iterable, Union, TYPE_CHECKING, List
 
 import anytree
 
@@ -17,6 +17,9 @@ if TYPE_CHECKING:
 
 class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
     schema: str = "siibra/atlases/region/v0.1"
+
+    def __hash__(self):
+        return hash(self.parcellation.ID + self.name)
 
     def __init__(self, attributes, children):
         super().__init__(self, attributes=attributes)
@@ -82,8 +85,9 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         self, space: Union[str, "Space", None] = None, maptype: str = "labelled"
     ):
         from .space import Space
-        from ..assignment import iter_attr_col, string_search
         from .parcellationmap import Map, VALID_MAPTYPES
+        from ..assignment import string_search
+        from ..factory import iter_collection
 
         assert (
             maptype in VALID_MAPTYPES
@@ -98,7 +102,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
 
         regions_of_interest = [self, *self.descendants]
 
-        for mp in iter_attr_col(Map):
+        for mp in iter_collection(Map):
             if maptype != mp.maptype:
                 continue
             if space and space.ID != mp.space_id:

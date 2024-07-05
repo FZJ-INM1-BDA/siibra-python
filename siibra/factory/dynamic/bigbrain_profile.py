@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from ...assignment import register_collection_generator
-from ...concepts import Feature, AttributeCollection
+from ...assignment import filter_by_query_param
+from ...concepts import Feature, QueryParam
 from ...descriptions import Modality, register_modalities
 from ...dataitems.tabular import Tabular, X_DATA
 from ...locations.layerboundary import (
@@ -26,8 +26,8 @@ def add_modified_silver_staining():
     yield modality_of_interest
 
 
-@register_collection_generator(Feature)
-def query_bigbrain_profile(input: AttributeCollection):
+@filter_by_query_param.register(Feature)
+def query_bigbrain_profile(input: QueryParam):
     if modality_of_interest not in input._find(Modality):
         return []
     valid, boundary_depths, profile, vertices = get_all()

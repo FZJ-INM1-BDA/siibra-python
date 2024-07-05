@@ -58,11 +58,3 @@ class Attribute:
             for key in self.extra
             if key.startswith("aggregate-by/")
         ]
-
-
-@dataclass
-class TruthyAttr(Attribute):
-    """This is an interal Attribute, to signal always match truthy.
-    This allows all instances to be iterated with ease."""
-
-    schema: str = "siibra/internal"

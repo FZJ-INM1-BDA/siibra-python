@@ -1,6 +1,7 @@
 import json
 from typing import TypedDict, List, Dict, TYPE_CHECKING
 
+from siibra.factory.iterator import attribute_collection_iterator
 from ...retrieval_new.file_fetcher import GitHttpRepository, TarRepository
 from ...concepts import Attribute, AttributeCollection
 from ...descriptions import Name, RGBColor, Url, SpeciesSpec, ID
@@ -108,7 +109,6 @@ def populate_regions(
 
 
 def use(atlas_name: str):
-    from ...assignment import register_collection_generator, collection_match
     from ...atlases import Parcellation, Space
 
     if atlas_name in _registered_atlas:
@@ -132,10 +132,9 @@ def use(atlas_name: str):
     )
     populate_regions(structures, parcellation, [speciesspec])
 
-    @register_collection_generator(Parcellation)
-    def bg_parcellations(filter_param: AttributeCollection):
-        if collection_match(filter_param, parcellation):
-            yield parcellation
+    @attribute_collection_iterator.register(Parcellation)
+    def bg_parcellation():
+        return [parcellation]
 
     space = Space(
         attributes=[
@@ -146,10 +145,11 @@ def use(atlas_name: str):
         ]
     )
 
-    @register_collection_generator(Space)
-    def bg_spaces(filter_param: AttributeCollection):
-        if collection_match(filter_param, space):
-            yield space
+    @attribute_collection_iterator.register(Space)
+    def bg_space():
+        return [space]
+    
+    # TODO populate map
 
     _registered_atlas.add(atlas_name)
     logger.info(f"{atlas_name} added to siibra.")

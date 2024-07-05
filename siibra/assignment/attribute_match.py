@@ -2,7 +2,6 @@ from ..commons import logger
 from ..commons_new.comparison import Comparison
 from ..commons_new.string import fuzzy_match
 from ..concepts import Attribute
-from ..concepts.attribute import TruthyAttr
 from ..exceptions import UnregisteredAttrCompException
 from ..descriptions import Modality, RegionSpec, Name, ID, Paradigm, Cohort, AggregateBy
 from ..locations import Pt, PointCloud, BBox, intersect, DataClsLocation
@@ -36,8 +35,6 @@ def match(attra: Attribute, attrb: Attribute):
         If the comparison of type(attra) and type(attrb) has been registered, but the their
         value could not directly be compared (e.g. locations in different spaces)
     """
-    if isinstance(attra, TruthyAttr) or isinstance(attrb, TruthyAttr):
-        return True
     val = _attr_match.get(attra, attrb)
     if val is None:
         logger.debug(

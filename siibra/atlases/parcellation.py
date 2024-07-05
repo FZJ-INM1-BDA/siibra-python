@@ -1,6 +1,7 @@
 from typing import List
 
 from ..atlases import region
+from ..commons import logger
 from ..commons_new.string import SPEC_TYPE
 from ..commons_new.tree import collapse_nodes
 from ..commons_new.iterable import assert_ooo
@@ -12,6 +13,9 @@ class Parcellation(region.Region):
 
     def __eq__(self, other: "Parcellation") -> bool:
         return self.ID == other.ID
+
+    def __hash__(self):
+        return hash(self.ID)
 
     def get_region(self, regionspec: SPEC_TYPE) -> region.Region:
         """
@@ -25,6 +29,20 @@ class Parcellation(region.Region):
             return exact_match[0]
         collapsed_regions: List[region.Region] = collapse_nodes(regions)
         return assert_ooo(collapsed_regions)
+
+    @property
+    def next_version(self):
+        if not self.version:
+            return None
+        next_id = self._get(Version).next_id
+        if not next_id:
+            return None
+        from siibra.factory.iterator import iter_collection
+        for parc in iter_collection(Parcellation):
+            if parc.ID == next_id:
+                return parc
+        logger.warning(f"Cannot find parcellation with id {next_id}")
+        return None
 
     @property
     def version(self):

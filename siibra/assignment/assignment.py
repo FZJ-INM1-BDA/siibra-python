@@ -1,15 +1,13 @@
 from typing import Type, Callable, Dict, Iterable, List, TypeVar
-from functools import wraps
 from collections import defaultdict
 from itertools import product
 
 from .attribute_match import match as attribute_match
 from .attribute_qualification import qualify as attribute_qualify
 
+from ..commons_new.register_recall import RegisterRecall
 from ..commons import logger
-from ..commons_new.iterable import NonUniqueError
 from ..concepts import AttributeCollection
-from ..concepts.attribute import TruthyAttr
 from ..concepts import QueryParam
 from ..descriptions import ID, Name
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
@@ -20,56 +18,23 @@ T = Callable[[AttributeCollection], Iterable[AttributeCollection]]
 
 collection_gen: Dict[Type[AttributeCollection], List[V]] = defaultdict(list)
 
-
-def register_collection_generator(type_of_col: Type[V]):
-    """Register function to be called to yield a specific type of AttributeCollection."""
-
-    def outer(fn: Callable[[AttributeCollection], Iterable[V]]):
-        collection_gen[type_of_col].append(fn)
-
-        @wraps(fn)
-        def inner(*args, **kwargs):
-            return fn(*args, **kwargs)
-
-        return inner
-
-    return outer
+filter_by_query_param = RegisterRecall[[QueryParam]](cache=False)
 
 
-def iter_attr_col(reg_type: Type[V]) -> Iterable[V]:
-    collection = AttributeCollection(attributes=[TruthyAttr()])
-    yield from find(collection, reg_type)
+def finditer(input: QueryParam, req_type: Type[V]):
+    for fn in filter_by_query_param.iter_fn(req_type):
+        yield from fn(input)
 
 
-def attr_col_as_dict(reg_type: Type[V]) -> Dict[str, V]:
-    return_dict: Dict[str, V] = {}
-    for item in iter_attr_col(reg_type):
-        try:
-            name = item._get(Name)
-            return_dict[name.value] = item
-        except NonUniqueError:
-            logger.warning(f"{item} has non unique name")
-            continue
-    return return_dict
-
-
-def finditer(input: AttributeCollection, req_type: Type[V]) -> Iterable[V]:
-    for fn in collection_gen[req_type]:
-        try:
-            yield from fn(input)
-        except UnregisteredAttrCompException:
-            continue
-
-
-def find(input: AttributeCollection, req_type: Type[V]) -> List[V]:
+def find(input: QueryParam, req_type: Type[V]) -> List[V]:
     return list(finditer(input, req_type))
 
 
-def string_search(input: str, req_type: Type[V]) -> Iterable[V]:
+def string_search(input: str, req_type: Type[V]) -> List[V]:
     id_attr = ID(value=input)
     name_attr = Name(value=input)
     query = QueryParam(attributes=[id_attr, name_attr])
-    yield from find(query, req_type)
+    return find(query, req_type)
 
 
 def filter_collections(

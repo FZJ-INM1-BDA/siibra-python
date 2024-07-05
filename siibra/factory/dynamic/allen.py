@@ -5,10 +5,10 @@ import numpy as np
 
 from ...cache import fn_call_cache
 from ...commons import logger
-from ...concepts import Feature, AttributeCollection
+from ...concepts import Feature, QueryParam
 from ...retrieval_new.api_fetcher.allen import _AllenGeneQuery
 from ...descriptions import register_modalities, Modality, Gene
-from ...assignment import register_collection_generator
+from ...assignment import filter_by_query_param
 from ...locations import PointCloud
 from ...dataitems import Image, Tabular
 from ...dataitems.volume.image import intersect_ptcld_image
@@ -74,8 +74,8 @@ def add_allen_modality():
     yield modality_of_interest
 
 
-@register_collection_generator(Feature)
-def query_allen_gene_api(input: AttributeCollection):
+@filter_by_query_param.register(Feature)
+def query_allen_gene_api(input: QueryParam):
     if modality_of_interest not in input._find(Modality):
         return
 

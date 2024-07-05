@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, List, Dict, Set, Union, Literal
 
 import numpy as np
 
-from ..assignment import iter_attr_col
 from ..concepts import AtlasElement
 from ..retrieval_new.volume_fetcher import FetchKwargs, IMAGE_FORMATS, MESH_FORMATS
 from ..commons_new.iterable import assert_ooo
@@ -39,17 +38,19 @@ class Map(AtlasElement):
 
     @property
     def parcellation(self) -> "Parcellation":
+        from ..factory import iter_collection
         return assert_ooo(
             [
                 parc
-                for parc in iter_attr_col(Parcellation)
+                for parc in iter_collection(Parcellation)
                 if parc.ID == self.parcellation_id
             ]
         )
 
     @property
     def space(self) -> "Space":
-        return assert_ooo([sp for sp in iter_attr_col(Space) if sp.ID == self.space_id])
+        from ..factory import iter_collection
+        return assert_ooo([sp for sp in iter_collection(Space) if sp.ID == self.space_id])
 
     @property
     def regions(self) -> List[str]:

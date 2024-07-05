@@ -3,16 +3,15 @@ from collections import defaultdict
 from typing import Dict, List
 
 from .factory import build_feature, build_space, build_parcellation, build_map
+from .iterator import attribute_collection_iterator
 from ..atlases import Space, Parcellation, Region, parcellationmap
 from ..descriptions import register_modalities, Modality, RegionSpec
-from ..concepts.feature import Feature
-from ..concepts.attribute_collection import AttributeCollection
-from ..assignment.assignment import register_collection_generator, match
+from ..concepts import QueryParam, Feature
+from ..assignment.assignment import filter_by_query_param, match
 from ..retrieval_new.file_fetcher import (
     GithubRepository,
     LocalDirectoryRepository,
 )
-from ..cache import fn_call_cache
 from ..commons import SIIBRA_USE_CONFIGURATION, logger
 from ..exceptions import UnregisteredAttrCompException
 
@@ -65,76 +64,9 @@ class Configuration:
                 continue
 
 
-def _iter_preconf_spaces():
-    # TODO replace/migrate old configuration here
-    cfg = Configuration()
-
-    # below should produce the same result
-    return [build_space(obj) for obj in cfg.iter_jsons("spaces")]
-
-
-@register_collection_generator(Space)
-def iter_preconf_spaces(filter_param: AttributeCollection):
-    for space in _iter_preconf_spaces():
-        try:
-            if match(filter_param, space):
-                yield space
-        except UnregisteredAttrCompException:
-            continue
-
-
-@fn_call_cache
-def _iter_preconf_parcellations():
-    # TODO replace/migrate old configuration here
-    cfg = Configuration()
-
-    return [build_parcellation(obj) for obj in cfg.iter_jsons("parcellations")]
-
-
-@register_collection_generator(Parcellation)
-def iter_preconf_parcellations(filter_param: AttributeCollection):
-    for parcellation in _iter_preconf_parcellations():
-        try:
-            if match(filter_param, parcellation):
-                yield parcellation
-        except UnregisteredAttrCompException:
-            continue
-
-
-def _iter_preconf_features():
-    cfg = Configuration()
-
-    # below should produce the same result
-    return [build_feature(obj) for obj in cfg.iter_type("siibra/concepts/feature/v0.2")]
-
-
-@register_collection_generator(Feature)
-def iter_preconf_features(filter_param: AttributeCollection):
-    for feature in _iter_preconf_features():
-        try:
-            if match(filter_param, feature):
-                yield feature
-        except UnregisteredAttrCompException:
-            continue
-
-
-@register_collection_generator(Region)
-def iter_region(filter_param: AttributeCollection):
-    from ..assignment import iter_attr_col
-
-    regspecs = filter_param._find(RegionSpec)
-    if len(regspecs) != 1:
-        logger.debug(f"Expected one and only one regionspec, but got {len(regspecs)}")
-        return
-
-    regspec = regspecs[0]
-
-    yield from [
-        region
-        for parc in iter_attr_col(Parcellation)
-        if regspec.parcellation_id is None or regspec.parcellation_id == parc.ID
-        for region in parc.find(regspec.value)
-    ]
+#
+# register features modalities
+#
 
 
 @register_modalities()
@@ -148,8 +80,121 @@ def register_cell_body_density():
     yield Modality(value="Cell body density")
 
 
-@register_collection_generator(Feature)
-def iter_cell_body_density(filter_param: AttributeCollection):
+#
+# Configure how preconfigured AC are fetched and built
+#
+
+
+@attribute_collection_iterator.register(Space)
+def _iter_preconf_spaces():
+    # TODO replace/migrate old configuration here
+    cfg = Configuration()
+
+    # below should produce the same result
+    return [build_space(obj) for obj in cfg.iter_jsons("spaces")]
+
+
+@attribute_collection_iterator.register(Parcellation)
+def _iter_preconf_parcellations():
+    # TODO replace/migrate old configuration here
+    cfg = Configuration()
+
+    return [build_parcellation(obj) for obj in cfg.iter_jsons("parcellations")]
+
+
+@attribute_collection_iterator.register(Feature)
+def _iter_preconf_features():
+    cfg = Configuration()
+
+    return [build_feature(obj) for obj in cfg.iter_type("siibra/concepts/feature/v0.2")]
+
+
+@attribute_collection_iterator.register(parcellationmap.Map)
+def _iter_preconf_maps():
+    cfg = Configuration()
+    return [build_map(obj) for obj in cfg.iter_jsons("maps")]
+
+
+#
+# configure how the preconfigured AC are queried
+#
+
+
+@filter_by_query_param.register(Space)
+def register_space(filter_param: QueryParam):
+    from .iterator import iter_collection
+
+    for item in iter_collection(Space):
+        if filter_param.match(item):
+            yield item
+
+
+@filter_by_query_param.register(Parcellation)
+def register_parcellation(filter_param: QueryParam):
+    from .iterator import iter_collection
+
+    for item in iter_collection(Parcellation):
+        if filter_param.match(item):
+            yield item
+
+
+@filter_by_query_param.register(parcellationmap.Map)
+def iter_preconf_parcellationmaps(filter_param: QueryParam):
+    from ..descriptions import RegionSpec
+
+    for mp in _iter_preconf_maps():
+
+        try:
+            found_regions = [
+                region
+                for regspec in filter_param._find(RegionSpec)
+                for region in regspec.decode()
+            ]
+            if any(
+                (
+                    found_region.name in mp._index_mapping
+                    for found_region in found_regions
+                )
+            ):
+                yield mp
+
+            if match(filter_param, mp):
+                yield mp
+        except UnregisteredAttrCompException:
+            continue
+
+
+@filter_by_query_param.register(Feature)
+def iter_preconf_features(filter_param: QueryParam):
+    for feature in _iter_preconf_features():
+        try:
+            if match(filter_param, feature):
+                yield feature
+        except UnregisteredAttrCompException:
+            continue
+
+
+@filter_by_query_param.register(Region)
+def iter_region(filter_param: QueryParam):
+    from .iterator import iter_collection
+
+    regspecs = filter_param._find(RegionSpec)
+    if len(regspecs) != 1:
+        logger.debug(f"Expected one and only one regionspec, but got {len(regspecs)}")
+        return
+
+    regspec = regspecs[0]
+
+    yield from [
+        region
+        for parc in iter_collection(Parcellation)
+        if regspec.parcellation_id is None or regspec.parcellation_id == parc.ID
+        for region in parc.find(regspec.value)
+    ]
+
+
+@filter_by_query_param.register(Feature)
+def iter_cell_body_density(filter_param: QueryParam):
     if Modality(value="Cell body density") not in filter_param.attributes:
         return
 
@@ -181,27 +226,3 @@ def iter_cell_body_density(filter_param: AttributeCollection):
                 name_to_regionspec[regionname],
             ]
         )
-
-
-@fn_call_cache
-def _iter_preconf_maps():
-    # TODO replace/migrate old configuration here
-    cfg = Configuration()
-
-    return [build_map(obj) for obj in cfg.iter_jsons("maps")]
-
-
-@register_collection_generator(parcellationmap.Map)
-def iter_preconf_parcellationmaps(filter_param: AttributeCollection):
-    from ..descriptions import RegionSpec
-
-    for mp in _iter_preconf_maps():
-        try:
-            found_regions = [region for regspec in filter_param._find(RegionSpec) for region in regspec.decode()]
-            if any((found_region.name in mp._region_attributes for found_region in found_regions)):
-                yield mp
-
-            if match(filter_param, mp):
-                yield mp
-        except UnregisteredAttrCompException:
-            continue
