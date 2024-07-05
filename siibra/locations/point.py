@@ -76,7 +76,7 @@ class Pt(Location):
             space_id=self.space.ID if self.space else None,
             sigma=self.sigma - other.sigma,
         )
-    
+
     def __iter__(self):
         """Return an iterator over the location,
         so the Point can be easily cast to list or tuple."""

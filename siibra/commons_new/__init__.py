@@ -1,2 +1,2 @@
 from . import string
-from . import comparison
+from . import binary_op

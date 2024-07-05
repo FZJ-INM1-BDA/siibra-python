@@ -7,9 +7,9 @@ from ..pointset import PointCloud
 from ..boundingbox import BBox
 from ..base import Location
 from ...exceptions import InvalidAttrCompException, UnregisteredAttrCompException
-from ...commons_new.comparison import Comparison
+from ...commons_new.binary_op import BinaryOp
 
-_loc_intersection = Comparison[Location, Union[Location, None]]()
+_loc_intersection = BinaryOp[Location, Union[Location, None]]()
 
 
 @_loc_intersection.register(Pt, Pt)

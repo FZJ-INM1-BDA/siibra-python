@@ -4,7 +4,7 @@ from itertools import product
 from .qualification import Qualification
 from ..dataitems import Image
 from ..commons import logger
-from ..commons_new.comparison import Comparison
+from ..commons_new.binary_op import BinaryOp
 from ..commons_new.string import fuzzy_match, clear_name
 from ..concepts import Attribute, QueryParam
 from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
@@ -13,7 +13,7 @@ from ..locations import Pt, PointCloud, BBox, intersect
 from ..cache import fn_call_cache
 
 
-_attr_qual: Comparison[Attribute, Union[Qualification, None]] = Comparison()
+_attr_qual: BinaryOp[Attribute, Union[Qualification, None]] = BinaryOp()
 
 register_attr_qualifier = _attr_qual.register
 

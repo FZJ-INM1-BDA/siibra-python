@@ -1,5 +1,5 @@
 from ..commons import logger
-from ..commons_new.comparison import Comparison
+from ..commons_new.binary_op import BinaryOp
 from ..commons_new.string import fuzzy_match
 from ..concepts import Attribute
 from ..exceptions import UnregisteredAttrCompException
@@ -7,7 +7,7 @@ from ..descriptions import Modality, RegionSpec, Name, ID, Paradigm, Cohort, Agg
 from ..locations import Pt, PointCloud, BBox, intersect, DataClsLocation
 
 
-_attr_match: Comparison[Attribute, bool] = Comparison()
+_attr_match: BinaryOp[Attribute, bool] = BinaryOp()
 
 register_attr_comparison = _attr_match.register
 

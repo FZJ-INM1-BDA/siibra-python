@@ -4,7 +4,7 @@ T = TypeVar("T")
 V = TypeVar("V")
 
 
-class Comparison(Generic[T, V]):
+class BinaryOp(Generic[T, V]):
 
     def __init__(self):
         self._store_dict: Dict[
