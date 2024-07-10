@@ -45,3 +45,7 @@ class NoVolumeFound(RuntimeError):
 
 class WarmupRegException(Exception):
     pass
+
+
+class ZeroVolumeBoundingBox(Exception):
+    pass
