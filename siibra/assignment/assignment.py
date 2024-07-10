@@ -18,7 +18,7 @@ T = Callable[[AttributeCollection], Iterable[AttributeCollection]]
 
 collection_gen: Dict[Type[AttributeCollection], List[V]] = defaultdict(list)
 
-filter_by_query_param = RegisterRecall[[QueryParam]](cache=False)
+filter_by_query_param = RegisterRecall[List[QueryParam]](cache=False)
 
 
 def finditer(input: QueryParam, req_type: Type[V]):

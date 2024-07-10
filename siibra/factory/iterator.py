@@ -6,7 +6,7 @@ T = TypeVar("T")
 
 # TODO investigating why register recall fails
 # when encountering e.g. brainglobe register atlas elements
-attribute_collection_iterator = RegisterRecall[[]](cache=False)
+attribute_collection_iterator = RegisterRecall[list](cache=False)
 
 
 def iter_collection(_type: Type[T]) -> Iterable[T]:

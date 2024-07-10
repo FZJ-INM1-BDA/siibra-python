@@ -1,6 +1,11 @@
-from typing import Generic, TypeVar, Type, Callable, Dict, List, ParamSpec
+from typing import Generic, TypeVar, Type, Callable, Dict, List
 from functools import wraps
 from collections import defaultdict
+
+try:
+    from typing_extensions import ParamSpec
+except ImportError:
+    from typing import ParamSpec
 
 from ..cache import fn_call_cache
 
