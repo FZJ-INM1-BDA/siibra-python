@@ -55,7 +55,7 @@ class Image(Volume):
         raise NotImplementedError
 
 
-def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str) -> "Image":
+def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "Image":
     """Builds an `Image` `Attribute` from a Nifti image or path to a nifti file."""
     from ...cache import CACHE
     filename = None
@@ -69,9 +69,10 @@ def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str) -> "Image":
     if not filename:
         raise RuntimeError(f"nifti must be either str or NIftiImage, but you provided {type(nifti)}")
     return Image(
-        fromat="nii",
+        format="nii",
         url=filename,
         space_id=space_id,
+        **kwargs
     )
 
 
