@@ -152,7 +152,7 @@ def iter_preconf_parcellationmaps(filter_param: QueryParam):
             ]
             if any(
                 (
-                    found_region.name in mp._index_mapping
+                    found_region.name in mp._region_attributes
                     for found_region in found_regions
                 )
             ):

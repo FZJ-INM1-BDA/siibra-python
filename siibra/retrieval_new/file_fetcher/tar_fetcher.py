@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Union
 import tarfile
 from pathlib import Path
 import os
@@ -13,12 +13,13 @@ class TarRepository(ArchivalRepository):
 
     _warmed_up = False
 
-    def __init__(self, path: str, *args, gzip=False, **kwargs) -> None:
+    def __init__(self, path: str, *args, relative_path=None, gzip=False, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.path = path
         self.reader: PartialReader = None
         self.gzip = gzip
+        self.relative_path = relative_path
 
     @property
     def unpacked_dir(self):
@@ -44,7 +45,7 @@ class TarRepository(ArchivalRepository):
         if self._warmed_up:
             assert self.unpacked_dir.is_dir()
             yield from [
-                f"{dirpath}/{filename}"
+                str(Path(f"{dirpath}/{filename}").relative_to(self.unpacked_dir).relative_to(self.relative_path or ""))
                 for dirpath, dirnames, filenames in os.walk(self.unpacked_dir)
                 for filename in filenames
             ]
@@ -75,6 +76,8 @@ class TarRepository(ArchivalRepository):
         if self.gzip:
             self.warmup()
 
+        filename = Path(self.relative_path) / filename
+
         if self._warmed_up:
             filepath = self.unpacked_dir / filename
             if filepath.is_file():
@@ -91,12 +94,13 @@ class TarRepository(ArchivalRepository):
         except KeyError as e:
             raise FileNotFoundError(f"{filename} not found.") from e
 
-    def search_files(self, prefix: str = None) -> Iterable[str]:
+    def search_files(self, prefix: Union[str, None] = None) -> Iterable[str]:
         self.open()
         for filename in self.ls():
             if prefix is None:
                 yield filename
                 continue
+
             if filename.startswith(prefix):
                 yield filename
                 continue

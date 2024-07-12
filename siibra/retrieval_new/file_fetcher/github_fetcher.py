@@ -17,6 +17,8 @@ class GithubRepository(GitHttpRepository):
         )
         if eager:
             self.warmup()
+            filename = next(self.tar_repo.ls())
+            self.tar_repo.relative_path = filename.split("/")[0]
 
     @property
     def github_api_url(self):

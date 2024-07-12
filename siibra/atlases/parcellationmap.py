@@ -102,7 +102,7 @@ class Map(AtlasElement):
             _ID(value=None),
             self._get(SpeciesSpec),
         ]
-        return replace(self, attributes=attributes, _index_mapping=filtered_images)
+        return replace(self, attributes=attributes, _region_attributes=filtered_images)
 
     def _find_volumes(
         self, regionname: str = None, frmt: str = None
