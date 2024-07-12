@@ -116,14 +116,16 @@ def populate_regions(
         parent_region = _dict_id_to_region[parent_id]
         region.parent = parent_region
 
+
 def tiff_to_nii(tiff_bytes: bytes, affine: np.ndarray) -> str:
     from ...cache import CACHE
+
     filename = CACHE.build_filename(md5(tiff_bytes).hexdigest(), ".nii")
     if Path(filename).exists():
         return filename
-    
+
     tiff_img = PILImage.open(BytesIO(tiff_bytes))
-    
+
     stack = []
     for i in range(tiff_img.n_frames):
         tiff_img.seek(i)
@@ -140,7 +142,7 @@ def use(atlas_name: str):
     if atlas_name in _registered_atlas:
         logger.info(f"{atlas_name} is already loaded.")
         return
-    
+
     space_id = f"bg-{atlas_name}"
     parcellation_id = f"bg-{atlas_name}"
 
@@ -184,26 +186,33 @@ def use(atlas_name: str):
     @attribute_collection_iterator.register(Space)
     def bg_space():
         return [space]
-    
+
     labelled_map_image = Image(format="nii", url=annot_img_filename, space_id=space_id)
 
-    labelled_map = Map(parcellation_id=parcellation_id,
-                       space_id=space_id,
-                       maptype="labelled",
-                       attributes=(ID(value=f"bg-{space_id}{parcellation_id}"),
-                                   Name(value=f"bg labelled-map {space_id} {parcellation_id}"),
-                                   labelled_map_image,
-                                   speciesspec),
-                       _region_attributes={
-                           structure["name"]: AttributeCollection(
-                               attributes=(
-                                   replace(labelled_map_image,
-                                           color=to_hex(structure["rgb_triplet"]),
-                                           volume_selection_options={ "label": structure["id"] }
-                                           ),
-                                   ))
-                            for structure in structures})
-    
+    labelled_map = Map(
+        parcellation_id=parcellation_id,
+        space_id=space_id,
+        maptype="labelled",
+        attributes=(
+            ID(value=f"bg-{space_id}{parcellation_id}"),
+            Name(value=f"bg labelled-map {space_id} {parcellation_id}"),
+            labelled_map_image,
+            speciesspec,
+        ),
+        _region_attributes={
+            structure["name"]: AttributeCollection(
+                attributes=(
+                    replace(
+                        labelled_map_image,
+                        color=to_hex(structure["rgb_triplet"]),
+                        volume_selection_options={"label": structure["id"]},
+                    ),
+                )
+            )
+            for structure in structures
+        },
+    )
+
     @attribute_collection_iterator.register(Map)
     def bg_map():
         return [labelled_map]
