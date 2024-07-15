@@ -121,8 +121,7 @@ def find_maps(parcellation: str = None, space: str = None, maptype: str = "label
 
 def get_map(parcellation: str, space: str, maptype: str = "labelled", extra_spec: str = ""):
     """Convenient access to parcellation maps."""
-    map_spec = f"{parcellation} {space} {maptype} {extra_spec}"
-    searched_maps = list(string_search(map_spec, parcellationmap.Map))
+    searched_maps = find_maps(parcellation, space, maptype, extra_spec)
     return assert_ooo(searched_maps)
 
 
