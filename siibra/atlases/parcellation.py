@@ -11,6 +11,14 @@ from ..descriptions import Version
 class Parcellation(region.Region):
     schema: str = "siibra/atlases/parcellation/v0.1"
 
+    def __lt__(self, other) -> bool:
+        assert isinstance(other, type(self)), TypeError(f"'>' not supported between instances of '{type(self)}' and '{type(other)}'")
+        try:
+            assert (self.version is not None) and (other.version is not None)
+        except AssertionError:
+            raise TypeError("Cannot compare Parcellations with no version information")
+        return self.version.prev_id == other.version.next_id
+
     def __eq__(self, other: "Parcellation") -> bool:
         return self.ID == other.ID
 
@@ -47,7 +55,7 @@ class Parcellation(region.Region):
     @property
     def version(self):
         try:
-            return self._get(Version).value
+            return self._get(Version)
         except Exception:
             return None
 
