@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, TypedDict, Callable, Dict, Union, Literal
+from typing import TYPE_CHECKING, TypedDict, Callable, Dict, Union, Literal, Tuple
 from functools import wraps
 
 from ...commons import SIIBRA_MAX_FETCH_SIZE_GIB
@@ -10,19 +10,33 @@ if TYPE_CHECKING:
     from nibabel import Nifti1Image, GiftiImage
 
 
-class FetchKwargs(TypedDict):
+class Mapping(TypedDict):
     """
-    Key word arguments used for fetching images and meshes across siibra.
+    Represents restrictions to apply to an image to get partial information,
+    such as labelled mask, a specific slice etc.
     """
-
-    bbox: "BBox" = None
-    resolution_mm: float = None
-    max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB
+    label: int = None
+    range: Tuple[float, float]
+    subspace: Tuple[slice, ...]
+    t: int
     color_channel: int = None
 
 
+class FetchKwargs(TypedDict):
+    """
+    Key word arguments used for fetching images and meshes across siibra.
+
+    Note
+    ----
+    Not all parameters are avaialble for all formats and volumes.
+    """
+    bbox: "BBox" = None
+    resolution_mm: float = None
+    max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB
+    mapping: Dict[str, Mapping] = None
+
+
 # TODO: Reconsider this approach. Only really exists for fsaverage templates
-VARIANT_KEY = "x-siibra/volume-variant"
 FRAGMENT_KEY = "x-siibra/volume-fragment"
 
 FETCHER_REGISTRY: Dict[

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 import gzip
 
 from nibabel import Nifti1Image
@@ -11,10 +11,26 @@ if TYPE_CHECKING:
     from ....locations import BBox
 
 
+def extract_labels(nii: Nifti1Image, labels: list[int]):
+    orgarr = np.asanyarray(nii.dataobj)
+    arr = np.sum([orgarr[np.where(orgarr == label)] for label in labels], keepdims=True)
+    return Nifti1Image(arr, nii.affine)
+
+
 def extract_label_mask(nii: Nifti1Image, label: int):
     return Nifti1Image(
-        (np.asanyarray(nii.dataobj) == label).astype('uint8'),
-        nii.affine
+        (np.asanyarray(nii.dataobj) == label).astype("uint8"), nii.affine
+    )
+
+
+def extract_float_range(nii: Nifti1Image, range: Tuple[float, float]):
+    if not range:
+        return nii
+
+    arr = np.asanyarray(nii.dataobj)
+    return Nifti1Image(
+        (arr[np.where(range[0] < arr < range[1])]).astype(nii.get_data_dtype()),
+        nii.affine,
     )
 
 
@@ -47,17 +63,25 @@ def fetch_nifti(image: "Image", fetchkwargs: FetchKwargs) -> "Nifti1Image":
         nii = Nifti1Image.from_bytes(_bytes)
 
     if fetchkwargs["bbox"] is not None:
-        # TODO
-        # neuroglancer/precomputed fetches the bbox from the NeuroglancerScale
         nii = extract_voi(nii, fetchkwargs["bbox"])
 
     if fetchkwargs["resolution_mm"] is not None:
         nii = resample(nii, fetchkwargs["resolution_mm"])
 
-    if image.volume_selection_options:
-        if "label" in image.volume_selection_options:
-            nii = extract_label_mask(nii, image.volume_selection_options["label"])
-        if "z" in image.volume_selection_options:
-            nii = nii.slicer[:, :, :, image.volume_selection_options["z"]]
+    if fetchkwargs["mapping"] is None:
+        return nii
+
+    mapping = fetchkwargs["mapping"]
+    if mapping is not None and len(mapping) == 1:
+        details = next(iter(mapping.values()))
+        if "subspace" in details:
+            s_ = tuple(
+                slice(None) if isinstance(s, str) else s for s in details["subspace"]
+            )
+            nii = nii.slicer[s_]
+        if "label" in details:
+            nii = extract_label_mask(nii, details["label"])
+        if "range" in details:
+            nii = extract_float_range(nii, details["range"])
 
     return nii

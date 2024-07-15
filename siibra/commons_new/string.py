@@ -119,7 +119,14 @@ def check_color(color: str) -> bool:
         return True
     return False
 
+
 def to_hex(color: List[int]) -> str:
     assert len(color) == 3, f"expected 3 component to color, but got {len(color)=!r}"
-    assert all((isinstance(c, int) and c <= 255 and c >= 0 for c in color)), f"expected {color=!r} to be all 8uint, but is not"
+    assert all(
+        (isinstance(c, int) and c <= 255 and c >= 0 for c in color)
+    ), f"expected {color=!r} to be all 8uint, but is not"
     return "#" + "".join([hex(c)[2:].rjust(2, "0") for c in color])
+
+
+def convert_hexcolor_to_rgbtuple(clr: str):
+    return tuple(int(clr[p : p + 2], 16) for p in [1, 3, 5])

@@ -147,16 +147,10 @@ def build_map(dict_obj):
     else:
         MapType = parcellationmap.Map
 
-    region_attributes = {}
-    for regionname, attrs in dict_obj.pop("region_attributes", {}).items():
-        region_attributes[regionname] = AttributeCollection(
-            attributes=parse_attributes(attrs)
-        )
-
     attribute_objs = dict_obj.pop("attributes", [])
     attributes = parse_attributes(attribute_objs)
 
-    return MapType(attributes=attributes, _region_attributes=region_attributes, **dict_obj)
+    return MapType(attributes=attributes, **dict_obj)
 
 
 def build_object(dict_obj: Dict):

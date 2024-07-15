@@ -14,6 +14,8 @@ class Attribute:
     """Base clase for attributes."""
 
     schema: str = field(default="siibra/attr", init=False, repr=False)
+    id: str = field(default=None, repr=False)
+    annotates: str = field(default=None, repr=False)
 
     # TODO performance implications? may have to set hash=False
     extra: dict[str, Any] = field(default_factory=dict, repr=False, hash=False)

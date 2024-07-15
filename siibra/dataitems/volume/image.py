@@ -24,7 +24,6 @@ class Image(Volume):
     schema: str = "siibra/attr/data/image/v0.1"
 
     def __post_init__(self):
-        super().__post_init__()
         assert self.format in IMAGE_FORMATS, print(f"{self.format=}")
 
     @property
@@ -44,6 +43,7 @@ class Image(Volume):
             resolution_mm=resolution_mm,
             color_channel=color_channel,
             max_download_GB=max_download_GB,
+            mapping=self.mapping
         )
         if color_channel is not None:
             assert self.format == "neuroglancer/precomputed"
@@ -61,7 +61,7 @@ def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "
     filename = None
     if isinstance(nifti, str):
         filename = nifti
-        assert Path(filename).is_file(), f"Provided str {nifti=!r} des not exist"
+        assert Path(filename).is_file(), f"Provided file {nifti=!r} does not exist"
     if isinstance(nifti, (nib.Nifti1Image, nib.Nifti2Image)):
         filename = CACHE.build_filename(md5(nifti.to_bytes()).hexdigest(), suffix=".nii")
         if not Path(filename).exists():

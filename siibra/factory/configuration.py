@@ -23,7 +23,7 @@ class Configuration:
     def __init__(self):
         if SIIBRA_USE_CONFIGURATION:
             logger.warning(
-                "config.SIIBRA_USE_CONFIGURATION defined, use configuration "
+                "config.SIIBRA_USE_CONFIGURATION defined, using configuration "
                 f"at {SIIBRA_USE_CONFIGURATION}"
             )
             self.default_repos = [

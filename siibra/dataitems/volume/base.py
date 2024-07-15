@@ -1,8 +1,15 @@
-from dataclasses import dataclass
-from typing import Dict, Literal, Union
+from dataclasses import dataclass, field
+from typing import Dict
 
 from ..base import Data
-from ...commons_new.string import check_color, SUPPORTED_COLORMAPS
+from ...retrieval_new.volume_fetcher import IMAGE_FORMATS, MESH_FORMATS, Mapping
+
+
+FORMAT_LOOKUP = {
+    None: IMAGE_FORMATS + MESH_FORMATS,
+    "mesh": MESH_FORMATS,
+    "image": IMAGE_FORMATS,
+}
 
 
 @dataclass
@@ -11,11 +18,5 @@ class Volume(Data):
     space_id: str = None
     format: str = None
     url: str = None
-    color: str = None
-    volume_selection_options: Dict[Literal["label", "z", "t"], Union[int, str]] = None
-
-    def __post_init__(self):
-        if self.color and not check_color(self.color):
-            print(
-                f"'{self.color}' is not a hex color or as supported colormap ({SUPPORTED_COLORMAPS=})"
-            )
+    mapping: Dict[str, Mapping] = field(default=None, repr=False)
+    colormap: str = field(default=None, repr=False)

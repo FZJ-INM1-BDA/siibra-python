@@ -23,7 +23,6 @@ class Mesh(Volume):
     schema: str = "siibra/attr/data/mesh/v0.1"
 
     def __post_init__(self):
-        super().__post_init__()
         assert self.format in MESH_FORMATS
 
     @property
@@ -38,20 +37,29 @@ class Mesh(Volume):
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
     ) -> GiftiImage:
-        fetch_kwargs = FetchKwargs(
+        fetchkwargs = FetchKwargs(
             bbox=bbox,
             resolution_mm=resolution_mm,
             color_channel=color_channel,
             max_download_GB=max_download_GB,
+            mapping=self.mapping
         )
         if color_channel is not None:
             assert self.format == "neuroglancer/precomputed"
 
         fetcher_fn = get_volume_fetcher(self.format)
-        gii = fetcher_fn(self, fetch_kwargs)
+        gii = fetcher_fn(self, fetchkwargs)
 
-        if self.volume_selection_options and "label" in self.volume_selection_options:
-            gii = extract_label_mask(gii, self.volume_selection_options["label"])
+        mapping = fetchkwargs["mapping"]
+        if mapping is not None and len(mapping) == 1:
+            details = next(iter(mapping.values()))
+            if "subspace" in details:
+                s_ = tuple(
+                    slice(None) if isinstance(s, str) else s for s in details["subspace"]
+                )
+                gii = gii.slicer[s_]
+            if "label" in details:
+                gii = extract_label_mask(gii, details["label"])
 
         return gii
 

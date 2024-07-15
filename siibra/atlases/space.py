@@ -4,11 +4,10 @@ from ..retrieval_new.volume_fetcher import (
     FetchKwargs,
     IMAGE_FORMATS,
     MESH_FORMATS,
-    VARIANT_KEY,
-    FRAGMENT_KEY,
 )
 from ..commons_new.iterable import assert_ooo
 from ..commons_new.maps import merge_volumes
+from ..dataitems import FORMAT_LOOKUP
 
 if TYPE_CHECKING:
     from ..dataitems import Image, Mesh
@@ -22,12 +21,15 @@ class Space(AtlasElement):
         return {vol.format for vol in self.volumes}
 
     @property
-    def variants(self):
-        return {vol.extra.get(VARIANT_KEY) for vol in self.volumes} - {None}
-
-    @property
-    def fragments(self):
-        return {vol.extra.get(FRAGMENT_KEY) for vol in self.volumes} - {None}
+    def variants(self) -> List[str]:
+        return list(
+            dict.fromkeys(
+                key
+                for vol in self.volumes
+                for key in vol.mapping.keys()
+                if vol.mapping is not None
+            )
+        )
 
     @property
     def volumes(self):
@@ -44,56 +46,57 @@ class Space(AtlasElement):
         return any(f in self.formats for f in IMAGE_FORMATS)
 
     def _find_templates(
-        self, frmt: str = None, variant: str = "", fragment: str = ""
+        self, variant: str = None, frmt: str = None
     ) -> List[Union["Image", "Mesh"]]:
-        if frmt not in self.formats:  # TODO: this is repeated piece of code. see parcmap
-            frmt_lookup = {
-                None: IMAGE_FORMATS + MESH_FORMATS,
-                "mesh": MESH_FORMATS,
-                "image": IMAGE_FORMATS,
-            }
-            try:
-                frmt = [f for f in frmt_lookup[frmt] if f in self.formats][0]
-            except KeyError:
-                raise RuntimeError(
-                    f"Requested format '{frmt}' is not available for this map: {self.formats=}."
-                )
+        if frmt is None:
+            frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
+        else:
+            assert frmt not in self.formats, RuntimeError(
+                f"Requested format '{frmt}' is not available for this map: {self.formats=}."
+            )
 
-        if variant and not self.variants:
-            raise ValueError("This space has no variants.")
-        if fragment and not self.fragments:
-            raise ValueError("This space is not fragmented.")
+        if variant is not None:
+            if self.variants:
+                assert (
+                    variant in self.variants
+                ), f"{variant=!r} is not a valid variant for this space. Variants: {self.variants}"
+            else:
+                raise ValueError("This space has no variants.")
 
         def filter_templates(vol: Union["Image", "Mesh"]):
-            return (
-                vol.format == frmt
-                and (variant.lower() in vol.extra.get(VARIANT_KEY, "").lower())
-                and (fragment.lower() in vol.extra.get(FRAGMENT_KEY, "").lower())
+            if vol.mapping is None:
+                return vol.format == frmt
+            return vol.format == frmt and (
+                (variant is None) or (variant in vol.mapping.keys())
             )
 
         return list(filter(filter_templates, self.volumes))
 
     def fetch_template(
         self,
+        variant: str = None,
         frmt: str = None,
-        variant: str = "",
-        fragment: str = "",
         **fetch_kwargs: FetchKwargs,
     ):
-        templates = self._find_templates(frmt=frmt, variant=variant, fragment=fragment)
+        if len(self.variants) > 1 and variant is None:
+            _variant = self.variants[0]
+            print(f"No variant was provided. Selecting the first of {self.variants=!r}")
+        else:
+            _variant = variant
+
+        templates = self._find_templates(frmt=frmt, variant=_variant)
         if len(templates) == 0:
-            raise ValueError("Could not get a template with provided parameters.")
+            raise ValueError(
+                f"Could not get a template with provided parameters: ({variant=}, {frmt=})"
+            )
         try:
             template = assert_ooo(templates)
             return template.fetch(**fetch_kwargs)
         except AssertionError:
             pass
-        # check if fragmented
-        assert (
-            len({tmp.extra.get(VARIANT_KEY, "") for tmp in templates}) == 1
-        ), f"Found several variants matching {variant=}. Available variants: {self.variants}"
-        assert (
-            len({tmp.extra.get(FRAGMENT_KEY, "") for tmp in templates}) > 1
-            and self.fragments
-        ), "Found templates are not fragments of each other, cannot merge."
+
+        # check if only one variant has been selected and merge
+        variants = dict.fromkeys(key for tmp in templates for key in tmp.mapping.keys())
+        assert len(variants) == 1, f"Found several variants matching {_variant!r}. Please select a variant: {self.variants}"
+        print("Found several volumes. Merging...")
         return merge_volumes([tmp.fetch(**fetch_kwargs) for tmp in templates])
