@@ -1,8 +1,8 @@
-from dataclasses import dataclass, field
-from typing import Union, Tuple
+from dataclasses import dataclass, field, replace
+from typing import Union, Tuple, List
 import pandas as pd
 
-from .assignment import find, match as collection_match, qualify as collection_qualify
+from .assignment import find, qualify as collection_qualify
 from .qualification import Qualification
 from ..atlases import Region
 from ..commons import logger
@@ -58,15 +58,21 @@ class QueryCursor:
         if isinstance(self.direct_query_param, Region):
             from ..dataitems import Image
 
+            # TODO 5632ae5fee97ee65871ba84a3a8f78e5a132cfc4 broke 
+            # find_regional_maps(), reenable once it is fixed
+            return QueryParam()
             all_maps = self.direct_query_param.find_regional_maps()
             return QueryParam(
                 attributes=(attr
                             for map in all_maps
-                            for mapped_image_collection in map._region_attributes.values()
-                            for attr in mapped_image_collection._finditer(Image))
+                            for attr in map._find(Image))
             )
 
         return QueryParam()
+    
+    @property
+    def filter_query_param(self):
+        return QueryParam(and_flag=True, or_flag=False, attributes=self.filters)
 
     @property
     def query_param(self):
@@ -87,11 +93,12 @@ class QueryCursor:
         return [
             feat
             for feat in find(self.first_pass_param, Feature)
-            if collection_match(self.query_param, feat)
+            if self.query_param.match(feat)
+            and self.filter_query_param.match(feat)
         ]
 
     def exec_explain(self, fully=False):
-        for feat in find(self.first_pass_param, Feature):
+        for feat in self.exec():
             try:
                 qualificationiter = collection_qualify(self.query_param, feat)
 
@@ -124,11 +131,23 @@ class QueryCursor:
         return len(self.exec())
 
     @property
-    def aggregate_by(self):
+    def facets(self):
         return pd.DataFrame(
             [
                 {"key": attr.key, "value": attr.value}
                 for f in self.exec()
-                for attr in f.aggregate_by
+                for attr in f.facets
             ]
         )
+    
+    def filter(self, attributes: List[Attribute]):
+        return replace(self, filters=self.filters + tuple(attributes))
+    
+    def filter_by_facets(self, **kwargs):
+        from ..descriptions import Facet
+
+        facets = [
+            Facet(key=key, value=value) for key, value in kwargs.items()
+        ]
+        return self.filter(facets)
+

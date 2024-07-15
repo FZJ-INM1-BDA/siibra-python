@@ -15,6 +15,8 @@ P = ParamSpec("P")
 
 class RegisterRecall(Generic[P]):
     def __init__(self, cache=True) -> None:
+
+        self.on_new_registration: Callable[[Type], None] = None
         self._registry: Dict[Type, List[Callable[P, List[T]]]] = defaultdict(list)
 
         self._registered_count: Dict[Type, int] = {}
@@ -37,6 +39,9 @@ class RegisterRecall(Generic[P]):
 
             self._registry[_type].append(inner)
             return inner
+        
+        if self.on_new_registration:
+            self.on_new_registration(_type)
 
         return outer
 

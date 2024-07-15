@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from itertools import product
 
 from .attribute_collection import AttributeCollection
-
+from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 
 @dataclass
 class QueryParam(AttributeCollection):
@@ -10,45 +10,34 @@ class QueryParam(AttributeCollection):
     and_flag: bool = False
     or_flag: bool = True
 
-    def qualify(self, ac: AttributeCollection):
-        from ..assignment.attribute_qualification import simple_qualify
-
-        if self.and_flag:
-            return list(
-                simple_qualify(attra, attrb)
-                for attra, attrb in product(self.attributes, ac.attributes)
-            )
-        if self.or_flag:
-            _iter = (
-                simple_qualify(attra, attrb)
-                for attra, attrb in product(self.attributes, ac.attributes)
-                if simple_qualify(attra, attrb)
-            )
-            try:
-                value = next(_iter)
-                if value:
-                    return [value]
-            except StopIteration:
-                return []
-        raise RuntimeError("either and_flag or or_flag needs to be set. Both are unset")
-
     def match(self, ac: AttributeCollection) -> bool:
-        from ..assignment.attribute_qualification import simple_qualify
+        from ..assignment.attribute_qualification import is_qualifiable, qualify
 
+        self_attrs = [attr for attr in self.attributes if is_qualifiable(type(attr))]
+        other_attrs = [attr for attr in ac.attributes if is_qualifiable(type(attr))]
+        
         if self.and_flag:
-            return all(
-                (
-                    simple_qualify(attra, attrb) is not None
-                    for attra, attrb in product(self.attributes, ac.attributes)
-                )
-            )
+            for attra, attrb in product(self_attrs, other_attrs):
+                try:
+                    if qualify(attra, attrb) is None:
+                        return False
+                except UnregisteredAttrCompException:
+                    continue
+                except InvalidAttrCompException:
+                    return False
+            return True
+
         if self.or_flag:
-            return any(
-                (
-                    simple_qualify(attra, attrb) is not None
-                    for attra, attrb in product(self.attributes, ac.attributes)
-                )
-            )
+            for attra, attrb in product(self_attrs, other_attrs):
+                try:
+                    if qualify(attra, attrb):
+                        return True
+                except UnregisteredAttrCompException:
+                    continue
+                except InvalidAttrCompException:
+                    continue
+            return False
+
         raise RuntimeError("either and_flag or or_flag needs to be set. Both are unset")
 
     def split_attrs(self):

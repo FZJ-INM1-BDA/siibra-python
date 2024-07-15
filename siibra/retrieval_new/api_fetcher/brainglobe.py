@@ -187,7 +187,25 @@ def use(atlas_name: str):
     def bg_space():
         return [space]
 
-    labelled_map_image = Image(format="nii", url=annot_img_filename, space_id=space_id)
+    _region_attributes={
+        structure["name"]: {
+            "label": structure["id"]
+        }
+        # AttributeCollection(
+        #     attributes=(
+        #         replace(
+        #             labelled_map_image,
+        #             color=to_hex(structure["rgb_triplet"]),
+        #             volume_selection_options={"label": structure["id"]},
+        #         ),
+        #     )
+        # )
+        for structure in structures
+    }
+    labelled_map_image = Image(format="nii",
+                               url=annot_img_filename,
+                               space_id=space_id,
+                               mapping=_region_attributes)
 
     labelled_map = Map(
         parcellation_id=parcellation_id,
@@ -199,18 +217,6 @@ def use(atlas_name: str):
             labelled_map_image,
             speciesspec,
         ),
-        _region_attributes={
-            structure["name"]: AttributeCollection(
-                attributes=(
-                    replace(
-                        labelled_map_image,
-                        color=to_hex(structure["rgb_triplet"]),
-                        volume_selection_options={"label": structure["id"]},
-                    ),
-                )
-            )
-            for structure in structures
-        },
     )
 
     @attribute_collection_iterator.register(Map)

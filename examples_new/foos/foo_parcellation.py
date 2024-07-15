@@ -1,8 +1,8 @@
 import siibra
-from siibra.assignment import iter_attr_col
+from siibra.factory.iterator import iter_collection
 from siibra.atlases import Parcellation
 
-for parc in iter_attr_col(Parcellation):
+for parc in iter_collection(Parcellation):
     print(parc, parc.name)
     for pub in parc.publications:
         print(f"[{pub.text}]({pub.value})")

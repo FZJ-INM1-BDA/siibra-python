@@ -30,14 +30,11 @@ class Configuration:
                 LocalDirectoryRepository.from_url(SIIBRA_USE_CONFIGURATION)
             ]
         else:
-            self.default_repos = [
-                GithubRepository(
-                    "FZJ-INM1-BDA",
-                    "siibra-configurations",
-                    reftag="refactor_attr",
-                    eager=True,
-                )
-            ]
+            repo = GithubRepository("FZJ-INM1-BDA",
+                                    "siibra-configurations",
+                                    reftag="refactor_attr",
+                                    eager=True,)
+            self.default_repos = [repo]
 
     def iter_jsons(self, prefix: str):
         repo = self.default_repos[0]
@@ -152,7 +149,7 @@ def iter_preconf_parcellationmaps(filter_param: QueryParam):
             ]
             if any(
                 (
-                    found_region.name in mp._region_attributes
+                    found_region.name in mp.regions
                     for found_region in found_regions
                 )
             ):

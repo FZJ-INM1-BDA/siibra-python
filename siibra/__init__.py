@@ -25,8 +25,9 @@ from .commons import (
 )
 
 from .exceptions import NotFoundException
+from .commons_new.string import create_key
 from .commons_new.iterable import assert_ooo
-from .commons_new.instance_table import JitInstanceTable
+from .commons_new.instance_table import InstanceTable
 from .commons_new.tree import collapse_nodes
 
 from .cache import Warmup, WarmupLevel, CACHE as cache
@@ -55,10 +56,10 @@ logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
-spaces = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_collection(Space)})
-parcellations = JitInstanceTable(getitem=lambda: {parc.name: parc for parc in iter_collection(Parcellation)})
-maps = JitInstanceTable(getitem=lambda: {map.name: map for map in iter_collection(parcellationmap.Map)})
 
+spaces = InstanceTable(elements={create_key(spc.name): spc for spc in iter_collection(Space)})
+parcellations = InstanceTable(elements={create_key(spc.name): spc for spc in iter_collection(Parcellation)})
+maps = InstanceTable(elements={create_key(spc.name): spc for spc in iter_collection(parcellationmap.Map)})
 
 def get_space(space_spec: str):
     """Convenient access to reference space templates."""
@@ -130,16 +131,23 @@ def find_features(
     modality: Union[Modality, str],
     **kwargs,
 ):
+    cursor = get_query_cursor(concept, modality, **kwargs)
+    return list(cursor.exec())
+
+def get_query_cursor(
+    concept: Union[AtlasElement, DataClsLocation],
+    modality: Union[Modality, str],
+    **kwargs,
+):
     additional_attributes = QueryParam()
     if "genes" in kwargs:
         assert isinstance(kwargs["genes"], list)
         additional_attributes = QueryParam(
             attributes=[Gene(value=gene) for gene in kwargs["genes"]]
         )
-    cursor = QueryCursor(
+    return QueryCursor(
         concept=concept, modality=modality, additional_attributes=additional_attributes
     )
-    return list(cursor.exec_explain())
 
 
 # convenient access to regions of a parcellation

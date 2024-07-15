@@ -73,8 +73,8 @@ v1_profiles = siibra.find_features(
     siibra.get_region("julich 2.9", "v1"),
     siibra.modality_types.NEUROTRANSMITTER_RECEPTOR_DENSITY_PROFILE,
 )
-for p, *_ in v1_profiles:
-    print(p.aggregate_by)
+for p in v1_profiles:
+    print(p.facets)
 
 print(p.data)
 p.plot()

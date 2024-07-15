@@ -40,14 +40,14 @@ julich_brain = siibra.parcellations.get("julich 2.9")
 # :ref:`sphx_glr_examples_03_data_features_009_compound_features.py`.
 # Let us select "HCP" cohort.
 features = siibra.find_features(julich_brain, siibra.modality_types.STREAMLINECOUNTS)
-for f, *_ in features:
+for f in features:
     print(f)
-    print(f.aggregate_by[:5])
+    print(f.facets[:5])
 
 # %%
 # We can select a specific element by integer index
-f, *_ = features[0]
-filtered_f = f.filter_aggregate(subject="0114_1")
+f = features[0]
+filtered_f = f.filter_by_facets(subject="0114_1")
 print(filtered_f.data)
 print(filtered_f.aggregate_by)  # Subjects are encoded via anonymized ids
 
@@ -108,16 +108,16 @@ plotting.view_connectome(
 # You can also access to F-Tract atlases using `siibra`. Unlike the most
 # connectivity matrices in siibra, F-Tract matrices are subject-averaged but
 # distinguished by their "feature".
-ftract, *_ = siibra.find_features(
+ftract = siibra.find_features(
     siibra.parcellations.get("julich 3.0"),
     siibra.modality_types.ANATOMOFUNCTIONALCONNECTIVITY
 )[0] 
 
 print(ftract.name)
-print("indexing attributes:", ftract.aggregate_by)
+print("indexing attributes:", ftract.facets)
 
 # %%
 # We can similarly draw the data as above. This time let us get the element by
 # its feature name
-f = ftract.filter_aggregate(feature="P_11: speed__euclidian__peak_delay__median")
+f = ftract.filter_by_facets(feature="P_11: speed__euclidian__peak_delay__median")
 f.plot()

@@ -10,8 +10,11 @@ class BinaryOp(Generic[T, V]):
         self._store_dict: Dict[
             Tuple[Type[T], Type[T]], Tuple[Callable[[T, T], V], bool]
         ] = {}
+        self._registered_types = set()
 
     def register(self, a: Type[T], b: Type[T]):
+        self._registered_types.add(a)
+        self._registered_types.add(b)
         def outer(fn: Callable[[T, T], V]):
             forward_key = a, b
             backward_key = b, a
@@ -31,3 +34,6 @@ class BinaryOp(Generic[T, V]):
         typeb = type(b)
         key = typea, typeb
         return self._store_dict.get(key)
+    
+    def is_registered(self, t: Type):
+        return t in self._registered_types

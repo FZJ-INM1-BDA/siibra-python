@@ -4,8 +4,8 @@ from .base import Description
 
 
 @dataclass
-class AggregateBy(Description):
-    schema = "siibra/attr/desc/aggregateby/v0.1"
+class Facet(Description):
+    schema = "siibra/attr/desc/facet/v0.1"
     key: str = None
     value: str = None
 

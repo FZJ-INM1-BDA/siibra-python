@@ -16,12 +16,12 @@ class Feature(AttributeCollection):
     schema: str = "siibra/concepts/feature/v0.2"
 
     @property
-    def aggregate_by(self):
-        from ..descriptions import AggregateBy
+    def facets(self):
+        from ..descriptions import Facet
 
         return [
-            *self._find(AggregateBy),
-            *[aggr for attr in self.attributes for aggr in attr.aggregate_by],
+            *self._find(Facet),
+            *[aggr for attr in self.attributes for aggr in attr.facets],
         ]
 
     @property
@@ -70,16 +70,16 @@ class Feature(AttributeCollection):
 
         return [d.plot(*args, **kwargs) for d in self._find(Tabular)]
 
-    def filter_aggregate(self, **kwargs):
-        from ..descriptions import AggregateBy
+    def filter_by_facets(self, **kwargs):
+        from ..descriptions import Facet
 
-        filter_aggregate = [
-            AggregateBy(key=key, value=value) for key, value in kwargs.items()
+        filter_facets = [
+            Facet(key=key, value=value) for key, value in kwargs.items()
         ]
 
         return self.filter(
             lambda a: (
                 attr_of_general_interest(a)
-                or any((aggr in a.aggregate_by for aggr in filter_aggregate))
+                or any((aggr in a.facets for aggr in filter_facets))
             )
         )

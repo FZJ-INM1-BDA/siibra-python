@@ -3,7 +3,7 @@ from itertools import product
 import siibra
 from siibra.concepts.attribute_collection import AttributeCollection
 from siibra.concepts.feature import Feature
-from siibra.assignment.assignment import find, match, finditer
+from siibra.assignment.assignment import find, match
 from siibra.descriptions import Modality, RegionSpec, Gene
 from siibra.concepts.query_parameter import QueryParam
 import siibra.descriptions
@@ -60,7 +60,7 @@ def feature_get(qp: QueryParam):
                 continue
         return True
 
-    for feat in finditer(qp, col_type):
+    for feat in find(qp, col_type):
         if _filter(qp, feat):
             yield feat
 

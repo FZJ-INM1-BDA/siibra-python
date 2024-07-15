@@ -6,7 +6,7 @@ SCHEMAS = {}
 
 
 def key_is_extra(key: str):
-    return key.startswith("x-") or key.startswith("aggregate-by/")
+    return key.startswith("x-") or key.startswith("facet/")
 
 
 @dataclass
@@ -51,12 +51,12 @@ class Attribute:
         return [return_attr]
 
     @property
-    def aggregate_by(self):
-        from ..descriptions import AggregateBy
+    def facets(self):
+        from ..descriptions import Facet
 
         # TODO use str.removeprefix when py3.9 is the lowest python version supported
         return [
-            AggregateBy(key=key.replace("aggregate-by/", ""), value=self.extra[key])
+            Facet(key=key.replace("facet/", ""), value=self.extra[key])
             for key in self.extra
-            if key.startswith("aggregate-by/")
+            if key.startswith("facet/")
         ]

@@ -3,7 +3,7 @@ from ..commons_new.binary_op import BinaryOp
 from ..commons_new.string import fuzzy_match
 from ..concepts import Attribute
 from ..exceptions import UnregisteredAttrCompException
-from ..descriptions import Modality, RegionSpec, Name, ID, Paradigm, Cohort, AggregateBy
+from ..descriptions import Modality, RegionSpec, Name, ID, Facet
 from ..locations import Pt, PointCloud, BBox, intersect, DataClsLocation
 
 
@@ -60,14 +60,11 @@ def compare_name(name1: Name, name2: Name):
     )
 
 
-@register_attr_comparison(AggregateBy, AggregateBy)
-def compare_aggregate_by(aggbya: AggregateBy, aggbyb: AggregateBy):
+@register_attr_comparison(Facet, Facet)
+def compare_facet(aggbya: Facet, aggbyb: Facet):
     return (aggbya.key == aggbyb.key
             and aggbya.value == aggbyb.value)
 
-
-@register_attr_comparison(Cohort, Cohort)
-@register_attr_comparison(Paradigm, Paradigm)
 @register_attr_comparison(Modality, Modality)
 def compare_modality(mod1: Modality, mod2: Modality):
     return mod1.value.lower() == mod2.value.lower()

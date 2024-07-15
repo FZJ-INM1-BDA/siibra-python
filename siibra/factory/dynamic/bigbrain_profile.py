@@ -11,7 +11,7 @@ from ...locations.layerboundary import (
     LAYERS,
 )
 from ...locations import intersect, PointCloud, Pt, Polyline
-from ...exceptions import UnregisteredAttrCompException
+from ...exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 from ...retrieval_new.api_fetcher.bigbrain_profile import get_all
 
 modality_of_interest = Modality(value="Modified silver staining")
@@ -46,6 +46,8 @@ def query_bigbrain_profile(input: QueryParam):
         try:
             matched = intersect(attr, ptcld)
         except UnregisteredAttrCompException:
+            continue
+        except InvalidAttrCompException:
             continue
         if matched is None:
             continue

@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Type
 from itertools import product
 
 from .qualification import Qualification
@@ -8,7 +8,7 @@ from ..commons_new.binary_op import BinaryOp
 from ..commons_new.string import fuzzy_match, clear_name
 from ..concepts import Attribute, QueryParam
 from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
-from ..descriptions import Modality, RegionSpec, Name, ID, Paradigm, Cohort, AggregateBy
+from ..descriptions import Modality, RegionSpec, Name, ID, Facet
 from ..locations import Pt, PointCloud, BBox, intersect
 from ..cache import fn_call_cache
 
@@ -17,14 +17,8 @@ _attr_qual: BinaryOp[Attribute, Union[Qualification, None]] = BinaryOp()
 
 register_attr_qualifier = _attr_qual.register
 
-
-def simple_qualify(attra: Attribute, attrb: Attribute):
-    try:
-        return qualify(attra, attrb)
-    except UnregisteredAttrCompException:
-        return None
-    except InvalidAttrCompException:
-        return None
+def is_qualifiable(t: Type):
+    return _attr_qual.is_registered(t)
 
 
 def qualify(attra: Attribute, attrb: Attribute):
@@ -83,14 +77,11 @@ def qualify_name(name1: Name, name2: Name):
         return Qualification.APPROXIMATE
 
 
-@register_attr_qualifier(AggregateBy, AggregateBy)
-def qualify_aggregate_by(aggbya: AggregateBy, aggbyb: AggregateBy):
+@register_attr_qualifier(Facet, Facet)
+def qualify_aggregate_by(aggbya: Facet, aggbyb: Facet):
     if aggbya.key == aggbyb.key and aggbya.value == aggbyb.value:
         return Qualification.EXACT
 
-
-@register_attr_qualifier(Cohort, Cohort)
-@register_attr_qualifier(Paradigm, Paradigm)
 @register_attr_qualifier(Modality, Modality)
 def qualify_modality(mod1: Modality, mod2: Modality):
     if mod1.value == mod2.value:
