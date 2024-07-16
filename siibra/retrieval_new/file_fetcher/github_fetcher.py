@@ -37,6 +37,7 @@ class GithubRepository(GitHttpRepository):
     def search_files(self, prefix: str = None) -> Iterable[str]:
         if self.is_warm:
             yield from self.tar_repo.search_files(prefix)
+            return
         resp = self.sess.get(
             f"{self.github_api_url}/git/trees/{self.reftag}?recursive=1"
         )

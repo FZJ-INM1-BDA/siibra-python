@@ -5,7 +5,9 @@ import numpy as np
 
 from ...cache import fn_call_cache
 from ...commons_new.logger import logger
-from ...concepts import Feature, QueryParam
+from ...concepts import Feature
+from ...concepts.query_parameter import QueryParamCollection
+from ...concepts import Feature
 from ...retrieval_new.api_fetcher.allen import _AllenGeneQuery
 from ...descriptions import register_modalities, Modality, Gene
 from ...assignment import filter_by_query_param
@@ -75,18 +77,20 @@ def add_allen_modality():
 
 
 @filter_by_query_param.register(Feature)
-def query_allen_gene_api(input: QueryParam):
-    if modality_of_interest not in input._find(Modality):
+def query_allen_gene_api(input: QueryParamCollection):
+    all_mods = [mod for cri in input.criteria for mod in cri._find(Modality)]
+    
+    if modality_of_interest not in all_mods:
         return
 
-    genes = input._find(Gene)
+    genes = [gene for cri in input.criteria for gene in cri._find(Gene)]
     if len(genes) == 0:
         logger.error(
             f"{modality_of_interest.value} was queried, but no gene was provided. Returning empty array."
         )
         return
 
-    images = input._find(Image)
+    images = [image for cri in input.criteria for image in cri._find(Image)]
     if len(images) == 0:
         logger.error(
             f"{modality_of_interest.value} was queried, but input contains no image. Returning empty array."

@@ -39,7 +39,7 @@ from .atlases.region import filter_newest
 from .descriptions import Modality, RegionSpec, Gene
 from .descriptions.modality import vocab as modality_types
 from .locations import DataClsLocation
-from .concepts import AtlasElement, QueryParam, Feature
+from .concepts import AtlasElement, QueryParam, QueryParamCollection, Attribute, AttributeCollection
 from .assignment import (
     string_search,
     find,
@@ -150,6 +150,21 @@ def get_query_cursor(
     return QueryCursor(
         concept=concept, modality=modality, additional_attributes=additional_attributes
     )
+
+def get_query_collection(
+    concept: Union[AtlasElement, Attribute],
+    modality: Union[Modality, str],
+    **kwargs,
+):
+    additional_attributes = []
+    if "genes" in kwargs:
+        assert isinstance(kwargs["genes"], list)
+        additional_attributes.append(AttributeCollection(
+            attributes=[Gene(value=gene) for gene in kwargs["genes"]]
+        ))
+
+    return QueryParamCollection.from_concept_modality(concept, modality,
+                                                      additional_attribute_collections=additional_attributes)
 
 
 # convenient access to regions of a parcellation
