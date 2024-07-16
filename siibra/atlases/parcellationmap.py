@@ -23,7 +23,7 @@ VALID_MAPTYPES = ("statistical", "labelled")
 
 @dataclass(repr=False, eq=False)
 class Map(AtlasElement):
-    schema: str = "siibra/atlases/parcellation_map/v0.1"
+    schema: str = "siibra/atlases/parcellationmap/v0.1"
     parcellation_id: str = None
     space_id: str = None
     maptype: Literal["labelled", "statistical"] = None
