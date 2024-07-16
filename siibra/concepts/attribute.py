@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Any
+from typing import List, Any, Dict
 from ..commons import logger
 
 SCHEMAS = {}
@@ -18,7 +18,7 @@ class Attribute:
     annotates: str = field(default=None, repr=False)
 
     # TODO performance implications? may have to set hash=False
-    extra: dict[str, Any] = field(default_factory=dict, repr=False, hash=False)
+    extra: Dict[str, Any] = field(default_factory=dict, repr=False, hash=False)
 
     # derived classes set their schema as class parameter
     def __init_subclass__(cls):
@@ -29,7 +29,7 @@ class Attribute:
         SCHEMAS[cls.schema] = cls
 
     @staticmethod
-    def from_dict(json_dict: dict[str, Any]) -> List["Attribute"]:
+    def from_dict(json_dict: Dict[str, Any]) -> List["Attribute"]:
         """Generating a list of attributes from a dictionary.
         TODO consider moving this to siibra.factory.factory and have a single build_object call
         """

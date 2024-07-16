@@ -314,37 +314,6 @@ def create_key(name: str):
     )
 
 
-class KeyAccessor:
-    def __init__(self, names: list[str] = None) -> None:
-        self.key_map: dict[str, str] = {}
-        self.reverse_map: dict[str, str] = {}
-        for name in names or []:
-            self.register(name)
-
-    def register(self, name: str):
-
-        key = create_key(name)
-        if key in self.key_map:
-            raise KeyError(f"{key} already in map")
-
-        self.key_map[key] = name
-        self.reverse_map[name] = key
-
-    def deregister(self, name: str):
-        if name not in self.reverse_map:
-            raise KeyError(f"name {name} not registered")
-        key = self.reverse_map.pop(name)
-        self.key_map.pop(key)
-
-    def __dir__(self) -> Iterable[str]:
-        return self.key_map.keys()
-
-    def __getattr__(self, key: str):
-        if key not in self.key_map:
-            raise KeyError(f"key {key} not in map")
-        return self.key_map[key]
-
-
 class MapIndex:
     """
     Identifies a unique region in a ParcellationMap, combining its labelindex (the "color") and mapindex (the number of the 3Dd map, in case multiple are provided).

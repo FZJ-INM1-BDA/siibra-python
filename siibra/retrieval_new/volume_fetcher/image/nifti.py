@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Tuple, List
 import gzip
 
 from nibabel import Nifti1Image
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from ....locations import BBox
 
 
-def extract_labels(nii: Nifti1Image, labels: list[int]):
+def extract_labels(nii: Nifti1Image, labels: List[int]):
     orgarr = np.asanyarray(nii.dataobj)
     arr = np.sum([orgarr[np.where(orgarr == label)] for label in labels], keepdims=True)
     return Nifti1Image(arr, nii.affine)

@@ -29,7 +29,7 @@ VolumeData = Union[Nifti1Image, Dict]
 class VolumeProvider(ABC):
 
     srctype: str = None
-    _SUBCLASSES: dict[str, Type[VolumeProvider]] = {}
+    _SUBCLASSES: Dict[str, Type[VolumeProvider]] = {}
 
     def __init_subclass__(cls, srctype: str) -> None:
         assert srctype not in VolumeProvider._SUBCLASSES, f"{srctype} already registered."
