@@ -13,7 +13,7 @@ class TarRepository(ArchivalRepository):
 
     _warmed_up = False
 
-    def __init__(self, path: str, *args, relative_path=None, gzip=False, **kwargs) -> None:
+    def __init__(self, path: str, *args, relative_path="", gzip=False, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.path = path

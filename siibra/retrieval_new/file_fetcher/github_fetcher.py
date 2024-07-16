@@ -1,5 +1,6 @@
 from typing import Iterable
 from urllib.parse import quote
+from pathlib import Path
 
 from .git_fetcher import GitHttpRepository
 from .tar_fetcher import TarRepository
@@ -18,7 +19,7 @@ class GithubRepository(GitHttpRepository):
         if eager:
             self.warmup()
             filename = next(self.tar_repo.ls())
-            self.tar_repo.relative_path = filename.split("/")[0]
+            self.tar_repo.relative_path = Path(filename).as_posix().split("/")[0]
 
     @property
     def github_api_url(self):
@@ -29,6 +30,9 @@ class GithubRepository(GitHttpRepository):
         return (
             f"https://raw.githubusercontent.com/{self.owner}/{self.repo}/{self.reftag}"
         )
+    
+    def ls(self):
+        yield from self.search_files()
 
     def search_files(self, prefix: str = None) -> Iterable[str]:
         if self.is_warm:

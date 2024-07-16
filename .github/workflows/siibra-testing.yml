@@ -2,7 +2,7 @@ name: '[test] unit test'
 
 on:
   push:
-    branches: [ 'main' ]
+    branches: [ 'main', 'refactor_attr' ]
   pull_request:
     branches: [ '*' ]
 
@@ -97,8 +97,11 @@ jobs:
     needs: 'use-custom-cfg'
     uses: ./.github/workflows/_e2e.yaml
     with:
-      os: ubuntu-latest
+      os: ${{ matrix.os }}
       python-version: '3.8'
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
 
 
