@@ -132,6 +132,8 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
     ):
         if via_space is not None:
             raise NotImplementedError
+        if threshold != 0.0:
+            raise NotImplementedError
         maps = self.find_regional_maps(space=space, maptype=maptype)
         try:
             selectedmap = assert_ooo(maps)
