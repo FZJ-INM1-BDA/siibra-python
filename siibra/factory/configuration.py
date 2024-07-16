@@ -12,8 +12,10 @@ from ..retrieval_new.file_fetcher import (
     GithubRepository,
     LocalDirectoryRepository,
 )
-from ..commons import SIIBRA_USE_CONFIGURATION, logger
+from ..commons_new.logger import logger
 from ..exceptions import UnregisteredAttrCompException
+
+from ..commons import SIIBRA_USE_CONFIGURATION
 
 
 class Configuration:
