@@ -140,7 +140,7 @@ class Map(AtlasElement):
         ]
         return replace(self, attributes=attributes)
 
-    def _find_volumes(
+    def find_volumes(
         self, regionname: str = None, frmt: str = None
     ) -> List[Union["Image", "Mesh"]]:
         def filter_fn(vol: Union["Image", "Mesh"]):
@@ -212,7 +212,7 @@ class Map(AtlasElement):
         else:
             regionspec = region
 
-        volumes = self._find_volumes(regionname=regionspec, frmt=frmt)
+        volumes = self.find_volumes(regionname=regionspec, frmt=frmt)
         if len(volumes) == 0:
             raise RuntimeError("No images or meshes found matching parameters.")
 
