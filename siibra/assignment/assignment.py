@@ -1,14 +1,13 @@
-from typing import Type, Callable, Dict, Iterable, List, TypeVar
+from typing import Type, Callable, Dict, Iterable, List, TypeVar, Union
 from collections import defaultdict
 from itertools import product
 
-from .attribute_match import match as attribute_match
-from .attribute_qualification import qualify as attribute_qualify
+from .attribute_qualification import qualify as attribute_qualify, is_qualifiable
 
 from ..commons_new.register_recall import RegisterRecall
 from ..commons_new.logger import logger
 from ..concepts import AttributeCollection
-from ..concepts import QueryParam
+from ..concepts import QueryParamCollection
 from ..descriptions import ID, Name
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 
@@ -18,22 +17,24 @@ T = Callable[[AttributeCollection], Iterable[AttributeCollection]]
 
 collection_gen: Dict[Type[AttributeCollection], List[V]] = defaultdict(list)
 
-filter_by_query_param = RegisterRecall[List[QueryParam]](cache=False)
+filter_by_query_param = RegisterRecall[List[QueryParamCollection]](cache=False)
 
 
-def finditer(input: QueryParam, req_type: Type[V]):
+def finditer(input: QueryParamCollection, req_type: Type[V]):
     for fn in filter_by_query_param.iter_fn(req_type):
         yield from fn(input)
 
 
-def find(input: QueryParam, req_type: Type[V]) -> List[V]:
+def find(input: Union[AttributeCollection, QueryParamCollection], req_type: Type[V]) -> List[V]:
+    if isinstance(input, AttributeCollection):
+        input = QueryParamCollection(criteria=[input])
     return list(finditer(input, req_type))
 
 
 def string_search(input: str, req_type: Type[V]) -> List[V]:
     id_attr = ID(value=input)
     name_attr = Name(value=input)
-    query = QueryParam(attributes=[id_attr, name_attr])
+    query = AttributeCollection(attributes=[id_attr, name_attr])
     return find(query, req_type)
 
 
@@ -73,21 +74,12 @@ def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:
     - If any of the comparison called successfully (without raising), return False
     - If none of the comparison called successfully (without raising), raise UnregisteredAttrCompException
     """
-    attr_compared_flag = False
-    for attra, attrb in product(col_a.attributes, col_b.attributes):
-        try:
-            match_result = attribute_match(attra, attrb)
-            attr_compared_flag = True
-            if match_result:
-                return True
-        except UnregisteredAttrCompException:
-            continue
-        except InvalidAttrCompException as e:
-            logger.debug(f"match exception {e}")
-            return False
-    if attr_compared_flag:
+    try:
+        if next(qualify(col_a, col_b)):
+            return True
         return False
-    raise UnregisteredAttrCompException
+    except StopIteration:
+        return False
 
 
 def qualify(col_a: AttributeCollection, col_b: AttributeCollection):

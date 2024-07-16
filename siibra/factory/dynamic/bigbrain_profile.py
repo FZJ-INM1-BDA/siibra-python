@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from ...assignment import filter_by_query_param
-from ...concepts import Feature, QueryParam
+from ...concepts import Feature, QueryParamCollection
 from ...descriptions import Modality, register_modalities
 from ...dataitems.tabular import Tabular, X_DATA
 from ...locations.layerboundary import (
@@ -27,8 +27,9 @@ def add_modified_silver_staining():
 
 
 @filter_by_query_param.register(Feature)
-def query_bigbrain_profile(input: QueryParam):
-    if modality_of_interest not in input._find(Modality):
+def query_bigbrain_profile(input: QueryParamCollection):
+    mods = [mod for cri in input.criteria for mod in cri._find(Modality)]
+    if modality_of_interest not in mods:
         return []
     valid, boundary_depths, profile, vertices = get_all()
     ptcld = PointCloud(
@@ -41,7 +42,9 @@ def query_bigbrain_profile(input: QueryParam):
 
     attributes = []
 
-    for attr in input.attributes:
+    input_attrs = [attr for cri in input.criteria for attr in cri.attributes]
+
+    for attr in input_attrs:
 
         try:
             matched = intersect(attr, ptcld)

@@ -6,8 +6,8 @@ from .factory import build_feature, build_space, build_parcellation, build_map
 from .iterator import attribute_collection_iterator
 from ..atlases import Space, Parcellation, Region, parcellationmap
 from ..descriptions import register_modalities, Modality, RegionSpec
-from ..concepts import QueryParam, Feature
-from ..assignment.assignment import filter_by_query_param, match
+from ..concepts import QueryParamCollection, Feature
+from ..assignment.assignment import filter_by_query_param
 from ..retrieval_new.file_fetcher import (
     GithubRepository,
     LocalDirectoryRepository,
@@ -120,64 +120,65 @@ def _iter_preconf_maps():
 
 
 @filter_by_query_param.register(Space)
-def register_space(filter_param: QueryParam):
+def register_space(input: QueryParamCollection):
     from .iterator import iter_collection
 
     for item in iter_collection(Space):
-        if filter_param.match(item):
+        if input.match(item):
             yield item
 
 
 @filter_by_query_param.register(Parcellation)
-def register_parcellation(filter_param: QueryParam):
+def register_parcellation(input: QueryParamCollection):
     from .iterator import iter_collection
 
     for item in iter_collection(Parcellation):
-        if filter_param.match(item):
+        if input.match(item):
             yield item
 
 
 @filter_by_query_param.register(parcellationmap.Map)
-def iter_preconf_parcellationmaps(filter_param: QueryParam):
+def iter_preconf_parcellationmaps(input: QueryParamCollection):
     from ..descriptions import RegionSpec
 
+    all_region_specs = [rspec for cri in input.criteria for rspec in cri._find(RegionSpec)]
+    input_region_names = [
+        region.name
+        for regspec in all_region_specs
+        for region in regspec.decode()
+    ]
     for mp in _iter_preconf_maps():
 
         try:
-            found_regions = [
-                region
-                for regspec in filter_param._find(RegionSpec)
-                for region in regspec.decode()
-            ]
             if any(
                 (
-                    found_region.name in mp.regions
-                    for found_region in found_regions
+                    input_region_name in mp.regions
+                    for input_region_name in input_region_names
                 )
             ):
                 yield mp
 
-            if match(filter_param, mp):
+            if input.match(mp):
                 yield mp
         except UnregisteredAttrCompException:
             continue
 
 
 @filter_by_query_param.register(Feature)
-def iter_preconf_features(filter_param: QueryParam):
+def iter_preconf_features(input: QueryParamCollection):
     for feature in _iter_preconf_features():
         try:
-            if match(filter_param, feature):
+            if input.match(feature):
                 yield feature
         except UnregisteredAttrCompException:
             continue
 
 
 @filter_by_query_param.register(Region)
-def iter_region(filter_param: QueryParam):
+def iter_region(input: QueryParamCollection):
     from .iterator import iter_collection
 
-    regspecs = filter_param._find(RegionSpec)
+    regspecs = [regspec for cri in input.criteria for regspec in cri._find(RegionSpec)]
     if len(regspecs) != 1:
         logger.debug(f"Expected one and only one regionspec, but got {len(regspecs)}")
         return
@@ -193,8 +194,9 @@ def iter_region(filter_param: QueryParam):
 
 
 @filter_by_query_param.register(Feature)
-def iter_cell_body_density(filter_param: QueryParam):
-    if Modality(value="Cell body density") not in filter_param.attributes:
+def iter_cell_body_density(input: QueryParamCollection):
+    mods = [mod for cri in input.criteria for mod in cri._find(Modality)]
+    if Modality(value="Cell body density") not in mods:
         return
 
     from ..concepts import QueryParam
