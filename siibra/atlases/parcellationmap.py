@@ -177,7 +177,7 @@ class Map(AtlasElement):
         color_channel: int = None,
         allow_relabeling: bool = False,
     ):
-        if frmt is None:
+        if frmt is None or frmt not in self.formats:
             frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
         else:
             assert frmt not in self.formats, RuntimeError(
@@ -234,7 +234,7 @@ class Map(AtlasElement):
     def get_colormap(self, regions: List[str] = None, frmt=None) -> List[str]:
         from matplotlib.colors import ListedColormap
 
-        if frmt is None:
+        if frmt is None or frmt not in self.formats:
             frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
         else:
             assert frmt not in self.formats, RuntimeError(
