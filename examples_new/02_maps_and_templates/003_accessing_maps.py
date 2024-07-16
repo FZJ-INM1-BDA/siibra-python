@@ -44,7 +44,7 @@ siibra.find_maps(space="MNI Colin 27")
 # We select the maximum probability map of Julich-Brain in MNI152 space,
 # which is a parcellation map with discrete labels.
 # `get_map` assumes maptype='labelled' by default.
-julich_mpm = siibra.get_map(space="icbm 2009c", parcellation="julich 3.0.3", maptype="labelled")
+julich_mpm = siibra.get_map(space="icbm 2009c", parcellation="julich 3.1", maptype="labelled")
 print(julich_mpm)
 
 # %%

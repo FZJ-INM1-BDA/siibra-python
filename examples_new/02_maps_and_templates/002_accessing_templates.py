@@ -49,17 +49,15 @@ from nilearn import plotting
 # and then request the template `siibra` linked to it.
 # As expected, the template is an object of type `Volume`.
 icbm = siibra.spaces.get('icbm 2009c nonl asym')
-icbm_tpl = icbm.get_template()
-icbm_tpl
+icbm_tpls = icbm.find_templates()
+icbm_tpls
 
 # %%
-# We can now fetch data from the template.
-# By default (and if available), this gives us a 3D image
-# in the form of a Nifti1Image object
-# as defined and supported by the commonly used
-# `nibabel <https://nipy.org/nibabel/index.html>`_
-# library.
-icbm_img = icbm_tpl.fetch()
+# We can fetch the volume data from the templates or fetch directly from the
+# space. By default (and if available), this gives us a 3D image in the form of
+# a Nifti1Image object as defined and supported by the commonly used
+# `nibabel <https://nipy.org/nibabel/index.html>`_ library.
+icbm_img = icbm.fetch_template()
 print(type(icbm_img))
 
 # %%
@@ -75,24 +73,24 @@ icbm.formats
 # %%
 # Although the particular source format is usually not of interest to us,
 # we want to distinguish image and mesh representations of course.
-# We can use the `format` parameter of `fetch()` to specify "mesh" or "image",
+# We can use the `frmt` parameter of `fetch()` to specify "mesh" or "image",
 # or to fetch from a concrete resource format.
 # Meshes are provided as a dictionary with an Nx3 array of N vertices,
 # and an Mx3 array of M triangles defined from the vertices.
 # we can pre-check wether a volume provides image or mesh data
 # explicitly using `provides_mesh` and `provides_image`
 assert icbm.provides_mesh
-icbm_mesh = icbm.fetch(format='mesh')
+icbm_mesh = icbm.fetch_template(frmt='mesh')
 print(type(icbm_mesh))
 
 # %%
 # We can likewise visualize the mesh using
 # plotting functions of `nilearn <https://nilearn.github.io>`_
 plotting.view_surf(
-    surf_mesh=[icbm_mesh['verts'], icbm_mesh['faces']], colorbar=False
+    surf_mesh=[darr.data for darr in icbm_mesh.darrays], colorbar=False
 )
 
 # %%
 # For convenience, templates may also be requested from an atlas,
 # or right away from the siibra package.
-siibra.get_template("icbm 152 asym")
+siibra.fetch_template("icbm 152 asym")

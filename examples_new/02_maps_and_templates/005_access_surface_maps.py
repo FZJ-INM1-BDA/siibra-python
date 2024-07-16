@@ -67,8 +67,8 @@ julich_brain_cmap = mp.get_colormap()
 
 # Now we can plot the mesh
 plotting.view_surf(
-    surf_mesh=[mesh['verts'], mesh['faces']],
-    surf_map=mesh['labels'],
+    surf_mesh=[arr.data for arr in mesh.darrays[:2]],
+    surf_map=mesh.darrays[-1].data,
     cmap=julich_brain_cmap, symmetric_cmap=False, colorbar=False
 )
 # %%

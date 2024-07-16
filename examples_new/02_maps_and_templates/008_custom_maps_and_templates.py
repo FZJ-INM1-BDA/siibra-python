@@ -34,10 +34,8 @@ brainglobe.ls()
 # %%
 # Specify that we will import the atlas with the name `allen_human_500um_v0.1`
 # the `use` method returns the space, parcellation and parcellationmap
-# 
 space, parcellation, parcellationmap = brainglobe.use("allen_human_500um_v0.1")
 
 # %%
 # The `use` method also registers it to siibra, so we can find it using siibra methods
 assert siibra.get_parcellation("allen human") is parcellation
-
