@@ -78,7 +78,7 @@ def fetch_template(space_spec: str, frmt: str = None, variant: str = "", fragmen
 def get_parcellation(parc_spec: str):
     """Convenient access to parcellations."""
     searched_parcs = list(string_search(parc_spec, Parcellation))
-    newest_versions = [p for p in searched_parcs if p.is_newest_version]
+    newest_versions = [p for p in searched_parcs if p.is_newest_version or p.next_version not in searched_parcs]
     return assert_ooo(newest_versions)
 
 
