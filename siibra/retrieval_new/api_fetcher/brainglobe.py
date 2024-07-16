@@ -26,9 +26,16 @@ repo: GitHttpRepository = None
 
 
 DESC_INFO = """
-------------------------------------
-DESC INFO ABOUT USING BRAINGLOBE API
-------------------------------------
+-------------------------------
+INFO ABOUT USING BRAINGLOBE API
+-------------------------------
+
+Please visit https://brainglobe.info/documentation/brainglobe-atlasapi/index.html for more information on BrainGlobeAPI.
+
+Citation:
+
+Claudi, F., Petrucco, L., Tyson, A. L., Branco, T., Margrie, T. W. and Portugues, R. (2020). BrainGlobe Atlas API: a common interface for neuroanatomical atlases. Journal of Open Source Software, 5(54), 2668, https://doi.org/10.21105/joss.02668
+
 """
 
 
@@ -189,17 +196,9 @@ def use(atlas_name: str):
 
     _region_attributes={
         structure["name"]: {
-            "label": structure["id"]
+            "label": structure["id"],
+            "color": to_hex(structure["rgb_triplet"]),
         }
-        # AttributeCollection(
-        #     attributes=(
-        #         replace(
-        #             labelled_map_image,
-        #             color=to_hex(structure["rgb_triplet"]),
-        #             volume_selection_options={"label": structure["id"]},
-        #         ),
-        #     )
-        # )
         for structure in structures
     }
     labelled_map_image = Image(format="nii",
