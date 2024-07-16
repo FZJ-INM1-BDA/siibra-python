@@ -61,9 +61,9 @@ def compare_name(name1: Name, name2: Name):
 
 
 @register_attr_comparison(Facet, Facet)
-def compare_facet(aggbya: Facet, aggbyb: Facet):
-    return (aggbya.key == aggbyb.key
-            and aggbya.value == aggbyb.value)
+def compare_facet(facet_a: Facet, facet_b: Facet):
+    return (facet_a.key == facet_b.key
+            and facet_a.value == facet_b.value)
 
 @register_attr_comparison(Modality, Modality)
 def compare_modality(mod1: Modality, mod2: Modality):

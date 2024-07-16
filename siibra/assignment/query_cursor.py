@@ -22,7 +22,7 @@ class QueryCursor:
     concept: Union[AtlasElement, DataClsLocation]
     modality: Union[Modality, str]
     additional_attributes: QueryParam = field(default_factory=QueryParam)
-    filters: Tuple[AttributeCollection, ...] = field(default_factory=tuple)
+    filters: Tuple[Attribute, ...] = field(default_factory=tuple)
 
     def __post_init__(self):
         if self.wanted_modality not in modality_types:
@@ -72,7 +72,9 @@ class QueryCursor:
     
     @property
     def filter_query_param(self):
-        return QueryParam(and_flag=True, or_flag=False, attributes=self.filters)
+        if len(self.filters) == 0:
+            return None
+        return QueryParam(attributes=self.filters)
 
     @property
     def query_param(self):
@@ -94,7 +96,7 @@ class QueryCursor:
             feat
             for feat in find(self.first_pass_param, Feature)
             if self.query_param.match(feat)
-            and self.filter_query_param.match(feat)
+            and (self.filter_query_param.match(feat) if self.filter_query_param else True)
         ]
 
     def exec_explain(self, fully=False):
@@ -143,11 +145,15 @@ class QueryCursor:
     def filter(self, attributes: List[Attribute]):
         return replace(self, filters=self.filters + tuple(attributes))
     
-    def filter_by_facets(self, **kwargs):
+    def filter_by_facets(self, facet_dict=None, **kwargs):
         from ..descriptions import Facet
+        if not facet_dict:
+            facet_dict = {}
+        assert isinstance(facet_dict, dict), f"The positional argument, if supplied, must be a dictionary. But instead is {facet_dict}"
 
         facets = [
-            Facet(key=key, value=value) for key, value in kwargs.items()
+            Facet(key=key, value=value)
+            for key, value in {**facet_dict, **kwargs}.items()
         ]
         return self.filter(facets)
 

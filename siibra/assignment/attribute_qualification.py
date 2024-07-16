@@ -78,8 +78,8 @@ def qualify_name(name1: Name, name2: Name):
 
 
 @register_attr_qualifier(Facet, Facet)
-def qualify_aggregate_by(aggbya: Facet, aggbyb: Facet):
-    if aggbya.key == aggbyb.key and aggbya.value == aggbyb.value:
+def qualify_aggregate_by(face_a: Facet, facet_b: Facet):
+    if face_a.key == facet_b.key and face_a.value == facet_b.value:
         return Qualification.EXACT
 
 @register_attr_qualifier(Modality, Modality)
