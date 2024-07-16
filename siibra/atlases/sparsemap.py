@@ -4,13 +4,15 @@ from functools import cache
 
 import numpy as np
 
+from .parcellationmap import Map
 from ..atlases import Region
 from ..dataitems import Image
 from ..cache import fn_call_cache
 from ..commons_new.logger import siibra_tqdm
+from ..retrieval_new.volume_fetcher import FetchKwargs
 
 from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
-from .parcellationmap import Map
+
 
 if TYPE_CHECKING:
     from ..locations import BBox
@@ -55,7 +57,7 @@ class SparseIndex:
         v = [self.probs[i][regionname] for i in self.voxels[x, y, z]]
         return x, y, z, v
 
-    def _exract_from_sparseindex(self, regionname: str):
+    def fetch(self, regionname: str):
         from nibabel import Nifti1Image
 
         x, y, z, v = self.get_mapped_voxels(regionname)
@@ -246,23 +248,29 @@ class SparseMap(Map):
         bbox: "BBox" = None,
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
-        color_channel: int = None,
+        color_channel: int = None
     ):
         if isinstance(region, Region):
             regionspec = region.name
+            matched = self.parcellation.get_region(regionspec).name
         else:
-            regionspec = region
-        matched = self.parcellation.get_region(regionspec)
-        assert matched.name in self.regions, (
+            matched = region
+
+        assert matched in self.regions, (
             f"Statistical map of region '{matched}' is not available. "
             f"Try fetching its descendants: {(r.name for r in matched.descendants)}"
         )
 
-        if self.use_sparse_index:
-            nii = self._sparse_index._exract_from_sparseindex(matched.name)
+        if not self.use_sparse_index:
+            fetch_kwargs = FetchKwargs(
+                bbox=bbox,
+                resolution_mm=resolution_mm,
+                color_channel=color_channel,
+                max_download_GB=max_download_GB,
+            )
+            return super().fetch(region=matched, frmt=frmt, **fetch_kwargs)
 
-        nii = super().fetch(region=matched.name, frmt=frmt)
-
+        nii = self._sparse_index.fetch(matched)
         if bbox:
             from ..retrieval_new.volume_fetcher.image.nifti import extract_voi
 
@@ -271,6 +279,6 @@ class SparseMap(Map):
         if resolution_mm:
             from ..retrieval_new.volume_fetcher.image.nifti import resample
 
-            nii = resample(nii, resolution_mm)
+            nii = resample(nii, bbox)
 
         return nii

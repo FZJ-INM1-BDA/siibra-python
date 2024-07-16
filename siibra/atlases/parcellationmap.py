@@ -141,27 +141,29 @@ class Map(AtlasElement):
         return replace(self, attributes=attributes)
 
     def find_volumes(
-        self, regionname: str = None, frmt: str = None
+        self, region: Union[str, Region] = None, frmt: str = None
     ) -> List[Union["Image", "Mesh"]]:
-        def filter_fn(vol: Union["Image", "Mesh"]):
+        def filter_format(vol: Union["Image", "Mesh"]):
             return True if frmt is None else vol.format == frmt
 
-        if regionname is None:
-            return list(filter(filter_fn, self.volumes))
+        if region is None:
+            return list(filter(filter_format, self.volumes))
 
-        if regionname in self.regions:
+        _regionname = region.name if isinstance(region, Region) else region
+
+        if _regionname in self.regions:
             return [
-                replace(vol, mapping={regionname: vol.mapping[regionname]})
+                replace(vol, mapping={_regionname: vol.mapping[_regionname]})
                 for vol in self.volumes
-                if filter_fn(vol) and regionname in vol.mapping
+                if filter_format(vol) and _regionname in vol.mapping
             ]
 
-        candidate = self.parcellation.get_region(regionname)
+        candidate = self.parcellation.get_region(_regionname)
         if candidate.name in self.regions:
             return [
                 replace(vol, mapping={candidate.name: vol.mapping[candidate.name]})
                 for vol in self.volumes
-                if filter_fn(vol) and candidate.name in vol.mapping
+                if filter_format(vol) and candidate.name in vol.mapping
             ]
 
         # check if a parent region is requested
@@ -181,13 +183,13 @@ class Map(AtlasElement):
                     },
                 )
                 for vol in filter(
-                    filter_fn,
+                    filter_format,
                     self.volumes,
                 )
             ]
 
         raise ValueError(
-            f"Could not find any leaf or parent regions matching '{regionname}' in this map."
+            f"Could not find any leaf or parent regions matching '{_regionname}' in this map."
         )
 
     def fetch(
@@ -212,7 +214,7 @@ class Map(AtlasElement):
         else:
             regionspec = region
 
-        volumes = self.find_volumes(regionname=regionspec, frmt=frmt)
+        volumes = self.find_volumes(_regionname=regionspec, frmt=frmt)
         if len(volumes) == 0:
             raise RuntimeError("No images or meshes found matching parameters.")
 
