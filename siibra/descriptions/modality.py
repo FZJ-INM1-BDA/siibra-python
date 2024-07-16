@@ -2,7 +2,7 @@ from typing import List, Callable, Iterable, Dict
 
 from .base import Description
 from ..commons_new.instance_table import JitInstanceTable
-from ..commons import logger
+from ..commons_new.logger import logger
 
 
 class Modality(Description):

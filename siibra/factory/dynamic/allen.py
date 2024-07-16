@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 from ...cache import fn_call_cache
-from ...commons import logger
+from ...commons_new.logger import logger
 from ...concepts import Feature, QueryParam
 from ...retrieval_new.api_fetcher.allen import _AllenGeneQuery
 from ...descriptions import register_modalities, Modality, Gene

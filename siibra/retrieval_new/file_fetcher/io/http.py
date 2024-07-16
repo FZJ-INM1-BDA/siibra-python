@@ -4,10 +4,8 @@ from pathlib import Path
 import os
 
 from .base import PartialReader
-from .file import PartialFileReader
 from ....cache import CACHE
-from ....commons import siibra_tqdm
-from ....commons import logger
+from ....commons_new.logger import logger, siibra_tqdm
 
 PROGRESS_BAR_THRESHOLD = 2e8
 BLOCK_SIZE = 1024

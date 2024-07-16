@@ -17,7 +17,7 @@
 from . import point, pointset, location
 
 from ..concepts.attribute import Attribute
-from ..commons import logger
+from ..commons_new.logger import logger
 from ..exceptions import SpaceWarpingFailedError
 
 from itertools import product

@@ -6,7 +6,7 @@ from .attribute_match import match as attribute_match
 from .attribute_qualification import qualify as attribute_qualify
 
 from ..commons_new.register_recall import RegisterRecall
-from ..commons import logger
+from ..commons_new.logger import logger
 from ..concepts import AttributeCollection
 from ..concepts import QueryParam
 from ..descriptions import ID, Name

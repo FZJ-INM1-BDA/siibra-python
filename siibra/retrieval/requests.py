@@ -16,12 +16,12 @@
 
 from .exceptions import EbrainsAuthenticationError
 from ..cache import fn_call_cache, CACHE
+from ..commons_new.logger import logger, siibra_tqdm
+
 from ..commons import (
-    logger,
     HBP_AUTH_TOKEN,
     KEYCLOAK_CLIENT_ID,
     KEYCLOAK_CLIENT_SECRET,
-    siibra_tqdm,
     SIIBRA_USE_LOCAL_SNAPSPOT,
 )
 from .. import __version__

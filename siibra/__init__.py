@@ -16,14 +16,14 @@
 from functools import partial
 from typing import Union
 
-from .commons import (
+from .commons import __version__
+
+from .commons_new.logger import (
     logger,
     QUIET,
     VERBOSE,
-    set_log_level,
-    __version__,
+    set_log_level
 )
-
 from .exceptions import NotFoundException
 from .commons_new.string import create_key
 from .commons_new.iterable import assert_ooo
@@ -60,6 +60,7 @@ logger.info(
 spaces = InstanceTable(elements={create_key(spc.name): spc for spc in iter_collection(Space)})
 parcellations = InstanceTable(elements={create_key(spc.name): spc for spc in iter_collection(Parcellation)})
 maps = InstanceTable(elements={create_key(spc.name): spc for spc in iter_collection(parcellationmap.Map)})
+
 
 def get_space(space_spec: str):
     """Convenient access to reference space templates."""
@@ -133,6 +134,7 @@ def find_features(
 ):
     cursor = get_query_cursor(concept, modality, **kwargs)
     return list(cursor.exec())
+
 
 def get_query_cursor(
     concept: Union[AtlasElement, DataClsLocation],

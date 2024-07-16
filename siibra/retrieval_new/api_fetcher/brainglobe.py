@@ -13,7 +13,7 @@ from ...retrieval_new.file_fetcher import GitHttpRepository, TarRepository
 from ...concepts import Attribute, AttributeCollection
 from ...descriptions import Name, RGBColor, Url, SpeciesSpec, ID
 from ...dataitems import Image
-from ...commons import logger
+from ...commons_new.logger import logger
 from ...commons_new.string import to_hex
 
 if TYPE_CHECKING:

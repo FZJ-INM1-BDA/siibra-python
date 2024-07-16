@@ -3,7 +3,9 @@ import tempfile
 from appdirs import user_cache_dir
 import hashlib
 
-from ..commons import logger, SIIBRA_CACHEDIR, SKIP_CACHEINIT_MAINTENANCE
+from ..commons_new.logger import logger
+
+from ..commons import SIIBRA_CACHEDIR, SKIP_CACHEINIT_MAINTENANCE
 
 
 class Cache:

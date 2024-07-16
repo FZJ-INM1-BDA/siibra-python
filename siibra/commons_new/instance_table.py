@@ -1,7 +1,7 @@
 from typing import Generic, Iterable, TypeVar, Dict, Iterator, Union, List, Callable
 
 from .string import create_key
-from ..commons import logger
+from ..commons_new.logger import logger
 
 T = TypeVar("T")
 V = TypeVar("V")

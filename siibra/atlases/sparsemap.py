@@ -7,8 +7,9 @@ import numpy as np
 from ..atlases import Region
 from ..dataitems import Image
 from ..cache import fn_call_cache
+from ..commons_new.logger import siibra_tqdm
 
-from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB, siibra_tqdm
+from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 from .parcellationmap import Map
 
 if TYPE_CHECKING:

@@ -1,4 +1,4 @@
-from ..commons import logger
+from ..commons_new.logger import logger
 from ..commons_new.binary_op import BinaryOp
 from ..commons_new.string import fuzzy_match
 from ..concepts import Attribute

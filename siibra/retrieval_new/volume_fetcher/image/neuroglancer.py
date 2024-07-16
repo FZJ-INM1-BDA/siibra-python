@@ -13,8 +13,9 @@ from neuroglancer_scripts.precomputed_io import (
 from ...volume_fetcher.volume_fetcher import register_volume_fetcher, FetchKwargs
 from ....cache import fn_call_cache
 from ....locations import BBox
+from ....commons_new.logger import logger
 
-from ....commons import logger, SIIBRA_MAX_FETCH_SIZE_GIB
+from ....commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
     from ....dataitems import Image

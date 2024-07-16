@@ -4,7 +4,7 @@ from typing import List
 import numpy as np
 from time import sleep
 
-from ...commons import logger
+from ...commons_new.logger import logger
 from ...cache import fn_call_cache
 from ...descriptions import Modality
 

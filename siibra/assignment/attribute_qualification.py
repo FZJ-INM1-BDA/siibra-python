@@ -3,7 +3,7 @@ from itertools import product
 
 from .qualification import Qualification
 from ..dataitems import Image
-from ..commons import logger
+from ..commons_new.logger import logger
 from ..commons_new.binary_op import BinaryOp
 from ..commons_new.string import fuzzy_match, clear_name
 from ..concepts import Attribute, QueryParam
@@ -16,6 +16,7 @@ from ..cache import fn_call_cache
 _attr_qual: BinaryOp[Attribute, Union[Qualification, None]] = BinaryOp()
 
 register_attr_qualifier = _attr_qual.register
+
 
 def is_qualifiable(t: Type):
     return _attr_qual.is_registered(t)
@@ -81,6 +82,7 @@ def qualify_name(name1: Name, name2: Name):
 def qualify_aggregate_by(face_a: Facet, facet_b: Facet):
     if face_a.key == facet_b.key and face_a.value == facet_b.value:
         return Qualification.EXACT
+
 
 @register_attr_qualifier(Modality, Modality)
 def qualify_modality(mod1: Modality, mod2: Modality):

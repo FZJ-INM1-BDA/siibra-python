@@ -19,11 +19,9 @@ import re
 from enum import Enum
 from nibabel import Nifti1Image
 from nilearn.image import resample_to_img
-import logging
-from tqdm import tqdm
 import numpy as np
 import pandas as pd
-from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict, Generator, Tuple, Type, Callable
+from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict, Generator, Tuple
 from skimage.filters import gaussian
 from dataclasses import dataclass
 from hashlib import md5
@@ -34,12 +32,6 @@ try:
 except ImportError:
     # support python 3.7
     from typing_extensions import TypedDict
-
-logger = logging.getLogger(__name__.split(os.path.extsep)[0])
-ch = logging.StreamHandler()
-formatter = logging.Formatter("[{name}:{levelname}] {message}", style="{")
-ch.setFormatter(formatter)
-logger.addHandler(ch)
 
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -270,36 +262,6 @@ class InstanceTable(Generic[T], Iterable):
                     )
             self._dataframe_cached = pd.DataFrame(index=list(self._elements.keys()), data=attrs)
         return self._dataframe_cached
-
-
-class LoggingContext:
-    def __init__(self, level):
-        self.level = level
-
-    def __enter__(self):
-        self.old_level = logger.level
-        logger.setLevel(self.level)
-
-    def __exit__(self, et, ev, tb):
-        logger.setLevel(self.old_level)
-
-
-def set_log_level(level):
-    logger.setLevel(level)
-
-
-set_log_level(SIIBRA_LOG_LEVEL)
-QUIET = LoggingContext("ERROR")
-VERBOSE = LoggingContext("DEBUG")
-
-
-def siibra_tqdm(iterable: Iterable[T] = None, *args, **kwargs):
-    return tqdm(
-        iterable,
-        *args,
-        disable=kwargs.pop("disable", False) or (logger.level > 20),
-        **kwargs
-    )
 
 
 def create_key(name: str):

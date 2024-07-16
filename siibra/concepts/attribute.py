@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List, Any, Dict
-from ..commons import logger
+from ..commons_new.logger import logger
 
 SCHEMAS = {}
 

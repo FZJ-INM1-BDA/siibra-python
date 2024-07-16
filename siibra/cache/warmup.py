@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from .cache import Cache
 from ..exceptions import WarmupRegException
-from ..commons import siibra_tqdm
+from ..commons_new.logger import siibra_tqdm
 
 
 class WarmupLevel(int, Enum):

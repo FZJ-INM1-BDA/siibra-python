@@ -5,7 +5,7 @@ import pandas as pd
 from .assignment import find, qualify as collection_qualify
 from .qualification import Qualification
 from ..atlases import Region
-from ..commons import logger
+from ..commons_new.logger import logger
 from ..concepts import Attribute
 from ..concepts import AttributeCollection
 from ..concepts.query_parameter import QueryParam

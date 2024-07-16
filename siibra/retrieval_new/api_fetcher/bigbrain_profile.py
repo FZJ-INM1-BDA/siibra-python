@@ -5,7 +5,7 @@ from nibabel import GiftiImage
 
 
 from ...cache import fn_call_cache, Warmup, WarmupLevel
-from ...commons import logger
+from ...commons_new.logger import logger
 
 
 REPO = "https://github.com/kwagstyl/cortical_layers_tutorial/raw/main"
