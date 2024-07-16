@@ -44,10 +44,10 @@ class Space(AtlasElement):
     def provides_image(self):
         return any(f in self.formats for f in IMAGE_FORMATS)
 
-    def _find_templates(
+    def find_templates(
         self, variant: str = None, frmt: str = None
     ) -> List[Union["Image", "Mesh"]]:
-        if frmt is None:
+        if frmt is None or frmt not in self.formats:
             frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
         else:
             assert frmt not in self.formats, RuntimeError(
@@ -83,7 +83,7 @@ class Space(AtlasElement):
         else:
             _variant = variant
 
-        templates = self._find_templates(frmt=frmt, variant=_variant)
+        templates = self.find_templates(frmt=frmt, variant=_variant)
         if len(templates) == 0:
             raise ValueError(
                 f"Could not get a template with provided parameters: ({variant=}, {frmt=})"
