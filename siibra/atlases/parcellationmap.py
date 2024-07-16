@@ -1,5 +1,5 @@
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, List, Set, Union, Literal
+from typing import TYPE_CHECKING, List, Set, Union, Literal, Dict
 
 import numpy as np
 
@@ -17,6 +17,7 @@ from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
     from ..locations import BBox
+    from ..retrieval_new.volume_fetcher import Mapping
 
 
 VALID_MAPTYPES = ("statistical", "labelled")
@@ -69,6 +70,28 @@ class Map(AtlasElement):
                 if vol.mapping is not None
             )
         )
+
+    def get_mapping(self, frmt=None, regions: List[str] = None) -> Dict[str, "Mapping"]:
+        if regions is None:
+            regions = self.regions
+
+        assert all(
+            r in self.regions for r in regions
+        ), f"Please provide a subset of {self.regions=}"
+
+        if frmt is None or frmt not in self.formats:
+            frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
+            logger.info(f"Selected format: {frmt=!r}")
+        else:
+            assert frmt not in self.formats, RuntimeError(
+                f"Requested format '{frmt}' is not available for this map: {self.formats=}."
+            )
+
+        return {
+            key: val
+            for vol in self.volumes for key, val in vol.mapping.items()
+            if vol.mapping is not None and key in regions
+        }
 
     @property
     def volumes(self) -> List[Union["Image", "Mesh"]]:
