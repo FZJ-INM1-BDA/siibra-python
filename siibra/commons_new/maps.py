@@ -136,7 +136,6 @@ def _resample_and_merge_niftis(
     template_img: "Nifti1Image" = None,
     labels: List[int] = [],
 ) -> "Nifti1Image":
-    # TODO: must handle meshes
     # TODO: get header for affine and shape instead of the whole template
     assert len(niftis) > 1, "Need to supply at least two volumes to merge."
     if labels:
@@ -146,7 +145,7 @@ def _resample_and_merge_niftis(
         shapes = set(nii.shape for nii in niftis)
         assert len(shapes) == 1
         shape = next(iter(shapes))
-        merged_array = np.zeros(shape, dtype="uint8")
+        merged_array = np.zeros(shape, dtype="int16")
         affine = niftis[0].affine
     else:
         merged_array = np.zeros(template_img.shape, dtype="uint8")

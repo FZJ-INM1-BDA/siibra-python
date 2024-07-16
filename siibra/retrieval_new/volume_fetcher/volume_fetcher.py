@@ -19,7 +19,6 @@ class Mapping(TypedDict):
     range: Tuple[float, float]
     subspace: Tuple[slice, ...]
     t: int
-    color_channel: int = None
 
 
 class FetchKwargs(TypedDict):

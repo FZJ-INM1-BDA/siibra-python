@@ -25,9 +25,8 @@ class Space(AtlasElement):
         return list(
             dict.fromkeys(
                 key
-                for vol in self.volumes
+                for vol in self.volumes if vol.mapping is not None
                 for key in vol.mapping.keys()
-                if vol.mapping is not None
             )
         )
 

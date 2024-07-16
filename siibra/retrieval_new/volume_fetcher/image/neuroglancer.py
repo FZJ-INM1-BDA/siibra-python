@@ -249,7 +249,12 @@ def fetch_neuroglancer(image: "Image", fetchkwargs: FetchKwargs) -> "nib.Nifti1I
         bbox=fetchkwargs["bbox"],
         max_download_GB=fetchkwargs["max_download_GB"],
     )
-    return scale.fetch(bbox=fetchkwargs["bbox"], label=image.volume_selection_options.get("label"))
+    mapping = fetchkwargs["mapping"]
+    if mapping is not None and len(mapping) == 1:
+        details = next(iter(mapping.values()))
+        return scale.fetch(bbox=fetchkwargs["bbox"], label=details.get("label"))
+    else:
+        return scale.fetch(bbox=fetchkwargs["bbox"])
 
 
 @fn_call_cache

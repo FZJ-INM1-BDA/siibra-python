@@ -194,16 +194,30 @@ class Map(AtlasElement):
 
         labels = []
         if allow_relabeling:
-            labels = [vol.mapping.values()["label"] for vol in volumes]
+            labels = [mp["label"] for vol in volumes for mp in vol.mapping.values()]
             if set(labels) == {1}:
                 labels = list(range(1, len(labels) + 1))
 
-        # nii = extract_labels(nii, [mp['label'] for mp in mapping.values()])
+        if frmt in MESH_FORMATS:
+            return merge_volumes(
+                [vol.fetch(**fetch_kwargs) for vol in volumes],
+                labels=labels,
+            )
 
-        return merge_volumes(
-            [vol.fetch(**fetch_kwargs) for vol in volumes],
-            labels=labels,
-        )
+        niftis = [vol.fetch(**fetch_kwargs) for vol in volumes]
+        shapes = set(v.shape for v in niftis)
+        try:
+            assert len(shapes) == 1
+            return merge_volumes(
+                niftis,
+                labels=labels,
+            )
+        except AssertionError:
+            return merge_volumes(
+                niftis,
+                labels=labels,
+                template_vol=self.space.fetch_template(**fetch_kwargs)
+            )
 
     def get_colormap(self, regions: List[str] = None, frmt=None) -> List[str]:
         from matplotlib.colors import ListedColormap
