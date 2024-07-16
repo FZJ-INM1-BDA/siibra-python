@@ -7,12 +7,17 @@ from ..descriptions import Name
 from ..commons_new.string import get_spec, SPEC_TYPE
 from ..commons_new.iterable import assert_ooo
 from ..commons_new.maps import spatial_props
+from ..commons_new.logger import logger
 
 if TYPE_CHECKING:
-    from nibabel import Nifti1Image
     from .space import Space
     from ..locations import PointCloud
     from . import Parcellation
+
+
+def filter_newest(regions: List["Region"]) -> List["Region"]:
+    _parcellations = {r.parcellation for r in regions}
+    return [r for r in regions if r.parcellation.next_version not in _parcellations]
 
 
 class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
@@ -100,8 +105,6 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             space, Space
         ), f"space must be str, Space or None. You provided {space}"
 
-        regions_of_interest = [self, *self.descendants]
-
         for mp in iter_collection(Map):
             if maptype != mp.maptype:
                 continue
@@ -109,7 +112,10 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
                 continue
             if self.parcellation.ID != mp.parcellation_id:
                 continue
-            yield mp.get_filtered_map(regions_of_interest)
+            mapped_regions = [r for r in self if r.name in mp.regions]
+            if len(mapped_regions) == 0:
+                continue
+            yield mp.get_filtered_map(mapped_regions)
 
     def find_regional_maps(
         self, space: Union[str, "Space", None] = None, maptype: str = "labelled"
@@ -122,10 +128,18 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         maptype: str = "labelled",
         threshold: float = 0.0,
         via_space: Union[str, "Space", None] = None,
-    ) -> "Nifti1Image":
-        pass
+        frmt: str = None,
+    ):
+        if via_space is not None:
+            raise NotImplementedError
+        maps = self.find_regional_maps(space=space, maptype=maptype)
+        try:
+            selectedmap = assert_ooo(maps)
+        except AssertionError:
+            if maps:
+                logger.warning(f"Found {len(maps)} maps matching the specs. Selecting the first.")
+                selectedmap = maps[0]
+            else:
+                raise ValueError("Found no maps matching the specs for this region.")
 
-
-def filter_newest(regions: List[Region]) -> List[Region]:
-    _parcellations = {r.parcellation for r in regions}
-    return [r for r in regions if r.parcellation.next_version not in _parcellations]
+        return selectedmap.fetch(frmt=frmt)

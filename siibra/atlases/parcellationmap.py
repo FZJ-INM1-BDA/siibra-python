@@ -8,6 +8,7 @@ from ..retrieval_new.volume_fetcher import FetchKwargs, IMAGE_FORMATS, MESH_FORM
 from ..commons_new.iterable import assert_ooo
 from ..commons_new.maps import merge_volumes
 from ..commons_new.string import convert_hexcolor_to_rgbtuple
+from ..commons_new.logger import logger
 from ..atlases import Parcellation, Space, Region
 from ..dataitems import Image, Mesh, FORMAT_LOOKUP
 from ..descriptions import Name, ID as _ID, SpeciesSpec
@@ -85,26 +86,36 @@ class Map(AtlasElement):
     def provides_image(self):
         return any(f in self.formats for f in IMAGE_FORMATS)
 
-    def get_filtered_map(self, regions: List[Region] = None) -> "Map":
+    def get_filtered_map(self, regions: Union[List[Region], List[str]]) -> "Map":
         """
         Get the submap of this Map making up the regions provided.
 
-        Regions that are parents of mapped chilren are provided, the children
-        making up said regions (in this map) will be returned.
+        Raises
+        ----
+        ValueError
+            If any region not mapped in this map is requested.
         """
-        regionnames = [r.name for r in regions] if regions else None
+        regionnames = [r.name for r in regions] if isinstance(regions[0], Region) else regions
+        try:
+            assert all(rn in self.regions for rn in regionnames)
+        except AssertionError:
+            raise ValueError("Regions that are not mapped in this ParcellationMap are requested!")
 
-        filtered_images = {
-            regionname: attr_col
-            for regionname, attr_col in self._region_attributes.items()
-            if regionnames is None or regionname in regionnames
-        }
+        filtered_volumes = [
+            replace(vol, mapping={
+                r: vol.mapping[r]
+                for r in regionnames
+                if r in vol.mapping
+            })
+            for vol in self.volumes if vol.mapping is not None and any(r in vol.mapping for r in regionnames)
+        ]
         attributes = [
             Name(value=f"{regionnames} filtered from {self.name}"),
             _ID(value=None),
             self._get(SpeciesSpec),
+            *filtered_volumes
         ]
-        return replace(self, attributes=attributes, _index_mapping=filtered_images)
+        return replace(self, attributes=attributes)
 
     def _find_volumes(
         self, regionname: str = None, frmt: str = None
@@ -199,6 +210,7 @@ class Map(AtlasElement):
                 labels = list(range(1, len(labels) + 1))
 
         if frmt in MESH_FORMATS:
+            logger.debug("Merging mesh labels.")
             return merge_volumes(
                 [vol.fetch(**fetch_kwargs) for vol in volumes],
                 labels=labels,
