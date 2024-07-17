@@ -20,7 +20,7 @@ import requests
 
 from ...attributes import Attribute
 from ...cache import fn_call_cache
-from ...retrieval_new.file_fetcher import ZipRepository, TarRepository
+from ...retrieval.file_fetcher import ZipRepository, TarRepository
 
 
 class Archive(TypedDict):

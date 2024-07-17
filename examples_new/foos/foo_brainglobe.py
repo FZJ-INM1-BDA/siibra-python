@@ -1,4 +1,4 @@
-from siibra.retrieval_new.api_fetcher import brainglobe
+from siibra.retrieval.api_fetcher import brainglobe
 import siibra
 
 for atlas in brainglobe.ls():

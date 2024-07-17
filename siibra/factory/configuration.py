@@ -23,7 +23,7 @@ from ..atlases import Space, Parcellation, Region, parcellationmap
 from ..attributes.descriptions import register_modalities, Modality, RegionSpec
 from ..concepts import QueryParamCollection, Feature
 from ..assignment.assignment import filter_by_query_param
-from ..retrieval_new.file_fetcher import (
+from ..retrieval.file_fetcher import (
     GithubRepository,
     LocalDirectoryRepository,
 )

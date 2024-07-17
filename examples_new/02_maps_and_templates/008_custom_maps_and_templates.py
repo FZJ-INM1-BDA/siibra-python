@@ -28,7 +28,7 @@ It hopefully demonstrates that incorporating with existing APIs can be done with
 # %%
 # List the supported atlases in brainglobe API
 import siibra
-from siibra.retrieval_new.api_fetcher import brainglobe
+from siibra.retrieval.api_fetcher import brainglobe
 brainglobe.ls()
 
 # %%

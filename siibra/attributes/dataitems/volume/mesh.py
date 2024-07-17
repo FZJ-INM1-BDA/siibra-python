@@ -21,7 +21,7 @@ from ....commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 from .base import Volume
 from ...locations import BBox
-from ....retrieval_new.volume_fetcher.volume_fetcher import (
+from ....retrieval.volume_fetcher.volume_fetcher import (
     get_volume_fetcher,
     get_bbox_getter,
     FetchKwargs,

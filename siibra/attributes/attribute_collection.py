@@ -50,7 +50,7 @@ class AttributeCollection:
 
     @property
     def publications(self):
-        from ..retrieval_new.doi_fetcher import get_citation
+        from ..retrieval.doi_fetcher import get_citation
 
         citations = [
             Url(value=doi.value, text=get_citation(doi)) for doi in self._find(Doi)

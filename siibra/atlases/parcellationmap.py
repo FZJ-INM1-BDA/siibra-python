@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, List, Set, Union, Literal, Dict
 import numpy as np
 
 from ..concepts import AtlasElement
-from ..retrieval_new.volume_fetcher import FetchKwargs, IMAGE_FORMATS, MESH_FORMATS
+from ..retrieval.volume_fetcher import FetchKwargs, IMAGE_FORMATS, MESH_FORMATS
 from ..commons_new.iterable import assert_ooo
 from ..commons_new.maps import merge_volumes
 from ..commons_new.string import convert_hexcolor_to_rgbtuple
@@ -32,7 +32,7 @@ from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
     from ..attributes.locations import BBox
-    from ..retrieval_new.volume_fetcher import Mapping
+    from ..retrieval.volume_fetcher import Mapping
 
 
 VALID_MAPTYPES = ("statistical", "labelled")

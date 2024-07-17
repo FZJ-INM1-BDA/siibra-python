@@ -27,7 +27,7 @@ from ...attributes.locations.layerboundary import (
 )
 from ...attributes.locations import intersect, PointCloud, Pt, Polyline
 from ...exceptions import UnregisteredAttrCompException, InvalidAttrCompException
-from ...retrieval_new.api_fetcher.bigbrain_profile import get_all
+from ...retrieval.api_fetcher.bigbrain_profile import get_all
 
 modality_of_interest = Modality(value="Modified silver staining")
 

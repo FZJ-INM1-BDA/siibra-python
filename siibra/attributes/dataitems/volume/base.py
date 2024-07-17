@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from typing import Dict
 
 from ..base import Data
-from ....retrieval_new.volume_fetcher import IMAGE_FORMATS, MESH_FORMATS, Mapping
+from ....retrieval.volume_fetcher import IMAGE_FORMATS, MESH_FORMATS, Mapping
 
 
 FORMAT_LOOKUP = {

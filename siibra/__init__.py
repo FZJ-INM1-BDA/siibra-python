@@ -29,7 +29,7 @@ from .commons_new.tree import collapse_nodes
 from .cache import Warmup, WarmupLevel, CACHE as cache
 
 from . import factory as factory_new
-from . import retrieval_new
+from . import retrieval
 from .atlases import Space, Parcellation, Region, parcellationmap
 from .atlases.region import filter_newest
 from .attributes import Attribute, AttributeCollection

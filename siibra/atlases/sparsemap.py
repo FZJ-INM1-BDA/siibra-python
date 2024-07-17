@@ -24,7 +24,7 @@ from ..atlases import Region
 from ..attributes.dataitems import Image
 from ..cache import fn_call_cache
 from ..commons_new.logger import siibra_tqdm
-from ..retrieval_new.volume_fetcher import FetchKwargs
+from ..retrieval.volume_fetcher import FetchKwargs
 
 from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
@@ -287,12 +287,12 @@ class SparseMap(Map):
 
         nii = self._sparse_index.fetch(matched)
         if bbox:
-            from ..retrieval_new.volume_fetcher.image.nifti import extract_voi
+            from ..retrieval.volume_fetcher.image.nifti import extract_voi
 
             nii = extract_voi(nii, bbox)
 
         if resolution_mm:
-            from ..retrieval_new.volume_fetcher.image.nifti import resample
+            from ..retrieval.volume_fetcher.image.nifti import resample
 
             nii = resample(nii, bbox)
 

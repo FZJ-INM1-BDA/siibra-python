@@ -26,7 +26,7 @@ from .base import Volume
 from ....exceptions import InvalidAttrCompException
 from ...locations import point, pointset, BBox
 from ...locations.ops.intersection import _loc_intersection
-from ....retrieval_new.volume_fetcher.volume_fetcher import (
+from ....retrieval.volume_fetcher.volume_fetcher import (
     get_volume_fetcher,
     get_bbox_getter,
     FetchKwargs,

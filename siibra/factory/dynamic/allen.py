@@ -22,7 +22,7 @@ from ...cache import fn_call_cache
 from ...commons_new.logger import logger
 from ...concepts import Feature
 from ...concepts.query_parameter import QueryParamCollection
-from ...retrieval_new.api_fetcher.allen import _AllenGeneQuery
+from ...retrieval.api_fetcher.allen import _AllenGeneQuery
 from ...attributes.descriptions import register_modalities, Modality, Gene
 from ...assignment import filter_by_query_param
 from ...attributes.locations import PointCloud

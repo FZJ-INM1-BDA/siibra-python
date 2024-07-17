@@ -23,7 +23,7 @@ from hashlib import md5
 from pathlib import Path
 
 from ...factory.iterator import attribute_collection_iterator
-from ...retrieval_new.file_fetcher import GitHttpRepository, TarRepository
+from ...retrieval.file_fetcher import GitHttpRepository, TarRepository
 from ...commons_new.logger import logger
 from ...commons_new.string import to_hex
 
