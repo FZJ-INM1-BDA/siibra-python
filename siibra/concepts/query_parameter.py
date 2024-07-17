@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from itertools import product
 from typing import List, Union
 import pandas as pd
@@ -15,6 +15,7 @@ from ..commons_new.logger import logger
 class QueryParamCollection:
 
     criteria: List[AttributeCollection] = field(default_factory=list)
+    filters: List[AttributeCollection] = field(default_factory=list)
 
     # if set, all criteria must be met (default)
     # takes precedence over or_flag
@@ -49,6 +50,13 @@ class QueryParamCollection:
 
     def match(self, ac: AttributeCollection) -> bool:
         from ..assignment import collection_match
+
+        # filters are always applied, regardless of flag
+        # in python any([]) == False, all([]) == True
+        # this is to cach the scenario that filters is an empty list
+        if any((not collection_match(f, ac)) for f in self.filters):
+            return False
+
         if self.and_flag:
             return all((collection_match(cri, ac) for cri in self.criteria))
         if self.or_flag:
@@ -68,6 +76,19 @@ class QueryParamCollection:
         return pd.DataFrame([{"key": facet.key, "value": facet.value}
                              for f in self.exec()
                              for facet in f.facets])
+    
+    def filter_by_facets(self, facet_dict=None, **kwargs):
+        from ..descriptions import Facet
+        if not facet_dict:
+            facet_dict = {}
+        assert isinstance(facet_dict, dict), f"The positional argument, if supplied, must be a dictionary. But instead is {facet_dict}"
+
+        facets = [
+            Facet(key=key, value=value)
+            for key, value in {**facet_dict, **kwargs}.items()
+        ]
+        new_filter = AttributeCollection(attributes=facets)
+        return replace(self, filters=[*self.filters, new_filter])
 
 @dataclass
 class QueryParam(AttributeCollection):
