@@ -2,7 +2,7 @@ import requests
 
 from . import cite_proc_json
 from .base import content_type_registry
-from ...descriptions import Doi
+from ...attributes.descriptions import Doi
 
 
 def get_citation(doi: Doi):

@@ -7,10 +7,10 @@ from ..retrieval_new.volume_fetcher import (
 )
 from ..commons_new.iterable import assert_ooo
 from ..commons_new.maps import merge_volumes
-from ..dataitems import FORMAT_LOOKUP
+from ..attributes.dataitems import FORMAT_LOOKUP
 
 if TYPE_CHECKING:
-    from ..dataitems import Image, Mesh
+    from ..attributes.dataitems import Image, Mesh
 
 
 class Space(AtlasElement):
@@ -32,7 +32,7 @@ class Space(AtlasElement):
 
     @property
     def volumes(self):
-        from ..dataitems import Image, Mesh
+        from ..attributes.dataitems import Image, Mesh
 
         return [attr for attr in self.attributes if isinstance(attr, (Mesh, Image))]
 

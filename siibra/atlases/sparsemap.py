@@ -6,7 +6,7 @@ import numpy as np
 
 from .parcellationmap import Map
 from ..atlases import Region
-from ..dataitems import Image
+from ..attributes.dataitems import Image
 from ..cache import fn_call_cache
 from ..commons_new.logger import siibra_tqdm
 from ..retrieval_new.volume_fetcher import FetchKwargs
@@ -15,7 +15,7 @@ from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 
 if TYPE_CHECKING:
-    from ..locations import BBox
+    from ..attributes.locations import BBox
     from nibabel import Nifti1Image
 
 

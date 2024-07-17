@@ -2,8 +2,8 @@ from ..point import Pt
 from ..pointset import PointCloud, from_points
 from ..boundingbox import BBox
 from ..base import Location
-from ...exceptions import InvalidAttrCompException
-from ...commons_new.binary_op import BinaryOp
+from ....exceptions import InvalidAttrCompException
+from ....commons_new.binary_op import BinaryOp
 
 _loc_union = BinaryOp[Location, Location]()
 
@@ -19,14 +19,8 @@ def pt_pt(pta: Pt, ptb: Pt):
 def pt_ptcld(pt: Pt, ptcld: PointCloud):
     if pt.space_id != ptcld.space_id:
         raise InvalidAttrCompException
-    return from_points(pt).extend(ptcld)
-
-
-@_loc_union.register(PointCloud, Pt)
-def ptcld_pt(ptcld: PointCloud, pt: Pt):
-    if pt.space_id != ptcld.space_id:
-        raise InvalidAttrCompException
     return ptcld.append(pt)
+    # TODO: consider reverse
 
 
 @_loc_union.register(PointCloud, PointCloud)

@@ -5,7 +5,7 @@ from tqdm import tqdm
 from nibabel.nifti1 import Nifti1Image
 from nibabel.gifti import GiftiImage, GiftiDataArray
 
-from ..locations import Pt
+from ..attributes.locations import Pt
 
 
 def resample_img_to_img(

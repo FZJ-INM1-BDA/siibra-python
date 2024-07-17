@@ -5,7 +5,7 @@ from typing import Dict, List
 from .factory import build_feature, build_space, build_parcellation, build_map
 from .iterator import attribute_collection_iterator
 from ..atlases import Space, Parcellation, Region, parcellationmap
-from ..descriptions import register_modalities, Modality, RegionSpec
+from ..attributes.descriptions import register_modalities, Modality, RegionSpec
 from ..concepts import QueryParamCollection, Feature
 from ..assignment.assignment import filter_by_query_param
 from ..retrieval_new.file_fetcher import (
@@ -139,7 +139,7 @@ def register_parcellation(input: QueryParamCollection):
 
 @filter_by_query_param.register(parcellationmap.Map)
 def iter_preconf_parcellationmaps(input: QueryParamCollection):
-    from ..descriptions import RegionSpec
+    from ..attributes.descriptions import RegionSpec
 
     all_region_specs = [rspec for cri in input.criteria for rspec in cri._find(RegionSpec)]
     input_region_names = [
@@ -200,7 +200,7 @@ def iter_cell_body_density(input: QueryParamCollection):
         return
 
     from ..concepts import QueryParam
-    from ..descriptions import RegionSpec, ID, Name
+    from ..attributes.descriptions import RegionSpec, ID, Name
 
     name_to_regionspec: Dict[str, RegionSpec] = {}
     returned_features: Dict[str, List[Feature]] = defaultdict(list)

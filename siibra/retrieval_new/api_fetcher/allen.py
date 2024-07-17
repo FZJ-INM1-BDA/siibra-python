@@ -6,7 +6,7 @@ from time import sleep
 
 from ...commons_new.logger import logger
 from ...cache import fn_call_cache
-from ...descriptions import Modality
+from ...attributes.descriptions import Modality
 
 from ...exceptions import ExternalApiException
 

@@ -1,8 +1,7 @@
 from typing import List
 import pandas as pd
 
-from .attribute_collection import AttributeCollection
-from .attribute import Attribute
+from ..attributes import Attribute, AttributeCollection
 
 
 MATRIX_INDEX_ENTITY_KEY = "x-siibra/matrix-index-entity/index"
@@ -17,7 +16,7 @@ class Feature(AttributeCollection):
 
     @property
     def facets(self):
-        from ..descriptions import Facet
+        from ..attributes.descriptions import Facet
 
         return [
             *self._find(Facet),
@@ -26,7 +25,7 @@ class Feature(AttributeCollection):
 
     @property
     def modalities(self):
-        from ..descriptions import Modality
+        from ..attributes.descriptions import Modality
 
         return self._find(Modality)
 
@@ -45,7 +44,7 @@ class Feature(AttributeCollection):
 
     @property
     def data(self):
-        from ..dataitems import Tabular
+        from ..attributes.dataitems import Tabular
 
         matrix_entity_key = self.filter(attr_of_general_interest)
 
@@ -66,12 +65,12 @@ class Feature(AttributeCollection):
         return dfs
 
     def plot(self, *args, **kwargs):
-        from ..dataitems import Tabular
+        from ..attributes.dataitems import Tabular
 
         return [d.plot(*args, **kwargs) for d in self._find(Tabular)]
 
     def filter_by_facets(self, **kwargs):
-        from ..descriptions import Facet
+        from ..attributes.descriptions import Facet
 
         filter_facets = [
             Facet(key=key, value=value) for key, value in kwargs.items()

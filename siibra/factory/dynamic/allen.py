@@ -7,14 +7,13 @@ from ...cache import fn_call_cache
 from ...commons_new.logger import logger
 from ...concepts import Feature
 from ...concepts.query_parameter import QueryParamCollection
-from ...concepts import Feature
 from ...retrieval_new.api_fetcher.allen import _AllenGeneQuery
-from ...descriptions import register_modalities, Modality, Gene
+from ...attributes.descriptions import register_modalities, Modality, Gene
 from ...assignment import filter_by_query_param
-from ...locations import PointCloud
-from ...dataitems import Image, Tabular
-from ...dataitems.volume.image import intersect_ptcld_image
-from ...dataitems.tabular import X_DATA
+from ...attributes.locations import PointCloud
+from ...attributes.dataitems import Image, Tabular
+from ...attributes.dataitems.volume.image import intersect_ptcld_image
+from ...attributes.dataitems.tabular import X_DATA
 
 modality_of_interest = Modality(value="Gene Expressions")
 
@@ -79,7 +78,7 @@ def add_allen_modality():
 @filter_by_query_param.register(Feature)
 def query_allen_gene_api(input: QueryParamCollection):
     all_mods = [mod for cri in input.criteria for mod in cri._find(Modality)]
-    
+
     if modality_of_interest not in all_mods:
         return
 

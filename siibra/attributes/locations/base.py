@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from ..concepts.attribute import Attribute
-from ..commons_new.iterable import assert_ooo
+from ...attributes import Attribute
+from ...commons_new.iterable import assert_ooo
 
 
 @dataclass
@@ -14,8 +14,8 @@ class Location(Attribute):
         if self.space_id is None:
             return None
 
-        from ..factory import iter_collection
-        from ..atlases import Space
+        from ...factory import iter_collection
+        from ...atlases import Space
 
         return assert_ooo(
             [space for space in iter_collection(Space) if space.ID == self.space_id]

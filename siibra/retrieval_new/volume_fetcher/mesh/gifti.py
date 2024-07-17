@@ -6,7 +6,7 @@ from nibabel.gifti import gifti
 from ...volume_fetcher.volume_fetcher import FetchKwargs, register_volume_fetcher
 
 if TYPE_CHECKING:
-    from ....dataitems import Mesh
+    from ....attributes.dataitems import Mesh
 
 
 @register_volume_fetcher("gii-mesh", "mesh")

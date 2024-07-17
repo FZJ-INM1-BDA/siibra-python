@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from ..concepts.attribute import Attribute
+from ...attributes.attribute import Attribute
 
 
 @dataclass

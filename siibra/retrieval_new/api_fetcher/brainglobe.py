@@ -6,13 +6,12 @@ from PIL import Image as PILImage
 from io import BytesIO
 from hashlib import md5
 from pathlib import Path
-from dataclasses import replace
 
 from ...factory.iterator import attribute_collection_iterator
 from ...retrieval_new.file_fetcher import GitHttpRepository, TarRepository
-from ...concepts import Attribute, AttributeCollection
-from ...descriptions import Name, RGBColor, Url, SpeciesSpec, ID
-from ...dataitems import Image
+from ...attributes import Attribute
+from ...attributes.descriptions import Name, RGBColor, Url, SpeciesSpec, ID
+from ...attributes.dataitems import Image
 from ...commons_new.logger import logger
 from ...commons_new.string import to_hex
 
@@ -194,17 +193,19 @@ def use(atlas_name: str):
     def bg_space():
         return [space]
 
-    _region_attributes={
+    _region_attributes = {
         structure["name"]: {
             "label": structure["id"],
             "color": to_hex(structure["rgb_triplet"]),
         }
         for structure in structures
     }
-    labelled_map_image = Image(format="nii",
-                               url=annot_img_filename,
-                               space_id=space_id,
-                               mapping=_region_attributes)
+    labelled_map_image = Image(
+        format="nii",
+        url=annot_img_filename,
+        space_id=space_id,
+        mapping=_region_attributes,
+    )
 
     labelled_map = Map(
         parcellation_id=parcellation_id,

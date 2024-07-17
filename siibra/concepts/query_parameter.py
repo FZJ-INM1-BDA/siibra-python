@@ -4,12 +4,13 @@ from typing import List, Union
 import pandas as pd
 
 from .atlas_elements import AtlasElement
-from .attribute_collection import AttributeCollection
+from ..attributes import AttributeCollection
 from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
-from ..locations import DataClsLocation
-from ..descriptions import Modality
-from ..descriptions.modality import vocab as modality_types
+from ..attributes.locations import DataClsLocation
+from ..attributes.descriptions import Modality
+from ..attributes.descriptions.modality import vocab as modality_types
 from ..commons_new.logger import logger
+
 
 @dataclass
 class QueryParamCollection:
@@ -25,15 +26,21 @@ class QueryParamCollection:
     or_flag = False
 
     @staticmethod
-    def from_concept_modality(concept: Union[AtlasElement, DataClsLocation], modality: Union[str, Modality], additional_attribute_collections: List[AttributeCollection]=None):
+    def from_concept_modality(
+        concept: Union[AtlasElement, DataClsLocation],
+        modality: Union[str, Modality],
+        additional_attribute_collections: List[AttributeCollection] = None,
+    ):
         concept_attr_collection = None
         if isinstance(concept, DataClsLocation):
             concept_attr_collection = AttributeCollection(attributes=[concept])
         if isinstance(concept, AtlasElement):
             concept_attr_collection = concept
         if concept_attr_collection is None:
-            raise ValueError(f"concept needs to be either DataClsLocation or AtlasElement, but is instead {type(concept)}")
-        
+            raise ValueError(
+                f"concept needs to be either DataClsLocation or AtlasElement, but is instead {type(concept)}"
+            )
+
         modality_attr_collection = None
         if isinstance(modality, str):
             msg = f"str input {modality!r}"
@@ -42,11 +49,21 @@ class QueryParamCollection:
         if isinstance(modality, Modality):
             modality_attr_collection = AttributeCollection(attributes=[modality])
         if modality_attr_collection is None:
-            raise ValueError(f"modality needs to be either str or Modality, but is instead {type(modality)}")
+            raise ValueError(
+                f"modality needs to be either str or Modality, but is instead {type(modality)}"
+            )
 
-        return QueryParamCollection(criteria=[concept_attr_collection,
-                                              modality_attr_collection,
-                                              *(additional_attribute_collections if additional_attribute_collections else [])])
+        return QueryParamCollection(
+            criteria=[
+                concept_attr_collection,
+                modality_attr_collection,
+                *(
+                    additional_attribute_collections
+                    if additional_attribute_collections
+                    else []
+                ),
+            ]
+        )
 
     def match(self, ac: AttributeCollection) -> bool:
         from ..assignment import collection_match
@@ -66,22 +83,27 @@ class QueryParamCollection:
     def exec(self):
         from ..assignment import find
         from .feature import Feature
-        return [
-            feat
-            for feat in find(self, Feature)
-        ]
-    
+
+        return [feat for feat in find(self, Feature)]
+
     @property
     def facets(self):
-        return pd.DataFrame([{"key": facet.key, "value": facet.value}
-                             for f in self.exec()
-                             for facet in f.facets])
-    
+        return pd.DataFrame(
+            [
+                {"key": facet.key, "value": facet.value}
+                for f in self.exec()
+                for facet in f.facets
+            ]
+        )
+
     def filter_by_facets(self, facet_dict=None, **kwargs):
-        from ..descriptions import Facet
+        from ..attributes.descriptions import Facet
+
         if not facet_dict:
             facet_dict = {}
-        assert isinstance(facet_dict, dict), f"The positional argument, if supplied, must be a dictionary. But instead is {facet_dict}"
+        assert isinstance(
+            facet_dict, dict
+        ), f"The positional argument, if supplied, must be a dictionary. But instead is {facet_dict}"
 
         facets = [
             Facet(key=key, value=value)
@@ -89,6 +111,7 @@ class QueryParamCollection:
         ]
         new_filter = AttributeCollection(attributes=facets)
         return replace(self, filters=[*self.filters, new_filter])
+
 
 @dataclass
 class QueryParam(AttributeCollection):
@@ -99,7 +122,7 @@ class QueryParam(AttributeCollection):
 
         self_attrs = [attr for attr in self.attributes if is_qualifiable(type(attr))]
         other_attrs = [attr for attr in ac.attributes if is_qualifiable(type(attr))]
-        
+
         for attra, attrb in product(self_attrs, other_attrs):
             try:
                 if qualify(attra, attrb):
@@ -109,7 +132,7 @@ class QueryParam(AttributeCollection):
             except InvalidAttrCompException:
                 continue
         return False
-    
+
     def split_attrs(self):
         for attr in self.attributes:
             yield QueryParam(attributes=[attr])

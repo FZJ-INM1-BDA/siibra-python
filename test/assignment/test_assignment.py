@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch, Mock
 import pytest
 
 import siibra.assignment.assignment
-from siibra.concepts import AttributeCollection
+from siibra.attributes import AttributeCollection
 
 
 a_0, a_1 = MagicMock(), MagicMock()

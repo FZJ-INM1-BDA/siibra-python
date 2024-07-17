@@ -2,14 +2,15 @@ from typing import Union, Type
 from itertools import product
 
 from .qualification import Qualification
-from ..dataitems import Image
 from ..commons_new.logger import logger
 from ..commons_new.binary_op import BinaryOp
 from ..commons_new.string import fuzzy_match, clear_name
-from ..concepts import Attribute, QueryParam
+from ..concepts import QueryParam
 from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
-from ..descriptions import Modality, RegionSpec, Name, ID, Facet
-from ..locations import Pt, PointCloud, BBox, intersect
+from ..attributes import Attribute
+from ..attributes.dataitems import Image
+from ..attributes.descriptions import Modality, RegionSpec, Name, ID, Facet
+from ..attributes.locations import Pt, PointCloud, BBox, intersect
 from ..cache import fn_call_cache
 
 

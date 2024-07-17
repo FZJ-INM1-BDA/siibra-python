@@ -3,14 +3,14 @@ import pandas as pd
 
 from ...assignment import filter_by_query_param
 from ...concepts import Feature, QueryParamCollection
-from ...descriptions import Modality, register_modalities
-from ...dataitems.tabular import Tabular, X_DATA
-from ...locations.layerboundary import (
+from ...attributes.descriptions import Modality, register_modalities
+from ...attributes.dataitems.tabular import Tabular, X_DATA
+from ...attributes.locations.layerboundary import (
     LayerBoundary,
     X_PRECALCULATED_BOUNDARY_KEY,
     LAYERS,
 )
-from ...locations import intersect, PointCloud, Pt, Polyline
+from ...attributes.locations import intersect, PointCloud, Pt, Polyline
 from ...exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 from ...retrieval_new.api_fetcher.bigbrain_profile import get_all
 

@@ -3,9 +3,9 @@ from typing import TypedDict
 import requests
 # from io import BytesIO
 
-from ..concepts.attribute import Attribute
-from ..cache import fn_call_cache
-from ..retrieval_new.file_fetcher import ZipRepository, TarRepository
+from ...attributes import Attribute
+from ...cache import fn_call_cache
+from ...retrieval_new.file_fetcher import ZipRepository, TarRepository
 
 
 class Archive(TypedDict):

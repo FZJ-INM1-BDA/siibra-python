@@ -1,5 +1,5 @@
-from .attribute_collection import AttributeCollection
-from ..descriptions import (
+from ..attributes.attribute_collection import AttributeCollection
+from ..attributes.descriptions import (
     Name,
     SpeciesSpec,
     ID as _ID

@@ -28,7 +28,7 @@ Create modalit(ies) of interest, and register them to the modality vocabularies
 ```diff
 # in my_fetcher.py
 
-+ from ...descriptions import Modality, register_modalities
++ from ...attributes.descriptions import Modality, register_modalities
 
 + my_modality = Modality(value="X-Ray Fluorescence Microscopy")
 + my_modality_2 = Modality(value="Multicellcular Spheroid")
@@ -47,7 +47,7 @@ Lastly, we add the logic on how queries should be handled.
 
 ```diff
 # in my_fetcher.py
-from ...descriptions import Modality, register_modalities
+from ...attributes.descriptions import Modality, register_modalities
 + from ...concepts import Feature, AttributeCollection
 + from ...assignment import register_collection_generator
 

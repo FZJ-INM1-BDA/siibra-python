@@ -3,7 +3,7 @@ from typing import Iterable, Union, TYPE_CHECKING, List
 import anytree
 
 from ..concepts import atlas_elements
-from ..descriptions import Name
+from ..attributes.descriptions import Name
 from ..commons_new.string import get_spec, SPEC_TYPE
 from ..commons_new.iterable import assert_ooo
 from ..commons_new.maps import spatial_props
@@ -11,7 +11,7 @@ from ..commons_new.logger import logger
 
 if TYPE_CHECKING:
     from .space import Space
-    from ..locations import PointCloud
+    from ..attributes.locations import PointCloud
     from . import Parcellation
 
 

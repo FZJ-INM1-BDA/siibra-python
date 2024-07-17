@@ -6,7 +6,7 @@ from ...commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
     from ...locations import BBox
-    from ...dataitems import Image, Mesh
+    from ...attributes.dataitems import Image, Mesh
     from nibabel import Nifti1Image, GiftiImage
 
 

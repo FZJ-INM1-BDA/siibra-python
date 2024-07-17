@@ -5,7 +5,7 @@ from typing import List
 from .point import Pt
 from .polyline import Polyline
 from .base import Location
-from ..cache import fn_call_cache
+from ...cache import fn_call_cache
 
 X_PRECALCULATED_BOUNDARY_KEY = "x-siibra/layerboundary"
 LAYERS = ("0", "I", "II", "III", "IV", "V", "VI", "WM")

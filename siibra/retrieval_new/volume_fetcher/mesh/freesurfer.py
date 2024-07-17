@@ -9,7 +9,7 @@ from ....cache import CACHE
 from ....commons_new.maps import arrs_to_gii
 
 if TYPE_CHECKING:
-    from ....dataitems import Mesh
+    from ....attributes.dataitems import Mesh
 
 
 def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):

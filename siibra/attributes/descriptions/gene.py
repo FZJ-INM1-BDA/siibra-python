@@ -1,5 +1,5 @@
 from .base import Description
-from ..vocabularies import GENE_NAMES
+from ...vocabularies import GENE_NAMES
 
 
 class Gene(Description):

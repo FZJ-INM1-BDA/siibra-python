@@ -17,8 +17,8 @@
 from . import location
 from .base import Location
 
-from ..commons_new.logger import logger
-from ..retrieval.requests import HttpRequest
+from ...commons_new.logger import logger
+from ...retrieval.requests import HttpRequest
 
 from urllib.parse import quote
 import re

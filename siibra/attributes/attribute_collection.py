@@ -2,7 +2,7 @@ from dataclasses import dataclass, field, replace
 from typing import Tuple, Type, TypeVar, Iterable, Callable
 
 from .attribute import Attribute
-from ..descriptions import Url, Doi, TextDescription, Modality
+from ..attributes.descriptions import Url, Doi, TextDescription, Modality
 from ..commons_new.iterable import assert_ooo
 
 T = TypeVar("T")

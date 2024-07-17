@@ -52,7 +52,7 @@ class Attribute:
 
     @property
     def facets(self):
-        from ..descriptions import Facet
+        from ..attributes.descriptions import Facet
 
         # TODO use str.removeprefix when py3.9 is the lowest python version supported
         return [

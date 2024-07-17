@@ -1,10 +1,9 @@
 from typing import Dict, Callable, List, TypeVar
 from functools import wraps
 
-from ..concepts.attribute import Attribute
-from ..concepts.attribute_collection import AttributeCollection
+from ..attributes.attribute import Attribute
 from ..concepts.feature import Feature
-from ..descriptions import Name, SpeciesSpec, ID, RegionSpec
+from ..attributes.descriptions import Name, SpeciesSpec, ID, RegionSpec
 from ..commons import create_key
 from ..commons_new.iterable import assert_ooo
 from ..atlases import region, parcellation, space, parcellationmap, sparsemap

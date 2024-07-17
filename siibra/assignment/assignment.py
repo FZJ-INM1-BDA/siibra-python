@@ -2,13 +2,13 @@ from typing import Type, Callable, Dict, Iterable, List, TypeVar, Union
 from collections import defaultdict
 from itertools import product
 
-from .attribute_qualification import qualify as attribute_qualify, is_qualifiable
+from .attribute_qualification import qualify as attribute_qualify
 
 from ..commons_new.register_recall import RegisterRecall
 from ..commons_new.logger import logger
-from ..concepts import AttributeCollection
+from ..attributes import AttributeCollection
 from ..concepts import QueryParamCollection
-from ..descriptions import ID, Name
+from ..attributes.descriptions import ID, Name
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 
 V = TypeVar("V")

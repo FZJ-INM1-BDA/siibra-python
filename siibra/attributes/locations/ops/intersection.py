@@ -6,8 +6,8 @@ from ..point import Pt
 from ..pointset import PointCloud
 from ..boundingbox import BBox
 from ..base import Location
-from ...exceptions import InvalidAttrCompException, UnregisteredAttrCompException
-from ...commons_new.binary_op import BinaryOp
+from ....exceptions import InvalidAttrCompException, UnregisteredAttrCompException
+from ....commons_new.binary_op import BinaryOp
 
 _loc_intersection = BinaryOp[Location, Union[Location, None]]()
 

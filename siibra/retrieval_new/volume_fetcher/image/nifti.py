@@ -7,7 +7,7 @@ import numpy as np
 from ..volume_fetcher import register_volume_fetcher, FetchKwargs
 
 if TYPE_CHECKING:
-    from ....dataitems import Image
+    from ....attributes.dataitems import Image
     from ....locations import BBox
 
 

@@ -5,13 +5,13 @@ import nibabel as nib
 from pathlib import Path
 from hashlib import md5
 
-from ...commons import SIIBRA_MAX_FETCH_SIZE_GIB
+from ....commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 from .base import Volume
-from ...exceptions import InvalidAttrCompException
+from ....exceptions import InvalidAttrCompException
 from ...locations import point, pointset, BBox
 from ...locations.ops.intersection import _loc_intersection
-from ...retrieval_new.volume_fetcher.volume_fetcher import (
+from ....retrieval_new.volume_fetcher.volume_fetcher import (
     get_volume_fetcher,
     get_bbox_getter,
     FetchKwargs,
@@ -57,7 +57,7 @@ class Image(Volume):
 
 def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "Image":
     """Builds an `Image` `Attribute` from a Nifti image or path to a nifti file."""
-    from ...cache import CACHE
+    from ....cache import CACHE
     filename = None
     if isinstance(nifti, str):
         filename = nifti

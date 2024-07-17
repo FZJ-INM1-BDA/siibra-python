@@ -16,9 +16,9 @@
 
 from . import point, pointset, location
 
-from ..concepts.attribute import Attribute
-from ..commons_new.logger import logger
-from ..exceptions import SpaceWarpingFailedError
+from ...attributes import Attribute
+from ...commons_new.logger import logger
+from ...exceptions import SpaceWarpingFailedError
 
 from itertools import product
 from dataclasses import dataclass, replace, field
@@ -26,9 +26,9 @@ import hashlib
 import numpy as np
 from typing import TYPE_CHECKING, Union, List
 if TYPE_CHECKING:
-    from ..core.structure import AnatomicalStructure
     from nibabel import Nifti1Image
-    from ..core.space import Space
+    from ...core.structure import AnatomicalStructure
+    from ...core.space import Space
 
 
 @dataclass

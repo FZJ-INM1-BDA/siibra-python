@@ -18,12 +18,7 @@ from typing import Union
 
 from .commons import __version__
 
-from .commons_new.logger import (
-    logger,
-    QUIET,
-    VERBOSE,
-    set_log_level
-)
+from .commons_new.logger import logger, QUIET, VERBOSE, set_log_level
 from .exceptions import NotFoundException
 from .commons_new.string import create_key
 from .commons_new.iterable import assert_ooo
@@ -36,10 +31,11 @@ from . import factory as factory_new
 from . import retrieval_new
 from .atlases import Space, Parcellation, Region, parcellationmap
 from .atlases.region import filter_newest
-from .descriptions import Modality, RegionSpec, Gene
-from .descriptions.modality import vocab as modality_types
-from .locations import DataClsLocation
-from .concepts import AtlasElement, QueryParam, QueryParamCollection, Attribute, AttributeCollection
+from .attributes import Attribute, AttributeCollection
+from .attributes.descriptions import Modality, RegionSpec, Gene
+from .attributes.descriptions.modality import vocab as modality_types
+from .attributes.locations import DataClsLocation
+from .concepts import AtlasElement, QueryParam, QueryParamCollection
 from .assignment import (
     string_search,
     find,
@@ -57,9 +53,15 @@ logger.info(
 )
 
 
-spaces = InstanceTable(elements={create_key(spc.name): spc for spc in iter_collection(Space)})
-parcellations = InstanceTable(elements={create_key(spc.name): spc for spc in iter_collection(Parcellation)})
-maps = InstanceTable(elements={create_key(spc.name): spc for spc in iter_collection(parcellationmap.Map)})
+spaces = InstanceTable(
+    elements={create_key(spc.name): spc for spc in iter_collection(Space)}
+)
+parcellations = InstanceTable(
+    elements={create_key(spc.name): spc for spc in iter_collection(Parcellation)}
+)
+maps = InstanceTable(
+    elements={create_key(spc.name): spc for spc in iter_collection(parcellationmap.Map)}
+)
 
 
 def get_space(space_spec: str):
@@ -72,14 +74,20 @@ def find_spaces(space_spec: str):
     return list(string_search(space_spec, Space))
 
 
-def fetch_template(space_spec: str, frmt: str = None, variant: str = "", fragment: str = ""):
+def fetch_template(
+    space_spec: str, frmt: str = None, variant: str = "", fragment: str = ""
+):
     return get_space(space_spec).fetch_template(frmt=frmt, variant=variant)
 
 
 def get_parcellation(parc_spec: str):
     """Convenient access to parcellations."""
     searched_parcs = list(string_search(parc_spec, Parcellation))
-    newest_versions = [p for p in searched_parcs if p.is_newest_version or p.next_version not in searched_parcs]
+    newest_versions = [
+        p
+        for p in searched_parcs
+        if p.is_newest_version or p.next_version not in searched_parcs
+    ]
     return assert_ooo(newest_versions)
 
 
@@ -87,7 +95,12 @@ def find_parcellations(parc_spec: str):
     return list(string_search(parc_spec, Parcellation))
 
 
-def find_maps(parcellation: str = None, space: str = None, maptype: str = "labelled", extra_spec: str = ""):
+def find_maps(
+    parcellation: str = None,
+    space: str = None,
+    maptype: str = "labelled",
+    extra_spec: str = "",
+):
     """Convenient access to parcellation maps."""
 
     if parcellation:
@@ -95,7 +108,9 @@ def find_maps(parcellation: str = None, space: str = None, maptype: str = "label
             requested_parcellations = find_parcellations(parcellation)
             assert len(requested_parcellations) > 0
         except AssertionError as e:
-            raise RuntimeError(f"Requested parcellation {parcellation!r} cannot be found. {str(e)}") from e
+            raise RuntimeError(
+                f"Requested parcellation {parcellation!r} cannot be found. {str(e)}"
+            ) from e
     else:
         requested_parcellations = None
 
@@ -104,7 +119,9 @@ def find_maps(parcellation: str = None, space: str = None, maptype: str = "label
             requested_spaces = find_spaces(space)
             assert len(requested_spaces) > 0
         except AssertionError as e:
-            raise RuntimeError(f"Requested space {space!r} cannot be found. {str(e)}") from e
+            raise RuntimeError(
+                f"Requested space {space!r} cannot be found. {str(e)}"
+            ) from e
     else:
         requested_spaces = None
 
@@ -121,7 +138,9 @@ def find_maps(parcellation: str = None, space: str = None, maptype: str = "label
     return return_result
 
 
-def get_map(parcellation: str, space: str, maptype: str = "labelled", extra_spec: str = ""):
+def get_map(
+    parcellation: str, space: str, maptype: str = "labelled", extra_spec: str = ""
+):
     """Convenient access to parcellation maps."""
     searched_maps = find_maps(parcellation, space, maptype, extra_spec)
     return assert_ooo(searched_maps)
@@ -151,6 +170,7 @@ def get_query_cursor(
         concept=concept, modality=modality, additional_attributes=additional_attributes
     )
 
+
 def get_query_collection(
     concept: Union[AtlasElement, Attribute],
     modality: Union[Modality, str],
@@ -159,12 +179,15 @@ def get_query_collection(
     additional_attributes = []
     if "genes" in kwargs:
         assert isinstance(kwargs["genes"], list)
-        additional_attributes.append(AttributeCollection(
-            attributes=[Gene(value=gene) for gene in kwargs["genes"]]
-        ))
+        additional_attributes.append(
+            AttributeCollection(
+                attributes=[Gene(value=gene) for gene in kwargs["genes"]]
+            )
+        )
 
-    return QueryParamCollection.from_concept_modality(concept, modality,
-                                                      additional_attribute_collections=additional_attributes)
+    return QueryParamCollection.from_concept_modality(
+        concept, modality, additional_attribute_collections=additional_attributes
+    )
 
 
 # convenient access to regions of a parcellation

@@ -10,13 +10,13 @@ from ..commons_new.maps import merge_volumes
 from ..commons_new.string import convert_hexcolor_to_rgbtuple
 from ..commons_new.logger import logger
 from ..atlases import Parcellation, Space, Region
-from ..dataitems import Image, Mesh, FORMAT_LOOKUP
-from ..descriptions import Name, ID as _ID, SpeciesSpec
+from ..attributes.dataitems import Image, Mesh, FORMAT_LOOKUP
+from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
 
 from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
-    from ..locations import BBox
+    from ..attributes.locations import BBox
     from ..retrieval_new.volume_fetcher import Mapping
 
 

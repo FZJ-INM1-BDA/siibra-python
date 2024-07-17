@@ -6,15 +6,14 @@ from .assignment import find, qualify as collection_qualify
 from .qualification import Qualification
 from ..atlases import Region
 from ..commons_new.logger import logger
-from ..concepts import Attribute
-from ..concepts import AttributeCollection
+from ..attributes import Attribute
 from ..concepts.query_parameter import QueryParam
 from ..concepts.feature import Feature
 from ..concepts.atlas_elements import AtlasElement
-from ..descriptions import Modality
-from ..descriptions.modality import vocab as modality_types
+from ..attributes.descriptions import Modality
+from ..attributes.descriptions.modality import vocab as modality_types
 from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
-from ..locations import DataClsLocation
+from ..attributes.locations import DataClsLocation
 
 
 @dataclass
@@ -56,7 +55,7 @@ class QueryCursor:
     @property
     def indirect_query_params(self):
         if isinstance(self.direct_query_param, Region):
-            from ..dataitems import Image
+            from ..attributes.dataitems import Image
 
             # TODO 5632ae5fee97ee65871ba84a3a8f78e5a132cfc4 broke 
             # find_regional_maps(), reenable once it is fixed
@@ -146,7 +145,7 @@ class QueryCursor:
         return replace(self, filters=self.filters + tuple(attributes))
     
     def filter_by_facets(self, facet_dict=None, **kwargs):
-        from ..descriptions import Facet
+        from ..attributes.descriptions import Facet
         if not facet_dict:
             facet_dict = {}
         assert isinstance(facet_dict, dict), f"The positional argument, if supplied, must be a dictionary. But instead is {facet_dict}"
