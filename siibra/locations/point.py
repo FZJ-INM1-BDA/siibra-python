@@ -151,9 +151,15 @@ class Point(location.Location):
         elif isinstance(spec, (tuple, list)) and len(spec) in [3, 4]:
             if len(spec) == 4:
                 assert spec[3] == 1
-            return tuple(float(v.item()) if isinstance(v, np.ndarray) else float(v) for v in spec[:3])
+            return tuple(
+                float(v.item()) if isinstance(v, np.ndarray) else float(v)
+                for v in spec[:3]
+            )
         elif isinstance(spec, np.ndarray) and spec.size == 3:
-            return tuple(float(v.item()) if isinstance(v, np.ndarray) else float(v) for v in spec[:3])
+            return tuple(
+                float(v.item()) if isinstance(v, np.ndarray) else float(v)
+                for v in spec[:3]
+            )
         elif isinstance(spec, Point):
             return spec.coordinate
 
@@ -166,7 +172,7 @@ class Point(location.Location):
         coordinatespec,
         space=None,
         sigma_mm: float = 0.0,
-        label: Union[int, float, tuple] = None
+        label: Union[int, float, tuple] = None,
     ):
         """
         Construct a new 3D point set in the given reference space.
@@ -203,6 +209,7 @@ class Point(location.Location):
 
     def intersection(self, other: location.Location) -> "Point":
         from . import pointset
+
         if isinstance(other, Point):
             return self if self == other else None
         elif isinstance(other, pointset.PointSet):
@@ -216,10 +223,14 @@ class Point(location.Location):
         TODO this needs to maintain the sigma parameter!
         """
         from ..core.space import Space
+
         spaceobj = Space.get_instance(space)
         if spaceobj == self.space:
             return self
-        if any(_ not in location.Location.SPACEWARP_IDS for _ in [self.space.id, spaceobj.id]):
+        if any(
+            _ not in location.Location.SPACEWARP_IDS
+            for _ in [self.space.id, spaceobj.id]
+        ):
             raise ValueError(
                 f"Cannot convert coordinates between {self.space.id} and {spaceobj.id}"
             )
@@ -232,19 +243,19 @@ class Point(location.Location):
             z=self.coordinate[2],
         )
         response = HttpRequest(url, lambda b: json.loads(b.decode())).get()
-        if any(map(np.isnan, response['target_point'])):
-            logger.debug(f'Warping {str(self)} to {spaceobj.name} resulted in NaN')
+        if any(map(np.isnan, response["target_point"])):
+            logger.debug(f"Warping {str(self)} to {spaceobj.name} resulted in NaN")
             return None
         return self.__class__(
             coordinatespec=tuple(response["target_point"]),
             space=spaceobj.id,
-            label=self.label
+            label=self.label,
         )
 
     @property
     def volume(self):
-        """ The volume of a point can be nonzero if it has a location uncertainty. """
-        return self.sigma**3 * np.pi * 4. / 3.
+        """The volume of a point can be nonzero if it has a location uncertainty."""
+        return self.sigma**3 * np.pi * 4.0 / 3.0
 
     def __sub__(self, other):
         """Substract the coordinates of two points to get
@@ -260,7 +271,7 @@ class Point(location.Location):
         return Point(
             [self.coordinate[i] - other.coordinate[i] for i in range(3)],
             self.space,
-            label=self.label
+            label=self.label,
         )
 
     def __lt__(self, other):
@@ -279,8 +290,9 @@ class Point(location.Location):
     def __hash__(self):
         return super().__hash__()
 
-    def __eq__(self, other: 'Point'):
+    def __eq__(self, other: "Point"):
         from . import pointset
+
         if isinstance(other, pointset.PointSet):
             return other == self  # implemented at pointset
         if not isinstance(other, Point):
@@ -314,7 +326,7 @@ class Point(location.Location):
             [self.coordinate[i] + other.coordinate[i] for i in range(3)],
             self.space,
             sigma_mm=self.sigma + other.sigma,
-            label=(self.label, other.label)
+            label=(self.label, other.label),
         )
 
     def __truediv__(self, number: float):
@@ -324,7 +336,7 @@ class Point(location.Location):
             np.array(self.coordinate) / number,
             self.space,
             sigma_mm=self.sigma / number,
-            label=self.label
+            label=self.label,
         )
 
     def __mul__(self, number: float):
@@ -334,7 +346,7 @@ class Point(location.Location):
             np.array(self.coordinate) * number,
             self.space,
             sigma_mm=self.sigma * number,
-            label=self.label
+            label=self.label,
         )
 
     def transform(self, affine: np.ndarray, space=None):
@@ -357,10 +369,7 @@ class Point(location.Location):
         if h != 1:
             logger.warning(f"Homogeneous coordinate is not one: {h}")
         return self.__class__(
-            (x / h, y / h, z / h),
-            space,
-            sigma_mm=self.sigma,
-            label=self.label
+            (x / h, y / h, z / h), space, sigma_mm=self.sigma, label=self.label
         )
 
     def get_enclosing_cube(self, width_mm):
@@ -370,6 +379,7 @@ class Point(location.Location):
         """
         offset = width_mm / 2
         from .boundingbox import BoundingBox
+
         return BoundingBox(
             point1=self - offset,
             point2=self + offset,
@@ -399,10 +409,9 @@ class Point(location.Location):
     @property
     def boundingbox(self):
         from .boundingbox import BoundingBox
+
         w = max(self.sigma or 0, 1e-6)  # at least a micrometer
-        return BoundingBox(
-            self - w, self + w, self.space, self.sigma
-        )
+        return BoundingBox(self - w, self + w, self.space, self.sigma)
 
     def bigbrain_section(self):
         """

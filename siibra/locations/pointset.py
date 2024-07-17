@@ -26,16 +26,20 @@ import numbers
 import json
 import numpy as np
 from dataclasses import dataclass, field
+
 try:
     from sklearn.cluster import HDBSCAN
+
     _HAS_HDBSCAN = True
 except ImportError:
     import sklearn
+
     _HAS_HDBSCAN = False
     logger.warning(
         f"HDBSCAN is not available with your version {sklearn.__version__} of sckit-learn."
         "`PointSet.find_clusters()` will not be avaiable."
     )
+
 
 @dataclass
 class PointCloud(Location):
@@ -98,7 +102,7 @@ class PointSet(location.Location):
         coordinates: Union[List[Tuple], np.ndarray],
         space=None,
         sigma_mm: Union[int, float, List[Union[int, float]]] = 0,
-        labels: List[Union[int, float, tuple]] = None
+        labels: List[Union[int, float, tuple]] = None,
     ):
         """
         Construct a 3D point set in the given reference space.
@@ -124,7 +128,9 @@ class PointSet(location.Location):
         if isinstance(sigma_mm, numbers.Number):
             self.sigma_mm = [sigma_mm for _ in range(len(self))]
         else:
-            assert len(sigma_mm) == len(self), "The number of coordinate must be equal to the number of sigmas."
+            assert len(sigma_mm) == len(
+                self
+            ), "The number of coordinate must be equal to the number of sigmas."
             self.sigma_mm = sigma_mm
 
         if labels is not None:
@@ -146,12 +152,7 @@ class PointSet(location.Location):
         ids, points = zip(*intersections)
         labels = None if self.labels is None else [self.labels[i] for i in ids]
         sigma = [p.sigma for p in points]
-        intersection = PointSet(
-            points,
-            space=self.space,
-            sigma_mm=sigma,
-            labels=labels
-        )
+        intersection = PointSet(points, space=self.space, sigma_mm=sigma, labels=labels)
         return intersection[0] if len(intersection) == 1 else intersection
 
     @property
@@ -170,10 +171,14 @@ class PointSet(location.Location):
     def warp(self, space, chunksize=1000):
         """Creates a new point set by warping its points to another space"""
         from ..core.space import Space
+
         spaceobj = space if isinstance(space, Space) else Space.get_instance(space)
         if spaceobj == self.space:
             return self
-        if any(_ not in location.Location.SPACEWARP_IDS for _ in [self.space.id, spaceobj.id]):
+        if any(
+            _ not in location.Location.SPACEWARP_IDS
+            for _ in [self.space.id, spaceobj.id]
+        ):
             raise ValueError(
                 f"Cannot convert coordinates between {self.space.id} and {spaceobj.id}"
             )
@@ -182,15 +187,19 @@ class PointSet(location.Location):
         tgt_points = []
         N = len(src_points)
         if N > 10e5:
-            logger.info(f"Warping {N} points from {self.space.name} to {spaceobj.name} space")
+            logger.info(
+                f"Warping {N} points from {self.space.name} to {spaceobj.name} space"
+            )
         for i0 in range(0, N, chunksize):
 
             i1 = min(i0 + chunksize, N)
-            data = json.dumps({
-                "source_space": location.Location.SPACEWARP_IDS[self.space.id],
-                "target_space": location.Location.SPACEWARP_IDS[spaceobj.id],
-                "source_points": src_points[i0:i1]
-            })
+            data = json.dumps(
+                {
+                    "source_space": location.Location.SPACEWARP_IDS[self.space.id],
+                    "target_space": location.Location.SPACEWARP_IDS[spaceobj.id],
+                    "source_points": src_points[i0:i1],
+                }
+            )
             response = HttpRequest(
                 url=f"{location.Location.SPACEWARP_SERVER}/transform-points",
                 post=True,
@@ -203,7 +212,9 @@ class PointSet(location.Location):
             ).data
             tgt_points.extend(list(response["target_points"]))
 
-        return self.__class__(coordinates=tuple(tgt_points), space=spaceobj, labels=self.labels)
+        return self.__class__(
+            coordinates=tuple(tgt_points), space=spaceobj, labels=self.labels
+        )
 
     def transform(self, affine: np.ndarray, space=None):
         """Returns a new PointSet obtained by transforming the
@@ -219,13 +230,11 @@ class PointSet(location.Location):
             of this cannot be checked and is up to the user.
         """
         return self.__class__(
-            np.dot(affine, self.homogeneous.T)[:3, :].T,
-            space,
-            labels=self.labels
+            np.dot(affine, self.homogeneous.T)[:3, :].T, space, labels=self.labels
         )
 
     def __getitem__(self, index: int):
-        if (abs(index) >= self.__len__()):
+        if abs(index) >= self.__len__():
             raise IndexError(
                 f"Pointset with {self.__len__()} points "
                 f"cannot be accessed with index {index}."
@@ -234,7 +243,7 @@ class PointSet(location.Location):
             self.coordinates[index, :],
             space=self.space,
             sigma_mm=self.sigma_mm[index],
-            label=None if self.labels is None else self.labels[index]
+            label=None if self.labels is None else self.labels[index],
         )
 
     def __iter__(self):
@@ -244,12 +253,12 @@ class PointSet(location.Location):
                 self.coordinates[i, :],
                 space=self.space,
                 sigma_mm=self.sigma_mm[i],
-                label=None if self.labels is None else self.labels[i]
+                label=None if self.labels is None else self.labels[i],
             )
             for i in range(len(self))
         )
 
-    def __eq__(self, other: 'PointSet'):
+    def __eq__(self, other: "PointSet"):
         if isinstance(other, point.Point):
             return len(self) == 1 and self[0] == other
         if not isinstance(other, PointSet):
@@ -278,7 +287,7 @@ class PointSet(location.Location):
             point1=XYZ.min(0) - max(sigma_min, 1e-6),
             point2=XYZ.max(0) + max(sigma_max, 1e-6),
             space=self.space,
-            sigma_mm=[sigma_min, sigma_max]
+            sigma_mm=[sigma_min, sigma_max],
         )
 
     @property
@@ -314,13 +323,15 @@ class PointSet(location.Location):
             max_cluster_size=int(N * max_fraction),
         )
         if self.labels is not None:
-            logger.warning("Existing labels of PointSet will be overwritten with cluster labels.")
+            logger.warning(
+                "Existing labels of PointSet will be overwritten with cluster labels."
+            )
         self.labels = clustering.fit_predict(points)
         return self.labels
 
     @property
     def label_colors(self):
-        """ return a color for the given label. """
+        """return a color for the given label."""
         if self.labels is None:
             return None
         else:
