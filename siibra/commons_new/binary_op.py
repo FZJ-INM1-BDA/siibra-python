@@ -20,7 +20,14 @@ V = TypeVar("V")
 
 
 class BinaryOp(Generic[T, V]):
+    """
+    Create a container for methods that takes two objects.
 
+    Note
+    ----
+    Assumes the operation is commutative. For an example of handling
+    non-commutative see `attributres.locations.ops.union` module.
+    """
     def __init__(self):
         self._store_dict: Dict[
             Tuple[Type[T], Type[T]], Tuple[Callable[[T, T], V], bool]
