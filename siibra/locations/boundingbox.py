@@ -78,6 +78,44 @@ class BBox(Attribute):
             - (self._minpoint - self._minpoint.sigma)
         )
 
+    @property
+    def corners(self):
+        """
+        Returns all 8 corners of the box as a pointset.
+        Note
+        ----
+        x0, y0, z0 = self.minpoint
+        x1, y1, z1 = self.maxpoint
+        all_corners = [
+            (x0, y0, z0),
+            (x1, y0, z0),
+            (x0, y1, z0),
+            (x1, y1, z0),
+            (x0, y0, z1),
+            (x1, y0, z1),
+            (x0, y1, z1),
+            (x1, y1, z1)
+        ]
+        TODO: deal with sigma. Currently, returns the mean of min and max point.
+        """
+        x0, y0, z0 = self.minpoint
+        x1, y1, z1 = self.maxpoint
+        all_corners = [
+            (x0, y0, z0),
+            (x1, y0, z0),
+            (x0, y1, z0),
+            (x1, y1, z0),
+            (x0, y0, z1),
+            (x1, y0, z1),
+            (x0, y1, z1),
+            (x1, y1, z1)
+        ]
+        return pointset.PointCloud(
+            coordinates=all_corners,
+            space_id=self.space_id,
+            sigma_mm=np.mean([self.minpoint.sigma, self.maxpoint.sigma])
+        )
+
 
 class BoundingBox(location.Location):
     """
