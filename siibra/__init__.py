@@ -22,7 +22,7 @@ from .commons_new.logger import logger, QUIET, VERBOSE, set_log_level
 from .exceptions import NotFoundException
 from .commons_new.string import create_key
 from .commons_new.iterable import assert_ooo
-from .commons_new.instance_table import InstanceTable
+from .commons_new.instance_table import JitInstanceTable
 from .commons_new.tree import collapse_nodes
 
 from .cache import Warmup, WarmupLevel, CACHE as cache
@@ -53,15 +53,9 @@ logger.info(
 )
 
 
-spaces = InstanceTable(
-    elements={create_key(spc.name): spc for spc in iter_collection(Space)}
-)
-parcellations = InstanceTable(
-    elements={create_key(spc.name): spc for spc in iter_collection(Parcellation)}
-)
-maps = InstanceTable(
-    elements={create_key(spc.name): spc for spc in iter_collection(parcellationmap.Map)}
-)
+spaces = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_collection(Space)}) 
+parcellations = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_collection(Parcellation)})
+maps = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_collection(parcellationmap.Map)})
 
 
 def get_space(space_spec: str):

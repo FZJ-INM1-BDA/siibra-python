@@ -69,10 +69,10 @@ plotting.matrix_plotting(matrix.iloc[0:15, 0:15], labels=selected_regions, cmap=
 # the plotting module of `nilearn <https://nilearn.github.io>`_.
 # To do so, we need to provide centroids in
 # the anatomical space for each region (or "node") of the connectivity matrix.
-assert all(isinstance(idx, siibra.descriptions.RegionSpec) for idx in filtered_f.matrix_indices)
+assert all(isinstance(idx, siibra.attributes.descriptions.RegionSpec) for idx in filtered_f.matrix_indices)
 node_coords = [region.get_centroids().coordinates[0]
                for idx in filtered_f.matrix_indices
-               if isinstance(idx, siibra.descriptions.RegionSpec)
+               if isinstance(idx, siibra.attributes.descriptions.RegionSpec)
                for region in idx.decode()]
 
 

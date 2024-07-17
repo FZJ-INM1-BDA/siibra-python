@@ -9,14 +9,12 @@ from pathlib import Path
 
 from ...factory.iterator import attribute_collection_iterator
 from ...retrieval_new.file_fetcher import GitHttpRepository, TarRepository
-from ...attributes import Attribute
-from ...attributes.descriptions import Name, RGBColor, Url, SpeciesSpec, ID
-from ...attributes.dataitems import Image
 from ...commons_new.logger import logger
 from ...commons_new.string import to_hex
 
 if TYPE_CHECKING:
     from ...atlases import Parcellation
+    from ...attributes import Attribute
 
 url = "https://gin.g-node.org/BrainGlobe/atlases.git"
 fileurl = "https://gin.g-node.org/BrainGlobe/atlases/raw/master/{filename}.tar.gz"
@@ -83,9 +81,10 @@ def ls():
 def populate_regions(
     structures: List[Structure],
     parcellation: "Parcellation",
-    additional_attrs: List[Attribute] = None,
+    additional_attrs: List["Attribute"] = None,
 ):
-    from ...atlases import Region as Region
+    from ...attributes.descriptions import Name, RGBColor, ID
+    from ...atlases import Region
 
     _dict_id_to_region: Dict[int, Region] = {}
     _dict_region_to_parent: Dict[Region, int] = {}
@@ -144,6 +143,8 @@ def tiff_to_nii(tiff_bytes: bytes, affine: np.ndarray) -> str:
 
 def use(atlas_name: str):
     from ...atlases import Parcellation, Space, Map
+    from ...attributes.descriptions import Name, Url, SpeciesSpec, ID
+    from ...attributes.dataitems import Image
 
     if atlas_name in _registered_atlas:
         logger.info(f"{atlas_name} is already loaded.")
