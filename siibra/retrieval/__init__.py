@@ -13,15 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""File digestion and caching."""
-
-from .repositories import (
-    GitlabConnector,
-    OwncloudConnector,
-    EbrainsHdgConnector,
-    EbrainsPublicDatasetConnector,
-    LocalFileRepository,
-    ZipfileConnector
-)
-from .requests import HttpRequest, ZipfileRequest, EbrainsRequest, SiibraHttpRequestError
-from .exceptions import NoSiibraConfigMirrorsAvailableException, TagNotFoundException
+from . import api_fetcher
+from . import volume_fetcher
+from . import file_fetcher
+from . import doi_fetcher
