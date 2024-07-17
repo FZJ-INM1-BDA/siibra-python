@@ -18,7 +18,6 @@
 from . import location, point, boundingbox as _boundingbox
 from .base import Location
 
-from ...retrieval.requests import HttpRequest
 from ...commons_new.logger import logger
 
 

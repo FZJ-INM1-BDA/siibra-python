@@ -27,13 +27,13 @@ from neuroglancer_scripts.precomputed_io import (
 
 from ...volume_fetcher.volume_fetcher import register_volume_fetcher, FetchKwargs
 from ....cache import fn_call_cache
-from ....attributes.locations import BBox
 from ....commons_new.logger import logger
 
 from ....commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
     from ....attributes.dataitems import Image
+    from ....attributes.locations import BBox
 
 
 def extract_label_mask(arr: np.ndarray, label: int):
@@ -130,6 +130,8 @@ class Scale:
 
     def _estimate_nbytes(self, bbox: "BBox" = None):
         """Estimate the size image array to be fetched in bytes, given a bounding box."""
+        from ....attributes.locations import BBox
+
         if bbox is None:
             bbox_ = BBox(minpoint=(0, 0, 0), maxpoint=self.size, space_id=None)
         else:

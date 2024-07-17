@@ -21,5 +21,5 @@ from .pointset import PointSet, from_points, PointCloud
 from .boundingbox import BoundingBox, BBox
 from .polyline import Polyline
 from .layerboundary import LayerBoundary
-
+from .ops import intersect, union
 from .base import Location as DataClsLocation

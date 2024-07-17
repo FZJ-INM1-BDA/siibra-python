@@ -20,8 +20,6 @@ from tqdm import tqdm
 from nibabel.nifti1 import Nifti1Image
 from nibabel.gifti import GiftiImage, GiftiDataArray
 
-from ..attributes.locations import Pt
-
 
 def resample_img_to_img(
     source_img: "Nifti1Image", target_img: "Nifti1Image", interpolation: str = ""
@@ -230,6 +228,8 @@ def spatial_props(
 
 
 def compute_centroid(img: Nifti1Image, space_id: str, background: float = 0.0):
+    from ..attributes.locations import Pt
+
     maparr = np.asanyarray(img.dataobj)
     centroid_vox = np.mean(np.where(maparr != background), axis=1)
     return Pt(
