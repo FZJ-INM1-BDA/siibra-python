@@ -45,51 +45,71 @@ except ImportError:
 class PointCloud(Location):
     schema = "siibra/attr/loc/pointcloud/v0.1"
     coordinates: List[List[float]] = field(default_factory=list, repr=False)
-    sigma: float = 0
+    sigma: List[float] = field(default_factory=list, repr=False)
+
+    def __post_init__(self, coordinates):
+        self.coordinates = np.asanyarray(coordinates)
+
+    def __iter__(self):
+        yield self.to_pts()
 
     @property
     def homogeneous(self):
         return np.c_[self.coordinates, np.ones(len(self.coordinates))]
 
     def to_pts(self):
-        return [point.Pt(space_id=self.space_id, coordinate=coord)
-                for coord in self.coordinates]
-        
+        return [
+            point.Pt(space_id=self.space_id, coordinate=coord)
+            for coord in self.coordinates
+        ]
 
     @staticmethod
     def transform(ptcloud: "PointCloud", affine: np.ndarray):
         new_coord: np.ndarray = np.dot(affine, ptcloud.homogeneous.T)[:3, :].T
-        return PointCloud(coordinates=new_coord.tolist(),
-                          space_id=ptcloud.space_id,
-                          sigma=ptcloud.sigma)
+        return PointCloud(
+            coordinates=new_coord.tolist(),
+            space_id=ptcloud.space_id,
+            sigma=ptcloud.sigma,
+        )
+
+    def append(self, pt: "point.Pt"):
+        self.coordinates.append(pt.coordinate)
+        self.sigma.append(pt.sigma)
+
+    def extend(self, points: Union[List["point.Pt"], "PointCloud"]):
+        coords, sigmas = zip(*((p.coordinate, p.sigma) for p in points))
+        self.coordinates.extend(coords)
+        self.sigma.extend(sigmas)
+
+    @property
+    def boundingbox(self):
+        """Return the bounding box of these points.
+        """
+        XYZ = self.coordinates
+        sigma_min = max(self.sigma[i] for i in XYZ.argmin(0))
+        sigma_max = max(self.sigma[i] for i in XYZ.argmax(0))
+        return _boundingbox.BBox(
+            minpoint=XYZ.min(0) - max(sigma_min),
+            maxpoint=XYZ.max(0) + max(sigma_max),
+            space_id=self.space_id
+        )
 
 
-def from_points(points: List["point.Point"], newlabels: List[Union[int, float, tuple]] = None) -> "PointSet":
-    """
-    Create a PointSet from an iterable of Points.
-
-    Parameters
-    ----------
-    points : Iterable[point.Point]
-    newlabels: List[int], optional
-        Use these labels instead of the original labels of the points.
-
-    Returns
-    -------
-    PointSet
-    """
+def from_points(
+    points: List["point.Pt"]
+) -> "PointCloud":
     if len(points) == 0:
-        return PointSet([])
+        return PointCloud([])
     spaces = {p.space for p in points}
-    assert len(spaces) == 1, f"PointSet can only be constructed with points from the same space.\n{spaces}"
-    coords, sigmas, labels = zip(*((p.coordinate, p.sigma, p.label) for p in points))
-    if all(lb is None for lb in set(labels)):
-        labels = None
-    return PointSet(
+    assert (
+        len(spaces) == 1
+    ), f"PointCloud can only be constructed with points from the same space.\n{spaces}"
+
+    coords, sigmas = zip(*((p.coordinate, p.sigma) for p in points))
+    return PointCloud(
         coordinates=coords,
         space=next(iter(spaces)),
-        sigma_mm=sigmas,
-        labels=newlabels or labels
+        sigma_mm=sigmas
     )
 
 
