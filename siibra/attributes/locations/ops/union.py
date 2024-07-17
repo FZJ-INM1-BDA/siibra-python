@@ -24,47 +24,62 @@ _loc_union = BinaryOp[Location, Location]()
 
 
 @_loc_union.register(Pt, Pt)
-def pt_pt(pta: Pt, ptb: Pt):
+def pt_pt(pta: Pt, ptb: Pt, is_switched: bool = False):
     if pta.space_id != ptb.space_id:
         raise InvalidAttrCompException
-    return from_points([pta, ptb])
+    if is_switched:
+        return from_points([ptb, pta])
+    else:
+        return from_points([pta, ptb])
 
 
 @_loc_union.register(Pt, PointCloud)
-def pt_ptcld(pt: Pt, ptcld: PointCloud):
+def pt_ptcld(pt: Pt, ptcld: PointCloud, is_switched: bool = False):
     if pt.space_id != ptcld.space_id:
         raise InvalidAttrCompException
-    return ptcld.append(pt)
-    # TODO: consider reverse
+    if is_switched:
+        return ptcld.append(pt)
+    else:
+        return from_points([pt]).extend(ptcld)
 
 
 @_loc_union.register(PointCloud, PointCloud)
-def ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
+def ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud, is_switched: bool = False):
     if ptclda.space_id != ptcldb.space_id:
         raise InvalidAttrCompException
-    return ptclda.extend(ptcldb)
+    if is_switched:
+        return ptcldb.extend(ptclda)
+    else:
+        return ptclda.extend(ptcldb)
 
 
 @_loc_union.register(Pt, BBox)
-def pt_bbox(pt: Pt, bbox: BBox):
+def pt_bbox(pt: Pt, bbox: BBox, is_switched: bool = False):
     if pt.space_id != bbox.space_id:
         raise InvalidAttrCompException
-    return ptcld_bbox(from_points(pt), bbox)
+    if is_switched:
+        return ptcld_bbox(bbox, from_points(pt))
+    else:
+        return ptcld_bbox(from_points(pt), bbox)
 
 
 @_loc_union.register(PointCloud, BBox)
-def ptcld_bbox(ptcld: PointCloud, bbox: BBox):
+def ptcld_bbox(ptcld: PointCloud, bbox: BBox, is_switched: bool = False):
     if ptcld.space_id != bbox.space_id:
         raise InvalidAttrCompException
+    if is_switched:
+        pass  # the code is the same
     joint_cloud = ptcld
     joint_cloud.extend(bbox.corners)
     return joint_cloud.boundingbox
 
 
 @_loc_union.register(BBox, BBox)
-def bbox_bbox(bboxa: BBox, bboxb: BBox):
+def bbox_bbox(bboxa: BBox, bboxb: BBox, is_switched: bool = False):
     if bboxa.space_id != bboxb.space_id:
         raise InvalidAttrCompException
+    if is_switched:
+        pass  # the code is the same
     joint_cloud = bboxa.corners
     joint_cloud.extend(bboxb.corners)
     return joint_cloud.boundingbox
@@ -74,4 +89,4 @@ def union(loca: Location, locb: Location):
     value = _loc_union.get(loca, locb)
     fn, switch_flag = value
     args = [locb, loca] if switch_flag else [loca, locb]
-    return fn(*args)
+    return fn(*args, is_switched=switch_flag)
