@@ -34,7 +34,7 @@ from dataclasses import dataclass, field, replace
 class Pt(Location):
     schema = "siibra/attr/loc/point/v0.1"
     coordinate: List[float] = field(default_factory=list)
-    sigma: float = 0.
+    sigma: float = 0.0
 
     @property
     def homogeneous(self):
@@ -53,7 +53,7 @@ class Pt(Location):
         if isinstance(other, numbers.Number):
             return Pt(
                 coordinate=[c + other for c in self.coordinate],
-                space_id=self.space.ID if self.space else None
+                space_id=self.space.ID if self.space else None,
             )
         if isinstance(other, Pt):
             assert self.space == other.space
@@ -67,7 +67,7 @@ class Pt(Location):
         if isinstance(other, numbers.Number):
             return Pt(
                 coordinate=[c - other for c in self.coordinate],
-                space_id=self.space.ID if self.space else None
+                space_id=self.space.ID if self.space else None,
             )
         if isinstance(other, Pt):
             assert self.space == other.space
@@ -81,6 +81,44 @@ class Pt(Location):
         """Return an iterator over the location,
         so the Point can be easily cast to list or tuple."""
         return iter(self.coordinate)
+
+
+def parse(spec, unit="mm") -> Tuple[float, float, float]:
+    """Converts a 3D coordinate specification into a 3D tuple of floats.
+
+    Parameters
+    ----------
+    spec: Any of str, tuple(float,float,float)
+        For string specifications, comma separation with decimal points are expected.
+    unit: str
+        specification of the unit (only 'mm' supported so far)
+    Returns
+    -------
+    tuple(float, float, float)
+    """
+    if unit != "mm":
+        raise NotImplementedError(
+            "Coordinate parsing from strings is only supported for mm specifications so far."
+        )
+    if isinstance(spec, str):
+        pat = r"([-\d\.]*)" + unit
+        digits = re.findall(pat, spec)
+        if len(digits) == 3:
+            return tuple(float(d) for d in digits)
+    elif isinstance(spec, (tuple, list)) and len(spec) in [3, 4]:
+        if len(spec) == 4:
+            assert spec[3] == 1
+        return tuple(
+            float(v.item()) if isinstance(v, np.ndarray) else float(v) for v in spec[:3]
+        )
+    elif isinstance(spec, np.ndarray) and spec.size == 3:
+        return tuple(
+            float(v.item()) if isinstance(v, np.ndarray) else float(v) for v in spec[:3]
+        )
+
+    raise ValueError(
+        f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
+    )
 
 
 # deprecated
