@@ -36,6 +36,16 @@ class Location(Attribute):
             [space for space in iter_collection(Space) if space.ID == self.space_id]
         )
 
+    def union(self, other: "Location"):
+        from .ops import union as _union
+
+        return _union(self, other)
+
+    def intersect(self, other: "Location"):
+        from .ops import intersect as _intersect
+
+        return _intersect(self, other)
+
 
 # static methods
 
