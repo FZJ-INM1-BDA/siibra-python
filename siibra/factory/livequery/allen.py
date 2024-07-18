@@ -18,15 +18,15 @@ from typing import List
 import pandas as pd
 import numpy as np
 
+from .base import LiveQuery
+from ...atlases import Region
 from ...cache import fn_call_cache
 from ...commons_new.logger import logger
 from ...concepts import Feature
-from ...concepts.query_parameter import QueryParamCollection
 from ...retrieval.api_fetcher.allen import _AllenGeneQuery
 from ...attributes.descriptions import register_modalities, Modality, Gene
-from ...assignment import filter_by_query_param
 from ...attributes.locations import PointCloud
-from ...attributes.dataitems import Image, Tabular
+from ...attributes.dataitems import Tabular
 from ...attributes.dataitems.volume.image import intersect_ptcld_image
 from ...attributes.dataitems.tabular import X_DATA
 
@@ -89,58 +89,56 @@ def _retrieve_measurements(gene_names: List[str]):
 def add_allen_modality():
     yield modality_of_interest
 
+class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
+    def generate(self):
+        
+        # If none of the 
+        all_mods = [mod for li in self.find_attributes(Modality) for mod in li]
+        if modality_of_interest not in all_mods:
+            return
+        all_genes = [mod for li in self.find_attributes(Gene) for mod in li]
+        if len(all_genes) == 0:
+            logger.warning(f"AllenLiveQueryError: expecting at least one gene, but got {len(all_genes)}.")
+            return
+        
+        regions = self.find_attribute_collections(Region)
+        if len(regions) != 1:
+            logger.warning(f"AllenLiveQueryError: expecting one and only one Region, but got {len(regions)}.")
+            return
+        
+        region = regions[0]
 
-@filter_by_query_param.register(Feature)
-def query_allen_gene_api(input: QueryParamCollection):
-    all_mods = [mod for cri in input.criteria for mod in cri._find(Modality)]
+        # since we are only interested in map in mni152 space
+        images = region.find_regional_maps("mni152")
 
-    if modality_of_interest not in all_mods:
-        return
+        if len(images) != 1:
+            logger.warning(f"AllenLiveQueryError: expecting one and only one Image, but got {len(regions)}.")
 
-    genes = [gene for cri in input.criteria for gene in cri._find(Gene)]
-    if len(genes) == 0:
-        logger.error(
-            f"{modality_of_interest.value} was queried, but no gene was provided. Returning empty array."
+        image = images[0]
+        print(ALLEN_ATLAS_NOTIFICATION)
+
+        attributes = [replace(modality_of_interest)]
+
+        retrieved_measurements = _retrieve_measurements([g.value for g in all_genes])
+        ptcld = PointCloud(
+            space_id=MNI152_SPACE_ID,
+            coordinates=[measure["mni_xyz"] for measure in retrieved_measurements],
         )
-        return
+        intersection = intersect_ptcld_image(ptcloud=ptcld, image=image)
+        inside_coord_set = set(tuple(coord) for coord in intersection.coordinates)
 
-    images = [image for cri in input.criteria for image in cri._find(Image)]
-    if len(images) == 0:
-        logger.error(
-            f"{modality_of_interest.value} was queried, but input contains no image. Returning empty array."
+        dataframe = pd.DataFrame.from_dict(
+            [
+                measurement
+                for measurement in retrieved_measurements
+                if tuple(measurement["mni_xyz"]) in inside_coord_set
+            ]
         )
-        return
+        tabular_data_attr = Tabular(extra={X_DATA: dataframe})
+        attributes.append(tabular_data_attr)
 
-    if len(images) > 1:
-        logger.warning(
-            f"{modality_of_interest.value} was queried, but input contains multiple images. First one was selected."
-        )
+        ptcld = PointCloud(space_id=MNI152_SPACE_ID, coordinates=list(inside_coord_set))
+        attributes.append(ptcld)
 
-    image = images[0]
+        yield Feature(attributes=attributes)
 
-    print(ALLEN_ATLAS_NOTIFICATION)
-
-    attributes = [replace(modality_of_interest)]
-
-    retrieved_measurements = _retrieve_measurements([g.value for g in genes])
-    ptcld = PointCloud(
-        space_id=MNI152_SPACE_ID,
-        coordinates=[measure["mni_xyz"] for measure in retrieved_measurements],
-    )
-    intersection = intersect_ptcld_image(ptcloud=ptcld, image=image)
-    inside_coord_set = set(tuple(coord) for coord in intersection.coordinates)
-
-    dataframe = pd.DataFrame.from_dict(
-        [
-            measurement
-            for measurement in retrieved_measurements
-            if tuple(measurement["mni_xyz"]) in inside_coord_set
-        ]
-    )
-    tabular_data_attr = Tabular(extra={X_DATA: dataframe})
-    attributes.append(tabular_data_attr)
-
-    ptcld = PointCloud(space_id=MNI152_SPACE_ID, coordinates=list(inside_coord_set))
-    attributes.append(ptcld)
-
-    yield Feature(attributes=attributes)

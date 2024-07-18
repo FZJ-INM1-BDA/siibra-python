@@ -17,12 +17,12 @@ from typing import Type, Callable, Dict, Iterable, List, TypeVar, Union
 from collections import defaultdict
 from itertools import product
 
-from .attribute_qualification import qualify as attribute_qualify
 
+from .attribute_qualification import qualify as attribute_qualify
 from ..commons_new.register_recall import RegisterRecall
 from ..commons_new.logger import logger
 from ..attributes import AttributeCollection
-from ..concepts import QueryParamCollection
+from ..concepts import QueryParamCollection, Feature
 from ..attributes.descriptions import ID, Name
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 
@@ -38,6 +38,11 @@ filter_by_query_param = RegisterRecall[List[QueryParamCollection]](cache=False)
 def finditer(input: QueryParamCollection, req_type: Type[V]):
     for fn in filter_by_query_param.iter_fn(req_type):
         yield from fn(input)
+    from ..factory.livequery.base import LiveQuery
+    for cls in LiveQuery._ATTRIBUTE_COLLECTION_REGISTRY[req_type]:
+        inst = cls(input.criteria)
+        yield from inst.generate()
+
 
 
 def find(input: Union[AttributeCollection, QueryParamCollection], req_type: Type[V]) -> List[V]:
