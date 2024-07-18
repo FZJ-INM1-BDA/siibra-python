@@ -28,14 +28,10 @@ It hopefully demonstrates that incorporating with existing APIs can be done with
 # %%
 # List the supported atlases in brainglobe API
 import siibra
-from siibra.retrieval.api_fetcher import brainglobe
-brainglobe.ls()
-
-# %%
-# Specify that we will import the atlas with the name `allen_human_500um_v0.1`
-# the `use` method returns the space, parcellation and parcellationmap
-space, parcellation, parcellationmap = brainglobe.use("allen_human_500um_v0.1")
+from siibra.factory.livequery import brainglobe
+brainglobe.list_all()
+assert "bg:allen_human_500um_v0.1" in brainglobe.list_all()
 
 # %%
 # The `use` method also registers it to siibra, so we can find it using siibra methods
-assert siibra.get_parcellation("allen human") is parcellation
+assert siibra.get_parcellation("bg:allen_human_500um_v0.1")

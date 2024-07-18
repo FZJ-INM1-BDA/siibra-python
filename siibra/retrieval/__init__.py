@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import api_fetcher
 from . import volume_fetcher
 from . import file_fetcher
 from . import doi_fetcher

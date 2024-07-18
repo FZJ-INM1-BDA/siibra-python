@@ -1,10 +1,9 @@
-from siibra.retrieval.api_fetcher import brainglobe
+from siibra.factory.livequery import brainglobe
 import siibra
 
-for atlas in brainglobe.ls():
+for atlas in brainglobe.list_all():
     print(atlas)
 
-space, parc = brainglobe.use("allen_mouse_100um_v1.2")
 
 
 got_parc = siibra.get_parcellation("bg-allen_mouse_100um_v1.2")

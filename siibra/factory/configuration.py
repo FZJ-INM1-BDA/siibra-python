@@ -89,11 +89,6 @@ def iter_modalities():
         yield from feature._finditer(Modality)
 
 
-@register_modalities()
-def register_cell_body_density():
-    yield Modality(value="Cell body density")
-
-
 #
 # Configure how preconfigured AC are fetched and built
 #
@@ -207,38 +202,3 @@ def iter_region(input: QueryParamCollection):
         for region in parc.find(regspec.value)
     ]
 
-
-@filter_by_query_param.register(Feature)
-def iter_cell_body_density(input: QueryParamCollection):
-    mods = [mod for cri in input.criteria for mod in cri._find(Modality)]
-    if Modality(value="Cell body density") not in mods:
-        return
-
-    from ..concepts import QueryParam
-    from ..attributes.descriptions import RegionSpec, ID, Name
-
-    name_to_regionspec: Dict[str, RegionSpec] = {}
-    returned_features: Dict[str, List[Feature]] = defaultdict(list)
-
-    for feature in iter_preconf_features(
-        QueryParam(attributes=[Modality(value="Segmented cell body density")])
-    ):
-        try:
-            regionspec = feature._get(RegionSpec)
-            returned_features[regionspec.value].append(feature)
-            name_to_regionspec[regionspec.value] = regionspec
-        except Exception as e:
-            logger.warn(f"Processing {feature} resulted in exception {str(e)}")
-
-    for regionname, features in returned_features.items():
-        yield Feature(
-            attributes=[
-                *[
-                    attr
-                    for feature in features
-                    for attr in feature.attributes
-                    if not isinstance(attr, (RegionSpec, Name, ID))
-                ],
-                name_to_regionspec[regionname],
-            ]
-        )

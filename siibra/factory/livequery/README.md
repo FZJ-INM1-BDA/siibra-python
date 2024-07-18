@@ -1,4 +1,4 @@
-# Adding new live queried features
+# Adding new live queried AttributeCollection (Feature/Space/Parcellation/Map)
 
 ## Background
 
@@ -9,7 +9,7 @@
 1/ create a new fetcher:
 
 ```sh
-$ touch my_fetcher.py
+$ touch my_query.py
 ```
 
 2/ import your fetcher in module root
@@ -18,7 +18,7 @@ $ touch my_fetcher.py
 # in __init__.py
 
 from . import bigbrain_profile
-+ from . import my_fetcher
++ from . import my_query
 ```
 
 3/ (optional)
@@ -26,7 +26,7 @@ from . import bigbrain_profile
 Create modalit(ies) of interest, and register them to the modality vocabularies
 
 ```diff
-# in my_fetcher.py
+# in my_query.py
 
 + from ...attributes.descriptions import Modality, register_modalities
 
@@ -46,19 +46,17 @@ This allows the modality to be autocompleted at runtime (for example, tab comple
 Lastly, we add the logic on how queries should be handled.
 
 ```diff
-# in my_fetcher.py
+# in my_query.py
 from ...attributes.descriptions import Modality, register_modalities
 + from ...concepts import Feature, AttributeCollection
-+ from ...assignment import register_collection_generator
++ from .base import LiveQuery
 
 # trimmed for brevity
 
-+ @register_collection_generator(Feature)
-+ def query_my_features(input: AttributeCollection):
-+     import random
-+     if random.random() > 0.5:
-+         return
-+     yield Feature()
++ class MyLiveQuery(LiveQuery[Feature], generates=Feature):
++     def generate(self):
++         # do something with self.inputs
++         yield Feature()
 ```
 
 ## n.b.

@@ -15,3 +15,5 @@
 
 from . import allen
 from . import bigbrain_profile
+from . import brainglobe
+from . import cell_body_density
