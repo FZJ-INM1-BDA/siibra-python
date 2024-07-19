@@ -65,8 +65,8 @@ class Space(AtlasElement):
         if frmt is None or frmt not in self.formats:
             frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
         else:
-            assert frmt not in self.formats, RuntimeError(
-                f"Requested format '{frmt}' is not available for this map: {self.formats=}."
+            assert frmt in self.formats, RuntimeError(
+                f"Requested format '{frmt}' is not available for this space: {self.formats=}."
             )
 
         if variant is not None:
