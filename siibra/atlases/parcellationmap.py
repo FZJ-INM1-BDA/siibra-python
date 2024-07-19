@@ -229,7 +229,7 @@ class Map(AtlasElement):
         else:
             regionspec = region
 
-        volumes = self.find_volumes(_regionname=regionspec, frmt=frmt)
+        volumes = self.find_volumes(region=regionspec, frmt=frmt)
         if len(volumes) == 0:
             raise RuntimeError("No images or meshes found matching parameters.")
 
