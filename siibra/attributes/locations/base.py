@@ -37,15 +37,19 @@ class Location(Attribute):
         )
 
     def union(self, other: "Location"):
-        from .ops import union as _union
+        from .ops.union import union as _union
 
         return _union(self, other)
 
     def intersect(self, other: "Location"):
-        from .ops import intersect as _intersect
+        from .ops.intersection import intersect as _intersect
 
         return _intersect(self, other)
 
+    def warp(self, space_id: str):
+        from .ops.warp import warp as _warp
+
+        return _warp(self, space_id)
 
 # static methods
 

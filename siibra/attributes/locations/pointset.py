@@ -47,9 +47,6 @@ class PointCloud(Location):
     coordinates: List[List[float]] = field(default_factory=list, repr=False)
     sigma: List[float] = field(default_factory=list, repr=False)
 
-    def __post_init__(self, coordinates):
-        self.coordinates = np.asanyarray(coordinates)
-
     def __iter__(self):
         yield self.to_pts()
 
