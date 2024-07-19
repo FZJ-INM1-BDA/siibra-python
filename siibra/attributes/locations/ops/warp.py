@@ -38,7 +38,7 @@ SPACEWARP_IDS = {
 }
 
 T = TypeVar("T")
-warpers: Dict["Location", Callable] = {}
+_warpers: Dict["Location", Callable] = {}
 
 
 def _register_warper(location_type: Generic[T]):
@@ -49,7 +49,7 @@ def _register_warper(location_type: Generic[T]):
         def inner(loc: "Location", space_id: str):
             return fn(loc, space_id)
 
-        warpers[location_type] = inner
+        _warpers[location_type] = inner
 
         return inner
 
@@ -130,4 +130,4 @@ def warp_boundingbox(bbox: BBox, space_id: str) -> BBox:
 
 
 def warp(loc: Location, space_id: str) -> Location:
-    return warpers[type(loc)](loc, space_id)
+    return _warpers[type(loc)](loc, space_id)

@@ -51,14 +51,7 @@ class Location(Attribute):
 
         return _warp(self, space_id)
 
-# static methods
+    def transform(self, space_id: str):
+        from .ops.transform import transform as _transform
 
-# between two locations
-
-# union
-# intersection
-
-# instance method
-
-# warp(target_space_id)
-# transform(affine)
+        return _transform(self, space_id)
