@@ -17,26 +17,12 @@ from typing import List
 import pandas as pd
 
 from ..attributes import Attribute, AttributeCollection
-
-
-MATRIX_INDEX_ENTITY_KEY = "x-siibra/matrix-index-entity/index"
-
-
-def attr_of_general_interest(attr: Attribute):
-    return MATRIX_INDEX_ENTITY_KEY in attr.extra
+from ..attributes.attribute_collection import MATRIX_INDEX_ENTITY_KEY, attr_of_general_interest
 
 
 class Feature(AttributeCollection):
     schema: str = "siibra/concepts/feature/v0.2"
 
-    @property
-    def facets(self):
-        from ..attributes.descriptions import Facet
-
-        return [
-            *self._find(Facet),
-            *[aggr for attr in self.attributes for aggr in attr.facets],
-        ]
 
     @property
     def modalities(self):
@@ -46,7 +32,7 @@ class Feature(AttributeCollection):
 
     @property
     def locations(self):
-        from ..locations import DataClsLocation
+        from ..attributes.locations import DataClsLocation
 
         return self._find(DataClsLocation)
 
@@ -83,17 +69,3 @@ class Feature(AttributeCollection):
         from ..attributes.dataitems import Tabular
 
         return [d.plot(*args, **kwargs) for d in self._find(Tabular)]
-
-    def filter_by_facets(self, **kwargs):
-        from ..attributes.descriptions import Facet
-
-        filter_facets = [
-            Facet(key=key, value=value) for key, value in kwargs.items()
-        ]
-
-        return self.filter(
-            lambda a: (
-                attr_of_general_interest(a)
-                or any((aggr in a.facets for aggr in filter_facets))
-            )
-        )

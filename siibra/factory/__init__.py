@@ -13,7 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .configuration import iter_preconf_features
+# needed to boostrap preconfigured objects
+from . import configuration
+
 from .factory import build_feature, build_object
-from .iterator import iter_collection
-from . import dynamic
+from .iterator import iter_preconfigured_ac
+from .livequery import iter_livequery_clss

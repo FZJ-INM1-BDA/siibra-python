@@ -22,7 +22,6 @@ from .attribute_qualification import qualify as attribute_qualify
 from ..commons_new.register_recall import RegisterRecall
 from ..commons_new.logger import logger
 from ..attributes import AttributeCollection
-from ..concepts import QueryParamCollection, Feature
 from ..attributes.descriptions import ID, Name
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 
@@ -32,53 +31,6 @@ T = Callable[[AttributeCollection], Iterable[AttributeCollection]]
 
 collection_gen: Dict[Type[AttributeCollection], List[V]] = defaultdict(list)
 
-filter_by_query_param = RegisterRecall[List[QueryParamCollection]](cache=False)
-
-
-def finditer(input: QueryParamCollection, req_type: Type[V]):
-    for fn in filter_by_query_param.iter_fn(req_type):
-        yield from fn(input)
-    from ..factory.livequery.base import LiveQuery
-    for cls in LiveQuery._ATTRIBUTE_COLLECTION_REGISTRY[req_type]:
-        inst = cls(input.criteria)
-        yield from inst.generate()
-
-
-
-def find(input: Union[AttributeCollection, QueryParamCollection], req_type: Type[V]) -> List[V]:
-    if isinstance(input, AttributeCollection):
-        input = QueryParamCollection(criteria=[input])
-    return list(finditer(input, req_type))
-
-
-def string_search(input: str, req_type: Type[V]) -> List[V]:
-    id_attr = ID(value=input)
-    name_attr = Name(value=input)
-    query = AttributeCollection(attributes=[id_attr, name_attr])
-    return find(query, req_type)
-
-
-def filter_collections(
-    filter: AttributeCollection, raw_list: Iterable[V]
-) -> Iterable[V]:
-    """Given an Iterable of V, raw_list, and a query AttributeCollection, filter, yield instances of V
-    which matches with the filter AttributeCollection
-
-    Parameter
-    ---------
-    filter: AttributeCollection
-    raw_list: Iterable[T]
-
-    Returns
-    -------
-    Iterable[T]
-    """
-    for item in raw_list:
-        try:
-            if match(filter, item):
-                yield item
-        except UnregisteredAttrCompException:
-            continue
 
 
 def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:

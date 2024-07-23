@@ -15,6 +15,7 @@
 
 from dataclasses import dataclass, field
 from typing import List, Any, Dict
+import pandas as pd
 from ..commons_new.logger import logger
 
 SCHEMAS = {}
@@ -67,11 +68,15 @@ class Attribute:
 
     @property
     def facets(self):
-        from ..attributes.descriptions import Facet
 
         # TODO use str.removeprefix when py3.9 is the lowest python version supported
-        return [
-            Facet(key=key.replace("facet/", ""), value=self.extra[key])
-            for key in self.extra
-            if key.startswith("facet/")
-        ]
+        return pd.DataFrame(
+            [
+                {
+                    "key": key.replace("facet/", ""),
+                    "value": self.extra[key]
+                }
+                for key in self.extra
+                if key.startswith("facet/")
+            ]
+        )

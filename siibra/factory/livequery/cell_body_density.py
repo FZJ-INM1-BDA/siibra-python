@@ -15,12 +15,12 @@
 
 
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, Iterator, List
 
+from .base import LiveQuery
 from ...commons_new.logger import logger
 from ...attributes.descriptions import register_modalities, Modality, RegionSpec, ID, Name
-from ...concepts import QueryParam, Feature, QueryParamCollection
-from ...assignment.assignment import filter_by_query_param
+from ...concepts import Feature
 
 cell_body_density_modality = Modality(category="cellular",
                                       value="Cell body density")
@@ -32,36 +32,37 @@ def register_cell_body_density():
     yield cell_body_density_modality
 
 
-@filter_by_query_param.register(Feature)
-def iter_cell_body_density(input: QueryParamCollection):
-    from ..configuration import iter_preconf_features
-    mods = [mod for cri in input.criteria for mod in cri._find(Modality)]
-    if cell_body_density_modality not in mods:
-        return
+class CellbodyDensityAggregator(LiveQuery, generates=Feature):
+    def generate(self) -> Iterator:
+        from ...factory.configuration import iter_preconfigured_ac
+        
+        mods = [mod for mods in self.find_attributes(Modality) for mod in mods]
+        
+        if cell_body_density_modality not in mods:
+            return
 
-    name_to_regionspec: Dict[str, RegionSpec] = {}
-    returned_features: Dict[str, List[Feature]] = defaultdict(list)
+        name_to_regionspec: Dict[str, RegionSpec] = {}
+        returned_features: Dict[str, List[Feature]] = defaultdict(list)
 
-    for feature in iter_preconf_features(
-        QueryParamCollection(criteria=[
-            QueryParam(attributes=[source_feature_modality])])
-    ):
-        try:
-            regionspec = feature._get(RegionSpec)
-            returned_features[regionspec.value].append(feature)
-            name_to_regionspec[regionspec.value] = regionspec
-        except Exception as e:
-            logger.warn(f"Processing {feature} resulted in exception {str(e)}")
+        for feature in iter_preconfigured_ac(Feature):
+            if source_feature_modality not in feature._find(Modality):
+                continue
+            try:
+                regionspec = feature._get(RegionSpec)
+                returned_features[regionspec.value].append(feature)
+                name_to_regionspec[regionspec.value] = regionspec
+            except Exception as e:
+                logger.warn(f"Processing {feature} resulted in exception {str(e)}")
 
-    for regionname, features in returned_features.items():
-        yield Feature(
-            attributes=[
-                *[
-                    attr
-                    for feature in features
-                    for attr in feature.attributes
-                    if not isinstance(attr, (RegionSpec, Name, ID))
-                ],
-                name_to_regionspec[regionname],
-            ]
-        )
+        for regionname, features in returned_features.items():
+            yield Feature(
+                attributes=[
+                    *[
+                        attr
+                        for feature in features
+                        for attr in feature.attributes
+                        if not isinstance(attr, (RegionSpec, Name, ID))
+                    ],
+                    name_to_regionspec[regionname],
+                ]
+            )

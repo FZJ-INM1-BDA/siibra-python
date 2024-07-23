@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Generic, TypeVar, Type, Callable, Dict, List
+from typing import Generic, TypeVar, Type, Callable, Dict, List, Iterable
 from functools import wraps
 from collections import defaultdict
 
@@ -32,7 +32,7 @@ class RegisterRecall(Generic[P]):
     def __init__(self, cache=True) -> None:
 
         self.on_new_registration: Callable[[Type], None] = None
-        self._registry: Dict[Type, List[Callable[P, List[T]]]] = defaultdict(list)
+        self._registry: Dict[Type[T], List[Callable[P, List[T]]]] = defaultdict(list)
 
         self._registered_count: Dict[Type, int] = {}
         if cache:
@@ -61,14 +61,16 @@ class RegisterRecall(Generic[P]):
         return outer
 
     def iter_fn(self, _type: Type[T]):
-        return self._registry[_type]
+        found: List[Callable[P, List[T]]] = self._registry[_type]
+        return found
 
     # n.b. _count act as pseudo cache invalidation
-    def _cached_iter(self, _type: Type[T], _count, *args, **kwargs):
+    def _cached_iter(self, _type: Type[T], _count, *args, **kwargs) -> Iterable[T]:
         return [item for fn in self._registry[_type] for item in fn(*args, **kwargs)]
 
     def iter(self, _type: Type[T], *args, **kwargs):
-        _count = self._registry[_type]
+        fns: List[Callable[P, List[T]]] = self._registry[_type]
+        _count = len(fns)
         return self._cached_iter(_type, _count, *args, **kwargs)
 
     def _cache_invalidation_cb(self, metadata):

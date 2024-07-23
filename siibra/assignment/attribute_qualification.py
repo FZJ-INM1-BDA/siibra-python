@@ -20,7 +20,6 @@ from .qualification import Qualification
 from ..commons_new.logger import logger
 from ..commons_new.binary_op import BinaryOp
 from ..commons_new.string import fuzzy_match, clear_name
-from ..concepts import QueryParam
 from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 from ..attributes import Attribute
 from ..attributes.dataitems import Image
@@ -112,8 +111,6 @@ def qualify_modality(mod1: Modality, mod2: Modality):
 @register_attr_qualifier(RegionSpec, RegionSpec)
 @fn_call_cache
 def qualify_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
-    from .assignment import find
-    from ..atlases import Region
 
     # if both parcellation_ids are present, short curcuit if parc id do not match
     if (
@@ -125,10 +122,7 @@ def qualify_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
             f"{regspec1.parcellation_id=!r} != {regspec2.parcellation_id=!r}"
         )
 
-    region1s = find(QueryParam(attributes=[regspec1]), Region)
-    region2s = find(QueryParam(attributes=[regspec2]), Region)
-
-    for region1, region2 in product(region1s, region2s):
+    for region1, region2 in product(regspec1.decode(), regspec2.decode()):
         if region1 in region2.ancestors:
             return Qualification.CONTAINS
         if region2 in region1.ancestors:

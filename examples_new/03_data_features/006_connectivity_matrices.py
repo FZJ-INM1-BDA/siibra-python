@@ -47,7 +47,7 @@ for f in features:
 # %%
 # We can select a specific element by integer index
 f = features[0]
-filtered_f = f.filter_by_facets(subject="0114_1")
+filtered_f = f.filter_attributes_by_facets(subject="0114_1")
 print(filtered_f.data)
 print(filtered_f.aggregate_by)  # Subjects are encoded via anonymized ids
 
@@ -119,5 +119,5 @@ print("indexing attributes:", ftract.facets)
 # %%
 # We can similarly draw the data as above. This time let us get the element by
 # its feature name
-f = ftract.filter_by_facets(feature="P_11: speed__euclidian__peak_delay__median")
+f = ftract.filter_attributes_by_facets(feature="P_11: speed__euclidian__peak_delay__median")
 f.plot()

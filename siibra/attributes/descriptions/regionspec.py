@@ -27,8 +27,8 @@ class RegionSpec(Description):
         return hash(f"{self.parcellation_id}{self.value}")
 
     def decode(self):
-        from ..assignment import find
-        from ..concepts import QueryParam
-        from ..atlases import Region
+        from ...atlases import Region
+        from ...concepts import QueryParam
+        from ...assignment import find
 
-        return find(QueryParam(attributes=[self]), Region)
+        return find([QueryParam(attributes=[self])], Region)

@@ -19,6 +19,10 @@ class LiveQuery(ABC, Generic[T]):
     def __init_subclass__(cls, generates=Type[AttributeCollection]):
         cls._ATTRIBUTE_COLLECTION_REGISTRY[generates].append(cls)
 
+    @classmethod
+    def get_clss(cls, find_type: Type[V]):
+        clss: List[Type[LiveQuery[V]]] = cls._ATTRIBUTE_COLLECTION_REGISTRY[find_type]
+        return clss
 
     @abstractmethod
     def generate(self) -> Iterator[T]:

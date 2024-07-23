@@ -107,7 +107,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         from .space import Space
         from .parcellationmap import Map, VALID_MAPTYPES
         from ..assignment import string_search
-        from ..factory import iter_collection
+        from ..factory import iter_preconfigured_ac
 
         assert (
             maptype in VALID_MAPTYPES
@@ -120,7 +120,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             space, Space
         ), f"space must be str, Space or None. You provided {space}"
 
-        for mp in iter_collection(Map):
+        for mp in iter_preconfigured_ac(Map):
             if maptype != mp.maptype:
                 continue
             if space and space.ID != mp.space_id:

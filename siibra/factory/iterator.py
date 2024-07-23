@@ -21,11 +21,11 @@ T = TypeVar("T")
 
 # TODO investigating why register recall fails
 # when encountering e.g. brainglobe register atlas elements
-attribute_collection_iterator = RegisterRecall[list](cache=False)
+preconfigured_ac_registrar = RegisterRecall()
 
 # TODO push update rather than pull update for iter_collection
-attribute_collection_iterator.on_new_registration = lambda *args, **kwargs: None
+preconfigured_ac_registrar.on_new_registration = lambda *args, **kwargs: None
 
 
-def iter_collection(_type: Type[T]) -> Iterable[T]:
-    return [item for item in attribute_collection_iterator.iter(_type)]
+def iter_preconfigured_ac(_type: Type[T]) -> Iterable[T]:
+    return [item for item in preconfigured_ac_registrar.iter(_type)]

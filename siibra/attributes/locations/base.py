@@ -29,11 +29,11 @@ class Location(Attribute):
         if self.space_id is None:
             return None
 
-        from ...factory import iter_collection
+        from ...factory import iter_preconfigured_ac
         from ...atlases import Space
 
         return assert_ooo(
-            [space for space in iter_collection(Space) if space.ID == self.space_id]
+            [space for space in iter_preconfigured_ac(Space) if space.ID == self.space_id]
         )
 
     def union(self, other: "Location"):

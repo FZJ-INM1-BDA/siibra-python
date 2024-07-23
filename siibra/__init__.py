@@ -28,7 +28,7 @@ from .commons_new.tree import collapse_nodes
 
 from .cache import Warmup, WarmupLevel, CACHE as cache
 
-from . import factory as factory_new
+from . import factory
 from . import retrieval
 from .atlases import Space, Parcellation, Region, parcellationmap
 from .atlases.region import filter_newest
@@ -36,14 +36,12 @@ from .attributes import Attribute, AttributeCollection
 from .attributes.descriptions import Modality, RegionSpec, Gene
 from .attributes.descriptions.modality import vocab as modality_types
 from .attributes.locations import DataClsLocation
-from .concepts import AtlasElement, QueryParam, QueryParamCollection
+from .concepts import AtlasElement, QueryParam, Feature
 from .assignment import (
     string_search,
     find,
-    collection_match,
-    QueryCursor,
 )
-from .factory.iterator import iter_collection
+from .factory.iterator import iter_preconfigured_ac
 
 import os as _os
 
@@ -54,9 +52,9 @@ logger.info(
 )
 
 
-spaces = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_collection(Space)}) 
-parcellations = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_collection(Parcellation)})
-maps = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_collection(parcellationmap.Map)})
+spaces = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_preconfigured_ac(Space)}) 
+parcellations = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_preconfigured_ac(Parcellation)})
+maps = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_preconfigured_ac(parcellationmap.Map)})
 
 
 def get_space(space_spec: str):
@@ -121,7 +119,7 @@ def find_maps(
         requested_spaces = None
 
     return_result = []
-    for _map in iter_collection(parcellationmap.Map):
+    for _map in iter_preconfigured_ac(parcellationmap.Map):
         if _map.maptype != maptype:
             continue
         if requested_parcellations and _map.parcellation not in requested_parcellations:
@@ -146,43 +144,33 @@ def find_features(
     modality: Union[Modality, str],
     **kwargs,
 ):
-    cursor = get_query_cursor(concept, modality, **kwargs)
-    return list(cursor.exec())
+    if isinstance(concept, DataClsLocation):
+        concept = QueryParam(attributes=[concept])
+    assert isinstance(concept, AttributeCollection), f"Expect concept to be either AtlasElement or DataClsLocation, but was {type(concept)} instead"
+    
+    if isinstance(modality, str):
+        mod_str = modality
+        modality = modality_types[modality]
+        logger.info(f"Provided {mod_str} parsed as {modality}")
+    assert isinstance(modality, Modality), f"Expecting modality to be of type str or Modality, but is {type(modality)}."
 
+    modality_query_param = QueryParam(attributes=[modality])
+    
+    query_ac = [concept, modality_query_param]
 
-def get_query_cursor(
-    concept: Union[AtlasElement, DataClsLocation],
-    modality: Union[Modality, str],
-    **kwargs,
-):
-    additional_attributes = QueryParam()
     if "genes" in kwargs:
         assert isinstance(kwargs["genes"], list)
-        additional_attributes = QueryParam(
-            attributes=[Gene(value=gene) for gene in kwargs["genes"]]
-        )
-    return QueryCursor(
-        concept=concept, modality=modality, additional_attributes=additional_attributes
-    )
+        gene_ac = AttributeCollection(attributes=[
+            Gene(value=gene)
+            for gene in kwargs["genes"]])
+        query_ac.append(gene_ac)
+    
+    # place modality_query_param first, since it shortcircuits alot quicker
+    return find([
+        modality_query_param,
+        concept,
+    ], Feature)
 
-
-def get_query_collection(
-    concept: Union[AtlasElement, Attribute],
-    modality: Union[Modality, str],
-    **kwargs,
-):
-    additional_attributes = []
-    if "genes" in kwargs:
-        assert isinstance(kwargs["genes"], list)
-        additional_attributes.append(
-            AttributeCollection(
-                attributes=[Gene(value=gene) for gene in kwargs["genes"]]
-            )
-        )
-
-    return QueryParamCollection.from_concept_modality(
-        concept, modality, additional_attribute_collections=additional_attributes
-    )
 
 
 # convenient access to regions of a parcellation
@@ -212,11 +200,11 @@ def find_regions(parcellation_spec: str, regionspec: str):
         reg
         for parcellation_id in parcellation_ids
         for reg in find(
-            QueryParam(
+            [QueryParam(
                 attributes=[
                     RegionSpec(parcellation_id=parcellation_id, value=regionspec)
                 ]
-            ),
+            )],
             Region,
         )
     ]

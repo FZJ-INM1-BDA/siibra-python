@@ -39,13 +39,13 @@ from nilearn import plotting
 # together as elements to form :ref:`sphx_glr_examples_03_data_features_009_compound_features.py`.
 # Therefore, we can select the first and only item in the results.
 v1 = siibra.get_region("julich 2.9", "v1")
-query_cursor = siibra.QueryCursor(v1, "Segmented cell body density")
+features = siibra.find_features(v1, "Segmented cell body density")
 
 # %%
 # We can browse through the elements with integer index. To illustrate, let us
 # look at the default visualization the first of them, this time using `plotly`
 # backend. This will actually fetch the cell segmentation data.
-feature = query_cursor.exec()[0]
+feature = features[0]
 feature.plot()
 
 # %%

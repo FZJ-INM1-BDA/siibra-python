@@ -57,22 +57,22 @@ class Map(AtlasElement):
 
     @property
     def parcellation(self) -> "Parcellation":
-        from ..factory import iter_collection
+        from ..factory import iter_preconfigured_ac
 
         return assert_ooo(
             [
                 parc
-                for parc in iter_collection(Parcellation)
+                for parc in iter_preconfigured_ac(Parcellation)
                 if parc.ID == self.parcellation_id
             ]
         )
 
     @property
     def space(self) -> "Space":
-        from ..factory import iter_collection
+        from ..factory import iter_preconfigured_ac
 
         return assert_ooo(
-            [sp for sp in iter_collection(Space) if sp.ID == self.space_id]
+            [sp for sp in iter_preconfigured_ac(Space) if sp.ID == self.space_id]
         )
 
     @property
