@@ -81,7 +81,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         ]
 
     def get_centroids(self, space: Union[str, "Space", None] = None) -> "PointCloud":
-        from ..locations import PointCloud
+        from ..attributes.locations import PointCloud
 
         spatialprops = self._get_spatialprops(space=space, maptype="labelled")
         return PointCloud([sp["centroid"] for sp in spatialprops], space_id=space.ID)
