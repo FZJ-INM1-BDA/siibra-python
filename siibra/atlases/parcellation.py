@@ -77,3 +77,27 @@ class Parcellation(region.Region):
     @property
     def is_newest_version(self):
         return (self.version is None) or (self._get(Version).next_id is None)
+
+    def find_maps(self, space_id: str = None, maptype: str = "labelled", extra_spec: str = ""):
+        # TODO: reconsider the placement of this method and reference them at the package level
+        from ..factory import iter_preconfigured_ac
+        from . import Map
+
+        return_result = []
+        for _map in iter_preconfigured_ac(Map):
+            if _map.maptype != maptype:
+                continue
+            if _map.parcellation != self:
+                continue
+            if _map.space_id != space_id:
+                continue
+            if extra_spec not in _map.name:
+                continue
+            return_result.append(_map)
+
+        return return_result
+
+    def get_map(self, space_id: str = None, maptype: str = "labelled", extra_spec: str = ""):
+        # TODO: reconsider the placement of this method and reference them at the package level
+        searched_maps = self.find_maps(space_id, maptype, extra_spec)
+        return assert_ooo(searched_maps)
