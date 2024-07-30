@@ -21,9 +21,9 @@ import numpy as np
 from ..concepts import AtlasElement
 from ..retrieval.volume_fetcher import FetchKwargs, IMAGE_FORMATS, MESH_FORMATS
 from ..commons_new.iterable import assert_ooo
-from ..commons_new.maps import merge_volumes
+from ..commons_new.maps import merge_volumes, compute_centroid
 from ..commons_new.string import convert_hexcolor_to_rgbtuple
-from ..commons_new.logger import logger
+from ..commons_new.logger import logger, siibra_tqdm
 from ..atlases import Parcellation, Space, Region
 from ..attributes.dataitems import Image, Mesh, FORMAT_LOOKUP
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
@@ -31,7 +31,7 @@ from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
 from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
-    from ..attributes.locations import BoundingBox
+    from ..attributes.locations import BoundingBox, Point
     from ..retrieval.volume_fetcher import Mapping
 
 
@@ -314,3 +314,20 @@ class Map(AtlasElement):
             ]
         ) / [255, 255, 255, 1]
         return ListedColormap(pallette)
+
+    def get_centroids(self, **fetch_kwargs: FetchKwargs) -> Dict[str, "Point"]:
+        """
+        Compute a dictionary of the centroids of all regions in this map.
+
+        Returns
+        -------
+        Dict[str, Point]
+            Region names as keys and computed centroids as items.
+        """
+        centroids = {}
+        for regionname in siibra_tqdm(
+            self.regions, unit="regions", desc="Computing centroids"
+        ):
+            img = self.fetch(region=regionname, **fetch_kwargs)  # returns a mask of the region
+            centroids[regionname] = compute_centroid(img, space_id=self.space)
+        return centroids
