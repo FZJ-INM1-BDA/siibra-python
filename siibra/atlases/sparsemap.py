@@ -15,7 +15,6 @@
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Dict, Tuple, Union
-from functools import cache
 
 import numpy as np
 
@@ -252,7 +251,6 @@ class SparseMap(Map):
     use_sparse_index: bool = False
 
     @property
-    @cache
     def _sparse_index(self) -> SparseIndex:
         return build_sparse_index(self)
 
