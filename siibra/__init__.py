@@ -52,9 +52,17 @@ logger.info(
 )
 
 
-spaces = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_preconfigured_ac(Space)}) 
-parcellations = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_preconfigured_ac(Parcellation)})
-maps = JitInstanceTable(getitem=lambda: {spc.name: spc for spc in iter_preconfigured_ac(parcellationmap.Map)})
+spaces = JitInstanceTable(
+    getitem=lambda: {spc.name: spc for spc in iter_preconfigured_ac(Space)}
+)
+parcellations = JitInstanceTable(
+    getitem=lambda: {spc.name: spc for spc in iter_preconfigured_ac(Parcellation)}
+)
+maps = JitInstanceTable(
+    getitem=lambda: {
+        spc.name: spc for spc in iter_preconfigured_ac(parcellationmap.Map)
+    }
+)
 
 
 def get_space(space_spec: str):
@@ -146,31 +154,37 @@ def find_features(
 ):
     if isinstance(concept, Location):
         concept = QueryParam(attributes=[concept])
-    assert isinstance(concept, AttributeCollection), f"Expect concept to be either AtlasElement or Location, but was {type(concept)} instead"
-    
+    assert isinstance(
+        concept, AttributeCollection
+    ), f"Expect concept to be either AtlasElement or Location, but was {type(concept)} instead"
+
     if isinstance(modality, str):
         mod_str = modality
         modality = modality_types[modality]
         logger.info(f"Provided {mod_str} parsed as {modality}")
-    assert isinstance(modality, Modality), f"Expecting modality to be of type str or Modality, but is {type(modality)}."
+    assert isinstance(
+        modality, Modality
+    ), f"Expecting modality to be of type str or Modality, but is {type(modality)}."
 
     modality_query_param = QueryParam(attributes=[modality])
-    
+
     query_ac = [concept, modality_query_param]
 
     if "genes" in kwargs:
         assert isinstance(kwargs["genes"], list)
-        gene_ac = AttributeCollection(attributes=[
-            Gene(value=gene)
-            for gene in kwargs["genes"]])
+        gene_ac = AttributeCollection(
+            attributes=[Gene(value=gene) for gene in kwargs["genes"]]
+        )
         query_ac.append(gene_ac)
-    
-    # place modality_query_param first, since it shortcircuits alot quicker
-    return find([
-        modality_query_param,
-        concept,
-    ], Feature)
 
+    # place modality_query_param first, since it shortcircuits alot quicker
+    return find(
+        [
+            modality_query_param,
+            concept,
+        ],
+        Feature,
+    )
 
 
 # convenient access to regions of a parcellation
@@ -200,11 +214,13 @@ def find_regions(parcellation_spec: str, regionspec: str):
         reg
         for parcellation_id in parcellation_ids
         for reg in find(
-            [QueryParam(
-                attributes=[
-                    RegionSpec(parcellation_id=parcellation_id, value=regionspec)
-                ]
-            )],
+            [
+                QueryParam(
+                    attributes=[
+                        RegionSpec(parcellation_id=parcellation_id, value=regionspec)
+                    ]
+                )
+            ],
             Region,
         )
     ]
