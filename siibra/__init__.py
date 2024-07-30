@@ -134,6 +134,8 @@ def find_maps(
             continue
         if requested_spaces and _map.space not in requested_spaces:
             continue
+        if extra_spec not in _map.name:
+            continue
         return_result.append(_map)
 
     return return_result
