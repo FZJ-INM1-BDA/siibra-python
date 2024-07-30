@@ -91,6 +91,34 @@ def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "
     )
 
 
+def colorize(image: Image, value_mapping: dict, **fetch_kwargs: FetchKwargs) -> Volume:
+    # TODO: rethink naming
+    """
+    Create
+
+    Parameters
+    ----------
+    value_mapping : dict
+        Dictionary mapping keys to values
+
+    Return
+    ------
+    Nifti1Image
+    """
+    assert image.mapping is not None, ValueError("Provided image must have a mapping defined.")
+
+    result = None
+    nii = image.fetch(**fetch_kwargs)
+    arr = np.asanyarray(nii.dataobj)
+    resultarr = np.zeros_like(arr)
+    result = nib.Nifti1Image(resultarr, nii.affine)
+    for key, value in value_mapping.items():
+        assert key in image.mapping, ValueError(f"{key=!r} is not in the mapping of the image.")
+        resultarr[nii == image.mapping[key]["label"]] = value
+
+    return result
+
+
 @_loc_intersection.register(point.Point, Image)
 def compare_pt_to_image(pt: point.Point, image: Image):
     ptcloud = pointset.PointCloud(space_id=pt.space_id, coordinates=[pt.coordinate])
