@@ -29,7 +29,7 @@ from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 
 if TYPE_CHECKING:
-    from ..attributes.locations import BBox
+    from ..attributes.locations import BoundingBox
     from nibabel import Nifti1Image
 
 
@@ -258,7 +258,7 @@ class SparseMap(Map):
         self,
         region: Union[str, Region] = None,
         frmt: str = None,
-        bbox: "BBox" = None,
+        bbox: "BoundingBox" = None,
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None

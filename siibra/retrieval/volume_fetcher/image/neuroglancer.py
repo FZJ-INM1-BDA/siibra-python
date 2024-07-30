@@ -33,7 +33,7 @@ from ....commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
     from ....attributes.dataitems import Image
-    from ....attributes.locations import BBox
+    from ....attributes.locations import BoundingBox
 
 
 def extract_label_mask(arr: np.ndarray, label: int):
@@ -128,14 +128,14 @@ class Scale:
         """Test whether the resolution of this scale is sufficient to provide the given resolution."""
         return all(r <= resolution_mm for r in self.resolution_mm)
 
-    def _estimate_nbytes(self, bbox: "BBox" = None):
+    def _estimate_nbytes(self, bbox: "BoundingBox" = None):
         """Estimate the size image array to be fetched in bytes, given a bounding box."""
-        from ....attributes.locations import BBox
+        from ....attributes.locations import BoundingBox
 
         if bbox is None:
-            bbox_ = BBox(minpoint=(0, 0, 0), maxpoint=self.size, space_id=None)
+            bbox_ = BoundingBox(minpoint=(0, 0, 0), maxpoint=self.size, space_id=None)
         else:
-            bbox_ = BBox.transform(bbox, np.linalg.inv(self.affine))
+            bbox_ = BoundingBox.transform(bbox, np.linalg.inv(self.affine))
         result = get_dtype(self.url).itemsize * bbox_.volume
         logger.debug(
             f"Approximate size for fetching resolution "
@@ -154,7 +154,7 @@ class Scale:
     def fetch(self, bbox=None, channel: int = None, label: int = None):
         # define the bounding box in this scale's voxel space
         if bbox is None:
-            bbox_ = BBox(minpoint=(0, 0, 0), maxpoint=self.size, space_id=None)
+            bbox_ = BoundingBox(minpoint=(0, 0, 0), maxpoint=self.size, space_id=None)
         else:
             bbox_ = bbox.transform(np.linalg.inv(self.affine))
 

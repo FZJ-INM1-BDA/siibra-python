@@ -15,40 +15,46 @@
 
 """A set of coordinates on a reference space."""
 
-from . import location, point, boundingbox as _boundingbox
-from .base import Location
-
-from ...commons_new.logger import logger
-
-
-from typing import List, Union, Tuple
-import numbers
-import json
+from typing import List, Union
 import numpy as np
 from dataclasses import dataclass, field
 
-try:
-    from sklearn.cluster import HDBSCAN
-
-    _HAS_HDBSCAN = True
-except ImportError:
-    import sklearn
-
-    _HAS_HDBSCAN = False
-    logger.warning(
-        f"HDBSCAN is not available with your version {sklearn.__version__} of sckit-learn."
-        "`PointSet.find_clusters()` will not be avaiable."
-    )
+from .base import Location
+from . import point, boundingbox as _boundingbox
 
 
 @dataclass
 class PointCloud(Location):
+    # TODO: reconsider how to implement `labels`.
     schema = "siibra/attr/loc/pointcloud/v0.1"
     coordinates: List[List[float]] = field(default_factory=list, repr=False)
     sigma: List[float] = field(default_factory=list, repr=False)
 
     def __iter__(self):
+        """Return an iterator over the coordinate locations."""
         yield self.to_pts()
+
+    def __len__(self):
+        """The number of points in this PointVloud."""
+        return len(self.coordinates)
+
+    def __eq__(self, other: "PointCloud"):
+        if isinstance(other, point.Point):
+            return len(self) == 1 and self[0] == other
+        if not isinstance(other, PointCloud):
+            return False
+        return list(self) == list(other)
+
+    def __getitem__(self, index: int):
+        if index >= self.__len__():
+            raise IndexError(
+                f"Index out of range; PointCloud has {self.__len__()} points."
+            )
+        return point.Point(
+            coordinate=self.coordinates[index, :],
+            space_id=self.space_id,
+            sigma=self.sigma[index],
+        )
 
     @property
     def homogeneous(self):
@@ -56,7 +62,7 @@ class PointCloud(Location):
 
     def to_pts(self):
         return [
-            point.Pt(space_id=self.space_id, coordinate=coord)
+            point.Point(space_id=self.space_id, coordinate=coord)
             for coord in self.coordinates
         ]
 
@@ -69,32 +75,73 @@ class PointCloud(Location):
             sigma=ptcloud.sigma,
         )
 
-    def append(self, pt: "point.Pt"):
+    def append(self, pt: "point.Point"):
         self.coordinates.append(pt.coordinate)
         self.sigma.append(pt.sigma)
 
-    def extend(self, points: Union[List["point.Pt"], "PointCloud"]):
+    def extend(self, points: Union[List["point.Point"], "PointCloud"]):
         coords, sigmas = zip(*((p.coordinate, p.sigma) for p in points))
         self.coordinates.extend(coords)
         self.sigma.extend(sigmas)
 
     @property
     def boundingbox(self):
-        """Return the bounding box of these points.
-        """
+        """Return the bounding box of these points."""
         XYZ = self.coordinates
         sigma_min = max(self.sigma[i] for i in XYZ.argmin(0))
         sigma_max = max(self.sigma[i] for i in XYZ.argmax(0))
-        return _boundingbox.BBox(
+        return _boundingbox.BoundingBox(
             minpoint=XYZ.min(0) - max(sigma_min),
             maxpoint=XYZ.max(0) + max(sigma_max),
-            space_id=self.space_id
+            space_id=self.space_id,
         )
 
 
-def from_points(
-    points: List["point.Pt"]
-) -> "PointCloud":
+@dataclass
+class Contour(PointCloud):
+    """
+    A PointCloud that represents a contour line. The points making up a Contour
+    are assumed to be in an order such that consecutive points are treated to be
+    being connected by an edge.
+    """
+
+    schema: str = "siibra/attr/loc/contour"
+    closed: bool = False
+    coordinates: List[float] = field(default_factory=list, repr=False)
+
+    # TODO: crop requires labels and labels needs to be reimplemented or an alternative is required.
+    # def crop(self, voi: boundingbox.BoundingBox):
+    #     """
+    #     Crop the contour with a volume of interest.
+    #     Since the contour might be split from the cropping,
+    #     returns a set of contour segments.
+    #     """
+    #     segments = []
+
+    #     # set the contour point labels to a linear numbering
+    #     # so we can use them after the intersection to detect splits.
+    #     old_labels = self.labels
+    #     self.labels = list(range(len(self)))
+    #     cropped = self.intersection(voi)
+
+    #     if cropped is not None and not isinstance(cropped, point.Point):
+    #         assert isinstance(cropped, pointset.PointSet)
+    #         # Identifiy contour splits are by discontinuouities ("jumps")
+    #         # of their labels, which denote positions in the original contour
+    #         jumps = np.diff([self.labels.index(lb) for lb in cropped.labels])
+    #         splits = [0] + list(np.where(jumps > 1)[0] + 1) + [len(cropped)]
+    #         for i, j in zip(splits[:-1], splits[1:]):
+    #             segments.append(
+    #                 self.__class__(cropped.coordinates[i:j, :], space=cropped.space)
+    #             )
+
+    #     # reset labels of the input contour points.
+    #     self.labels = old_labels
+
+    #     return segments
+
+
+def from_points(points: List["point.Point"]) -> "PointCloud":
     if len(points) == 0:
         return PointCloud([])
     spaces = {p.space for p in points}
@@ -103,258 +150,37 @@ def from_points(
     ), f"PointCloud can only be constructed with points from the same space.\n{spaces}"
 
     coords, sigmas = zip(*((p.coordinate, p.sigma) for p in points))
-    return PointCloud(
-        coordinates=coords,
-        space=next(iter(spaces)),
-        sigma_mm=sigmas
-    )
+    return PointCloud(coordinates=coords, space=next(iter(spaces)), sigma_mm=sigmas)
 
 
-class PointSet(location.Location):
-    """A set of 3D points in the same reference space,
-    defined by a list of coordinates."""
+# TODO: requires labels
+# def find_clusters(self, min_fraction=1 / 200, max_fraction=1 / 8):
+    # try:
+    #     from sklearn.cluster import HDBSCAN
 
-    def __init__(
-        self,
-        coordinates: Union[List[Tuple], np.ndarray],
-        space=None,
-        sigma_mm: Union[int, float, List[Union[int, float]]] = 0,
-        labels: List[Union[int, float, tuple]] = None,
-    ):
-        """
-        Construct a 3D point set in the given reference space.
+    #     _HAS_HDBSCAN = True
+    # except ImportError:
+    #     import sklearn
 
-        Parameters
-        ----------
-        coordinates : array-like, Nx3
-            Coordinates in mm of the given space
-        space : reference space (id, name, or Space object)
-            The reference space
-        sigma_mm : float, or list of float
-            Optional standard deviation of point locations.
-        labels: list of point labels (optional)
-        """
-        location.Location.__init__(self, space)
-
-        self._coordinates = coordinates
-        if not isinstance(coordinates, np.ndarray):
-            self._coordinates = np.array(self._coordinates).reshape((-1, 3))
-        assert len(self._coordinates.shape) == 2
-        assert self._coordinates.shape[1] == 3
-
-        if isinstance(sigma_mm, numbers.Number):
-            self.sigma_mm = [sigma_mm for _ in range(len(self))]
-        else:
-            assert len(sigma_mm) == len(
-                self
-            ), "The number of coordinate must be equal to the number of sigmas."
-            self.sigma_mm = sigma_mm
-
-        if labels is not None:
-            assert len(labels) == self._coordinates.shape[0]
-        self.labels = labels
-
-    def intersection(self, other: location.Location):
-        """Return the subset of points that are inside the given mask.
-
-        NOTE: The affine matrix of the image must be set to warp voxels
-        coordinates into the reference space of this Bounding Box.
-        """
-        if not isinstance(other, (point.Point, PointSet, _boundingbox.BoundingBox)):
-            return other.intersection(self)
-
-        intersections = [(i, p) for i, p in enumerate(self) if p.intersects(other)]
-        if len(intersections) == 0:
-            return None
-        ids, points = zip(*intersections)
-        labels = None if self.labels is None else [self.labels[i] for i in ids]
-        sigma = [p.sigma for p in points]
-        intersection = PointSet(points, space=self.space, sigma_mm=sigma, labels=labels)
-        return intersection[0] if len(intersection) == 1 else intersection
-
-    @property
-    def coordinates(self) -> np.ndarray:
-        return self._coordinates
-
-    @property
-    def sigma(self) -> List[Union[int, float]]:
-        """The list of sigmas corresponding to the points."""
-        return self.sigma_mm
-
-    @property
-    def has_constant_sigma(self) -> bool:
-        return len(set(self.sigma)) == 1
-
-    def warp(self, space, chunksize=1000):
-        """Creates a new point set by warping its points to another space"""
-        from ..core.space import Space
-
-        spaceobj = space if isinstance(space, Space) else Space.get_instance(space)
-        if spaceobj == self.space:
-            return self
-        if any(
-            _ not in location.Location.SPACEWARP_IDS
-            for _ in [self.space.id, spaceobj.id]
-        ):
-            raise ValueError(
-                f"Cannot convert coordinates between {self.space.id} and {spaceobj.id}"
-            )
-
-        src_points = self.as_list()
-        tgt_points = []
-        N = len(src_points)
-        if N > 10e5:
-            logger.info(
-                f"Warping {N} points from {self.space.name} to {spaceobj.name} space"
-            )
-        for i0 in range(0, N, chunksize):
-
-            i1 = min(i0 + chunksize, N)
-            data = json.dumps(
-                {
-                    "source_space": location.Location.SPACEWARP_IDS[self.space.id],
-                    "target_space": location.Location.SPACEWARP_IDS[spaceobj.id],
-                    "source_points": src_points[i0:i1],
-                }
-            )
-            response = HttpRequest(
-                url=f"{location.Location.SPACEWARP_SERVER}/transform-points",
-                post=True,
-                headers={
-                    "accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-                data=data,
-                func=lambda b: json.loads(b.decode()),
-            ).data
-            tgt_points.extend(list(response["target_points"]))
-
-        return self.__class__(
-            coordinates=tuple(tgt_points), space=spaceobj, labels=self.labels
-        )
-
-    def transform(self, affine: np.ndarray, space=None):
-        """Returns a new PointSet obtained by transforming the
-        coordinates of this one with the given affine matrix.
-
-        Parameters
-        ----------
-        affine : numpy 4x4 ndarray
-            affine matrix
-        space : reference space (id, name, or Space)
-            Target reference space which is reached after
-            applying the transform. Note that the consistency
-            of this cannot be checked and is up to the user.
-        """
-        return self.__class__(
-            np.dot(affine, self.homogeneous.T)[:3, :].T, space, labels=self.labels
-        )
-
-    def __getitem__(self, index: int):
-        if abs(index) >= self.__len__():
-            raise IndexError(
-                f"Pointset with {self.__len__()} points "
-                f"cannot be accessed with index {index}."
-            )
-        return point.Point(
-            self.coordinates[index, :],
-            space=self.space,
-            sigma_mm=self.sigma_mm[index],
-            label=None if self.labels is None else self.labels[index],
-        )
-
-    def __iter__(self):
-        """Return an iterator over the coordinate locations."""
-        return (
-            point.Point(
-                self.coordinates[i, :],
-                space=self.space,
-                sigma_mm=self.sigma_mm[i],
-                label=None if self.labels is None else self.labels[i],
-            )
-            for i in range(len(self))
-        )
-
-    def __eq__(self, other: "PointSet"):
-        if isinstance(other, point.Point):
-            return len(self) == 1 and self[0] == other
-        if not isinstance(other, PointSet):
-            return False
-        return list(self) == list(other)
-
-    def __hash__(self):
-        return super().__hash__()
-
-    def __len__(self):
-        """The number of points in this PointSet."""
-        return self.coordinates.shape[0]
-
-    def __str__(self):
-        return f"Set of {len(self)} points in the {self.boundingbox}"
-
-    @property
-    def boundingbox(self):
-        """Return the bounding box of these points.
-        TODO revisit the numerical margin of 1e-6, should not be necessary.
-        """
-        XYZ = self.coordinates
-        sigma_min = max(self.sigma[i] for i in XYZ.argmin(0))
-        sigma_max = max(self.sigma[i] for i in XYZ.argmax(0))
-        return _boundingbox.BoundingBox(
-            point1=XYZ.min(0) - max(sigma_min, 1e-6),
-            point2=XYZ.max(0) + max(sigma_max, 1e-6),
-            space=self.space,
-            sigma_mm=[sigma_min, sigma_max],
-        )
-
-    @property
-    def centroid(self):
-        return point.Point(self.coordinates.mean(0), space=self.space)
-
-    @property
-    def volume(self):
-        if len(self) < 2:
-            return 0
-        else:
-            return self.boundingbox.volume
-
-    def as_list(self):
-        """Return the point set as a list of 3D tuples."""
-        return list(zip(*self.coordinates.T.tolist()))
-
-    @property
-    def homogeneous(self):
-        """Access the list of 3D point as an Nx4 array of homogeneous coordinates."""
-        return np.c_[self.coordinates, np.ones(len(self))]
-
-    def find_clusters(self, min_fraction=1 / 200, max_fraction=1 / 8):
-        if not _HAS_HDBSCAN:
-            raise RuntimeError(
-                f"HDBSCAN is not available with your version {sklearn.__version__} "
-                "of sckit-learn. `PointSet.find_clusters()` will not be avaiable."
-            )
-        points = np.array(self.as_list())
-        N = points.shape[0]
-        clustering = HDBSCAN(
-            min_cluster_size=int(N * min_fraction),
-            max_cluster_size=int(N * max_fraction),
-        )
-        if self.labels is not None:
-            logger.warning(
-                "Existing labels of PointSet will be overwritten with cluster labels."
-            )
-        self.labels = clustering.fit_predict(points)
-        return self.labels
-
-    @property
-    def label_colors(self):
-        """return a color for the given label."""
-        if self.labels is None:
-            return None
-        else:
-            try:
-                from matplotlib.pyplot import cm as colormaps
-            except Exception:
-                logger.error("Matplotlib is not available. Label colors is disabled.")
-                return None
-            return colormaps.rainbow(np.linspace(0, 1, max(self.labels) + 1))
+    #     _HAS_HDBSCAN = False
+    #     logger.warning(
+    #         f"HDBSCAN is not available with your version {sklearn.__version__} of sckit-learn."
+    #         "`PointSet.find_clusters()` will not be avaiable."
+    #     )
+#     if not _HAS_HDBSCAN:
+#         raise RuntimeError(
+#             f"HDBSCAN is not available with your version {sklearn.__version__} "
+#             "of sckit-learn. `PointSet.find_clusters()` will not be avaiable."
+#         )
+#     points = np.array(self.as_list())
+#     N = points.shape[0]
+#     clustering = HDBSCAN(
+#         min_cluster_size=int(N * min_fraction),
+#         max_cluster_size=int(N * max_fraction),
+#     )
+#     if self.labels is not None:
+#         logger.warning(
+#             "Existing labels of PointSet will be overwritten with cluster labels."
+#         )
+#     self.labels = clustering.fit_predict(points)
+#     return self.labels

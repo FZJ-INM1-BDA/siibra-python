@@ -35,9 +35,9 @@ from functools import wraps
 import numpy as np
 
 from ..base import Location
-from ..point import Pt
+from ..point import Point
 from ..pointset import PointCloud
-from ..boundingbox import BBox
+from ..boundingbox import BoundingBox
 from ....commons_new.logger import logger
 
 T = TypeVar("T")
@@ -59,8 +59,8 @@ def _register_warper(location_type: Generic[T]):
     return outer
 
 
-@_register_warper(Pt)
-def transform_point(point: Pt, affine: np.ndarray, target_space_id: str = None) -> Pt:
+@_register_warper(Point)
+def transform_point(point: Point, affine: np.ndarray, target_space_id: str = None) -> Point:
     """Returns a new Point obtained by transforming the
     coordinate of this one with the given affine matrix.
     TODO this needs to maintain sigma
@@ -81,7 +81,7 @@ def transform_point(point: Pt, affine: np.ndarray, target_space_id: str = None) 
     x, y, z, h = np.dot(affine, point.homogeneous.T)
     if h != 1:
         logger.warning(f"Homogeneous coordinate is not one: {h}")
-    return Pt(
+    return Point(
         coordinate=(x / h, y / h, z / h), space_id=target_space_id
     )
 
@@ -96,8 +96,8 @@ def transform_pointcloud(ptcloud: PointCloud, affine: np.ndarray, target_space_i
     )
 
 
-@_register_warper(BBox)
-def transform_boundingbox(bbox: BBox, affine: np.ndarray, target_space_id: str = None) -> BBox:
+@_register_warper(BoundingBox)
+def transform_boundingbox(bbox: BoundingBox, affine: np.ndarray, target_space_id: str = None) -> BoundingBox:
     tranformed_corners = bbox.corners.transform(affine, target_space_id)
     return tranformed_corners.boundingbox
 

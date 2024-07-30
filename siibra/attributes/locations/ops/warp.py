@@ -22,9 +22,9 @@ from functools import wraps
 import numpy as np
 
 from ..base import Location
-from ..point import Pt
+from ..point import Point
 from ..pointset import PointCloud
-from ..boundingbox import BBox
+from ..boundingbox import BoundingBox
 from ....commons_new.logger import logger
 from ....exceptions import SpaceWarpingFailedError
 
@@ -56,8 +56,8 @@ def _register_warper(location_type: Generic[T]):
     return outer
 
 
-@_register_warper(Pt)
-def warp_point(point: Pt, target_space_id: str) -> Pt:
+@_register_warper(Point)
+def warp_point(point: Point, target_space_id: str) -> Point:
     if target_space_id == point.space_id:
         return point
     if any(_id not in SPACEWARP_IDS for _id in [point.space_id, target_space_id]):
@@ -78,7 +78,7 @@ def warp_point(point: Pt, target_space_id: str) -> Pt:
             f"Warping {str(point)} to {SPACEWARP_IDS[target_space_id]} resulted in 'NaN'"
         )
 
-    return Pt(coordinate=tuple(response["target_point"]), space_id=target_space_id)
+    return Point(coordinate=tuple(response["target_point"]), space_id=target_space_id)
 
 
 @_register_warper(PointCloud)
@@ -122,8 +122,8 @@ def warp_pointcloud(ptcloud: PointCloud, target_space_id: str) -> PointCloud:
     return PointCloud(coordinates=tuple(tgt_points), space_id=target_space_id)
 
 
-@_register_warper(BBox)
-def warp_boundingbox(bbox: BBox, space_id: str) -> BBox:
+@_register_warper(BoundingBox)
+def warp_boundingbox(bbox: BoundingBox, space_id: str) -> BoundingBox:
     corners = bbox.corners
     corners_warped = warp_pointcloud(corners, target_space_id=space_id)
     return corners_warped.boundingbox

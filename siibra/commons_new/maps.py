@@ -228,10 +228,10 @@ def spatial_props(
 
 
 def compute_centroid(img: Nifti1Image, space_id: str, background: float = 0.0):
-    from ..attributes.locations import Pt
+    from ..attributes.locations import Point
 
     maparr = np.asanyarray(img.dataobj)
     centroid_vox = np.mean(np.where(maparr != background), axis=1)
-    return Pt(
+    return Point(
         coordinate=np.dot(img.affine, np.r_[centroid_vox, 1])[:3], space_id=space_id
     )

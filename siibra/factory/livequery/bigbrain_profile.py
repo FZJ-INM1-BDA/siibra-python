@@ -31,7 +31,7 @@ from ...attributes.locations.layerboundary import (
     X_PRECALCULATED_BOUNDARY_KEY,
     LAYERS,
 )
-from ...attributes.locations import intersect, PointCloud, Pt, Polyline
+from ...attributes.locations import intersect, PointCloud, Point, Polyline
 from ...exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 
 modality_of_interest = Modality(value="Modified silver staining")
@@ -74,7 +74,7 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                 continue
             if matched is None:
                 continue
-            if isinstance(matched, Pt):
+            if isinstance(matched, Point):
                 matched = PointCloud(
                     space_id=matched.space_id, coordinates=[matched.coordinate]
                 )
@@ -132,7 +132,7 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                         extra={
                             X_PRECALCULATED_BOUNDARY_KEY: [
                                 Polyline(
-                                    points=(Pt(coordinate=[value, 0, 0], space_id=None)),
+                                    points=(Point(coordinate=[value, 0, 0], space_id=None)),
                                     space_id=None,
                                 )
                                 for value in boundary_depths[index].tolist()

@@ -17,9 +17,9 @@ from typing import Union
 import numpy as np
 from dataclasses import replace
 
-from ..point import Pt
+from ..point import Point
 from ..pointset import PointCloud
-from ..boundingbox import BBox
+from ..boundingbox import BoundingBox
 from ..base import Location
 from ....exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 from ....commons_new.binary_op import BinaryOp
@@ -27,24 +27,24 @@ from ....commons_new.binary_op import BinaryOp
 _loc_intersection = BinaryOp[Location, Union[Location, None]]()
 
 
-@_loc_intersection.register(Pt, Pt)
-def pt_pt(pta: Pt, ptb: Pt):
+@_loc_intersection.register(Point, Point)
+def pt_pt(pta: Point, ptb: Point):
     if pta.space_id != ptb.space_id:
         raise InvalidAttrCompException
     if pta.coordinate == ptb.coordinate:
         return replace(pta)
 
 
-@_loc_intersection.register(Pt, PointCloud)
-def pt_ptcld(pt: Pt, ptcld: PointCloud):
+@_loc_intersection.register(Point, PointCloud)
+def pt_ptcld(pt: Point, ptcld: PointCloud):
     if pt.space_id != ptcld.space_id:
         raise InvalidAttrCompException
     if pt.coordinate in ptcld.coordinates:
         return replace(pt)
 
 
-@_loc_intersection.register(Pt, BBox)
-def pt_bbox(pt: Pt, bbox: BBox):
+@_loc_intersection.register(Point, BoundingBox)
+def pt_bbox(pt: Point, bbox: BoundingBox):
     if pt.space_id != bbox.space_id:
         raise InvalidAttrCompException
     minpoint = np.array(bbox.minpoint)
@@ -66,8 +66,8 @@ def ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
     return replace(ptclda, coordinates=[pt.coordinate for pt in pts])
 
 
-@_loc_intersection.register(PointCloud, BBox)
-def ptcld_bbox(ptcld: PointCloud, bbox: BBox):
+@_loc_intersection.register(PointCloud, BoundingBox)
+def ptcld_bbox(ptcld: PointCloud, bbox: BoundingBox):
     if ptcld.space_id != bbox.space_id:
         raise InvalidAttrCompException
     pts = [pt for pt in ptcld.to_pts() if pt_bbox(pt, bbox) is not None]
@@ -78,8 +78,8 @@ def ptcld_bbox(ptcld: PointCloud, bbox: BBox):
     return replace(ptcld, coordinates=[pt.coordinate for pt in pts])
 
 
-@_loc_intersection.register(BBox, BBox)
-def bbox_bbox(bboxa: BBox, bboxb: BBox):
+@_loc_intersection.register(BoundingBox, BoundingBox)
+def bbox_bbox(bboxa: BoundingBox, bboxb: BoundingBox):
     if bboxa.space_id != bboxb.space_id:
         raise InvalidAttrCompException
     minpoints = [bboxa.minpoint, bboxb.minpoint]

@@ -35,7 +35,7 @@ from .atlases.region import filter_newest
 from .attributes import Attribute, AttributeCollection
 from .attributes.descriptions import Modality, RegionSpec, Gene
 from .attributes.descriptions.modality import vocab as modality_types
-from .attributes.locations import DataClsLocation
+from .attributes.locations import Location
 from .concepts import AtlasElement, QueryParam, Feature
 from .assignment import (
     string_search,
@@ -140,13 +140,13 @@ def get_map(
 
 
 def find_features(
-    concept: Union[AtlasElement, DataClsLocation],
+    concept: Union[AtlasElement, Location],
     modality: Union[Modality, str],
     **kwargs,
 ):
-    if isinstance(concept, DataClsLocation):
+    if isinstance(concept, Location):
         concept = QueryParam(attributes=[concept])
-    assert isinstance(concept, AttributeCollection), f"Expect concept to be either AtlasElement or DataClsLocation, but was {type(concept)} instead"
+    assert isinstance(concept, AttributeCollection), f"Expect concept to be either AtlasElement or Location, but was {type(concept)} instead"
     
     if isinstance(modality, str):
         mod_str = modality

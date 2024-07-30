@@ -24,7 +24,7 @@ from ....commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 from .base import Volume
 from ....exceptions import InvalidAttrCompException
-from ...locations import point, pointset, BBox
+from ...locations import point, pointset, BoundingBox
 from ...locations.ops.intersection import _loc_intersection
 from ....retrieval.volume_fetcher.volume_fetcher import (
     get_volume_fetcher,
@@ -42,13 +42,13 @@ class Image(Volume):
         assert self.format in IMAGE_FORMATS, print(f"{self.format=}")
 
     @property
-    def boundingbox(self) -> "BBox":
+    def boundingbox(self) -> "BoundingBox":
         bbox_getter = get_bbox_getter(self.format)
         return bbox_getter(self)
 
     def fetch(
         self,
-        bbox: "BBox" = None,
+        bbox: "BoundingBox" = None,
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
@@ -91,8 +91,8 @@ def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "
     )
 
 
-@_loc_intersection.register(point.Pt, Image)
-def compare_pt_to_image(pt: point.Pt, image: Image):
+@_loc_intersection.register(point.Point, Image)
+def compare_pt_to_image(pt: point.Point, image: Image):
     ptcloud = pointset.PointCloud(space_id=pt.space_id, coordinates=[pt.coordinate])
     intersection = compare_ptcloud_to_image(ptcloud=ptcloud, image=image)
     if intersection:

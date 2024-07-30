@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
-from .point import Pt
+from .point import Point
 from .polyline import Polyline
 from .base import Location
 from ...cache import fn_call_cache
@@ -59,7 +59,7 @@ class LayerBoundary(Location):
             Polyline(
                 closed=False,
                 points=[
-                    Pt(coord=coord, space_id=space_id)
+                    Point(coord=coord, space_id=space_id)
                     for coord in poly_srt(np.array(s)).tolist()
                 ],
                 space_id=space_id,

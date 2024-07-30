@@ -24,7 +24,7 @@ from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 from ..attributes import Attribute
 from ..attributes.dataitems import Image
 from ..attributes.descriptions import Modality, RegionSpec, Name, ID, Facet
-from ..attributes.locations import Pt, PointCloud, BBox, intersect
+from ..attributes.locations import Point, PointCloud, BoundingBox, intersect
 from ..cache import fn_call_cache
 
 
@@ -136,27 +136,27 @@ def qualify_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
         return Qualification.APPROXIMATE
 
 
-@register_attr_qualifier(Pt, Pt)
-def qualify_pt_to_pt(pt1: Pt, pt2: Pt):
+@register_attr_qualifier(Point, Point)
+def qualify_pt_to_pt(pt1: Point, pt2: Point):
     if intersect(pt1, pt2):
         return Qualification.EXACT
 
 
-@register_attr_qualifier(Pt, PointCloud)
-@register_attr_qualifier(Pt, BBox)
-def qualify_pt_ptcld_bbox(pt: Pt, ptcld_bbox: Union[PointCloud, BBox]):
+@register_attr_qualifier(Point, PointCloud)
+@register_attr_qualifier(Point, BoundingBox)
+def qualify_pt_ptcld_bbox(pt: Point, ptcld_bbox: Union[PointCloud, BoundingBox]):
     if intersect(pt, ptcld_bbox):
         return Qualification.CONTAINED
 
 
-@register_attr_qualifier(PointCloud, BBox)
-def qualify_ptcld_bbox(ptcld: PointCloud, bbox: BBox):
+@register_attr_qualifier(PointCloud, BoundingBox)
+def qualify_ptcld_bbox(ptcld: PointCloud, bbox: BoundingBox):
     intersected = intersect(ptcld, bbox)
     if not intersected:
         return None
 
     num_pts = -1
-    if isinstance(intersected, Pt):
+    if isinstance(intersected, Point):
         num_pts = 1
     if isinstance(intersected, PointCloud):
         num_pts = len(intersected.coordinates)
@@ -182,7 +182,7 @@ def qualify_ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
 
     num_pts = -1
 
-    if isinstance(intersected, Pt):
+    if isinstance(intersected, Point):
         num_pts = 1
     if isinstance(intersected, PointCloud):
         num_pts = len(intersected.coordinates)
@@ -208,12 +208,12 @@ def qualify_ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
     return Qualification.OVERLAPS
 
 
-@register_attr_qualifier(BBox, BBox)
-def qualify_bbox_bbox(bboxa: BBox, bboxb: BBox):
+@register_attr_qualifier(BoundingBox, BoundingBox)
+def qualify_bbox_bbox(bboxa: BoundingBox, bboxb: BoundingBox):
     intersected = intersect(bboxa, bboxb)
     if intersected is None:
         return None
-    if not isinstance(intersected, BBox):
+    if not isinstance(intersected, BoundingBox):
         raise TypeError(
             f"intersection of bboxes should be a bbox, but is a {type(intersected)} instead!"
         )
@@ -244,7 +244,7 @@ def qualify_ptcld_image(ptcld: PointCloud, image: Image):
         if len(intersected.coordinates) == len(ptcld.coordinates):
             return Qualification.CONTAINED
         return Qualification.OVERLAPS
-    if isinstance(intersected, Pt):
+    if isinstance(intersected, Point):
         return Qualification.OVERLAPS
 
 

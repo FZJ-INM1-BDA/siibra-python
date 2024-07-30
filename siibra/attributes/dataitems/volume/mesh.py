@@ -20,7 +20,7 @@ from nibabel import GiftiImage
 from ....commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 from .base import Volume
-from ...locations import BBox
+from ...locations import BoundingBox
 from ....retrieval.volume_fetcher.volume_fetcher import (
     get_volume_fetcher,
     get_bbox_getter,
@@ -41,13 +41,13 @@ class Mesh(Volume):
         assert self.format in MESH_FORMATS
 
     @property
-    def boundingbox(self) -> "BBox":
+    def boundingbox(self) -> "BoundingBox":
         bbox_getter = get_bbox_getter(self.format)
         return bbox_getter(self)
 
     def fetch(
         self,
-        bbox: "BBox" = None,
+        bbox: "BoundingBox" = None,
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,

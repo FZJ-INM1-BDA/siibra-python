@@ -14,14 +14,14 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
-from typing import List, Tuple
+from typing import Tuple
 
 from .base import Location
-from .point import Pt
+from .point import Point
+
 
 @dataclass
 class Polyline(Location):
     schema: str = "siibra/attr/loc/polyline"
     closed: bool = False
-    points: Tuple[Pt] = field(default_factory=tuple)
-
+    points: Tuple[Point] = field(default_factory=tuple)
