@@ -86,26 +86,29 @@ class Map(AtlasElement):
             )
         )
 
-    def get_mapping(self, frmt=None, regions: List[str] = None) -> Dict[str, "Mapping"]:
+    def get_label_mapping(self, regions: List[str] = None, frmt=None) -> Dict[str, "Mapping"]:
         if regions is None:
             regions = self.regions
-
-        assert all(
-            r in self.regions for r in regions
-        ), f"Please provide a subset of {self.regions=}"
-
-        if frmt is None or frmt not in self.formats:
-            frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
-            logger.info(f"Selected format: {frmt=!r}")
         else:
-            assert frmt not in self.formats, RuntimeError(
+            assert all(
+                r in self.regions for r in regions
+            ), f"Please provide a subset of {self.regions=}"
+
+        if frmt in {None, "image", "mesh"}:
+            frmt_ = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
+            logger.debug(f"Selected format: {frmt=!r}")
+        elif frmt in self.formats:
+            frmt_ = frmt
+        else:
+            raise RuntimeError(
                 f"Requested format '{frmt}' is not available for this map: {self.formats=}."
             )
 
         return {
             key: val
-            for vol in self.volumes for key, val in vol.mapping.items()
-            if vol.mapping is not None and key in regions
+            for vol in self.volumes
+            for key, val in vol.mapping.items()
+            if vol.format == frmt_ and vol.mapping is not None and key in regions
         }
 
     @property
@@ -133,25 +136,29 @@ class Map(AtlasElement):
         ValueError
             If any region not mapped in this map is requested.
         """
-        regionnames = [r.name for r in regions] if isinstance(regions[0], Region) else regions
+        regionnames = (
+            [r.name for r in regions] if isinstance(regions[0], Region) else regions
+        )
         try:
             assert all(rn in self.regions for rn in regionnames)
         except AssertionError:
-            raise ValueError("Regions that are not mapped in this ParcellationMap are requested!")
+            raise ValueError(
+                "Regions that are not mapped in this ParcellationMap are requested!"
+            )
 
         filtered_volumes = [
-            replace(vol, mapping={
-                r: vol.mapping[r]
-                for r in regionnames
-                if r in vol.mapping
-            })
-            for vol in self.volumes if vol.mapping is not None and any(r in vol.mapping for r in regionnames)
+            replace(
+                vol,
+                mapping={r: vol.mapping[r] for r in regionnames if r in vol.mapping},
+            )
+            for vol in self.volumes
+            if vol.mapping is not None and any(r in vol.mapping for r in regionnames)
         ]
         attributes = [
             Name(value=f"{regionnames} filtered from {self.name}"),
             _ID(value=None),
             self._get(SpeciesSpec),
-            *filtered_volumes
+            *filtered_volumes,
         ]
         return replace(self, attributes=attributes)
 
@@ -268,7 +275,7 @@ class Map(AtlasElement):
             return merge_volumes(
                 niftis,
                 labels=labels,
-                template_vol=self.space.fetch_template(**fetch_kwargs)
+                template_vol=self.space.fetch_template(**fetch_kwargs),
             )
 
     def get_colormap(self, regions: List[str] = None, frmt=None) -> List[str]:
