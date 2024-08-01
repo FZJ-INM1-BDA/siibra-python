@@ -92,7 +92,6 @@ def iter_modalities():
 # Configure how preconfigured AC are fetched and built
 #
 
-print("configuring space!")
 @preconfigured_ac_registrar.register(Space)
 def _iter_preconf_spaces():
     cfg = Configuration()

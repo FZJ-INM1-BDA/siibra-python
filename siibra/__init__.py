@@ -23,7 +23,7 @@ from .commons_new.logger import logger, QUIET, VERBOSE, set_log_level
 from .exceptions import NotFoundException
 from .commons_new.string import create_key
 from .commons_new.iterable import assert_ooo
-from .commons_new.instance_table import JitInstanceTable
+from .commons_new.instance_table import BkwdCompatInstanceTable
 from .commons_new.tree import collapse_nodes
 
 from .cache import Warmup, WarmupLevel, CACHE as cache
@@ -50,20 +50,6 @@ logger.warning("This is a development release. Use at your own risk.")
 logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
-
-
-spaces = JitInstanceTable(
-    getitem=lambda: {spc.name: spc for spc in iter_preconfigured_ac(Space)}
-)
-parcellations = JitInstanceTable(
-    getitem=lambda: {spc.name: spc for spc in iter_preconfigured_ac(Parcellation)}
-)
-maps = JitInstanceTable(
-    getitem=lambda: {
-        spc.name: spc for spc in iter_preconfigured_ac(parcellationmap.Map)
-    }
-)
-
 
 def get_space(space_spec: str):
     """Convenient access to reference space templates."""
@@ -227,6 +213,24 @@ def find_regions(parcellation_spec: str, regionspec: str):
         )
     ]
 
+
+spaces = BkwdCompatInstanceTable(getitem=get_space,
+                                 elements={
+                                     spc.name: spc
+                                     for spc in iter_preconfigured_ac(Space) })
+
+parcellations = BkwdCompatInstanceTable(getitem=get_parcellation,
+                                        elements={
+                                            spc.name: spc
+                                            for spc in iter_preconfigured_ac(Parcellation) })
+
+def _not_implemented(*args):
+    raise NotImplementedError("map getitem not yet implemented")
+
+maps = BkwdCompatInstanceTable(getitem=_not_implemented,
+                               elements={
+                                   mp.name: mp
+                                   for mp in iter_preconfigured_ac(parcellationmap.Map)})
 
 def set_feasible_download_size(maxsize_gbyte):
     from .volumes import volume
