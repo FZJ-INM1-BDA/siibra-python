@@ -54,6 +54,7 @@ setup(
         "nilearn",
         'typing-extensions; python_version < "3.8"',
         "filelock",
+        "joblib >= 1.3.0",
         "ebrains-drive >= 0.6.0",
     ],
 )

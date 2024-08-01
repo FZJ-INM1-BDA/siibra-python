@@ -17,7 +17,6 @@ from dataclasses import dataclass, field
 from typing import Literal, Dict, Union
 import pandas as pd
 from io import BytesIO
-from nilearn import plotting
 
 from .base import Data
 
@@ -41,6 +40,12 @@ class Tabular(Data):
 
     def plot(self, *args, **kwargs):
         if "matrix" in self.plot_options:
+            from ...commons_new.logger import logger
+            try:
+                from nilearn import plotting
+            except ImportError as e:
+                logger.error(f"Plotting matrix error: {str(e)}")
+                return
             matrix_kwargs: Dict = self.plot_options.get("matrix").copy()
             matrix_kwargs.update(kwargs)
             return plotting.plot_matrix(self.get_data(), *args, **matrix_kwargs)
