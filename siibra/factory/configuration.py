@@ -28,7 +28,6 @@ from ..retrieval.file_fetcher import (
     LocalDirectoryRepository,
 )
 from ..commons_new.logger import logger
-from ..exceptions import UnregisteredAttrCompException
 from ..commons import SIIBRA_USE_CONFIGURATION
 from ..commons_new.register_recall import RegisterRecall
 
@@ -121,7 +120,7 @@ def _iter_preconf_maps():
 
 
 
-class RegionQuery(LiveQuery[Region], generates=Region):
+class PreconfiguredRegionQuery(LiveQuery[Region], generates=Region):
     """Whilst RegionQuery is not exactly LiveQuery, but presumed performance gain from shortcurcuiting parcellation_id
     should be sufficient reason to use this mechanism to query.
     
@@ -142,8 +141,39 @@ class RegionQuery(LiveQuery[Region], generates=Region):
         ]
 
 
-# @preconfigured_ac_registrar.register(Region)
-# def _iter_preconf_regions():
-#     for parc in _iter_preconf_parcellations():
-#         yield from [region for region in parc]
+class PreconfiguredMapQuery(LiveQuery[parcellationmap.Map], generates=parcellationmap.Map):
+    def generate(self) -> Iterator[parcellationmap.Map]:
+        from ..attributes.descriptions import SpaceSpec, ParcSpec, ID, Name
+        from ..concepts import QueryParam
+        from ..atlases import Space, Parcellation
+        from ..assignment import find
+        space_specs = [spec
+                       for specss in self.find_attributes(SpaceSpec)
+                       for spec in specss]
+        space_query_attrs = [attr
+                             for spec in space_specs
+                             for attr in (ID(value=spec.value), Name(value=spec.value))]
+        spaces = find([QueryParam(attributes=space_query_attrs)], Space)
+        if len(spaces) == 0:
+            logger.warning(f"Cannot find any space with the specification {', '.join([s.value for s in space_specs])}")
+            return
+
+        parc_specs = [spec
+                      for specss in self.find_attributes(ParcSpec)
+                      for spec in specss]
+        parc_query_attrs = [attr
+                            for spec in parc_specs
+                            for attr in (ID(value=spec.value), Name(value=spec.value))]
+        parcellations = find([QueryParam(attributes=parc_query_attrs)], Parcellation)
+        if len(parcellations) == 0:
+            logger.warning(f"Cannot find any parcellation with the specification {', '.join([s.value for s in parc_specs])}")
+            return
+        
+        space_ids = [space.ID for space in spaces]
+        parc_ids = [parc.ID for parc in parcellations]
+        yield from [
+            mp
+            for mp in iter_preconfigured_ac(parcellationmap.Map)
+            if mp.parcellation_id in parc_ids and mp.space_id in space_ids
+        ]
 

@@ -25,6 +25,7 @@ from .commons_new.string import create_key
 from .commons_new.iterable import assert_ooo
 from .commons_new.instance_table import BkwdCompatInstanceTable
 from .commons_new.tree import collapse_nodes
+from .cache import fn_call_cache
 
 from .cache import Warmup, WarmupLevel, CACHE as cache
 
@@ -57,6 +58,7 @@ def get_space(space_spec: str):
     return assert_ooo(searched_spaces)
 
 
+@fn_call_cache
 def find_spaces(space_spec: str):
     return list(string_search(space_spec, Space))
 
@@ -78,10 +80,12 @@ def get_parcellation(parc_spec: str):
     return assert_ooo(newest_versions)
 
 
+@fn_call_cache
 def find_parcellations(parc_spec: str):
     return list(string_search(parc_spec, Parcellation))
 
 
+@fn_call_cache
 def find_maps(
     parcellation: str = None,
     space: str = None,
@@ -90,41 +94,15 @@ def find_maps(
 ):
     """Convenient access to parcellation maps."""
 
-    if parcellation:
-        try:
-            requested_parcellations = find_parcellations(parcellation)
-            assert len(requested_parcellations) > 0
-        except AssertionError as e:
-            raise RuntimeError(
-                f"Requested parcellation {parcellation!r} cannot be found. {str(e)}"
-            ) from e
-    else:
-        requested_parcellations = None
+    from .attributes.descriptions import SpaceSpec, ParcSpec
+    from .concepts import QueryParam
 
-    if space:
-        try:
-            requested_spaces = find_spaces(space)
-            assert len(requested_spaces) > 0
-        except AssertionError as e:
-            raise RuntimeError(
-                f"Requested space {space!r} cannot be found. {str(e)}"
-            ) from e
-    else:
-        requested_spaces = None
-
-    return_result = []
-    for _map in iter_preconfigured_ac(parcellationmap.Map):
-        if _map.maptype != maptype:
-            continue
-        if requested_parcellations and _map.parcellation not in requested_parcellations:
-            continue
-        if requested_spaces and _map.space not in requested_spaces:
-            continue
-        if extra_spec not in _map.name:
-            continue
-        return_result.append(_map)
-
-    return return_result
+    space_query = QueryParam(attributes=[SpaceSpec(value=space)])
+    parc_query = QueryParam(attributes=[ParcSpec(value=parcellation)])
+    return [mp
+            for mp in find([space_query, parc_query], parcellationmap.Map)
+            if mp.maptype == maptype
+            and extra_spec in mp.name]
 
 
 def get_map(

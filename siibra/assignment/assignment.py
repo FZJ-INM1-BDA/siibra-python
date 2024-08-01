@@ -39,12 +39,7 @@ def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:
 
     - If any of the permutation of the attribute matches, returns True.
     - If InvalidAttrCompException is raised, return False.
-    - All product of attributes are exhausted.
-
-    If all product of attributes are exhausted:
-
-    - If any of the comparison called successfully (without raising), return False
-    - If none of the comparison called successfully (without raising), raise UnregisteredAttrCompException
+    - If all product of attributes are exhausted, return False
     """
     try:
         if next(qualify(col_a, col_b)):
@@ -52,9 +47,17 @@ def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:
         return False
     except StopIteration:
         return False
+    except UnregisteredAttrCompException:
+        return False
 
 
 def qualify(col_a: AttributeCollection, col_b: AttributeCollection):
+    """Given AttributeCollection col_a, col_b, yield the tuple (attr_a, attr_b, qualification) from the
+    product of the respective attributes.
+
+    Yields: attribute_a, attribute_b, Qualification
+    Raises: UnregisteredAttrCompException if no combination of attributes can be found.
+    """
     attr_compared_flag = False
     for attra, attrb in product(col_a.attributes, col_b.attributes):
         try:

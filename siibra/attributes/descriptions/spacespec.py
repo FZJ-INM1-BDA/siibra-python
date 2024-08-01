@@ -13,19 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .ebrains import EbrainsRef
-from .id import ID
-from .modality import Modality, register_modalities
-from .regionspec import RegionSpec
-from .species import SpeciesSpec
-from .url import Url
-from .doi import Doi
-from .name import Name
-from .gene import Gene
-from .license import License
-from .color import RGBColor
-from .version import Version
-from .description import TextDescription
-from .facet import Facet
-from .spacespec import SpaceSpec
-from .parcspec import ParcSpec
+from dataclasses import dataclass
+
+from .base import Description
+
+
+@dataclass
+class SpaceSpec(Description):
+    """
+    Internal attribute used for querying space with a given spec.
+    """
+    schema = "siibra-internal/attr/desc/spacespec/v0.1"
+
+    def __hash__(self) -> int:
+        return hash(self.value)
