@@ -34,9 +34,8 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install -U .
         pip install -r requirements-test.txt
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Install test dependencies
       run:  pip install pytest pytest-cov coverage
     - name: Run test with pytest
       shell: bash
-      run: pytest -rx e2e/test_examples.py
+      run: pytest -rx e2e

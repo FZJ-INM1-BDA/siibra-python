@@ -46,6 +46,6 @@ def finditer(criteria: List[AttributeCollection], find_type: Type[T]):
 
 def string_search(input: str, req_type: Type[T]) -> List[T]:
     id_attr = ID(value=input)
-    name_attr = Name(value=input)
+    name_attr = Name(value=input, shortform=input)
     query = AttributeCollection(attributes=[id_attr, name_attr])
     return find([query], req_type)

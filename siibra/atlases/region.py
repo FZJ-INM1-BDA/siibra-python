@@ -13,9 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Iterable, Union, TYPE_CHECKING, List
-
+import re
 import anytree
+import json
+from typing import Iterable, Union, TYPE_CHECKING, List, Dict, Any, Tuple
+from ebrains_drive import BucketApiClient
+from concurrent.futures import ThreadPoolExecutor
 
 from ..concepts import atlas_elements
 from ..attributes.descriptions import Name
@@ -23,11 +26,12 @@ from ..commons_new.string import get_spec, SPEC_TYPE
 from ..commons_new.iterable import assert_ooo
 from ..commons_new.maps import spatial_props
 from ..commons_new.logger import logger
+from ..commons_new.register_recall import RegisterRecall
 
 if TYPE_CHECKING:
-    from .space import Space
+    from . import Space, Parcellation
     from ..attributes.locations import PointCloud
-    from . import Parcellation
+    from ..assignment.qualification import Qualification
 
 
 def filter_newest(regions: List["Region"]) -> List["Region"]:
@@ -160,3 +164,314 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
                 raise ValueError("Found no maps matching the specs for this region.")
 
         return selectedmap.fetch(frmt=frmt)
+
+    def get_related_regions(self):
+        """
+        Get assements on relations of this region to others defined on EBRAINS.
+
+        Yields
+        ------
+        Qualification
+
+        Example
+        -------
+        >>> region = siibra.get_region("monkey", "PG")
+        >>> for assesment in region.get_related_regions():
+        >>>    print(assesment)
+        'PG' is homologous to 'Area PGa (IPL)'
+        'PG' is homologous to 'Area PGa (IPL) left'
+        'PG' is homologous to 'Area PGa (IPL) right'
+        'PG' is homologous to 'Area PGa (IPL)'
+        'PG' is homologous to 'Area PGa (IPL) left'
+        'PG' is homologous to 'Area PGa (IPL) right'
+        'PG' is homologous to 'Area PGa (IPL)'
+        'PG' is homologous to 'Area PGa (IPL) right'
+        'PG' is homologous to 'Area PGa (IPL) left'
+        """
+        yield from RegionRelationAssessments.parse_from_region(self)
+
+
+region_ref_register = RegisterRecall[Any, Region, Union[str, List[str]]]()
+
+
+class RegionRelationAssessments:
+    """
+    A collection of methods on finding related regions and the quantification
+    of the relationship.
+    """
+
+    anony_client = BucketApiClient()
+
+    @staticmethod
+    def get_uuid(long_id: Union[str, Dict]) -> str:
+        """
+        Returns the uuid portion of either a fully formed openminds id, or get
+        the 'id' property first, and extract the uuid portion of the id.
+
+        Parameters
+        ----------
+        long_id: str, dict[str, str]
+
+        Returns
+        -------
+        str
+
+        Raises
+        ------
+        AssertionError
+        RuntimeError
+        """
+        if isinstance(long_id, str):
+            pass
+        elif isinstance(long_id, dict):
+            long_id = long_id.get("id")
+            assert isinstance(long_id, str)
+        else:
+            raise RuntimeError("uuid arg must be str or object")
+        uuid_search = re.search(r"(?P<uuid>[a-f0-9-]+)$", long_id)
+        assert uuid_search, "uuid not found"
+        return uuid_search.group("uuid")
+
+    @classmethod
+    def get_peid_from_region(cls, region: Region) -> Union[str, None]:
+        """
+        Given a region, obtain the Parcellation Entity ID.
+
+        Parameters
+        ----------
+        region : Region
+
+        Returns
+        -------
+        str
+        """
+        from ..attributes.descriptions import EbrainsRef
+        for ebrainsref in region._finditer(EbrainsRef):
+            for key, value in ebrainsref.ids.items():
+                if key == "openminds/ParcellationEntity":
+                    if isinstance(value, str):
+                        return value
+                    return value[0]
+        # In some cases (e.g. Julich Brain, PE is defined on the parent leaf nodes)
+        if region.parent:
+            parent_peid = cls.get_peid_from_region(region.parent)
+            if parent_peid:
+                return parent_peid
+
+
+    @staticmethod
+    def parse_id_arg(_id: Union[str, List[str]]) -> List[str]:
+        """
+        Normalizes the ebrains id property. The ebrains id field can be either
+        a str or list[str]. This method normalizes it to always be list[str].
+
+        Parameters
+        ----------
+        _id: strl, list[str]
+
+        Returns
+        -------
+        list[str]
+
+        Raises
+        ------
+        RuntimeError
+        """
+        if isinstance(_id, list):
+            assert all(isinstance(_i, str) for _i in _id), "all instances of pev should be str"
+        elif isinstance(_id, str):
+            _id = [_id]
+        else:
+            raise RuntimeError("parse_pev error: arg must be either list of str or str")
+        return _id
+
+    @classmethod
+    def get_object(cls, obj: str):
+        """
+        Gets given a object (path), loads the content and serializes to json.
+        Relative to the bucket 'reference-atlas-data'.
+
+        Parameters
+        ----------
+        obj: str
+
+        Returns
+        -------
+        dict
+        """
+        bucket = cls.anony_client.buckets.get_bucket("reference-atlas-data")
+        return json.loads(bucket.get_file(obj).get_content())
+
+    @classmethod
+    def get_snapshot_factory(cls, type_str: str):
+        """
+        Factory method for given type.
+
+        Parameters
+        ----------
+        type_str: str
+
+        Returns
+        -------
+        Callable[[str|list[str]], dict]
+        """
+        def get_objects(_id: Union[str, List[str]]):
+            _id = cls.parse_id_arg(_id)
+            with ThreadPoolExecutor() as ex:
+                return list(
+                    ex.map(
+                        cls.get_object,
+                        [f"ebrainsquery/v3/{type_str}/{_}.json" for _ in _id]
+                    ))
+        return get_objects
+
+    @classmethod
+    def yield_all_regions(cls) -> Iterable[Region]:
+        from ..factory import iter_preconfigured_ac
+        from ..atlases import Parcellation
+
+        for p in iter_preconfigured_ac(Parcellation):
+            for region in p:
+                yield region
+
+    @classmethod
+    def parse_relationship_assessment(cls, src: "Region", assessment):
+        """
+        Given a region, and the fetched assessment json, yield
+        RegionRelationAssignment object.
+
+        Parameters
+        ----------
+        src: Region
+        assessment: dict
+
+        Returns
+        -------
+        Iterable[RegionRelationAssessments]
+        """
+        from ..assignment.qualification import Qualification
+
+        overlap = assessment.get("qualitativeOverlap")
+        targets = assessment.get("relationAssessment") or assessment.get("inRelationTo")
+        assert len(overlap) == 1, f"should be 1&o1 overlap {len(overlap)!r} "
+        overlap, = overlap
+        for target in targets:
+            target_id = cls.get_uuid(target)
+
+            all_regions = list(cls.yield_all_regions())
+            found_targets: List[Region] = [
+                region
+                for region in all_regions
+                if target_id in [uuid for _, uuid in region.ebrains_ids]
+            ]
+
+            for found_target in found_targets:
+                yield src, found_target, Qualification.parse_relation_assessment(overlap)
+
+            if "https://openminds.ebrains.eu/sands/ParcellationEntity" in target.get("type"):
+                pev_uuids = [
+                    cls.get_uuid(has_version)
+                    for pe in cls.get_snapshot_factory("ParcellationEntity")(target_id)
+                    for has_version in pe.get("hasVersion")
+                ]
+                for reg in all_regions:
+                    reg_uuids = [uuid for domain, uuid in reg.ebrains_ids if domain == "openminds/ParcellationEntityVersion"]
+                    if any(uuid in pev_uuids for uuid in reg_uuids):
+                        yield src, reg, Qualification.parse_relation_assessment(overlap)
+
+    @classmethod
+    @region_ref_register.register("openminds/CustomAnatomicalEntity")
+    def translate_cae(cls, src: "Region", _id: Union[str, List[str]]):
+        """Register how CustomAnatomicalEntity should be parsed
+
+        Parameters
+        ----------
+        src: Region
+        _id: str|list[str]
+
+        Returns
+        -------
+        Iterable[RegionRelationAssessments]
+        """
+        caes = cls.get_snapshot_factory("CustomAnatomicalEntity")(_id)
+        for cae in caes:
+            for ass in cae.get("relationAssessment", []):
+                yield from cls.parse_relationship_assessment(src, ass)
+
+    @classmethod
+    @region_ref_register.register("openminds/ParcellationEntity")
+    def translate_pes(cls, src: "Region", _id: Union[str, List[str]]):
+        """
+        Register how ParcellationEntity should be parsed
+
+        Parameters
+        ----------
+        src: Region
+        _id: str|list[str]
+
+        Returns
+        -------
+        Iterable[RegionRelationAssessments]
+        """
+        from ..assignment.qualification import Qualification
+
+        pes = cls.get_snapshot_factory("ParcellationEntity")(_id)
+
+        for pe in pes:
+            for region in cls.yield_all_regions():
+                if region is src:
+                    continue
+                region_peid = cls.get_peid_from_region(region)
+                if region_peid and (region_peid in pe.get("id")):
+                    yield src, region, Qualification.OTHER_VERSION
+
+            # homologuous
+            relations = pe.get("inRelationTo", [])
+            for relation in relations:
+                yield from cls.parse_relationship_assessment(src, relation)
+
+    @classmethod
+    @region_ref_register.register("openminds/ParcellationEntityVersion")
+    def translate_pevs(cls, src: "Region", _id: Union[str, List[str]]):
+        """
+        Register how ParcellationEntityVersion should be parsed
+
+        Parameters
+        ----------
+        src: Region
+        _id: str|list[str]
+
+        Returns
+        -------
+        Iterable[RegionRelationAssessments]
+        """
+        pe_uuids = [
+            uuid for uuid in
+            {
+                cls.get_uuid(pe)
+                for pev in cls.get_snapshot_factory("ParcellationEntityVersion")(_id)
+                for pe in pev.get("isVersionOf")
+            }
+        ]
+        yield from cls.translate_pes(src, pe_uuids)
+
+    @classmethod
+    def parse_from_region(cls, region: "Region") -> Iterable[Tuple[Region, Region, "Qualification"]]:
+        """
+        Main entry on how related regions should be retrieved. Given a region,
+        retrieves all RegionRelationAssessments
+
+        Parameters
+        ----------
+        region: Region
+
+        Returns
+        -------
+        Iterable[RegionRelationAssessments]
+        """
+
+        from ..attributes.descriptions import EbrainsRef
+        for ebrainsref in region._finditer(EbrainsRef):
+            for key, value in ebrainsref.ids.items():
+                for fn in region_ref_register.iter_fn(key):
+                    yield from fn(cls, region, value)

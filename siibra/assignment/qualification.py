@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from enum import Enum
+from typing import Dict
 
 
 class Qualification(Enum):
@@ -64,3 +65,10 @@ class Qualification(Enum):
 
     def __repr__(self):
         return str(self)
+
+    @staticmethod
+    def parse_relation_assessment(spec: Dict):
+        name = spec.get("name")
+        if name == "is homologous to":
+            return Qualification.HOMOLOGOUS
+        raise Exception(f"Cannot parse spec: {spec}")

@@ -122,3 +122,23 @@ class AttributeCollection:
         """Yields attribute from self, attribute from target attribute_collection, and how they relate"""
         from ..assignment import collection_qualify
         yield from collection_qualify(self, attribute_collection)
+
+    @property
+    def ebrains_ids(self) -> Iterable[Tuple[str, str]]:
+        """
+        Yields all ebrains references as Iterable of Tuple, e.g.
+
+        (
+            ("openminds/ParcellationEntity", "foo"),
+            ("minds/core/parcellationregion/v1.0.0", "bar"),
+        )
+        """
+        from .descriptions import EbrainsRef
+
+        for ebrainsref in self._finditer(EbrainsRef):
+            for key, value in ebrainsref.ids.items():
+                if isinstance(value, list):
+                    for v in value:
+                        yield key, v
+                if isinstance(value, str):
+                    yield key, value

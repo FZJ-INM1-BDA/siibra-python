@@ -21,7 +21,6 @@ from .commons import __version__
 
 from .commons_new.logger import logger, QUIET, VERBOSE, set_log_level
 from .exceptions import NotFoundException
-from .commons_new.string import create_key
 from .commons_new.iterable import assert_ooo
 from .commons_new.instance_table import BkwdCompatInstanceTable
 from .commons_new.tree import collapse_nodes
@@ -160,6 +159,11 @@ def get_region(parcellation_spec: str, regionspec: str):
         raise NotFoundException(
             f"parcellation_spec={parcellation_spec!r} and regionspec={regionspec!r} found no regions"
         )
+    exact_match = [r for r in found_regions if r.name == regionspec]
+    if len(exact_match) > 0:
+        logger.debug(f"{len(exact_match)} exact match for {regionspec} found. Returning first exact match.")
+        return exact_match[0]
+
     if len(found_regions) > 1:
         logger.warning(
             f"Found {len(found_regions)}:\n"

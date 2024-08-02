@@ -112,6 +112,9 @@ class BkwdCompatInstanceTable(TabCompleteCollection[T]):
     def __getitem__(self, key: str):
         return self._getitem(key)
 
+    def get(self, spec: str):
+        return self._getitem(spec)
+
 
 class BaseInstanceTable(TabCompleteCollection[T]):
     """

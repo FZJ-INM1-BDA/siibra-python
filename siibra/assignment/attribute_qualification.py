@@ -92,6 +92,12 @@ def qualify_name(name1: Name, name2: Name):
     if fuzzy_match(name1.value, name2.value) or fuzzy_match(name2.value, name1.value):
         return Qualification.APPROXIMATE
 
+    if name1.shortform and name2.shortform:
+        if name1.shortform == name2.shortform:
+            return Qualification.EXACT
+        if fuzzy_match(name1.shortform, name2.shortform) or fuzzy_match(name2.shortform, name1.shortform):
+            return Qualification.APPROXIMATE
+
 
 @register_attr_qualifier(Facet, Facet)
 def qualify_aggregate_by(face_a: Facet, facet_b: Facet):
@@ -119,7 +125,7 @@ def qualify_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
         and regspec1.parcellation_id != regspec2.parcellation_id
     ):
         raise InvalidAttrCompException(
-            f"{regspec1.parcellation_id=!r} != {regspec2.parcellation_id=!r}"
+            f"regspec1.parcellation_id={regspec1.parcellation_id!r} != regspec2.parcellation_id={regspec2.parcellation_id!r}"
         )
 
     for region1, region2 in product(regspec1.decode(), regspec2.decode()):
