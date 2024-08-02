@@ -31,7 +31,7 @@ class BoundingBox(Location):
     schema = "siibra/attr/loc/boundingbox/v0.1"
     minpoint: List[float] = field(default_factory=list)
     maxpoint: List[float] = field(default_factory=list)
-    space_id: str = None,
+    space_id: str = None
 
     def __post_init__(self):
         # TODO: correctly parse sigma vals
