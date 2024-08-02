@@ -252,7 +252,7 @@ def select_scale(
     else:
         raise RuntimeError(
             f"Cannot fetch {f'bounding box {bbox} ' if bbox else ''}since the lowest download size "
-            f"{scale._estimate_nbytes(bbox) / 1024**3}GiB > {max_download_GB=}GiB."
+            f"{scale._estimate_nbytes(bbox) / 1024**3}GiB > max_download_GB={max_download_GB}GiB."
         )
 
     return selected_scale
