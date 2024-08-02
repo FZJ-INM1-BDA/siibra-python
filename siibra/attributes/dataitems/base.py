@@ -14,9 +14,12 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import TypedDict
 import requests
-# from io import BytesIO
+try:
+    from typing import TypedDict
+except ImportError:
+    # support python 3.7
+    from typing_extensions import TypedDict
 
 from ...attributes import Attribute
 from ...cache import fn_call_cache

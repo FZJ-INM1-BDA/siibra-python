@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from typing import Iterator, List, TypedDict, Union, Literal, Dict
+from typing import Iterator, List, Union, Literal, Dict
 import re
 import json
 from pathlib import Path
@@ -23,6 +23,11 @@ from hashlib import md5
 import numpy as np
 from PIL import Image as PILImage
 import nibabel as nib
+try:
+    from typing import TypedDict
+except ImportError:
+    # support python 3.7
+    from typing_extensions import TypedDict
 
 from .base import LiveQuery
 from ...commons_new.logger import logger

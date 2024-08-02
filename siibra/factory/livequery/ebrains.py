@@ -2,9 +2,14 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 import requests
 import typing
-from typing import Any, TypedDict, List
+from typing import Any, List
 import itertools
 import json
+try:
+    from typing import TypedDict
+except ImportError:
+    # support python 3.7
+    from typing_extensions import TypedDict
 
 from siibra.attributes import AttributeCollection
 

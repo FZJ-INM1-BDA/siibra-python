@@ -13,14 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, TypedDict, Callable, Dict, Union, Literal, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, Union, Literal, Tuple
 from functools import wraps
+try:
+    from typing import TypedDict
+except ImportError:
+    # support python 3.7
+    from typing_extensions import TypedDict
 
 from ...commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 
 if TYPE_CHECKING:
-    from ...locations import BBox
+    from ...attributes.locations import BoundingBox
     from ...attributes.dataitems import Image, Mesh
     from nibabel import Nifti1Image, GiftiImage
 
@@ -44,7 +49,7 @@ class FetchKwargs(TypedDict):
     ----
     Not all parameters are avaialble for all formats and volumes.
     """
-    bbox: "BBox" = None
+    bbox: "BoundingBox" = None
     resolution_mm: float = None
     max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB
     mapping: Dict[str, Mapping] = None
@@ -56,7 +61,7 @@ FRAGMENT_KEY = "x-siibra/volume-fragment"
 FETCHER_REGISTRY: Dict[
     str, Callable[["Image", FetchKwargs], Union["Nifti1Image", "GiftiImage"]]
 ] = {}
-BBOX_GETTER_REGISTRY: Dict[str, Callable[["Image", FetchKwargs], "BBox"]] = {}
+BBOX_GETTER_REGISTRY: Dict[str, Callable[["Image", FetchKwargs], "BoundingBox"]] = {}
 IMAGE_FORMATS = []
 MESH_FORMATS = []
 
@@ -96,7 +101,7 @@ def get_volume_fetcher(format: str):
 
 def register_bbox_getter(format: str):
 
-    def outer(fn: Callable[["Image", FetchKwargs], "BBox"]):
+    def outer(fn: Callable[["Image", FetchKwargs], "BoundingBox"]):
 
         @wraps(fn)
         def inner(image: "Image", fetchkwargs: FetchKwargs):

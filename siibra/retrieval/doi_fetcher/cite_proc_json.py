@@ -14,8 +14,13 @@
 # limitations under the License.
 
 import json
-from typing import TypedDict, List, Any
+from typing import List, Any
 import calendar
+try:
+    from typing import TypedDict
+except ImportError:
+    # support python 3.7
+    from typing_extensions import TypedDict
 
 from .base import register_content_type
 from ...cache import fn_call_cache
