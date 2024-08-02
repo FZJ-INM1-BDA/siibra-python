@@ -18,9 +18,10 @@ from typing import TYPE_CHECKING, List, Dict, Tuple, Union
 
 import numpy as np
 
+from siibra.commons_new.iterable import assert_ooo
+
 from .parcellationmap import Map
 from ..atlases import Region
-from ..attributes.dataitems import Image
 from ..cache import fn_call_cache
 from ..commons_new.logger import siibra_tqdm
 from ..retrieval.volume_fetcher import FetchKwargs
@@ -213,18 +214,18 @@ def add_img(spind: dict, nii: "Nifti1Image", regionname: str):
 
 
 @fn_call_cache
-def build_sparse_index(parcmap: Map) -> SparseIndex:
+def build_sparse_index(parcmap: "SparseMap") -> SparseIndex:
     added_image_count = 0
     spind = {"voxels": {}, "probs": [], "bboxes": {}}
     mapaffine: np.ndarray = None
     mapshape: Tuple[int] = None
-    for region, attrcol in siibra_tqdm(
-        parcmap._region_attributes.items(),
+    for region in siibra_tqdm(
+        parcmap.regions,
         unit="map",
-        desc=f"Building sparse index from {len(parcmap._region_attributes)} volumetric maps",
+        desc=f"Building sparse index from {len(parcmap.regions)} volumetric maps",
     ):
-        image = attrcol._get(Image)
-        nii = image.fetch()
+        vol = assert_ooo(parcmap.find_volumes(region=region))
+        nii = vol.fetch()
         if added_image_count == 0:
             mapaffine = nii.affine
             mapshape = nii.shape
@@ -264,10 +265,9 @@ class SparseMap(Map):
         color_channel: int = None
     ):
         if isinstance(region, Region):
-            regionspec = region.name
-            matched = self.parcellation.get_region(regionspec).name
+            matched = region.name
         else:
-            matched = region
+            matched = self.parcellation.get_region(region).name
 
         assert matched in self.regions, (
             f"Statistical map of region '{matched}' is not available. "
