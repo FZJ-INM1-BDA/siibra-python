@@ -216,7 +216,7 @@ class BaseInstanceTable(TabCompleteCollection[T]):
         if isinstance(spec, int):
             if spec < len(self._elements):
                 return [list(self._elements.values())[spec]]
-            raise IndexError(f"Provided {spec=} is larger than {len(self._elements)=}")
+            raise IndexError(f"Provided spec={spec!r} is larger than {len(self._elements)}")
 
         if isinstance(spec, str):
             # string matching on keys

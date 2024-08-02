@@ -25,7 +25,7 @@ class Doi(Description):
         url = self.value
         assert (
             "doi.org" in url
-        ), f"doi.value must have 'doi.org' in its value, but {url=} does not."
+        ), f"doi.value must have 'doi.org' in its value, but url={url!r} does not."
         if url.startswith("http://"):
             url = "https://" + url.replace("http://", "", 1)
         if not url.startswith("https://"):

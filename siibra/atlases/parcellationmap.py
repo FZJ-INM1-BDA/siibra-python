@@ -96,7 +96,7 @@ class Map(AtlasElement):
 
         if frmt in {None, "image", "mesh"}:
             frmt_ = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
-            logger.debug(f"Selected format: {frmt=!r}")
+            logger.debug(f"Selected format: {frmt!r}")
         elif frmt in self.formats:
             frmt_ = frmt
         else:

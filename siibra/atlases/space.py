@@ -73,7 +73,7 @@ class Space(AtlasElement):
             if self.variants:
                 assert (
                     variant in self.variants
-                ), f"{variant=!r} is not a valid variant for this space. Variants: {self.variants}"
+                ), f"{variant!r} is not a valid variant for this space. Variants: {self.variants}"
             else:
                 raise ValueError("This space has no variants.")
 
@@ -101,7 +101,7 @@ class Space(AtlasElement):
         templates = self.find_templates(frmt=frmt, variant=_variant)
         if len(templates) == 0:
             raise ValueError(
-                f"Could not get a template with provided parameters: ({variant=}, {frmt=})"
+                f"Could not get a template with provided parameters: (variant{variant!r}, frmt={frmt})"
             )
         try:
             template = assert_ooo(templates)

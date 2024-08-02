@@ -76,7 +76,7 @@ def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "
     filename = None
     if isinstance(nifti, str):
         filename = nifti
-        assert Path(filename).is_file(), f"Provided file {nifti=!r} does not exist"
+        assert Path(filename).is_file(), f"Provided file {nifti!r} does not exist"
     if isinstance(nifti, (nib.Nifti1Image, nib.Nifti2Image)):
         filename = CACHE.build_filename(md5(nifti.to_bytes()).hexdigest(), suffix=".nii")
         if not Path(filename).exists():
@@ -113,7 +113,7 @@ def colorize(image: Image, value_mapping: dict, **fetch_kwargs: FetchKwargs) -> 
     resultarr = np.zeros_like(arr)
     result = nib.Nifti1Image(resultarr, nii.affine)
     for key, value in value_mapping.items():
-        assert key in image.mapping, ValueError(f"{key=!r} is not in the mapping of the image.")
+        assert key in image.mapping, ValueError(f"key={key!r} is not in the mapping of the image.")
         resultarr[nii == image.mapping[key]["label"]] = value
 
     return result

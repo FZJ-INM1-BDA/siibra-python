@@ -118,7 +118,7 @@ class PartialReader(io.IOBase, ABC):
             self.marker = self.size + offset
             return self.marker
         else:
-            raise RuntimeError(f"{whence=} must be 0, 1, 2")
+            raise RuntimeError(f"whence={whence!r} must be 0, 1, 2")
 
     def read(self, size=-1):
         start_marker = self.marker

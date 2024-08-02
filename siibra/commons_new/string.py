@@ -139,7 +139,7 @@ def to_hex(color: List[int]) -> str:
     assert len(color) == 3, f"expected 3 component to color, but got {len(color)!r}"
     assert all(
         (isinstance(c, int) and c <= 255 and c >= 0 for c in color)
-    ), f"expected {color=!r} to be all 8uint, but is not"
+    ), f"expected {color!r} to be all uint8, but is not"
     return "#" + "".join([hex(c)[2:].rjust(2, "0") for c in color])
 
 
