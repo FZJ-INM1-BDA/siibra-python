@@ -191,9 +191,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         yield from RegionRelationAssessments.parse_from_region(self)
 
 
-_region_ebrainsref_register = RegisterRecall[
-    [Any, Region, Union[str, List[str]]]
-]()
+_region_ebrainsref_register = RegisterRecall()
 
 
 class RegionRelationAssessments:
