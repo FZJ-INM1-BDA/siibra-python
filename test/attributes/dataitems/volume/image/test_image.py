@@ -1,5 +1,5 @@
-from siibra.dataitems.volume.image import intersect_ptcld_image
-from siibra.locations import PointCloud
+from siibra.attributes.dataitems.volume.image import intersect_ptcld_image
+from siibra.attributes.locations import PointCloud
 import numpy as np
 import nibabel as nib
 from unittest.mock import MagicMock

@@ -6,14 +6,14 @@ from typing import Type
 from itertools import chain, product
 
 
-from siibra.locations import Pt, BBox
+from siibra.attributes.locations import Point, BoundingBox
 from siibra.exceptions import InvalidAttrCompException
 from siibra.assignment.attribute_qualification import qualify, Qualification
 
 
 def bbox_x_flat(dim: int):
-    point0 = Pt(space_id="foo", coordinate=[0, 0, 0])
-    point1 = Pt(space_id="foo", coordinate=[100, 100, 100])
+    point0 = Point(space_id="foo", coordinate=[0, 0, 0])
+    point1 = Point(space_id="foo", coordinate=[100, 100, 100])
     point1.coordinate[dim] = 1
 
     p00 = replace(point0)
@@ -30,7 +30,7 @@ def bbox_x_flat(dim: int):
     p21.coordinate[dim] += 5
 
     return [
-        BBox(space_id="foo", minpoint=minpoint.coordinate, maxpoint=maxpoint.coordinate)
+        BoundingBox(space_id="foo", minpoint=minpoint.coordinate, maxpoint=maxpoint.coordinate)
         for minpoint, maxpoint in (
             (p00, p01),
             (p10, p11),
@@ -43,8 +43,8 @@ flatxbbox, flatybbox, flatzbbox = [bbox_x_flat(dim) for dim in range(3)]
 
 
 def test_qualify_raise():
-    bboxfoo = BBox(space_id="foo", minpoint=[0, 0, 0], maxpoint=[1, 1, 1])
-    bboxbar = BBox(
+    bboxfoo = BoundingBox(space_id="foo", minpoint=[0, 0, 0], maxpoint=[1, 1, 1])
+    bboxbar = BoundingBox(
         space_id="bar",
         minpoint=[0, 0, 0],
         maxpoint=[1, 1, 1],
@@ -62,7 +62,7 @@ def test_qualify_raise():
         product(flatybbox, flatzbbox),
     ),
 )
-def test_qualify_bbox_overlaps(bbox1: BBox, bbox2: BBox):
+def test_qualify_bbox_overlaps(bbox1: BoundingBox, bbox2: BoundingBox):
     assert qualify(bbox1, bbox2) == Qualification.OVERLAPS
 
 
@@ -74,60 +74,60 @@ def test_qualify_bbox_overlaps(bbox1: BBox, bbox2: BBox):
         product(flatzbbox, flatzbbox),
     ),
 )
-def test_qualify_no_overlap(bbox1: BBox, bbox2: BBox):
+def test_qualify_no_overlap(bbox1: BoundingBox, bbox2: BoundingBox):
     if bbox1 == bbox2:
         return
     assert qualify(bbox1, bbox2) is None
 
 
-bbox_foo_5_10 = BBox(space_id="foo", minpoint=[5, 5, 5], maxpoint=[10, 10, 10])
+bbox_foo_5_10 = BoundingBox(space_id="foo", minpoint=[5, 5, 5], maxpoint=[10, 10, 10])
 
 
 @pytest.mark.parametrize(
     "arg1, arg2, expected, ExCls",
     [
-        [bbox_foo_5_10, Pt(coordinate=(0, 0, 0), space_id="foo"), None, None],
-        [bbox_foo_5_10, Pt(coordinate=(7, 0, 7), space_id="foo"), None, None],
-        [bbox_foo_5_10, Pt(coordinate=(7, 15, 7), space_id="foo"), None, None],
+        [bbox_foo_5_10, Point(coordinate=(0, 0, 0), space_id="foo"), None, None],
+        [bbox_foo_5_10, Point(coordinate=(7, 0, 7), space_id="foo"), None, None],
+        [bbox_foo_5_10, Point(coordinate=(7, 15, 7), space_id="foo"), None, None],
         [
             bbox_foo_5_10,
-            Pt(coordinate=(7, 7, 7), space_id="bar"),
+            Point(coordinate=(7, 7, 7), space_id="bar"),
             None,
             InvalidAttrCompException,
         ],
         [
-            Pt(coordinate=(7, 7, 7), space_id="foo"),
+            Point(coordinate=(7, 7, 7), space_id="foo"),
             bbox_foo_5_10,
             Qualification.CONTAINED,
             None,
         ],
         [
             bbox_foo_5_10,
-            Pt(coordinate=(7, 7, 7), space_id="foo"),
+            Point(coordinate=(7, 7, 7), space_id="foo"),
             Qualification.CONTAINS,
             None,
         ],
         [
             bbox_foo_5_10,
-            Pt(coordinate=(5, 5, 5), space_id="foo"),
+            Point(coordinate=(5, 5, 5), space_id="foo"),
             Qualification.CONTAINS,
             None,
         ],
         [
             bbox_foo_5_10,
-            Pt(coordinate=(10, 10, 10), space_id="foo"),
+            Point(coordinate=(10, 10, 10), space_id="foo"),
             Qualification.CONTAINS,
             None,
         ],
         [
             bbox_foo_5_10,
-            Pt(coordinate=(10, 5, 10), space_id="foo"),
+            Point(coordinate=(10, 5, 10), space_id="foo"),
             Qualification.CONTAINS,
             None,
         ],
         [
             bbox_foo_5_10,
-            Pt(coordinate=(10, 7, 10), space_id="foo"),
+            Point(coordinate=(10, 7, 10), space_id="foo"),
             Qualification.CONTAINS,
             None,
         ],

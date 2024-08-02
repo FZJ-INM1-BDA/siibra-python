@@ -158,7 +158,7 @@ def get_region(parcellation_spec: str, regionspec: str):
     found_regions = find_regions(parcellation_spec, regionspec)
     if len(found_regions) == 0:
         raise NotFoundException(
-            f"{parcellation_spec=!r} and {regionspec=!r} found no regions"
+            f"parcellation_spec={parcellation_spec!r} and regionspec={regionspec!r} found no regions"
         )
     if len(found_regions) > 1:
         logger.warning(

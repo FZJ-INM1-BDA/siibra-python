@@ -1,6 +1,6 @@
 import numpy as np
 
-from siibra.locations import PointCloud
+from siibra.attributes.locations import PointCloud
 
 ptcloud = PointCloud(
     coordinates=[

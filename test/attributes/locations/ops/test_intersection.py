@@ -2,7 +2,7 @@ import pytest
 from typing import Type
 from dataclasses import replace
 
-from siibra.locations.ops.intersection import (
+from siibra.attributes.locations.ops.intersection import (
     pt_pt,
     pt_ptcld,
     pt_bbox,
@@ -11,14 +11,15 @@ from siibra.locations.ops.intersection import (
     bbox_bbox,
     intersect,
 )
-from siibra.locations import Pt, PointCloud, BBox
+
+from siibra.attributes.locations import Point, PointCloud, BoundingBox
 from siibra.exceptions import InvalidAttrCompException
 
-pt_ = Pt(space_id="bar", coordinate=[0, 0, 0])
-pt0 = Pt(space_id="foo", coordinate=[0, 0, 0])
-pt0b = Pt(space_id="foo", coordinate=[0, 0, 0])
-pt1 = Pt(space_id="foo", coordinate=[1, 1, 1])
-pt2 = Pt(space_id="foo", coordinate=[2, 2, 2])
+pt_ = Point(space_id="bar", coordinate=[0, 0, 0])
+pt0 = Point(space_id="foo", coordinate=[0, 0, 0])
+pt0b = Point(space_id="foo", coordinate=[0, 0, 0])
+pt1 = Point(space_id="foo", coordinate=[1, 1, 1])
+pt2 = Point(space_id="foo", coordinate=[2, 2, 2])
 
 pt_pt_args = [
     [pt0, pt0b, replace(pt0), None],
@@ -27,7 +28,7 @@ pt_pt_args = [
 ]
 
 @pytest.mark.parametrize("pta,ptb,expected,error", pt_pt_args)
-def test_pt_pt(pta:Pt, ptb:Pt, expected, error: Type[Exception]):
+def test_pt_pt(pta:Point, ptb:Point, expected, error: Type[Exception]):
     if error:
         with pytest.raises(error):
             pt_pt(pta, ptb)
@@ -49,17 +50,17 @@ pt_ptcld_args = [
 ]
 
 @pytest.mark.parametrize("pt, ptcld, expected, error", pt_ptcld_args)
-def test_pt_ptcld(pt:Pt, ptcld:PointCloud, expected, error: Type[Exception]):
+def test_pt_ptcld(pt:Point, ptcld:PointCloud, expected, error: Type[Exception]):
     if error:
         with pytest.raises(error):
             pt_ptcld(pt, ptcld)
         return
     assert pt_ptcld(pt, ptcld) == expected
 
-bbox_ = BBox(space_id="bar", minpoint=[0, 0, 0], maxpoint=[2, 2, 2])
-bbox0 = BBox(space_id="foo", minpoint=[0, 0, 0], maxpoint=[2, 2, 2])
-bbox1 = BBox(space_id="foo", minpoint=[1, 1, 1], maxpoint=[2, 2, 2])
-bbox2 = BBox(space_id="foo", minpoint=[4, 4, 4], maxpoint=[6, 6, 6])
+bbox_ = BoundingBox(space_id="bar", minpoint=[0, 0, 0], maxpoint=[2, 2, 2])
+bbox0 = BoundingBox(space_id="foo", minpoint=[0, 0, 0], maxpoint=[2, 2, 2])
+bbox1 = BoundingBox(space_id="foo", minpoint=[1, 1, 1], maxpoint=[2, 2, 2])
+bbox2 = BoundingBox(space_id="foo", minpoint=[4, 4, 4], maxpoint=[6, 6, 6])
 
 pt_bbox_args = [
     [pt0, bbox0, replace(pt0), None],
@@ -68,7 +69,7 @@ pt_bbox_args = [
 ]
 
 @pytest.mark.parametrize("pt, bbox, expected, error", pt_bbox_args)
-def test_pt_bbox(pt: Pt, bbox: BBox, expected, error: Type[Exception]):
+def test_pt_bbox(pt: Point, bbox: BoundingBox, expected, error: Type[Exception]):
     if error:
         with pytest.raises(error):
             pt_bbox(pt, bbox)
@@ -77,7 +78,7 @@ def test_pt_bbox(pt: Pt, bbox: BBox, expected, error: Type[Exception]):
 
 ptcld_ptcld_args = [
     [ptcld0, ptcld2, replace(pt0), None],
-    [ptcld0, ptcld1, Pt(space_id="foo", coordinate=[2, 2, 2]), None],
+    [ptcld0, ptcld1, Point(space_id="foo", coordinate=[2, 2, 2]), None],
     [ptcld0, ptcld_, None, InvalidAttrCompException],
     [ptcld3, ptcld4, replace(ptcld1), None],
     [ptcld2, ptcld5, None, None],
