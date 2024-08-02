@@ -1,15 +1,15 @@
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 import requests
-import typing
 from typing import Any, List
 import itertools
 import json
+from typing import List, Union, Iterator
 try:
-    from typing import TypedDict
+    from typing import TypedDict, Literal
 except ImportError:
     # support python 3.7
-    from typing_extensions import TypedDict
+    from typing_extensions import TypedDict, Literal
 
 from siibra.attributes import AttributeCollection
 
@@ -23,7 +23,7 @@ from ...commons_new.logger import logger
 
 url_format = "https://data-proxy.ebrains.eu/api/v1/buckets/reference-atlas-data/ebrainsquery/v3/{schema}/{id}.json"
 
-def _get_v3_ebrains_ref(schema: typing.Literal["Dataset", "DatasetVersion"], id: str):
+def _get_v3_ebrains_ref(schema: Literal["Dataset", "DatasetVersion"], id: str):
     
     try:
         resp = requests.get(url_format.format(schema=schema, id=id))
@@ -103,12 +103,12 @@ class EbrainsQuery(LiveQuery[Feature], generates=Feature):
     }
 
     _PREFIX = "eb-dsv-"
-    def __init__(self, input: typing.List[AttributeCollection]):
+    def __init__(self, input: List[AttributeCollection]):
         super().__init__(input)
         self.sess = requests.Session()
 
     @staticmethod
-    def iter_ids(input: typing.Union[str, typing.List[str], None]) -> typing.List[str]:
+    def iter_ids(input: Union[str, List[str], None]) -> List[str]:
         if not input:
             return []
         if isinstance(input, str):
@@ -148,7 +148,7 @@ class EbrainsQuery(LiveQuery[Feature], generates=Feature):
             logger.warning(f"DatasetVersion is not the type of study target: {st.get('type')}, skipping")
         return result
 
-    def generate(self) -> typing.Iterator[Feature]:
+    def generate(self) -> Iterator[Feature]:
         mods = [mod for mods in self.find_attributes(Modality) for mod in mods]
         if ebrains_modality not in mods:
             return
