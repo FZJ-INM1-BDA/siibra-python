@@ -14,7 +14,7 @@
 # limitations under the License.
 
 import re
-from typing import Union, Callable, List
+from typing import Union, Callable, List, Dict
 
 
 def splitstr(s: str):
@@ -145,3 +145,34 @@ def to_hex(color: List[int]) -> str:
 
 def convert_hexcolor_to_rgbtuple(clr: str):
     return tuple(int(clr[p : p + 2], 16) for p in [1, 3, 5])
+
+
+def extract_uuid(long_id: Union[str, Dict]) -> str:
+    """
+    Returns the uuid portion of either a fully formed openminds id, or get
+    the 'id' property first, and extract the uuid portion of the id.
+
+    Parameters
+    ----------
+    long_id: str, dict[str, str]
+
+    Returns
+    -------
+    str
+
+    Raises
+    ------
+    AssertionError
+    RuntimeError
+    """
+    if isinstance(long_id, str):
+        pass
+    elif isinstance(long_id, dict):
+        long_id = long_id.get("id")
+        assert isinstance(long_id, str)
+    else:
+        raise RuntimeError("uuid arg must be str or object")
+    uuid_search = re.search(r"(?P<uuid>[a-f0-9-]+)$", long_id)
+    assert uuid_search, "uuid not found"
+    return uuid_search.group("uuid")
+

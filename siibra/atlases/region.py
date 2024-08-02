@@ -17,16 +17,16 @@ import re
 import anytree
 import json
 from typing import Iterable, Union, TYPE_CHECKING, List, Dict, Any, Tuple
-from ebrains_drive import BucketApiClient
 from concurrent.futures import ThreadPoolExecutor
 
 from ..concepts import atlas_elements
 from ..attributes.descriptions import Name
-from ..commons_new.string import get_spec, SPEC_TYPE
+from ..commons_new.string import get_spec, SPEC_TYPE, extract_uuid
 from ..commons_new.iterable import assert_ooo
 from ..commons_new.maps import spatial_props
 from ..commons_new.logger import logger
 from ..commons_new.register_recall import RegisterRecall
+from ..retrieval.file_fetcher.dataproxy_fetcher import DataproxyRepository
 
 if TYPE_CHECKING:
     from . import Space, Parcellation
@@ -200,37 +200,7 @@ class RegionRelationAssessments:
     of the relationship.
     """
 
-    anony_client = BucketApiClient()
-
-    @staticmethod
-    def get_uuid(long_id: Union[str, Dict]) -> str:
-        """
-        Returns the uuid portion of either a fully formed openminds id, or get
-        the 'id' property first, and extract the uuid portion of the id.
-
-        Parameters
-        ----------
-        long_id: str, dict[str, str]
-
-        Returns
-        -------
-        str
-
-        Raises
-        ------
-        AssertionError
-        RuntimeError
-        """
-        if isinstance(long_id, str):
-            pass
-        elif isinstance(long_id, dict):
-            long_id = long_id.get("id")
-            assert isinstance(long_id, str)
-        else:
-            raise RuntimeError("uuid arg must be str or object")
-        uuid_search = re.search(r"(?P<uuid>[a-f0-9-]+)$", long_id)
-        assert uuid_search, "uuid not found"
-        return uuid_search.group("uuid")
+    ref_atlas_repo = DataproxyRepository(bucketname="reference-atlas-data")
 
     @classmethod
     def get_peid_from_region(cls, region: Region) -> Union[str, None]:
@@ -299,8 +269,7 @@ class RegionRelationAssessments:
         -------
         dict
         """
-        bucket = cls.anony_client.buckets.get_bucket("reference-atlas-data")
-        return json.loads(bucket.get_file(obj).get_content())
+        return json.loads(cls.ref_atlas_repo.get(obj))
 
     @classmethod
     def get_snapshot_factory(cls, type_str: str):
@@ -356,7 +325,7 @@ class RegionRelationAssessments:
         assert len(overlap) == 1, f"should be 1&o1 overlap {len(overlap)!r} "
         overlap, = overlap
         for target in targets:
-            target_id = cls.get_uuid(target)
+            target_id = extract_uuid(target)
 
             all_regions = list(cls.yield_all_regions())
             found_targets: List[Region] = [
@@ -370,7 +339,7 @@ class RegionRelationAssessments:
 
             if "https://openminds.ebrains.eu/sands/ParcellationEntity" in target.get("type"):
                 pev_uuids = [
-                    cls.get_uuid(has_version)
+                    extract_uuid(has_version)
                     for pe in cls.get_snapshot_factory("ParcellationEntity")(target_id)
                     for has_version in pe.get("hasVersion")
                 ]
@@ -448,7 +417,7 @@ class RegionRelationAssessments:
         pe_uuids = [
             uuid for uuid in
             {
-                cls.get_uuid(pe)
+                extract_uuid(pe)
                 for pev in cls.get_snapshot_factory("ParcellationEntityVersion")(_id)
                 for pe in pev.get("isVersionOf")
             }

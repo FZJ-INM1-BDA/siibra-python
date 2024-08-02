@@ -15,5 +15,3 @@ RUN pip install .
 FROM jupyter/minimal-notebook:lab-3.2.5
 
 COPY --from=builder /opt/conda /opt/conda
-
-# HBP_AUTH_TOKEN

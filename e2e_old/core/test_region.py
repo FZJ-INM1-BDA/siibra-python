@@ -8,28 +8,6 @@ from siibra.core.assignment import Qualification
 from siibra.core.region import Region
 
 
-regions = [
-    siibra.get_region("julich 3.0", "Area 4p (PreCG) right"),
-    siibra.get_region("julich 3.0", "hoc1 left"),
-]
-
-
-@pytest.mark.parametrize("region", regions)
-def test_region_spatial_props(region: Region):
-    props = region.spatial_props("mni152")
-    for idx, cmp in enumerate(props.components, start=1):
-        assert cmp.volume >= props.components[idx - 1].volume
-
-
-
-
-def test_related_region_hemisphere():
-    reg = siibra.get_region("2.9", "PGa")
-    all_related_reg = [reg for reg in reg.get_related_regions()]
-    assert any("left" in ass.assigned_structure.name for ass in all_related_reg)
-    assert any("right" in ass.assigned_structure.name for ass in all_related_reg)
-
-
 spaces = ['mni152', 'colin27']
 
 

@@ -7,15 +7,15 @@ import siibra
 from siibra.assignment.qualification import Qualification
 
 regions = [
-    ("julich 3.0", "Area 4p (PreCG) right"),
-    ("julich 3.0", "hoc1 left"),
+    ("julich 3.0.3", "Area 4p (PreCG) right"),
+    ("julich 3.0.3", "hoc1 left"),
 ]
 
 
 @pytest.mark.parametrize("parc_spec, region_spec", regions)
 def test_region_spatial_props(parc_spec, region_spec):
     region = siibra.get_region(parc_spec, region_spec)
-    props = region.get_components("mni152")
+    props = region.get_components("mni 152")
     # for idx, cmp in enumerate(props.components, start=1):
     #     assert cmp.volume >= props.components[idx - 1].volume
 
@@ -83,3 +83,9 @@ def test_homologies_related_regions(parc, reg_spec, has_related, has_homology, h
                 repeat("ebrains")
             )
         assert len([f for f in features]) > 0
+
+def test_related_region_hemisphere():
+    reg = siibra.get_region("2.9", "PGa")
+    all_related_reg = [reg for reg in reg.get_related_regions()]
+    assert any("left" in assigned.name for src, assigned, qual in all_related_reg)
+    assert any("right" in assigned.name for src, assigned, qual in all_related_reg)

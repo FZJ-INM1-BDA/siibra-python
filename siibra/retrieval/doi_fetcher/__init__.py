@@ -14,13 +14,16 @@
 # limitations under the License.
 
 import requests
+from typing import TYPE_CHECKING
 
 from . import cite_proc_json
 from .base import content_type_registry
-from ...attributes.descriptions import Doi
+
+if TYPE_CHECKING:
+    from ...attributes.descriptions import Doi
 
 
-def get_citation(doi: Doi):
+def get_citation(doi: "Doi"):
     if len(content_type_registry) == 0:
         raise RuntimeError("No known content type registered.")
 

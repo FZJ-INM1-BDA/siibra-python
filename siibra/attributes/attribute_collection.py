@@ -18,7 +18,7 @@ from typing import Tuple, Type, TypeVar, Iterable, Callable, List
 import pandas as pd
 
 from .attribute import Attribute
-from ..attributes.descriptions import Url, Doi, TextDescription, Facet
+from ..attributes.descriptions import Url, Doi, TextDescription, Facet, EbrainsRef
 from ..commons_new.iterable import assert_ooo
 
 T = TypeVar("T")
@@ -67,7 +67,14 @@ class AttributeCollection:
 
     @property
     def description(self):
-        return self._get(TextDescription).value
+        text_descs = self._find(TextDescription)
+        if len(text_descs) > 0:
+            return text_descs[0].value
+        ebrains_refs = self._find(EbrainsRef)
+        for ref in ebrains_refs:
+            ebrain_ref_descs = ref.descriptions
+            if len(ebrain_ref_descs) > 0:
+                return ebrain_ref_descs[0]
 
     @property
     def facets(self):
