@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 @dataclass(repr=False)
 class SparseIndex:
-    probs: List[float] = field(default_factory=list)
+    probs: List[Dict[str, float]] = field(default_factory=list)
     bboxes: Dict = field(default_factory=dict)
     voxels: np.ndarray = field(default_factory=np.ndarray)
     affine: np.ndarray = field(default_factory=np.ndarray)
