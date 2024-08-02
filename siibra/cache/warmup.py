@@ -19,7 +19,7 @@ from functools import wraps
 from filelock import FileLock as Lock
 from concurrent.futures import ThreadPoolExecutor
 
-from .cache import Cache
+from .cache import CACHE
 from ..exceptions import WarmupRegException
 from ..commons_new.logger import siibra_tqdm
 
@@ -82,7 +82,7 @@ class Warmup:
             for f in return_val:
                 f()
 
-        with Lock(Cache.build_filename("lockfile", ".warmup")):
+        with Lock(CACHE.build_filename("lockfile", ".warmup")):
             with ThreadPoolExecutor(max_workers=max_workers) as ex:
                 for _ in siibra_tqdm(
                     ex.map(
