@@ -14,7 +14,11 @@
 # limitations under the License.
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, List, Set, Union, Literal, Dict
+from typing import TYPE_CHECKING, List, Set, Union, Dict
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import numpy as np
 

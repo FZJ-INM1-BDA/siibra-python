@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Union, Literal, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, Union, Tuple
 from functools import wraps
 try:
-    from typing import TypedDict
+    from typing import TypedDict, Literal
 except ImportError:
     # support python 3.7
-    from typing_extensions import TypedDict
+    from typing_extensions import TypedDict, Literal
 
 from ...commons import SIIBRA_MAX_FETCH_SIZE_GIB
 

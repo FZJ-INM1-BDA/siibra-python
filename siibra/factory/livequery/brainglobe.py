@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from typing import Iterator, List, Union, Literal, Dict
+from typing import Iterator, List, Union, Dict
 import re
 import json
 from pathlib import Path
@@ -24,10 +24,10 @@ import numpy as np
 from PIL import Image as PILImage
 import nibabel as nib
 try:
-    from typing import TypedDict
+    from typing import TypedDict, Literal
 except ImportError:
     # support python 3.7
-    from typing_extensions import TypedDict
+    from typing_extensions import TypedDict, Literal
 
 from .base import LiveQuery
 from ...commons_new.logger import logger

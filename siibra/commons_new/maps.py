@@ -13,13 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Literal, Union, Dict
+from typing import List, Union, Dict
 import numpy as np
 from nilearn.image import resample_to_img, resample_img
 from tqdm import tqdm
 from nibabel.nifti1 import Nifti1Image
 from nibabel.gifti import GiftiImage, GiftiDataArray
-
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 def resample_img_to_img(
     source_img: "Nifti1Image", target_img: "Nifti1Image", interpolation: str = ""

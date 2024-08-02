@@ -14,9 +14,13 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
-from typing import Literal, Dict, Union
+from typing import Dict, Union
 import pandas as pd
 from io import BytesIO
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 from .base import Data
 
