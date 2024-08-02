@@ -52,7 +52,7 @@ setup(
         "requests",
         "neuroglancer-scripts",
         "nilearn",
-        'typing-extensions; python_version < "3.8"',
+        'typing-extensions; python_version < "3.10"',
         "filelock",
         "joblib >= 1.3.0",
         "ebrains-drive >= 0.6.0",
