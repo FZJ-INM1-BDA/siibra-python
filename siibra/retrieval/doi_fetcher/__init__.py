@@ -36,7 +36,7 @@ def get_citation(doi: Doi):
     content_type = resp.headers.get("content-type")
     assert (
         content_type in content_type_registry
-    ), f"Got content type {content_type=!r}. This type has not been registered"
+    ), f"Got content type content_type={content_type!r}. This type has not been registered"
 
     try:
         result = content_type_registry[content_type](resp.content)

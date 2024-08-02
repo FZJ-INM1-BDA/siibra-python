@@ -171,6 +171,6 @@ def build_object(dict_obj: Dict):
     schema = dict_obj.get("@type", None)  # TODO: consider popping instead
     assert (
         schema
-    ), f"build_obj require the '@type' property of the object to be populated! {dict_obj=}"
+    ), f"build_obj require the '@type' property of the object to be populated! dict_obj={dict_obj!r}"
     assert schema in build_registry, f"{schema} was not registered to be built!"
     return build_registry[schema](dict_obj)
