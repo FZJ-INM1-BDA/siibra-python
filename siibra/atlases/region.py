@@ -191,7 +191,9 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         yield from RegionRelationAssessments.parse_from_region(self)
 
 
-region_ref_register = RegisterRecall[Any, Region, Union[str, List[str]]]()
+_region_ebrainsref_register = RegisterRecall[
+    [Any, Region, Union[str, List[str]]]
+]()
 
 
 class RegionRelationAssessments:
@@ -380,7 +382,7 @@ class RegionRelationAssessments:
                         yield src, reg, Qualification.parse_relation_assessment(overlap)
 
     @classmethod
-    @region_ref_register.register("openminds/CustomAnatomicalEntity")
+    @_region_ebrainsref_register.register("openminds/CustomAnatomicalEntity")
     def translate_cae(cls, src: "Region", _id: Union[str, List[str]]):
         """Register how CustomAnatomicalEntity should be parsed
 
@@ -399,7 +401,7 @@ class RegionRelationAssessments:
                 yield from cls.parse_relationship_assessment(src, ass)
 
     @classmethod
-    @region_ref_register.register("openminds/ParcellationEntity")
+    @_region_ebrainsref_register.register("openminds/ParcellationEntity")
     def translate_pes(cls, src: "Region", _id: Union[str, List[str]]):
         """
         Register how ParcellationEntity should be parsed
@@ -431,7 +433,7 @@ class RegionRelationAssessments:
                 yield from cls.parse_relationship_assessment(src, relation)
 
     @classmethod
-    @region_ref_register.register("openminds/ParcellationEntityVersion")
+    @_region_ebrainsref_register.register("openminds/ParcellationEntityVersion")
     def translate_pevs(cls, src: "Region", _id: Union[str, List[str]]):
         """
         Register how ParcellationEntityVersion should be parsed
@@ -473,5 +475,5 @@ class RegionRelationAssessments:
         from ..attributes.descriptions import EbrainsRef
         for ebrainsref in region._finditer(EbrainsRef):
             for key, value in ebrainsref.ids.items():
-                for fn in region_ref_register.iter_fn(key):
+                for fn in _region_ebrainsref_register.iter_fn(key):
                     yield from fn(cls, region, value)
