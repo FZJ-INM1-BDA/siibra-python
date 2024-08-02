@@ -92,7 +92,7 @@ class Map(AtlasElement):
         else:
             assert all(
                 r in self.regions for r in regions
-            ), f"Please provide a subset of {self.regions=}"
+            ), f"Please provide a subset of {self.regions}"
 
         if frmt in {None, "image", "mesh"}:
             frmt_ = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
@@ -101,7 +101,7 @@ class Map(AtlasElement):
             frmt_ = frmt
         else:
             raise RuntimeError(
-                f"Requested format '{frmt}' is not available for this map: {self.formats=}."
+                f"Requested format '{frmt}' is not available for this map: {self.formats}."
             )
 
         return {
@@ -228,7 +228,7 @@ class Map(AtlasElement):
             frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
         else:
             assert frmt not in self.formats, RuntimeError(
-                f"Requested format '{frmt}' is not available for this map: {self.formats=}."
+                f"Requested format '{frmt}' is not available for this map: {self.formats}."
             )
 
         if isinstance(region, Region):
@@ -285,7 +285,7 @@ class Map(AtlasElement):
             frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
         else:
             assert frmt not in self.formats, RuntimeError(
-                f"Requested format '{frmt}' is not available for this map: {self.formats=}."
+                f"Requested format '{frmt}' is not available for this map: {self.formats}."
             )
 
         if regions is None:
@@ -293,7 +293,7 @@ class Map(AtlasElement):
 
         assert all(
             r in self.regions for r in regions
-        ), f"Please provide a subset of {self.regions=}"
+        ), f"Please provide a subset of {self.regions}"
 
         label_color_table = {
             vol.mapping[region]["label"]: convert_hexcolor_to_rgbtuple(

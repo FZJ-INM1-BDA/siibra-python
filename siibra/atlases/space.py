@@ -66,7 +66,7 @@ class Space(AtlasElement):
             frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
         else:
             assert frmt in self.formats, RuntimeError(
-                f"Requested format '{frmt}' is not available for this space: {self.formats=}."
+                f"Requested format '{frmt}' is not available for this space: {self.formats}."
             )
 
         if variant is not None:
@@ -94,7 +94,7 @@ class Space(AtlasElement):
     ):
         if len(self.variants) > 1 and variant is None:
             _variant = self.variants[0]
-            print(f"No variant was provided. Selecting the first of {self.variants=!r}")
+            print(f"No variant was provided. Selecting the first of {self.variants!r}")
         else:
             _variant = variant
 

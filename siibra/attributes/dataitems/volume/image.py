@@ -39,7 +39,7 @@ class Image(Volume):
     schema: str = "siibra/attr/data/image/v0.1"
 
     def __post_init__(self):
-        assert self.format in IMAGE_FORMATS, print(f"{self.format=}")
+        assert self.format in IMAGE_FORMATS, print(f"{self.format}")
 
     @property
     def boundingbox(self) -> "BoundingBox":
