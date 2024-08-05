@@ -13,16 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Type, Callable, Dict, Iterable, List, TypeVar, Union
+from typing import Type, Callable, Dict, Iterable, List, TypeVar
 from collections import defaultdict
 from itertools import product
 
 
 from .attribute_qualification import qualify as attribute_qualify
-from ..commons_new.register_recall import RegisterRecall
 from ..commons_new.logger import logger
 from ..attributes import AttributeCollection
-from ..attributes.descriptions import ID, Name
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 
 V = TypeVar("V")
@@ -30,7 +28,6 @@ V = TypeVar("V")
 T = Callable[[AttributeCollection], Iterable[AttributeCollection]]
 
 collection_gen: Dict[Type[AttributeCollection], List[V]] = defaultdict(list)
-
 
 
 def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:
