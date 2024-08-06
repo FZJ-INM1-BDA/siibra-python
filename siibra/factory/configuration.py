@@ -14,7 +14,7 @@
 # limitations under the License.
 
 import json
-from typing import Iterator, Union, List
+from typing import Iterator, Union, List, Tuple, Type, Dict
 from requests import HTTPError
 
 from .factory import build_feature, build_space, build_parcellation, build_map
@@ -26,7 +26,6 @@ from ..concepts import Feature
 from ..retrieval.file_fetcher.base import Repository
 from ..retrieval.file_fetcher import (
     GithubRepository,
-    LocalDirectoryRepository,
 )
 from ..commons_new.logger import logger
 from ..commons import SIIBRA_USE_CONFIGURATION
@@ -34,22 +33,20 @@ from ..commons import SIIBRA_USE_CONFIGURATION
 
 class Configuration:
 
-    _instance = None
-
-    DEFAULT_REPO_SPECS = [
-        dict(
-            repotype=GithubRepository,
-            kwargs=dict(
-                owner="FZJ-INM1-BDA",
-                repo="siibra-configurations",
-                reftag="refactor_attr",
-                eager=True,
-            ),
-        )
+    DEFAULT_REPO_SPECS: List[
+        Tuple[Type[Repository], List, Dict]
+    ] = [
+        (
+            GithubRepository, # Cls of repository to be used
+            [], # args
+            dict(owner="FZJ-INM1-BDA", # kwargs
+                 repo="siibra-configurations",
+                 reftag="refactor_attr",
+                 eager=True))
     ]
 
     configured_repo: Repository = None
-    extension_repos: List[Repository] = []
+    extended_repos: List[Repository] = []
     using_default_configuration: bool = True
 
     def __init__(self):
@@ -58,21 +55,22 @@ class Configuration:
                 "config.SIIBRA_USE_CONFIGURATION defined, using configuration "
                 f"at {SIIBRA_USE_CONFIGURATION}"
             )
-            self.configured_repo = LocalDirectoryRepository.from_url(
-                SIIBRA_USE_CONFIGURATION
-            )
-            self.__class__.using_default_configuration = False
-        else:
-            for repospecs in self.DEFAULT_REPO_SPECS:
+            self.use_configuration(SIIBRA_USE_CONFIGURATION)
+        
+        # using_default_configuration flag can be set by other class methods, namely use_configuration
+        if self.__class__.using_default_configuration:
+            for Cls, args, kwargs in self.DEFAULT_REPO_SPECS:
                 try:
-                    repo = repospecs["repotype"](**repospecs["kwargs"])
-                    self.configured_repo = repo
+                    self.configured_repo = Cls(*args, **kwargs)
                     self.__class__.using_default_configuration = True
                     break
                 except HTTPError:
                     logger.info(
-                        f"Could not connect to default configuration repository {repo}"
+                        f"Could not connect to default configuration repository Cls={Cls.__name__} args={args}, kwargs={kwargs}"
                     )
+                    continue
+                except Exception as e:
+                    logger.warning(f"Error initializing repo Cls={Cls.__name__} args={args}, kwargs={kwargs}")
                     continue
             else:
                 raise RuntimeError(
@@ -80,13 +78,12 @@ class Configuration:
                     "Please provide a repository to configure and use siibra."
                 )
 
-    @property
-    def has_extended(self):
-        return len(self.extension_repos) > 0
+    @classmethod
+    def get_repos(cls):
+        return [cls.configured_repo] + cls.extended_repos
 
     def iter_jsons(self, prefix: str):
-        repos = [self.configured_repo] + self.extension_repos
-        for repo in repos:
+        for repo in self.get_repos():
             for file in repo.search_files(prefix):
                 if not file.endswith(".json"):
                     logger.debug(f"{file} does not end with .json, skipped")
@@ -95,8 +92,7 @@ class Configuration:
 
     def iter_type(self, _type: str):
         logger.debug(f"iter_type for {_type}")
-        repos = [self.configured_repo] + self.extension_repos
-        for repo in repos:
+        for repo in self.get_repos():
             for file in repo.search_files():
                 if not file.endswith(".json"):
                     logger.debug(f"{file} does not end with .json, skipped")
@@ -114,30 +110,31 @@ class Configuration:
             repository = Repository.from_url(repository)
         if not isinstance(repository, Repository):
             raise RuntimeError(
-                f"{repository=!r} needs to be an instance of Repository or a valid str leading to one."
+                f"repository={repository!r} needs to be an instance of Repository or a valid str leading to one."
             )
-        if repository in cls.configured_repo:
+        if repository in cls.get_repos():
             logger.warning(
-                f"The configuration {str(repository)} is already registered."
+                f"The configuration {str(repository)} is already registered. Skipping."
             )
         else:
             logger.info(f"Extending configuration with {str(repository)}")
-            cls.extension_repos.append(repository)
+            cls.extended_repos.append(repository)
 
     @classmethod
     def use_configuration(cls, repository: Union[str, Repository]):
+        """
+        Use a local/remote repository, rather than the default repository. This method will also clear all extended configuration.
+        """
+
+        # TODO should use_configuration clear all extended configurations? I think it should.
         if isinstance(repository, str):
             repository = Repository.from_url(repository)
         if not isinstance(repository, Repository):
             raise RuntimeError(
-                f"{repository=!r} needs to be an instance of Repository or a valid str leading to one."
+                f"repository={repository!r} needs to be an instance of Repository or a valid str leading to one."
             )
-        if repository in cls.configured_repo:
-            logger.warning(f"The configuration {repository} is already registered.")
-        else:
-            logger.info(f"Using  configuration with {repository}")
-            cls.configured_repo = [repository]
-            cls.using_default_configuration = False
+        cls.configured_repo = repository
+        cls.extended_repos.clear()
 
 
 #
