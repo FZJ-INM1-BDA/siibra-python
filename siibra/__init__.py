@@ -51,6 +51,7 @@ logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
+
 def get_space(space_spec: str):
     """Convenient access to reference space templates."""
     searched_spaces = list(string_search(space_spec, Space))
@@ -98,10 +99,11 @@ def find_maps(
 
     space_query = QueryParam(attributes=[SpaceSpec(value=space)])
     parc_query = QueryParam(attributes=[ParcSpec(value=parcellation)])
-    return [mp
-            for mp in find([space_query, parc_query], parcellationmap.Map)
-            if mp.maptype == maptype
-            and extra_spec in mp.name]
+    return [
+        mp
+        for mp in find([space_query, parc_query], parcellationmap.Map)
+        if mp.maptype == maptype and extra_spec in mp.name
+    ]
 
 
 def get_map(
@@ -161,7 +163,9 @@ def get_region(parcellation_spec: str, regionspec: str):
         )
     exact_match = [r for r in found_regions if r.name == regionspec]
     if len(exact_match) > 0:
-        logger.debug(f"{len(exact_match)} exact match for {regionspec} found. Returning first exact match.")
+        logger.debug(
+            f"{len(exact_match)} exact match for {regionspec} found. Returning first exact match."
+        )
         return exact_match[0]
 
     if len(found_regions) > 1:
@@ -196,23 +200,25 @@ def find_regions(parcellation_spec: str, regionspec: str):
     ]
 
 
-spaces = BkwdCompatInstanceTable(getitem=get_space,
-                                 elements={
-                                     spc.name: spc
-                                     for spc in iter_preconfigured_ac(Space) })
+spaces = BkwdCompatInstanceTable(
+    getitem=get_space, elements={spc.name: spc for spc in iter_preconfigured_ac(Space)}
+)
 
-parcellations = BkwdCompatInstanceTable(getitem=get_parcellation,
-                                        elements={
-                                            spc.name: spc
-                                            for spc in iter_preconfigured_ac(Parcellation) })
+parcellations = BkwdCompatInstanceTable(
+    getitem=get_parcellation,
+    elements={spc.name: spc for spc in iter_preconfigured_ac(Parcellation)},
+)
+
 
 def _not_implemented(*args):
     raise NotImplementedError("map getitem not yet implemented")
 
-maps = BkwdCompatInstanceTable(getitem=_not_implemented,
-                               elements={
-                                   mp.name: mp
-                                   for mp in iter_preconfigured_ac(parcellationmap.Map)})
+
+maps = BkwdCompatInstanceTable(
+    getitem=_not_implemented,
+    elements={mp.name: mp for mp in iter_preconfigured_ac(parcellationmap.Map)},
+)
+
 
 def set_feasible_download_size(maxsize_gbyte):
     from .volumes import volume
