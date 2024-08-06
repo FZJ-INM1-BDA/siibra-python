@@ -61,8 +61,7 @@ class Configuration:
         if self.__class__.using_default_configuration:
             for Cls, args, kwargs in self.DEFAULT_REPO_SPECS:
                 try:
-                    self.configured_repo = Cls(*args, **kwargs)
-                    self.__class__.using_default_configuration = True
+                    self.__class__.configured_repo = Cls(*args, **kwargs)
                     break
                 except HTTPError:
                     logger.info(
