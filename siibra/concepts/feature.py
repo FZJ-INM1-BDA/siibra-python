@@ -16,8 +16,9 @@
 from typing import List
 import pandas as pd
 
-from ..attributes import Attribute, AttributeCollection
-from ..attributes.attribute_collection import MATRIX_INDEX_ENTITY_KEY, attr_of_general_interest
+from ..attributes.locations import Location
+from ..attributes.descriptions import Modality
+from ..attributes.attribute_collection import AttributeCollection, MATRIX_INDEX_ENTITY_KEY, attr_of_general_interest
 
 
 class Feature(AttributeCollection):
@@ -26,15 +27,11 @@ class Feature(AttributeCollection):
 
     @property
     def modalities(self):
-        from ..attributes.descriptions import Modality
-
         return self._find(Modality)
 
     @property
     def locations(self):
-        from ..attributes.locations import DataClsLocation
-
-        return self._find(DataClsLocation)
+        return self._find(Location)
 
     @property
     def matrix_indices(self):

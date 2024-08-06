@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, Callable, List
+from typing import TYPE_CHECKING, Dict, Callable, List, Union
 import requests
 
 import numpy as np
@@ -151,8 +151,9 @@ class Scale:
             .ravel()
         )
 
-    def fetch(self, bbox=None, channel: int = None, label: int = None):
+    def fetch(self, bbox: Union["BoundingBox", None]=None, channel: int = None, label: int = None):
         # define the bounding box in this scale's voxel space
+        from ....attributes.locations import BoundingBox
         if bbox is None:
             bbox_ = BoundingBox(minpoint=(0, 0, 0), maxpoint=self.size, space_id=None)
         else:
