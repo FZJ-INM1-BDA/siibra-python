@@ -34,7 +34,7 @@ from .atlases import Space, Parcellation, Region, parcellationmap
 from .atlases.region import filter_newest
 from .attributes import Attribute, AttributeCollection
 from .attributes.descriptions import Modality, RegionSpec, Gene
-from .attributes.descriptions.modality import vocab as modality_types
+from .attributes.descriptions.modality import modality_vocab
 from .attributes.locations import Location
 from .concepts import AtlasElement, QueryParam, Feature
 from .assignment import (
@@ -127,7 +127,7 @@ def find_features(
 
     if isinstance(modality, str):
         mod_str = modality
-        modality = modality_types[modality]
+        modality = modality_vocab.modality[modality]
         logger.info(f"Provided {mod_str} parsed as {modality}")
     assert isinstance(
         modality, Modality

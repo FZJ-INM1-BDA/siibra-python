@@ -65,13 +65,6 @@ def get_modalities(_version, _len, category=None) -> Dict[str, Modality]:
             logger.warning(f"Generating modality exception: {str(e)}")
     return result
 
-
-vocab = JitInstanceTable(getitem=lambda: get_modalities(__version__, len(modalities_generator)))
-categories = JitInstanceTable(getitem=lambda: {
-    value.category: JitInstanceTable(getitem=partial(get_modalities, __version__, len(modalities_generator), category=value.category))
-    for value in get_modalities(__version__, len(modalities_generator)).values()
-    if value.category })
-
 def register_modalities():
     def outer(fn):
 
@@ -81,3 +74,14 @@ def register_modalities():
         return fn
 
     return outer
+
+class ModalityVocab:
+    """Class that exist purely for the ease of access of category/modality InstanceTable."""
+
+    category = JitInstanceTable(getitem=lambda: {
+        value.category: JitInstanceTable(getitem=partial(get_modalities, __version__, len(modalities_generator), category=value.category))
+        for value in get_modalities(__version__, len(modalities_generator)).values()
+        if value.category })
+    modality = JitInstanceTable(getitem=lambda: get_modalities(__version__, len(modalities_generator)))
+
+modality_vocab = ModalityVocab()
