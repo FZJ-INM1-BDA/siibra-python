@@ -45,7 +45,7 @@ print(
 
 # %%
 # You can also check all facets of the this query
-siibra.Feature.list_facets(features)
+siibra.Feature.find_facets(features)
 
 # %% 
 # And narrow down the query by selecting specific facets:

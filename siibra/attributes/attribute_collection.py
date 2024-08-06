@@ -89,10 +89,6 @@ class AttributeCollection:
         return pd.concat([ df, *[attr.facets for attr in self.attributes]])
     
     @staticmethod
-    def list_facets(attribute_collections: List["AttributeCollection"]):
-        return pd.concat([ac.facets for ac in attribute_collections])
-
-    @staticmethod
     def get_query_str(facet_dict=None, **kwargs):
         if facet_dict is not None:
             assert isinstance(facet_dict, dict), f"positional argument must be a dict"
