@@ -15,4 +15,6 @@
 
 """Interface to create links to :ref:`siibra-explorer<https://atlases.ebrains.eu/viewer/>`"""
 
+raise NotImplementedError("Explorer side package is not yet migrated to siibra-python version 2.")
+
 from .url import encode_url, decode_url
