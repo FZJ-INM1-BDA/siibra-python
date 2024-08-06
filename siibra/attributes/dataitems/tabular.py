@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import BinaryIO, Dict, Iterable, Tuple, Union
 import pandas as pd
 from io import BytesIO
+
 try:
     from typing import Literal
 except ImportError:
@@ -45,6 +46,7 @@ class Tabular(Data):
     def plot(self, *args, **kwargs):
         if "matrix" in self.plot_options:
             from ...commons_new.logger import logger
+
             try:
                 from nilearn import plotting
             except ImportError as e:
@@ -54,14 +56,18 @@ class Tabular(Data):
             matrix_kwargs.update(kwargs)
             return plotting.plot_matrix(self.get_data(), *args, **matrix_kwargs)
         if "scatter" in self.plot_options:
-            scatter_kwargs: Dict[str, Union[str, int, float]] = self.plot_options.get("scatter").copy()
+            scatter_kwargs: Dict[str, Union[str, int, float]] = self.plot_options.get(
+                "scatter"
+            ).copy()
             scatter_kwargs.update(kwargs)
             return self.get_data().plot.scatter(*args, **scatter_kwargs)
         plot_kwargs = self.plot_options.copy()
         plot_kwargs.update(kwargs)
         return self.get_data().plot(*args, **plot_kwargs)
 
-    def _iter_zippable(self) -> Iterable[Tuple[str, str | None, BinaryIO | None]]:
+    def _iter_zippable(
+        self,
+    ) -> Iterable[Tuple[str, Union[str, None], Union[BinaryIO, None]]]:
         yield from super()._iter_zippable()
         bio = BytesIO()
         self.get_data().to_csv(bio)
