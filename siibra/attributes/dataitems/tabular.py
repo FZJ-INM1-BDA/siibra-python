@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
-from typing import Dict, Union
+from typing import BinaryIO, Dict, Iterable, Tuple, Union
 import pandas as pd
 from io import BytesIO
 try:
@@ -60,3 +60,10 @@ class Tabular(Data):
         plot_kwargs = self.plot_options.copy()
         plot_kwargs.update(kwargs)
         return self.get_data().plot(*args, **plot_kwargs)
+
+    def _iter_zippable(self) -> Iterable[Tuple[str, str | None, BinaryIO | None]]:
+        yield from super()._iter_zippable()
+        bio = BytesIO()
+        self.get_data().to_csv(bio)
+        bio.seek(0)
+        yield "Tabular data", ".tabular.csv", bio

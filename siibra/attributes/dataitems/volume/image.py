@@ -19,6 +19,8 @@ import numpy as np
 import nibabel as nib
 from pathlib import Path
 from hashlib import md5
+from io import BytesIO
+import gzip
 
 from ....commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
@@ -68,6 +70,24 @@ class Image(Volume):
 
     def plot(self, *args, **kwargs):
         raise NotImplementedError
+    
+    def _iter_zippable(self):
+        yield from super()._iter_zippable()
+        try:
+            nii = self.fetch()
+            suffix = None
+            if isinstance(nii, (nib.Nifti1Image, nib.Nifti2Image)):
+                suffix = ".nii.gz"
+            if isinstance(nii, nib.GiftiImage):
+                suffix = ".gii.gz"
+            if not suffix:
+                raise RuntimeError("Image.fetch returning a non nifti, non gifti image")
+            
+            # TODO not ideal, since loads everything in memory. Ideally we can stream it as IO
+            gzipped = gzip.compress(nii.to_bytes())
+            yield f"Image (format={self.format})", suffix, BytesIO(gzipped)
+        except Exception as e:
+            yield f"Image (format={self.format}): to zippable error.", ".error.txt", BytesIO(str(e).encode("utf-8"))
 
 
 def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "Image":

@@ -18,3 +18,7 @@ from .base import Description
 
 class ID(Description):
     schema = "siibra/attr/desc/id/v0.1"
+
+    def _iter_zippable(self):
+        yield from super()._iter_zippable()
+        yield f"ID: {self.value}", None, None

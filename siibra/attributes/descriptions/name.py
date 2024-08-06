@@ -23,3 +23,7 @@ class Name(Description):
     schema = "siibra/attr/desc/name/v0.1"
     value: str = None
     shortform: str = None
+
+    def _iter_zippable(self):
+        yield from super()._iter_zippable()
+        yield f"""Name: {self.value}""", None, None

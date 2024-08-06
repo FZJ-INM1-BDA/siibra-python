@@ -14,12 +14,14 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field, replace
-from typing import Tuple, Type, TypeVar, Iterable, Callable, List
+from typing import Tuple, Type, TypeVar, Iterable, Callable, List, Union, BinaryIO
 import pandas as pd
+from zipfile import ZipFile
 
 from .attribute import Attribute
 from ..attributes.descriptions import Url, Doi, TextDescription, Facet, EbrainsRef
 from ..commons_new.iterable import assert_ooo
+from ..commons import __version__
 
 T = TypeVar("T")
 
@@ -102,11 +104,17 @@ class AttributeCollection:
         }.items()])
 
     def filter_attributes_by_facets(self, facet_dict=None, **kwargs):
+        """
+        Return a new AttributeCollection, where the attributes either:
+
+        - do not contain facet information OR
+        - the attribute facet matches *ALL* of the specs
+        """
         query_str = AttributeCollection.get_query_str(facet_dict, **kwargs)
 
         return self.filter(
             lambda a: (
-                attr_of_general_interest(a)
+                len(a.facets) == 0
                 or (len(a.facets) > 0 and len(a.facets.query(query_str)) > 0)
             )
         )
@@ -145,3 +153,57 @@ class AttributeCollection:
                         yield key, v
                 if isinstance(value, str):
                     yield key, value
+
+    def to_zip(self, filelike: Union[str, BinaryIO]) -> None:
+        """
+        Save the attribute collection to a zip file. The exported zip file should contain a README.md, which contains:
+         
+        - the metadata associated with the attribute collection
+        - a list of other files saved in the same zip file
+        """
+
+        from .descriptions.base import Description
+        from .locations.base import Location
+        from .dataitems.base import Data
+        
+        with ZipFile(filelike, "w") as fp:
+            
+            readme_md = f"""{self.__class__.__name__} (exported by siibra-python {__version__})"""
+            filenum_counter = 0
+
+            def process_attr(attr: Attribute):
+                nonlocal readme_md, filenum_counter
+
+                try:
+                    for textdesc, suffix, binaryio in attr._iter_zippable():
+                        if textdesc:
+                            readme_md += f"\n\n---\n\n{textdesc}"
+
+                        if binaryio:
+                            filename = f"file{filenum_counter}{suffix or ''}"
+                            filenum_counter += 1
+                            readme_md += f"\n\nexported file: {filename}\n"
+                            for colname, fac in attr.facets.iterrows():
+                                readme_md += f"facets: ({fac['key']}={fac['value']})"
+
+                            # TODO not ideal, since loads everything in memory. Ideally we can stream it as IO
+                            fp.writestr(filename, binaryio.read())
+                except Exception as e:
+                    print(e, type(attr))
+                    readme_md += f"\n\n---\n\nError processing {str(attr)}: {str(e)}"
+
+            # Process desc attributes first
+            for desc in self._finditer(Description):
+                process_attr(desc)
+            
+            # Process locations next
+            for loc in self._finditer(Location):
+                process_attr(loc)
+            
+            # Process data last
+            for data in self._find(Data):
+                process_attr(data)
+            
+            fp.writestr("README.md", readme_md)
+
+

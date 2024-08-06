@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Iterable, Tuple, BinaryIO, Union
 import pandas as pd
 from ..commons_new.logger import logger
 
@@ -80,3 +80,21 @@ class Attribute:
                 if key.startswith("facet/")
             ]
         )
+    
+    def _iter_zippable(self) -> Iterable[Tuple[str, Union[str, None], Union[BinaryIO, None]]]:
+        """
+        This method allows attributes to expose what kind of data to be written when user calls `to_zip`.
+        Attribute collection will iterate over all _iter_zippable. For each:
+
+        - append the TextDesc to the main desc file
+        - (if provided) iterate over all bytes from binary io, and write to ...
+        - filename(.suffix, if provided)
+
+        This method returns an iterable, as multiple files *may* need to be written.
+
+        If binaryio not provided, subclass hints that no file needs to be written.
+
+        Yields:
+            Tuple[str, str, BinaryIO]: Tuple[TextDesc, suffix (includes leading dot) or none, binaryio or none]
+        """
+        return []

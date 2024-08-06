@@ -26,3 +26,7 @@ class Facet(Description):
 
     def __str__(self) -> str:
         return f"{self.key}={self.value}"
+
+    def _iter_zippable(self):
+        yield from super()._iter_zippable()
+        yield f"Facet: {str(self)}", None, None

@@ -31,6 +31,13 @@ class Modality(Description):
     def __hash__(self) -> int:
         return hash((self.category or "") + self.value)
 
+    def _iter_zippable(self):
+        yield from super()._iter_zippable()
+        desc_text = f"Modality: {self.value}"
+        if self.category:
+            desc_text += f"(category: {self.category})"
+        yield desc_text, None, None
+
 
 modalities_generator: List[Callable[[], Iterable[Modality]]] = []
 

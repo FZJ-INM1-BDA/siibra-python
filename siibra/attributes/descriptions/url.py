@@ -22,3 +22,7 @@ from .base import Description
 class Url(Description):
     schema = "siibra/attr/desc/url/v0.1"
     text: str = None
+
+    def _iter_zippable(self):
+        yield from super()._iter_zippable()
+        yield "URL: " + (f"[{self.value}]({self.text})" if self.text else self.value), None, None
