@@ -15,9 +15,9 @@ license: Apache-2.0
 
 repository-code: https://github.com/FZJ-INM1-BDA/siibra-python
 
-version: v1.0a11
+version: v2.0.0.a01
 
-date-released: 2024-04-26
+date-released: 2024-06-24
 
 doi: 10.5281/zenodo.7885728
 
@@ -34,7 +34,7 @@ authors:
   - family-names: Gui
     given-names: Xiaoyun
   - family-names: Simsek
-    given-names: Ahmet Nihat 
+    given-names: Ahmet Nihat
   - family-names: Koehnen
     given-names: Louisa
   - family-names: Marcenko
