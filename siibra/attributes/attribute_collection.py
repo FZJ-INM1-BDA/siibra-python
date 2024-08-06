@@ -21,6 +21,7 @@ from zipfile import ZipFile
 from .attribute import Attribute
 from ..attributes.descriptions import Url, Doi, TextDescription, Facet, EbrainsRef
 from ..commons_new.iterable import assert_ooo
+from ..commons_new.logger import siibra_tqdm
 from ..commons import __version__
 
 T = TypeVar("T")
@@ -171,6 +172,10 @@ class AttributeCollection:
             readme_md = f"""{self.__class__.__name__} (exported by siibra-python {__version__})"""
             filenum_counter = 0
 
+            progress = siibra_tqdm(desc="Serializing attributes",
+                                   total=len(self.attributes),
+                                   unit="attr")
+
             def process_attr(attr: Attribute):
                 nonlocal readme_md, filenum_counter
 
@@ -195,14 +200,19 @@ class AttributeCollection:
             # Process desc attributes first
             for desc in self._finditer(Description):
                 process_attr(desc)
+                progress.update(1)
             
             # Process locations next
             for loc in self._finditer(Location):
                 process_attr(loc)
+                progress.update(1)
             
             # Process data last
             for data in self._find(Data):
                 process_attr(data)
+                progress.update(1)
+            
+            progress.close()
             
             fp.writestr("README.md", readme_md)
 
