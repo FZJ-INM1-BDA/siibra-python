@@ -2,6 +2,8 @@ import pytest
 import re
 from itertools import repeat
 from concurrent.futures import ThreadPoolExecutor
+import nibabel as nib
+import numpy as np
 
 import siibra
 from siibra.assignment.qualification import Qualification
@@ -89,3 +91,38 @@ def test_related_region_hemisphere():
     all_related_reg = [reg for reg in reg.get_related_regions()]
     assert any("left" in assigned.name for src, assigned, qual in all_related_reg)
     assert any("right" in assigned.name for src, assigned, qual in all_related_reg)
+
+
+@pytest.fixture(scope="session")
+def jba29_fp1lh_reg_map():
+    region = siibra.get_region("julich 2.9", "fp1 left")
+    yield region.fetch_regional_map("icbm 152")
+
+@pytest.fixture(scope="session")
+def jba29_fp1bh_reg_map():
+    region = siibra.get_region("julich 2.9", "fp1")
+    yield region.fetch_regional_map("icbm 152")
+
+@pytest.fixture(scope="session")
+def jba29_fpf_reg_map():
+    region = siibra.get_region("julich 2.9", "frontal pole")
+    yield region.fetch_regional_map("icbm 152")
+
+jba29_regmap_fx_name = [
+    "jba29_fp1lh_reg_map",
+    "jba29_fp1bh_reg_map",
+    "jba29_fpf_reg_map",
+]
+
+@pytest.mark.parametrize("fx_name", jba29_regmap_fx_name)
+def test_regional_map_fetch_ok(fx_name, request):
+    nii = request.getfixturevalue(fx_name)
+    assert isinstance(nii, nib.Nifti1Image), f"Expected fetched is nifti image, but is not {type(nii)}"
+
+
+@pytest.mark.parametrize("fx_name", jba29_regmap_fx_name)
+def test_regional_map_returns_mask(fx_name, request):
+    nii = request.getfixturevalue(fx_name)
+    if isinstance(nii, nib.Nifti1Image):
+        assert np.unique(nii.dataobj).tolist() == [0, 1], f"Expected only 0 and 1 in fetched nii"
+

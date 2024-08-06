@@ -115,7 +115,7 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
         region = regions[0]
 
         # since we are only interested in map in mni152 space
-        images = region.find_regional_maps("mni152")
+        images = region.find_regional_maps("icbm 152")
 
         if len(images) != 1:
             logger.warning(f"AllenLiveQueryError: expecting one and only one Image, but got {len(regions)}.")

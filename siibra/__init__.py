@@ -146,10 +146,7 @@ def find_features(
 
     # place modality_query_param first, since it shortcircuits alot quicker
     return find(
-        [
-            modality_query_param,
-            concept,
-        ],
+        query_ac,
         Feature,
     )
 

@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Iterable
+from typing import Iterable, Union
 from pathlib import Path
 import os
 
@@ -22,7 +22,7 @@ import os
 class Repository(ABC):
 
     @abstractmethod
-    def search_files(self, prefix: str) -> Iterable[str]:
+    def search_files(self, prefix: Union[str, None]=None) -> Iterable[str]:
         raise NotImplementedError
 
     @abstractmethod
