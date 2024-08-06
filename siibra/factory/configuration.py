@@ -14,7 +14,8 @@
 # limitations under the License.
 
 import json
-from typing import Iterator
+from typing import Iterator, Union, List
+from requests import HTTPError
 
 from .factory import build_feature, build_space, build_parcellation, build_map
 from .iterator import preconfigured_ac_registrar, iter_preconfigured_ac
@@ -22,6 +23,7 @@ from .livequery import LiveQuery
 from ..atlases import Space, Parcellation, Region, parcellationmap
 from ..attributes.descriptions import register_modalities, Modality, RegionSpec
 from ..concepts import Feature
+from ..retrieval.file_fetcher.base import Repository
 from ..retrieval.file_fetcher import (
     GithubRepository,
     LocalDirectoryRepository,
@@ -34,47 +36,108 @@ class Configuration:
 
     _instance = None
 
+    DEFAULT_REPO_SPECS = [
+        dict(
+            repotype=GithubRepository,
+            kwargs=dict(
+                owner="FZJ-INM1-BDA",
+                repo="siibra-configurations",
+                reftag="refactor_attr",
+                eager=True,
+            ),
+        )
+    ]
+
+    configured_repo: Repository = None
+    extension_repos: List[Repository] = []
+    using_default_configuration: bool = True
+
     def __init__(self):
         if SIIBRA_USE_CONFIGURATION:
-            logger.warning(
+            logger.info(
                 "config.SIIBRA_USE_CONFIGURATION defined, using configuration "
                 f"at {SIIBRA_USE_CONFIGURATION}"
             )
-            self.default_repos = [
-                LocalDirectoryRepository.from_url(SIIBRA_USE_CONFIGURATION)
-            ]
-        else:
-            repo = GithubRepository(
-                "FZJ-INM1-BDA",
-                "siibra-configurations",
-                reftag="refactor_attr",
-                eager=True,
+            self.configured_repo = LocalDirectoryRepository.from_url(
+                SIIBRA_USE_CONFIGURATION
             )
-            self.default_repos = [repo]
+            self.__class__.using_default_configuration = False
+        else:
+            for repospecs in self.DEFAULT_REPO_SPECS:
+                try:
+                    repo = repospecs["repotype"](**repospecs["kwargs"])
+                    self.configured_repo = repo
+                    self.__class__.using_default_configuration = True
+                    break
+                except HTTPError:
+                    logger.info(
+                        f"Could not connect to default configuration repository {repo}"
+                    )
+                    continue
+            else:
+                raise RuntimeError(
+                    "No configuration is found or could not be connected. "
+                    "Please provide a repository to configure and use siibra."
+                )
+
+    @property
+    def has_extended(self):
+        return len(self.extension_repos) > 0
 
     def iter_jsons(self, prefix: str):
-        repo = self.default_repos[0]
-
-        for file in repo.search_files(prefix):
-            if not file.endswith(".json"):
-                logger.debug(f"{file} does not end with .json, skipped")
-                continue
-            yield json.loads(repo.get(file))
+        repos = [self.configured_repo] + self.extension_repos
+        for repo in repos:
+            for file in repo.search_files(prefix):
+                if not file.endswith(".json"):
+                    logger.debug(f"{file} does not end with .json, skipped")
+                    continue
+                yield json.loads(repo.get(file))
 
     def iter_type(self, _type: str):
         logger.debug(f"iter_type for {_type}")
-        repo = self.default_repos[0]
+        repos = [self.configured_repo] + self.extension_repos
+        for repo in repos:
+            for file in repo.search_files():
+                if not file.endswith(".json"):
+                    logger.debug(f"{file} does not end with .json, skipped")
+                    continue
+                try:
+                    obj = json.loads(repo.get(file))
+                    if obj.get("@type") == _type:
+                        yield obj
+                except json.JSONDecodeError:
+                    continue
 
-        for file in repo.search_files():
-            if not file.endswith(".json"):
-                logger.debug(f"{file} does not end with .json, skipped")
-                continue
-            try:
-                obj = json.loads(repo.get(file))
-                if obj.get("@type") == _type:
-                    yield obj
-            except json.JSONDecodeError:
-                continue
+    @classmethod
+    def extend_configuration(cls, repository: Union[str, Repository]):
+        if isinstance(repository, str):
+            repository = Repository.from_url(repository)
+        if not isinstance(repository, Repository):
+            raise RuntimeError(
+                f"{repository=!r} needs to be an instance of Repository or a valid str leading to one."
+            )
+        if repository in cls.configured_repo:
+            logger.warning(
+                f"The configuration {str(repository)} is already registered."
+            )
+        else:
+            logger.info(f"Extending configuration with {str(repository)}")
+            cls.extension_repos.append(repository)
+
+    @classmethod
+    def use_configuration(cls, repository: Union[str, Repository]):
+        if isinstance(repository, str):
+            repository = Repository.from_url(repository)
+        if not isinstance(repository, Repository):
+            raise RuntimeError(
+                f"{repository=!r} needs to be an instance of Repository or a valid str leading to one."
+            )
+        if repository in cls.configured_repo:
+            logger.warning(f"The configuration {repository} is already registered.")
+        else:
+            logger.info(f"Using  configuration with {repository}")
+            cls.configured_repo = [repository]
+            cls.using_default_configuration = False
 
 
 #
