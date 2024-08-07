@@ -158,7 +158,9 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             selectedmap = assert_ooo(maps)
         except AssertionError:
             if maps:
-                logger.warning(f"Found {len(maps)} maps matching the specs. Selecting the first.")
+                logger.warning(
+                    f"Found {len(maps)} maps matching the specs. Selecting the first."
+                )
                 selectedmap = maps[0]
             else:
                 raise ValueError("Found no maps matching the specs for this region.")
@@ -216,6 +218,7 @@ class RegionRelationAssessments:
         str
         """
         from ..attributes.descriptions import EbrainsRef
+
         for ebrainsref in region._finditer(EbrainsRef):
             for key, value in ebrainsref.ids.items():
                 if key == "openminds/ParcellationEntity":
@@ -227,7 +230,6 @@ class RegionRelationAssessments:
             parent_peid = cls.get_peid_from_region(region.parent)
             if parent_peid:
                 return parent_peid
-
 
     @staticmethod
     def parse_id_arg(_id: Union[str, List[str]]) -> List[str]:
@@ -248,7 +250,9 @@ class RegionRelationAssessments:
         RuntimeError
         """
         if isinstance(_id, list):
-            assert all(isinstance(_i, str) for _i in _id), "all instances of pev should be str"
+            assert all(
+                isinstance(_i, str) for _i in _id
+            ), "all instances of pev should be str"
         elif isinstance(_id, str):
             _id = [_id]
         else:
@@ -284,14 +288,17 @@ class RegionRelationAssessments:
         -------
         Callable[[str|list[str]], dict]
         """
+
         def get_objects(_id: Union[str, List[str]]):
             _id = cls.parse_id_arg(_id)
             with ThreadPoolExecutor() as ex:
                 return list(
                     ex.map(
                         cls.get_object,
-                        [f"ebrainsquery/v3/{type_str}/{_}.json" for _ in _id]
-                    ))
+                        [f"ebrainsquery/v3/{type_str}/{_}.json" for _ in _id],
+                    )
+                )
+
         return get_objects
 
     @classmethod
@@ -323,7 +330,7 @@ class RegionRelationAssessments:
         overlap = assessment.get("qualitativeOverlap")
         targets = assessment.get("relationAssessment") or assessment.get("inRelationTo")
         assert len(overlap) == 1, f"should be 1&o1 overlap {len(overlap)!r} "
-        overlap, = overlap
+        (overlap,) = overlap
         for target in targets:
             target_id = extract_uuid(target)
 
@@ -335,16 +342,24 @@ class RegionRelationAssessments:
             ]
 
             for found_target in found_targets:
-                yield src, found_target, Qualification.parse_relation_assessment(overlap)
+                yield src, found_target, Qualification.parse_relation_assessment(
+                    overlap
+                )
 
-            if "https://openminds.ebrains.eu/sands/ParcellationEntity" in target.get("type"):
+            if "https://openminds.ebrains.eu/sands/ParcellationEntity" in target.get(
+                "type"
+            ):
                 pev_uuids = [
                     extract_uuid(has_version)
                     for pe in cls.get_snapshot_factory("ParcellationEntity")(target_id)
                     for has_version in pe.get("hasVersion")
                 ]
                 for reg in all_regions:
-                    reg_uuids = [uuid for domain, uuid in reg.ebrains_ids if domain == "openminds/ParcellationEntityVersion"]
+                    reg_uuids = [
+                        uuid
+                        for domain, uuid in reg.ebrains_ids
+                        if domain == "openminds/ParcellationEntityVersion"
+                    ]
                     if any(uuid in pev_uuids for uuid in reg_uuids):
                         yield src, reg, Qualification.parse_relation_assessment(overlap)
 
@@ -415,8 +430,8 @@ class RegionRelationAssessments:
         Iterable[RegionRelationAssessments]
         """
         pe_uuids = [
-            uuid for uuid in
-            {
+            uuid
+            for uuid in {
                 extract_uuid(pe)
                 for pev in cls.get_snapshot_factory("ParcellationEntityVersion")(_id)
                 for pe in pev.get("isVersionOf")
@@ -425,7 +440,9 @@ class RegionRelationAssessments:
         yield from cls.translate_pes(src, pe_uuids)
 
     @classmethod
-    def parse_from_region(cls, region: "Region") -> Iterable[Tuple[Region, Region, "Qualification"]]:
+    def parse_from_region(
+        cls, region: "Region"
+    ) -> Iterable[Tuple[Region, Region, "Qualification"]]:
         """
         Main entry on how related regions should be retrieved. Given a region,
         retrieves all RegionRelationAssessments
@@ -440,6 +457,7 @@ class RegionRelationAssessments:
         """
 
         from ..attributes.descriptions import EbrainsRef
+
         for ebrainsref in region._finditer(EbrainsRef):
             for key, value in ebrainsref.ids.items():
                 for fn in _region_ebrainsref_register.iter_fn(key):
