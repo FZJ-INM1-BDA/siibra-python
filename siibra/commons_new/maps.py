@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Generator, Tuple
 import numpy as np
 from nilearn.image import resample_to_img, resample_img
 from tqdm import tqdm
@@ -23,6 +23,9 @@ try:
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal
+
+from ..retrieval.volume_fetcher.image.nifti import create_mask as create_mask_from_nifti
+
 
 def resample_img_to_img(
     source_img: "Nifti1Image", target_img: "Nifti1Image", interpolation: str = ""
@@ -238,3 +241,14 @@ def compute_centroid(img: Nifti1Image, space_id: str, background: float = 0.0):
     return Point(
         coordinate=np.dot(img.affine, np.r_[centroid_vox, 1])[:3], space_id=space_id
     )
+
+
+def create_mask(
+    volume: Union[Nifti1Image, GiftiImage],
+    background_value: Union[int, float] = 0,
+    lower_threshold: float = None,
+):
+    if isinstance(volume, GiftiImage):
+        raise NotImplementedError
+    if isinstance(volume, Nifti1Image):
+        return create_mask_from_nifti(volume, background_value=background_value, lower_threshold=lower_threshold)

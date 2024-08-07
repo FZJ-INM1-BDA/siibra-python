@@ -264,14 +264,13 @@ class SparseMap(Map):
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None
     ):
-        if not region:
-            raise RuntimeError(f"region arg must be defined for sparsemap.fetch")
-
-        matched = None
-        if isinstance(region, Region):
-            matched = region.name
-        if isinstance(region, (re.Pattern, str)):
-            matched = self.parcellation.get_region(region).name
+        if region is None and len(self.regions) == 1:
+            matched = self.regions[0]
+        else:
+            if isinstance(region, Region):
+                matched = region.name
+            else:
+                matched = self.parcellation.get_region(region).name
 
         assert isinstance(matched, str), (
             "region must be of type str, re.Pattern or siibra.Region. You provided"
@@ -280,6 +279,8 @@ class SparseMap(Map):
 
         assert matched in self.regions, (
             f"Statistical map of region '{matched}' is not available. "
+            f"Try fetching its descendants mapped in {self.name=!r}: "
+            f"{(r.name for r in matched.descendants if r.name in self.regions)}"
         )
 
         if not self.use_sparse_index:

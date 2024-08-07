@@ -23,7 +23,7 @@ from ..concepts import atlas_elements
 from ..attributes.descriptions import Name
 from ..commons_new.string import get_spec, SPEC_TYPE, extract_uuid
 from ..commons_new.iterable import assert_ooo
-from ..commons_new.maps import spatial_props
+from ..commons_new.maps import spatial_props, create_mask
 from ..commons_new.logger import logger
 from ..commons_new.register_recall import RegisterRecall
 from ..retrieval.file_fetcher.dataproxy_fetcher import DataproxyRepository
@@ -145,13 +145,10 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         self,
         space: Union[str, "Space", None] = None,
         maptype: str = "labelled",
-        threshold: float = 0.0,
         via_space: Union[str, "Space", None] = None,
         frmt: str = None,
     ):
         if via_space is not None:
-            raise NotImplementedError
-        if threshold != 0.0:
             raise NotImplementedError
         maps = self.find_regional_maps(space=space, maptype=maptype)
         try:
@@ -166,6 +163,22 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
                 raise ValueError("Found no maps matching the specs for this region.")
 
         return selectedmap.fetch(frmt=frmt)
+
+    def fetch_regional_mask(
+        self,
+        space: Union[str, "Space", None] = None,
+        maptype: str = "labelled",
+        background_value: Union[int, float] = 0,
+        lower_threshold: float = None,
+        via_space: Union[str, "Space", None] = None,
+        frmt: str = None,
+    ):
+        region_map = self.fetch_regional_map(
+            space=space, maptype=maptype, via_space=via_space, frmt=frmt
+        )
+        return create_mask(
+            region_map, background_value=background_value, lower_threshold=lower_threshold
+        )
 
     def get_related_regions(self):
         """

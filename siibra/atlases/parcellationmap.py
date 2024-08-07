@@ -15,6 +15,7 @@
 
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, List, Set, Union, Dict
+
 try:
     from typing import Literal
 except ImportError:
@@ -25,17 +26,17 @@ import numpy as np
 from ..concepts import AtlasElement
 from ..retrieval.volume_fetcher import FetchKwargs, IMAGE_FORMATS, MESH_FORMATS
 from ..commons_new.iterable import assert_ooo
-from ..commons_new.maps import merge_volumes, compute_centroid
+from ..commons_new.maps import merge_volumes, compute_centroid, create_mask
 from ..commons_new.string import convert_hexcolor_to_rgbtuple
 from ..commons_new.logger import logger, siibra_tqdm
 from ..atlases import Parcellation, Space, Region
 from ..attributes.dataitems import Image, Mesh, FORMAT_LOOKUP
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
+from ..attributes.locations import BoundingBox, Point, PointCloud
 
 from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
-    from ..attributes.locations import BoundingBox, Point
     from ..retrieval.volume_fetcher import Mapping
 
 
@@ -90,7 +91,9 @@ class Map(AtlasElement):
             )
         )
 
-    def get_label_mapping(self, regions: List[str] = None, frmt=None) -> Dict[str, "Mapping"]:
+    def get_label_mapping(
+        self, regions: List[str] = None, frmt=None
+    ) -> Dict[str, "Mapping"]:
         if regions is None:
             regions = self.regions
         else:
@@ -281,6 +284,29 @@ class Map(AtlasElement):
                 labels=labels,
                 template_vol=self.space.fetch_template(**fetch_kwargs),
             )
+
+    def fetch_mask(
+        self,
+        region: Union[str, Region] = None,
+        background_value: Union[int, float] = 0,
+        lower_threshold: float = None,
+        frmt: str = None,
+        bbox: "BoundingBox" = None,
+        resolution_mm: float = None,
+        max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
+        color_channel: int = None,
+    ):
+        volume = self.fetch(
+            region=region,
+            frmt=frmt,
+            bbox=bbox,
+            resolution_mm=resolution_mm,
+            max_download_GB=max_download_GB,
+            color_channel=color_channel,
+        )
+        return create_mask(
+            volume, background_value=background_value, lower_threshold=lower_threshold
+        )
 
     def get_colormap(self, regions: List[str] = None, frmt=None) -> List[str]:
         from matplotlib.colors import ListedColormap

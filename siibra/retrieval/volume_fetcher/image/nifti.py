@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Tuple, List
+from typing import TYPE_CHECKING, Tuple, List, Union
 import gzip
 
 from nibabel import Nifti1Image
@@ -26,16 +26,20 @@ if TYPE_CHECKING:
     from ....locations import BBox
 
 
+def create_mask(
+    nii: Nifti1Image, background_value: Union[int, float] = 0, lower_threshold: float = None
+):
+    arr = np.asanyarray(nii.dataobj)
+    if lower_threshold is not None:
+        return Nifti1Image((arr > lower_threshold).astype("uint8"), nii.affine)
+    else:
+        return Nifti1Image((arr != background_value).astype("uint8"), nii.affine)
+
+
 def extract_labels(nii: Nifti1Image, labels: List[int]):
-    orgarr = np.asanyarray(nii.dataobj)
-    arr = np.sum([orgarr[np.where(orgarr == label)] for label in labels], keepdims=True)
-    return Nifti1Image(arr, nii.affine)
-
-
-def extract_label_mask(nii: Nifti1Image, label: int):
-    return Nifti1Image(
-        (np.asanyarray(nii.dataobj) == label).astype("uint8"), nii.affine
-    )
+    arr = np.asanyarray(nii.dataobj)
+    new_arr = sum([label * (arr == label) for label in labels])
+    return Nifti1Image(new_arr, nii.affine)
 
 
 def extract_float_range(nii: Nifti1Image, range: Tuple[float, float]):
@@ -87,16 +91,17 @@ def fetch_nifti(image: "Image", fetchkwargs: FetchKwargs) -> "Nifti1Image":
         return nii
 
     mapping = fetchkwargs["mapping"]
-    if mapping is not None and len(mapping) == 1:
+    if mapping is not None:
         details = next(iter(mapping.values()))
-        if "subspace" in details:
-            s_ = tuple(
-                slice(None) if isinstance(s, str) else s for s in details["subspace"]
-            )
-            nii = nii.slicer[s_]
+        if len(mapping) == 1:
+            if "subspace" in details:
+                s_ = tuple(
+                    slice(None) if isinstance(s, str) else s for s in details["subspace"]
+                )
+                nii = nii.slicer[s_]
+            if "range" in details:
+                nii = extract_float_range(nii, details["range"])
         if "label" in details:
-            nii = extract_label_mask(nii, details["label"])
-        if "range" in details:
-            nii = extract_float_range(nii, details["range"])
+            nii = extract_labels(nii, [m["label"] for m in mapping.values()])
 
     return nii
