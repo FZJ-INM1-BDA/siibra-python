@@ -15,20 +15,19 @@ from siibra.attributes import AttributeCollection
 
 from .base import LiveQuery
 from ...concepts import Feature
+from ...retrieval.file_fetcher.dataproxy_fetcher import DataproxyRepository
 from ...attributes.descriptions import RegionSpec, EbrainsRef, Name, ID, Doi, Url, Version
 from ...attributes.descriptions.modality import Modality, register_modalities
 from ...cache import fn_call_cache
 from ...commons_new.logger import logger
 
-
-url_format = "https://data-proxy.ebrains.eu/api/v1/buckets/reference-atlas-data/ebrainsquery/v3/{schema}/{id}.json"
+filepath = "ebrainsquery/v3/{schema}/{id}.json"
 
 def _get_v3_ebrains_ref(schema: Literal["Dataset", "DatasetVersion"], id: str):
     
     try:
-        resp = requests.get(url_format.format(schema=schema, id=id))
-        resp.raise_for_status()
-        resp_json = resp.json()
+        fp = filepath.format(schema=schema, id=id)
+        resp_json = json.loads(EbrainsQuery.repo.get(fp))
         return schema, id, resp_json.get("fullName")
     except:
         return schema, id, "Missing in cache"
@@ -95,6 +94,9 @@ def register_ebrains_modality():
 
 
 class EbrainsQuery(LiveQuery[Feature], generates=Feature):
+
+    repo = DataproxyRepository("reference-atlas-data")
+
     _BLACKLIST = {
         "Whole-brain parcellation of the Julich-Brain Cytoarchitectonic Atlas",
         "whole-brain collections of cytoarchitectonic probabilistic maps",
@@ -118,21 +120,36 @@ class EbrainsQuery(LiveQuery[Feature], generates=Feature):
             return input
         raise RuntimeError(f"Can only work with Non, str, or List[str], but got {type(input)}")
 
-    @staticmethod
-    @fn_call_cache
-    def get_dsv(dsv: str) -> DatasetVersion:
-        url = url_format.format(schema="DatasetVersion", id=dsv)
-        resp = requests.get(url)
-        resp.raise_for_status()
-        return resp.json()
+    @classmethod
+    def get_dsv(cls, dsv: str) -> DatasetVersion:
+        fp = filepath.format(schema="DatasetVersion", id=dsv)
+        return json.loads(cls.repo.get(fp))
 
-    @staticmethod
-    @fn_call_cache
-    def get_dsv_from_pev(pev: str):
-        url = url_format.format(schema="ParcellationEntityVersion_studyTarget", id=pev)
-        resp = requests.get(url)
-        resp.raise_for_status()
-        resp_json = resp.json()
+    @classmethod
+    def get_dsv_from_pe(cls, pe: str):
+        fp = filepath.format(schema="ParcellationEntity_studyTarget", id=pe)
+        resp_json = json.loads(cls.repo.get(fp))
+        
+        study_targets = resp_json.get("studyTarget")
+
+        result = []
+        for st in study_targets:
+            st_id: str = st.get("id")
+            assert st_id, f"id of study target was not defined! pe: {pe}"
+
+            if "https://openminds.ebrains.eu/core/DatasetVersion" in st.get("type"):
+                stripped_st_id = st_id.split("/")[-1]
+                result.append(EbrainsQuery.get_dsv(stripped_st_id))
+                continue
+
+            logger.warning(f"DatasetVersion is not the type of study target: {st.get('type')}, skipping")
+        return result
+
+    @classmethod
+    def get_dsv_from_pev(cls, pev: str):
+        fp = filepath.format(schema="ParcellationEntityVersion_studyTarget", id=pev)
+        resp_json = json.loads(cls.repo.get(fp))
+        
         study_targets = resp_json.get("studyTarget")
 
         result = []
@@ -153,13 +170,44 @@ class EbrainsQuery(LiveQuery[Feature], generates=Feature):
         if ebrains_modality not in mods:
             return
 
+        # in some circumstances, regions in siibra is separated into left and right hemisphere, but the parcellation entity (PE)
+        # equivalent is not in openminds. As a result, once we decode the region, we also include the parent if and only if parent's name
+        # is in child's name
         _rr = [(rspec, region)
                for rspecs in self.find_attributes(RegionSpec)
                for rspec in rspecs
-               for region in rspec.decode()]
+               for decoded_region in rspec.decode()
+               for region in (
+                   [decoded_region, decoded_region.parent]
+                   if (
+                       decoded_region.parent
+                       and decoded_region.parent.name in decoded_region.name 
+                    )
+                    else [decoded_region])]
 
         for rspec, region in _rr:
             for ref in region._find(EbrainsRef):
+                
+                for pe in  EbrainsQuery.iter_ids(ref.ids.get("openminds/ParcellationEntity")):
+                    for dsv in EbrainsQuery.get_dsv_from_pe(pe):
+                        attributes = []
+
+                        homepage = dsv.get("homepage")
+                        if homepage:
+                            attributes.append(Url(value=homepage))
+
+                        for doi in dsv.get("doi", []):
+                            attributes.append(Doi(value=doi["identifier"]))
+                        
+                        id = dsv.get("id")
+                        if id:
+                            id = EbrainsQuery._PREFIX + id
+                            attributes.append(ID(value=id))
+                        
+                        attributes.append(rspec)
+
+                        yield Feature(attributes=attributes)
+                        
                 for pev in  EbrainsQuery.iter_ids(ref.ids.get("openminds/ParcellationEntityVersion")):
                     for dsv in EbrainsQuery.get_dsv_from_pev(pev):
                         attributes = []

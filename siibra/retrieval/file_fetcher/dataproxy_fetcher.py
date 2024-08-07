@@ -7,7 +7,7 @@ class DataproxyRepository(ArchivalRepository):
     """
     Proxy to BucketApiClient, satisfying ArchivalRepository constraint.
     
-    User can access dataset buckets by passing is_bucket=False. n.b. not all dataset
+    User can access dataset buckets by passing is_dataset=True. n.b. not all dataset
     stores files in dataproxy.
     
     User can provide a JWT token to access private buckets/dataset. n.b. if a token is passed
@@ -16,14 +16,14 @@ class DataproxyRepository(ArchivalRepository):
 
     anony_client = BucketApiClient()
 
-    def __init__(self, bucketname: str, is_bucket: bool=True, token: str=None) -> None:
+    def __init__(self, bucketname: str, is_dataset: bool=False, token: str=None) -> None:
         super().__init__()
         self.bucketname = bucketname
         self.client = BucketApiClient(token=token) if token else self.anony_client
-        if is_bucket:
-            self.bucket = self.client.buckets.get_bucket(bucketname)
-        else:
+        if is_dataset:
             self.bucket = self.client.buckets.get_dataset(bucketname)
+        else:
+            self.bucket = self.client.buckets.get_bucket(bucketname)
 
     @property
     def unpacked_dir(self):

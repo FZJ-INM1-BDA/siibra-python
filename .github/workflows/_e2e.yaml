@@ -13,6 +13,9 @@ on:
         type: string
         default: ''
 
+env:
+  SIIBRA_CACHEDIR: ".siibra-cache"
+
 jobs:
   e2e:
     runs-on: ${{ inputs.os }}
@@ -27,6 +30,17 @@ jobs:
       uses: './.github/workflows/setup-custom-cfg'
       with:
         siibra-cfg-ref: ${{ inputs.use-cfg }}
+    
+    - id: "print-siibra-version"
+      name: "Setting siibra-version"
+      run: echo "SIIBRA_VERSION=$(cat siibra/VERSION)" >> $GITHUB_ENV
+
+    - name: Setup persistent cache
+      id: siibra-cache-gha
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.SIIBRA_CACHEDIR }}
+        key: ${{ runner.os }}-${{ inputs.use-cfg }}-${{ inputs.python-version }}-${{ env.SIIBRA_VERSION }}
 
     - name: Install dependencies
       shell: bash
