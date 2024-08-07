@@ -18,7 +18,7 @@ from typing import Dict
 
 from ..base import Data
 from ....retrieval.volume_fetcher import IMAGE_FORMATS, MESH_FORMATS, Mapping
-
+from ....commons_new.iterable import assert_ooo
 
 FORMAT_LOOKUP = {
     None: IMAGE_FORMATS + MESH_FORMATS,
@@ -35,3 +35,16 @@ class Volume(Data):
     url: str = None
     mapping: Dict[str, Mapping] = field(default=None, repr=False)
     colormap: str = field(default=None, repr=False)
+
+    @property
+    def space(self):
+        from ....factory import iter_preconfigured_ac
+        from ....atlases import Space
+
+        return assert_ooo(
+            [
+                space
+                for space in iter_preconfigured_ac(Space)
+                if space.ID == self.space_id
+            ]
+        )
