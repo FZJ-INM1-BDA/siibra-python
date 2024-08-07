@@ -45,7 +45,7 @@ class SparseIndex:
     _SUFFIXES = {
         "probs": ".sparseindex.probs.txt.gz",
         "bboxes": ".sparseindex.bboxes.csv.gz",
-        "voxels": ".sparseindex.voxels.nii.gz"
+        "voxels": ".sparseindex.voxels.nii.gz",
     }
 
     def get_coords(self, regionname: str):
@@ -103,7 +103,7 @@ class SparseIndex:
         import requests
         from pandas import read_csv
 
-        spindtxt_decoder = lambda b: decompress(b).decode('utf-8').strip().splitlines()
+        spindtxt_decoder = lambda b: decompress(b).decode("utf-8").strip().splitlines()
 
         probsfile = filepath_or_url + SparseIndex._SUFFIXES["probs"]
         bboxfile = filepath_or_url + SparseIndex._SUFFIXES["bboxes"]
@@ -121,7 +121,7 @@ class SparseIndex:
             lines_probs,
             total=len(lines_probs),
             desc="Loading sparse index",
-            unit="voxels"
+            unit="voxels",
         ):
             fields = line.strip().split(" ")
             mapindices = list(map(int, fields[0::2]))
@@ -131,12 +131,9 @@ class SparseIndex:
 
         bboxes = {}
         bbox_table = read_csv(
-            requests.get(bboxfile).content,
-            sep=';',
-            compression="gzip",
-            index_col=0
+            requests.get(bboxfile).content, sep=";", compression="gzip", index_col=0
         )
-        bboxes = bbox_table.T.to_dict('list')
+        bboxes = bbox_table.T.to_dict("list")
 
         return cls.__init__(
             probs=probs,
@@ -173,23 +170,17 @@ class SparseIndex:
         Nifti1Image(self.voxels, self.affine).to_filename(
             fullpath + SparseIndex._SUFFIXES["voxels"]
         )
-        with gzip.open(fullpath + SparseIndex._SUFFIXES["probs"], 'wt') as f:
+        with gzip.open(fullpath + SparseIndex._SUFFIXES["probs"], "wt") as f:
             for D in self.probs:
-                f.write(
-                    "{}\n".format(
-                        " ".join(f"{r} {p}" for r, p in D.items())
-                    )
-                )
+                f.write("{}\n".format(" ".join(f"{r} {p}" for r, p in D.items())))
 
         bboxtable = pd.DataFrame(
             self.bboxes.values(),
             index=self.bboxes.keys(),
-            columns=["x0", "y0", 'z0', "x1", "y1", 'z1']
+            columns=["x0", "y0", "z0", "x1", "y1", "z1"],
         )
         bboxtable.to_csv(
-            fullpath + SparseIndex._SUFFIXES["bboxes"],
-            sep=';',
-            compression="gzip"
+            fullpath + SparseIndex._SUFFIXES["bboxes"], sep=";", compression="gzip"
         )
 
 
@@ -262,7 +253,7 @@ class SparseMap(Map):
         bbox: "BoundingBox" = None,
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
-        color_channel: int = None
+        color_channel: int = None,
     ):
         if region is None and len(self.regions) == 1:
             matched = self.regions[0]
