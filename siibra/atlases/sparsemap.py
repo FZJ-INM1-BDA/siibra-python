@@ -15,7 +15,7 @@
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Dict, Tuple, Union
-
+import re
 import numpy as np
 
 from siibra.commons_new.iterable import assert_ooo
@@ -257,21 +257,29 @@ class SparseMap(Map):
 
     def fetch(
         self,
-        region: Union[str, Region] = None,
+        region: Union[str, re.Pattern, Region] = None,
         frmt: str = None,
         bbox: "BoundingBox" = None,
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None
     ):
+        if not region:
+            raise RuntimeError(f"region arg must be defined for sparsemap.fetch")
+
+        matched = None
         if isinstance(region, Region):
             matched = region.name
-        else:
+        if isinstance(region, (re.Pattern, str)):
             matched = self.parcellation.get_region(region).name
+
+        assert isinstance(matched, str), (
+            "region must be of type str, re.Pattern or siibra.Region. You provided"
+            f"{type(region)}"
+        )
 
         assert matched in self.regions, (
             f"Statistical map of region '{matched}' is not available. "
-            f"Try fetching its descendants: {(r.name for r in matched.descendants)}"
         )
 
         if not self.use_sparse_index:
