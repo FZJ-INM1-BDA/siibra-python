@@ -16,7 +16,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Dict, Callable, List, Union
 import requests
-
+from itertools import product
 import numpy as np
 import nibabel as nib
 from neuroglancer_scripts.http_accessor import HttpAccessor
@@ -25,7 +25,7 @@ from neuroglancer_scripts.precomputed_io import (
     PrecomputedIO,
 )
 
-from ...volume_fetcher.volume_fetcher import register_volume_fetcher, FetchKwargs
+from ...volume_fetcher.volume_fetcher import register_volume_fetcher, FetchKwargs, register_bbox_getter
 from ....cache import fn_call_cache
 from ....commons_new.logger import logger
 
@@ -275,30 +275,42 @@ def fetch_neuroglancer(image: "Image", fetchkwargs: FetchKwargs) -> "nib.Nifti1I
     else:
         return scale.fetch(bbox=fetchkwargs["bbox"])
 
-
+@register_bbox_getter("neuroglancer/precomputed")
+@register_bbox_getter("neuroglancer/precompmesh")
 @fn_call_cache
-def _GetBBox(image: "Image"):
-    # if image.format == "neuroglancer/precomputed":
-    #     resp = requests.get(f"{image.url}/info")
-    #     resp.raise_for_status()
-    #     info_json = resp.json()
+def fetch_ng_bbox(image: "Image", fetchkwargs: Union[FetchKwargs, None]=None) -> "BoundingBox":
+    from ....attributes.locations import BoundingBox
 
-    #     resp = requests.get(f"{image.url}/transform.json")
-    #     resp.raise_for_status()
-    #     transform_json = resp.json()
+    provided_bbox = fetchkwargs["bbox"] if fetchkwargs else None
+    if provided_bbox and provided_bbox.space_id != image.space_id:
+        raise RuntimeError(f"Fetching ngbbox error. image.space_id={image.space_id!r} "
+                           f"!= provided_bbox.space_id={provided_bbox.space_id!r}")
 
-    #     scale, *_ = info_json.get("scales")
-    #     size = scale.get("size")
-    #     resolution = scale.get("resolution")
-    #     dimension = [s * r for s, r in zip(size, resolution)]
-    #     xs, ys, zs = zip([0, 0, 0], dimension)
-    #     corners = list(product(xs, ys, zs))
-    #     hom = np.c_[corners, np.ones(len(corners))]
-    #     new_coord = np.dot(np.array(transform_json), hom.T)[:3, :].T / 1e6
+    resp = requests.get(f"{image.url}/info")
+    resp.raise_for_status()
+    info_json = resp.json()
 
-    #     min = np.min(new_coord, axis=0)
-    #     max = np.max(new_coord, axis=0)
-    #     return boundingbox.BBox(
-    #         minpoint=min.tolist(), maxpoint=max.tolist(), space_id=image.space_id
-    #     )
-    raise NotImplementedError
+    resp = requests.get(f"{image.url}/transform.json")
+    resp.raise_for_status()
+    transform_json = resp.json()
+
+    scale, *_ = info_json.get("scales")
+    size = scale.get("size")
+    resolution = scale.get("resolution")
+    dimension = [s * r for s, r in zip(size, resolution)]
+    xs, ys, zs = zip([0, 0, 0], dimension)
+    corners = list(product(xs, ys, zs))
+    hom = np.c_[corners, np.ones(len(corners))]
+    new_coord = np.dot(np.array(transform_json), hom.T)[:3, :].T / 1e6
+
+    min = np.min(new_coord, axis=0)
+    max = np.max(new_coord, axis=0)
+    bbox = BoundingBox(
+        minpoint=min.tolist(), maxpoint=max.tolist(), space_id=image.space_id
+    )
+    
+    if not provided_bbox:
+        return bbox
+    
+    from ....attributes.locations.ops.intersection import bbox_bbox
+    return bbox_bbox(bbox, provided_bbox)

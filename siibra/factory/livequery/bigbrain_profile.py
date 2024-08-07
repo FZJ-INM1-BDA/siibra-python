@@ -62,7 +62,7 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
 
         attributes = []
 
-        input_attrs = [attr for cri in input.criteria for attr in cri.attributes]
+        input_attrs = [attr for attr_col in self.input for attr in attr_col.attributes]
 
         for attr in input_attrs:
 

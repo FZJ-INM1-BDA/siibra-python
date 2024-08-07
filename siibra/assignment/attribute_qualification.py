@@ -253,6 +253,25 @@ def qualify_ptcld_image(ptcld: PointCloud, image: Image):
     if isinstance(intersected, Point):
         return Qualification.OVERLAPS
 
+@fn_call_cache
+def _find_all_volumes(regionspec: RegionSpec, space_id: str):
+    return [volume
+            for region in regionspec.decode()
+            for mp in region.find_regional_maps(space_id)
+            for volume in mp.find_volumes(region)]
+
+@register_attr_qualifier(RegionSpec, Image)
+def qualify_regionspec_image(regionspec: RegionSpec, image: Image):
+    if not image.space_id:
+        return
+    all_matching_volumes = _find_all_volumes(regionspec, image.space_id)
+    for volume in all_matching_volumes:
+        try:
+            _intersect = intersect(volume.boundingbox, image.boundingbox)
+            if _intersect:
+                return Qualification.APPROXIMATE
+        except Exception as e:
+            logger.debug(f"Matching RegionSpec x Image Exception: {str(e)}")
 
 # TODO implement
 # @register_attr_qualifier(BBox, Image)

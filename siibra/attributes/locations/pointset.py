@@ -87,9 +87,12 @@ class PointCloud(Location):
     @property
     def boundingbox(self):
         """Return the bounding box of these points."""
-        XYZ = self.coordinates
-        sigma_min = max(self.sigma[i] for i in XYZ.argmin(0))
-        sigma_max = max(self.sigma[i] for i in XYZ.argmax(0))
+        XYZ = np.array(self.coordinates)
+
+        # TODO pointcloud sigma is currently broken
+        # sigma length does not necessary equal to length of points
+        sigma_min = [0] # max(self.sigma[i] for i in XYZ.argmin(0))
+        sigma_max = [0] # max(self.sigma[i] for i in XYZ.argmax(0))
         return _boundingbox.BoundingBox(
             minpoint=XYZ.min(0) - max(sigma_min),
             maxpoint=XYZ.max(0) + max(sigma_max),

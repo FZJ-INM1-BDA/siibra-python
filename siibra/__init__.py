@@ -14,8 +14,10 @@
 # limitations under the License.
 
 
-from functools import partial
 from typing import Union
+import os as _os
+from dataclasses import replace
+import math
 
 from .commons import __version__
 
@@ -30,6 +32,7 @@ from .cache import Warmup, WarmupLevel, CACHE as cache
 
 from . import factory
 from . import retrieval
+from . import attributes
 from .atlases import Space, Parcellation, Region, parcellationmap
 from .atlases.region import filter_newest
 from .attributes import Attribute, AttributeCollection
@@ -43,7 +46,6 @@ from .assignment import (
 )
 from .factory.iterator import iter_preconfigured_ac
 
-import os as _os
 
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
@@ -134,6 +136,15 @@ def find_features(
     ), f"Expecting modality to be of type str or Modality, but is {type(modality)}."
 
     modality_query_param = QueryParam(attributes=[modality])
+
+    if isinstance(concept, Space):
+        # When user query space, we are assuming that they really want to see all features that overlaps with 
+        # an infinite bounding box in this space. If we query the full space, we run into trouble with comparison
+        # of e.g. space.image (template image) x feature.region_spec 
+        inf_bbox = attributes.locations.BoundingBox(space_id=concept.ID,
+                                                    minpoint=[-math.inf, -math.inf, -math.inf],
+                                                    maxpoint=[math.inf, math.inf, math.inf],)
+        concept = QueryParam(attributes=[inf_bbox])
 
     query_ac = [concept, modality_query_param]
 

@@ -113,7 +113,7 @@ class BoundingBox(Location):
         return pointset.PointCloud(
             coordinates=all_corners,
             space_id=self.space_id,
-            sigma_mm=np.mean([self.minpoint.sigma, self.maxpoint.sigma])
+            sigma=[0 for _ in all_corners],
         )
 
 

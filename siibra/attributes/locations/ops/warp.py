@@ -16,8 +16,7 @@
 import requests
 from urllib.parse import quote
 import json
-from typing import Generic, TypeVar, Dict, Callable
-from functools import wraps
+from typing import TypeVar, Dict, Callable, Type
 
 import numpy as np
 
@@ -25,6 +24,7 @@ from ..base import Location
 from ..point import Point
 from ..pointset import PointCloud
 from ..boundingbox import BoundingBox
+from ....cache import fn_call_cache
 from ....commons_new.logger import logger
 from ....exceptions import SpaceWarpingFailedError
 
@@ -39,24 +39,19 @@ SPACEWARP_IDS = {
 
 T = TypeVar("T")
 _warpers: Dict["Location", Callable] = {}
+session = requests.Session()
 
 
-def _register_warper(location_type: Generic[T]):
-
-    def outer(fn: Callable[[Location], Location]):
-
-        @wraps(fn)
-        def inner(loc: "Location", space_id: str):
-            return fn(loc, space_id)
-
-        _warpers[location_type] = inner
-
-        return inner
-
+def _register_warper(location_type: Type):
+    def outer(fn):
+        assert location_type not in _warpers, f"{location_type.__name__} has already been registereed"
+        _warpers[location_type] = fn
+        return fn
     return outer
 
 
 @_register_warper(Point)
+@fn_call_cache
 def warp_point(point: Point, target_space_id: str) -> Point:
     if target_space_id == point.space_id:
         return point
@@ -72,7 +67,9 @@ def warp_point(point: Point, target_space_id: str) -> Point:
         y=point.coordinate[1],
         z=point.coordinate[2],
     )
-    response = requests.get(url).json()
+    resp = session.get(url)
+    resp.raise_for_status()
+    response = resp.json()
     if any(map(np.isnan, response["target_point"])):
         raise SpaceWarpingFailedError(
             f"Warping {str(point)} to {SPACEWARP_IDS[target_space_id]} resulted in 'NaN'"
@@ -82,6 +79,7 @@ def warp_point(point: Point, target_space_id: str) -> Point:
 
 
 @_register_warper(PointCloud)
+@fn_call_cache
 def warp_pointcloud(ptcloud: PointCloud, target_space_id: str) -> PointCloud:
     chunksize = 1000
     if target_space_id == ptcloud.space_id:
@@ -108,7 +106,7 @@ def warp_pointcloud(ptcloud: PointCloud, target_space_id: str) -> PointCloud:
                 "source_points": src_points[i0:i1],
             }
         )
-        req = requests.post(
+        req = session.post(
             url=f"{SPACEWARP_SERVER}/transform-points",
             headers={
                 "accept": "application/json",
@@ -116,7 +114,13 @@ def warp_pointcloud(ptcloud: PointCloud, target_space_id: str) -> PointCloud:
             },
             data=data,
         )
+        req.raise_for_status()
         response = req.json()
+        if np.any(np.isnan(response["target_points"])):
+            raise SpaceWarpingFailedError(
+                f"Warping PointCloud to {SPACEWARP_IDS[target_space_id]} resulted in 'NaN'"
+            )
+
         tgt_points.extend(list(response["target_points"]))
 
     return PointCloud(coordinates=tuple(tgt_points), space_id=target_space_id)

@@ -101,16 +101,10 @@ def get_volume_fetcher(format: str):
 
 def register_bbox_getter(format: str):
 
-    def outer(fn: Callable[["Image", FetchKwargs], "BoundingBox"]):
-
-        @wraps(fn)
-        def inner(image: "Image", fetchkwargs: FetchKwargs):
-            assert image.format == format, f"Expected {format}, but got {image.format}"
-            return fn(image, fetchkwargs)
-
-        BBOX_GETTER_REGISTRY[format] = inner
-
-        return inner
+    def outer(fn: Callable[["Image", Union[FetchKwargs, None]], "BoundingBox"]):
+        assert format not in BBOX_GETTER_REGISTRY, f"format={format!r} already registered bbox getter"
+        BBOX_GETTER_REGISTRY[format] = fn
+        return fn
 
     return outer
 

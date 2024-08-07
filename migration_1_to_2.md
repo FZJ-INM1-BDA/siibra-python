@@ -18,3 +18,5 @@
 
 - for `AllenGeneExpression` feature query, the keyword argument `genes` must be of type `List[str]` (previously, it was `Union[List[str], str]`)
 
+- matching spatial features is much more strict. Previously `region = siibra.get_region("3.0.3", "hoc1 left"); siibra.find_features(region, "cell body staining")` would implicitly find the smallest bounding box around the labelled map. This is no longer done implicitly. 
+

@@ -38,7 +38,7 @@ class BinaryOp(Generic[T, V]):
         self._registered_types.add(a)
         self._registered_types.add(b)
 
-        def outer(fn: Callable[[T, T], V]):
+        def outer(fn):
             forward_key = a, b
             backward_key = b, a
 
