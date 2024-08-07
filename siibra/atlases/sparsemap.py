@@ -269,9 +269,7 @@ class SparseMap(Map):
         )
 
         assert matched in self.regions, (
-            f"Statistical map of region '{matched}' is not available. "
-            f"Try fetching its descendants mapped in {self.name=!r}: "
-            f"{(r.name for r in matched.descendants if r.name in self.regions)}"
+            f"Statistical map of region '{matched}' is not available in '{self.name}'."
         )
 
         if not self.use_sparse_index:
