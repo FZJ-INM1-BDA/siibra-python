@@ -196,7 +196,7 @@ class Map(AtlasElement):
             ]
 
         # check if a parent region is requested
-        mapped_descendants = {
+        mapped_descendants: Set[str] = {
             descendant.name
             for descendant in candidate.descendants
             if descendant.name in self.regions
@@ -206,9 +206,9 @@ class Map(AtlasElement):
                 replace(
                     vol,
                     mapping={
-                        desc.name: vol.mapping[desc.name]
+                        desc: vol.mapping[desc]
                         for desc in mapped_descendants
-                        if desc.name in vol.mapping
+                        if desc in vol.mapping
                     },
                 )
                 for vol in filter(
