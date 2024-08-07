@@ -13,10 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
 import anytree
 import json
-from typing import Iterable, Union, TYPE_CHECKING, List, Dict, Any, Tuple
+from typing import Iterable, Union, TYPE_CHECKING, List, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
 from ..concepts import atlas_elements

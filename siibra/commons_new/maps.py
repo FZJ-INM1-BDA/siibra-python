@@ -65,8 +65,8 @@ def affine_scaling(affine):
 
 
 def merge_volumes(
-    volumes: List[Union["Nifti1Image", "GiftiImage"]],
-    template_vol: Union["Nifti1Image", "GiftiImage"] = None,
+    volumes: List[Union[Nifti1Image, GiftiImage]],
+    template_vol: Union[Nifti1Image, GiftiImage] = None,
     labels: List[int] = [],
 ):
     vol_types = {type(vol) for vol in volumes}
@@ -111,10 +111,10 @@ def _merge_giilabels(giftis: List["GiftiImage"]) -> "GiftiImage":
 
 
 def _merge_giftis(
-    giftis: List["GiftiImage"],
-    template_vol: "GiftiImage" = None,
+    giftis: List[GiftiImage],
+    template_vol: GiftiImage = None,
     labels: List[int] = [],
-) -> "GiftiImage":
+) -> GiftiImage:
     meshes = [gii_to_arrs(gii) for gii in giftis]
     assert len(meshes) > 0
     if len(meshes) == 1:
@@ -151,10 +151,10 @@ def _merge_giftis(
 
 
 def _resample_and_merge_niftis(
-    niftis: List["Nifti1Image"],
-    template_img: "Nifti1Image" = None,
+    niftis: List[Nifti1Image],
+    template_img: Nifti1Image = None,
     labels: List[int] = [],
-) -> "Nifti1Image":
+) -> Nifti1Image:
     # TODO: get header for affine and shape instead of the whole template
     assert len(niftis) > 1, "Need to supply at least two volumes to merge."
     if labels:

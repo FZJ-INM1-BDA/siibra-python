@@ -358,6 +358,8 @@ class Map(AtlasElement):
         for regionname in siibra_tqdm(
             self.regions, unit="regions", desc="Computing centroids"
         ):
-            img = self.fetch(region=regionname, **fetch_kwargs)  # returns a mask of the region
+            img = self.fetch(
+                region=regionname, **fetch_kwargs
+            )  # returns a mask of the region
             centroids[regionname] = compute_centroid(img, space_id=self.space)
         return centroids

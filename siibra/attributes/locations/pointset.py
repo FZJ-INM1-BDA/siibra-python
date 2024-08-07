@@ -15,7 +15,7 @@
 
 """A set of coordinates on a reference space."""
 
-from typing import List, Union
+from typing import List, Union, Iterator
 import numpy as np
 from dataclasses import dataclass, field
 
@@ -30,7 +30,7 @@ class PointCloud(Location):
     coordinates: List[List[float]] = field(default_factory=list, repr=False)
     sigma: List[float] = field(default_factory=list, repr=False)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[point.Point]:
         """Return an iterator over the coordinate locations."""
         yield self.to_pts()
 

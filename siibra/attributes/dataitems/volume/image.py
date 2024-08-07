@@ -14,7 +14,8 @@
 # limitations under the License.
 
 from dataclasses import dataclass, replace
-from typing import Union
+from typing import Union, Tuple
+
 import numpy as np
 import nibabel as nib
 from pathlib import Path
@@ -25,7 +26,6 @@ import gzip
 from ....commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 from .base import Volume
-from ....exceptions import InvalidAttrCompException
 from ...locations import point, pointset, BoundingBox
 from ...locations.ops.intersection import _loc_intersection
 from ....retrieval.volume_fetcher.volume_fetcher import (
@@ -34,6 +34,7 @@ from ....retrieval.volume_fetcher.volume_fetcher import (
     FetchKwargs,
     IMAGE_FORMATS,
 )
+from ....commons_new.logger import logger
 
 
 @dataclass
@@ -60,7 +61,7 @@ class Image(Volume):
             resolution_mm=resolution_mm,
             color_channel=color_channel,
             max_download_GB=max_download_GB,
-            mapping=self.mapping
+            mapping=self.mapping,
         )
         if color_channel is not None:
             assert self.format == "neuroglancer/precomputed"
@@ -70,7 +71,7 @@ class Image(Volume):
 
     def plot(self, *args, **kwargs):
         raise NotImplementedError
-    
+
     def _iter_zippable(self):
         yield from super()._iter_zippable()
         try:
@@ -82,7 +83,7 @@ class Image(Volume):
                 suffix = ".gii.gz"
             if not suffix:
                 raise RuntimeError("Image.fetch returning a non nifti, non gifti image")
-            
+
             # TODO not ideal, since loads everything in memory. Ideally we can stream it as IO
             gzipped = gzip.compress(nii.to_bytes())
             yield f"Image (format={self.format})", suffix, BytesIO(gzipped)
@@ -93,25 +94,27 @@ class Image(Volume):
 def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "Image":
     """Builds an `Image` `Attribute` from a Nifti image or path to a nifti file."""
     from ....cache import CACHE
+
     filename = None
     if isinstance(nifti, str):
         filename = nifti
         assert Path(filename).is_file(), f"Provided file {nifti!r} does not exist"
     if isinstance(nifti, (nib.Nifti1Image, nib.Nifti2Image)):
-        filename = CACHE.build_filename(md5(nifti.to_bytes()).hexdigest(), suffix=".nii")
+        filename = CACHE.build_filename(
+            md5(nifti.to_bytes()).hexdigest(), suffix=".nii"
+        )
         if not Path(filename).exists():
             nib.save(nifti, filename)
     if not filename:
-        raise RuntimeError(f"nifti must be either str or NIftiImage, but you provided {type(nifti)}")
-    return Image(
-        format="nii",
-        url=filename,
-        space_id=space_id,
-        **kwargs
-    )
+        raise RuntimeError(
+            f"nifti must be either str or NIftiImage, but you provided {type(nifti)}"
+        )
+    return Image(format="nii", url=filename, space_id=space_id, **kwargs)
 
 
-def colorize(image: Image, value_mapping: dict, **fetch_kwargs: FetchKwargs) -> Volume:
+def colorize(
+    image: Image, value_mapping: dict, **fetch_kwargs: FetchKwargs
+) -> nib.Nifti1Image:
     # TODO: rethink naming
     """
     Create
@@ -125,7 +128,9 @@ def colorize(image: Image, value_mapping: dict, **fetch_kwargs: FetchKwargs) -> 
     ------
     Nifti1Image
     """
-    assert image.mapping is not None, ValueError("Provided image must have a mapping defined.")
+    assert image.mapping is not None, ValueError(
+        "Provided image must have a mapping defined."
+    )
 
     result = None
     nii = image.fetch(**fetch_kwargs)
@@ -133,7 +138,9 @@ def colorize(image: Image, value_mapping: dict, **fetch_kwargs: FetchKwargs) -> 
     resultarr = np.zeros_like(arr)
     result = nib.Nifti1Image(resultarr, nii.affine)
     for key, value in value_mapping.items():
-        assert key in image.mapping, ValueError(f"key={key!r} is not in the mapping of the image.")
+        assert key in image.mapping, ValueError(
+            f"key={key!r} is not in the mapping of the image."
+        )
         resultarr[nii == image.mapping[key]["label"]] = value
 
     return result
