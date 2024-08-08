@@ -35,14 +35,14 @@ class PointCloud(Location):
         if self.sigma:
             assert len(self.sigma) == len(self.coordinates)
         else:
-            self.sigma = np.zeros(len(self.coordinates), 0).to_list()
+            self.sigma = np.zeros(len(self.coordinates)).tolist()
 
     def __iter__(self) -> Iterator[point.Point]:
         """Return an iterator over the coordinate locations."""
         yield self.to_pts()
 
     def __len__(self):
-        """The number of points in this PointVloud."""
+        """The number of points in this PointCloud."""
         return len(self.coordinates)
 
     def __eq__(self, other: "PointCloud"):

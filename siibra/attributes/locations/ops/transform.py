@@ -41,7 +41,7 @@ from ..pointcloud import PointCloud
 from ..boundingbox import BoundingBox
 from ....commons_new.logger import logger
 
-T = TypeVar("T", Location)
+T = TypeVar("T", bound=Location)
 _tranformers: Dict["Location", Callable] = {}
 
 
@@ -95,7 +95,7 @@ def transform_pointcloud(
         logger.warning("NotYetImplemented: sigma won't be retained.")
     return replace(
         ptcloud,
-        coordinates=np.dot(affine, ptcloud.homogeneous.T)[:3, :].T,
+        coordinates=np.dot(affine, ptcloud.homogeneous.T)[:3, :].T.tolist(),
         space_id=target_space_id,
     )
 
@@ -109,4 +109,4 @@ def transform_boundingbox(
 
 
 def transform(loc: T, affine: np.ndarray, space_id: str = None) -> T:
-    return _tranformers[type(loc)](loc, affine, space_id)
+    return _tranformers[type(loc)](loc, affine, space_id or loc.space_id)

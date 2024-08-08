@@ -41,8 +41,25 @@ def test_ptcloud_transform_value_not_eql():
     assert new_ptcld != ptcloud
     assert new_ptcld.coordinates == [
         [10, 20, 30],
-        [11, 21 ,31],
+        [11, 21, 31],
         [12, 22, 32],
         [20, 31, 42],
         [20, 31, 42],
+    ]
+
+
+def test_ptcloud_transform_affine_works():
+    new_ptcld = PointCloud.transform(ptcloud, [
+        [0, 1, 0, 0],
+        [1, 0, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, 1],
+    ])
+    assert new_ptcld != ptcloud
+    assert new_ptcld.coordinates == [
+        [0, 0, 0],
+        [1, 1 ,1],
+        [2, 2, 2],
+        [11, 10, 12],
+        [11, 10, 12],
     ]
