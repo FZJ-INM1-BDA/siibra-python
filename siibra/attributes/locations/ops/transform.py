@@ -82,7 +82,7 @@ def transform_point(point: Point, affine: np.ndarray, target_space_id: str = Non
     if h != 1:
         logger.warning(f"Homogeneous coordinate is not one: {h}")
     return Point(
-        coordinate=(x / h, y / h, z / h), space_id=target_space_id
+        coordinate=[x / h, y / h, z / h], space_id=target_space_id
     )
 
 

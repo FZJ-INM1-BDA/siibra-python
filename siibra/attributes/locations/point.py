@@ -34,7 +34,7 @@ class Point(Location):
 
     @property
     def homogeneous(self):
-        return np.atleast_2d(self.coordinate + (1,))
+        return np.atleast_2d(list(self.coordinate) + [1,])
 
     @staticmethod
     def transform(pt: "Point", affine: np.ndarray):
@@ -49,13 +49,13 @@ class Point(Location):
         if isinstance(other, numbers.Number):
             return Point(
                 coordinate=[c + other for c in self.coordinate],
-                space_id=self.space.ID if self.space else None,
+                space_id=self.space_id,
             )
         if isinstance(other, Point):
-            assert self.space == other.space
+            assert self.space_id == other.space_id
         return Point(
             coordinate=[self.coordinate[i] + other.coordinate[i] for i in range(3)],
-            space_id=self.space.ID,
+            space_id=self.space_id,
             sigma=self.sigma + other.sigma,
         )
 
@@ -68,13 +68,13 @@ class Point(Location):
         if isinstance(other, numbers.Number):
             return Point(
                 coordinate=[c - other for c in self.coordinate],
-                space_id=self.space.ID if self.space else None,
+                space_id=self.space_id,
             )
         if isinstance(other, Point):
-            assert self.space == other.space
+            assert self.space_id == other.space_id
         return Point(
             coordinate=[self.coordinate[i] - other.coordinate[i] for i in range(3)],
-            space_id=self.space.ID if self.space else None,
+            space_id=self.space_id,
             sigma=self.sigma - other.sigma,
         )
 
