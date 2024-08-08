@@ -39,5 +39,5 @@ def test_query_w_genelist():
     p = siibra.parcellations['julich 3.0.3']
     regions = [p.get_region(spec) for spec in ["ifg 44 left", "hoc1 left"]]
     for region in regions:
-        fts = siibra.find_features(region, "GeneExpressions", gene=genes)
+        fts = siibra.find_features(region, "gene", gene=genes)
         assert len(fts) > 0
