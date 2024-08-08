@@ -22,7 +22,7 @@ from typing import List
 import numpy as np
 
 from .base import Location
-from . import point, pointset
+from . import point, pointcloud
 from ...commons_new.logger import logger
 
 
@@ -84,7 +84,7 @@ class BoundingBox(Location):
             self.minpoint,
             self.maxpoint
         )
-        return pointset.PointCloud(coordinates=[
+        return pointcloud.PointCloud(coordinates=[
             [x, y, z]
             for x, y, z in product(xs, ys, zs)
         ], space_id=self.space_id
@@ -107,7 +107,7 @@ def estimate_affine(bbox: BoundingBox, space):
     x1, y1, z1 = bbox.maxpoint
 
     # set of 8 corner points in source space
-    corners1 = pointset.PointCloud(
+    corners1 = pointcloud.PointCloud(
         coordinates=[
             (x0, y0, z0),
             (x0, y0, z1),

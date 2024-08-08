@@ -27,7 +27,7 @@ import gzip
 from ....commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 from .base import Volume
-from ...locations import point, pointset, BoundingBox
+from ...locations import point, pointcloud, BoundingBox
 from ...locations.ops.intersection import _loc_intersection
 from ....retrieval.volume_fetcher.volume_fetcher import (
     get_volume_fetcher,
@@ -96,7 +96,7 @@ class Image(Volume):
 
     def read_values_at_points(
         self,
-        ptcloud: Union["point.Point", "pointset.PointCloud"],
+        ptcloud: Union["point.Point", "pointcloud.PointCloud"],
         **fetch_kwargs: FetchKwargs,
     ):
         """
@@ -122,7 +122,7 @@ class Image(Volume):
             )
 
         if isinstance(ptcloud, point.Point):
-            ptcloud_ = pointset.from_points(points=[ptcloud])
+            ptcloud_ = pointcloud.from_points(points=[ptcloud])
         else:
             ptcloud_ = ptcloud
 
@@ -130,7 +130,7 @@ class Image(Volume):
 
         # transform the points to the voxel space of the volume for extracting values
         phys2vox = np.linalg.inv(nii.affine)
-        voxels = pointset.PointCloud.transform(ptcloud_, phys2vox)
+        voxels = pointcloud.PointCloud.transform(ptcloud_, phys2vox)
 
         return self.read_voxels(
             voxel_coordinates=np.array(voxels.coordinates).astype("int"),
@@ -236,20 +236,20 @@ def colorize(
 
 @_loc_intersection.register(point.Point, Image)
 def compare_pt_to_image(pt: point.Point, image: Image):
-    ptcloud = pointset.PointCloud(space_id=pt.space_id, coordinates=[pt.coordinate])
+    ptcloud = pointcloud.PointCloud(space_id=pt.space_id, coordinates=[pt.coordinate])
     intersection = compare_ptcloud_to_image(ptcloud=ptcloud, image=image)
     if intersection:
         return pt
 
 
-@_loc_intersection.register(pointset.PointCloud, Image)
-def compare_ptcloud_to_image(ptcloud: pointset.PointCloud, image: Image):
+@_loc_intersection.register(pointcloud.PointCloud, Image)
+def compare_ptcloud_to_image(ptcloud: pointcloud.PointCloud, image: Image):
     return intersect_ptcld_image(ptcloud=ptcloud, image=image)
 
 
 def intersect_ptcld_image(
-    ptcloud: pointset.PointCloud, image: Image
-) -> pointset.PointCloud:
+    ptcloud: pointcloud.PointCloud, image: Image
+) -> pointcloud.PointCloud:
     value_outside = 0
     values = image.read_values_at_points(ptcloud, outside_value=value_outside)
     inside = list(np.where(values != value_outside)[0])

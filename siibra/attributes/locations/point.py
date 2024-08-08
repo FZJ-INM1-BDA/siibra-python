@@ -78,9 +78,9 @@ class Point(Location):
         if self.space_id != other.space_id:
             return False
 
-        from . import pointset
+        from . import pointcloud
 
-        if isinstance(other, pointset.PointCloud):
+        if isinstance(other, pointcloud.PointCloud):
             return other == self  # implemented at pointset
         if not isinstance(other, Point):
             return False

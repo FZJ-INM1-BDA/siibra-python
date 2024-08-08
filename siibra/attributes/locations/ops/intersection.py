@@ -18,7 +18,7 @@ import numpy as np
 from dataclasses import replace
 
 from ..point import Point
-from ..pointset import PointCloud
+from ..pointcloud import PointCloud
 from ..boundingbox import BoundingBox
 from ..base import Location
 from ....exceptions import InvalidAttrCompException, UnregisteredAttrCompException
