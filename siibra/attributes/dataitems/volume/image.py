@@ -42,7 +42,7 @@ class Image(Volume):
     schema: str = "siibra/attr/data/image/v0.1"
 
     def __post_init__(self):
-        assert self.format in IMAGE_FORMATS, print(f"{self.format}")
+        assert self.format in IMAGE_FORMATS, f"Expected image format {self.format} to be in {IMAGE_FORMATS}, but was not."
 
     @property
     def boundingbox(self) -> "BoundingBox":
@@ -115,7 +115,7 @@ class Image(Volume):
             Any additional arguments are passed to the `fetch()` call for
             retrieving the image data.
         """
-        if ptcloud.space.ID != self.space.ID:
+        if ptcloud.space_id != self.space_id:
             raise ValueError(
                 "Points and Image must be in the same space. You can warp points "
                 "space of the image with `warp()` method."

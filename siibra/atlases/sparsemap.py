@@ -248,20 +248,24 @@ class SparseMap(Map):
 
     def fetch(
         self,
-        region: Union[str, re.Pattern, Region] = None,
+        region: Union[str, re.Pattern, Region, None] = None,
         frmt: str = None,
         bbox: "BoundingBox" = None,
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
     ):
-        if region is None and len(self.regions) == 1:
+        matched = None
+        if region is None:
+            if len(self.regions) != 1:
+                raise RuntimeError(f"Map has multiple regions: {self.regions}. Region must be provided for fetch()")
             matched = self.regions[0]
-        else:
-            if isinstance(region, Region):
-                matched = region.name
-            else:
-                matched = self.parcellation.get_region(region).name
+        
+        if isinstance(region, Region):
+            matched = region.name
+
+        if isinstance(region, (str, re.Pattern)):
+            matched = self.parcellation.get_region(region).name
 
         assert isinstance(matched, str), (
             "region must be of type str, re.Pattern or siibra.Region. You provided"
