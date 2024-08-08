@@ -37,16 +37,19 @@ SPACEWARP_IDS = {
     "minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588": "Big Brain (Histology)",
 }
 
-T = TypeVar("T")
+T = TypeVar("T", Location)
 _warpers: Dict["Location", Callable] = {}
 session = requests.Session()
 
 
 def _register_warper(location_type: Type):
     def outer(fn):
-        assert location_type not in _warpers, f"{location_type.__name__} has already been registereed"
+        assert (
+            location_type not in _warpers
+        ), f"{location_type.__name__} has already been registereed"
         _warpers[location_type] = fn
         return fn
+
     return outer
 
 
@@ -133,5 +136,5 @@ def warp_boundingbox(bbox: BoundingBox, space_id: str) -> BoundingBox:
     return corners_warped.boundingbox
 
 
-def warp(loc: Location, space_id: str) -> Location:
+def warp(loc: T, space_id: str) -> T:
     return _warpers[type(loc)](loc, space_id)
