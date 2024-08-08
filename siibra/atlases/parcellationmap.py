@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace, asdict
 from typing import TYPE_CHECKING, List, Set, Union, Dict
 
 try:
@@ -33,6 +33,10 @@ from ..atlases import Parcellation, Space, Region
 from ..attributes.dataitems import Image, Mesh, FORMAT_LOOKUP
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
 from ..attributes.locations import BoundingBox, Point, PointCloud
+from ..attributes.dataitems.volume.ops.intersection_score import (
+    ImageAssignment,
+    get_intersection_scores,
+)
 
 from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
@@ -172,6 +176,9 @@ class Map(AtlasElement):
     def find_volumes(
         self, region: Union[str, Region] = None, frmt: str = None
     ) -> List[Union["Image", "Mesh"]]:
+        if frmt in ["image", "mesh"]:
+            frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
+
         def filter_format(vol: Union["Image", "Mesh"]):
             return True if frmt is None else vol.format == frmt
 
@@ -363,3 +370,40 @@ class Map(AtlasElement):
             )  # returns a mask of the region
             centroids[regionname] = compute_centroid(img, space_id=self.space)
         return centroids
+
+    @dataclass
+    class RegionAssignment(ImageAssignment):
+        region: str
+
+    def find_intersecting_regions(
+        self,
+        item: Union[Point, PointCloud, Image],
+        split_components: bool = True,
+        voxel_sigma_threshold: int = 3,
+        iou_lower_threshold=0.0,
+        **fetch_kwargs: FetchKwargs,
+    ):
+        from pandas import DataFrame
+
+        assignments: List[Map.RegionAssignment] = []
+        for region in self.regions:
+            region_image = self.find_volumes(
+                region=region, frmt="image", **fetch_kwargs
+            )[0]
+            for assgnmt in get_intersection_scores(
+                item=item,
+                target_image=region_image,
+                split_components=split_components,
+                voxel_sigma_threshold=voxel_sigma_threshold,
+                iou_lower_threshold=iou_lower_threshold,
+                **fetch_kwargs,
+            ):
+                assignments.append(Map.RegionAssignment(**asdict(assgnmt), region=region))
+
+        assignments_unpacked = [asdict(a) for a in assignments]
+
+        return (
+            DataFrame(assignments_unpacked)
+            .convert_dtypes()  # convert will guess numeric column types
+            .dropna(axis="columns", how="all")
+        )
