@@ -16,7 +16,7 @@
 """A box defined by two farthest corner coordinates on a specific space."""
 
 from itertools import product
-from dataclasses import dataclass, replace, field
+from dataclasses import dataclass, field
 from typing import List
 
 import numpy as np
