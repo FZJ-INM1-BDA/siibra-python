@@ -15,8 +15,8 @@
 
 """Singular coordinate defined on a space, possibly with an uncertainty."""
 
-from dataclasses import dataclass, field, replace
-from typing import Tuple, List
+from dataclasses import dataclass, field
+from typing import Tuple, List, TYPE_CHECKING
 import numbers
 import re
 
@@ -90,6 +90,35 @@ class Point(Location):
         """Return an iterator over the location,
         so the Point can be easily cast to list or tuple."""
         return iter(self.coordinate)
+
+    def create_gaussian_kernel(
+        self, target_affine: np.ndarray, voxel_sigma_threshold: int = 3
+    ) -> "Nifti1Image":
+        from nibabel import Nifti1Image
+        from skimage.filters import gaussian
+
+        scaling = np.array(
+            [np.linalg.norm(target_affine[:, i]) for i in range(3)]
+        ).mean()
+        sigma_vox = self.sigma / scaling
+        voxel_transformation_affine = np.linalg.inv(target_affine)
+
+        r = int(voxel_sigma_threshold * sigma_vox)
+        k_size = 2 * r + 1
+        impulse = np.zeros((k_size, k_size, k_size))
+        impulse[r, r, r] = 1
+        kernel = gaussian(impulse, sigma_vox)
+        kernel /= kernel.sum()
+
+        effective_r = int(kernel.shape[0] / 2)
+        voxel_coords = np.asanyarray(
+            Point.transform(self, voxel_transformation_affine).coordinate, dtype="int"
+        )
+        shift = np.identity(4)
+        shift[:3, -1] = voxel_coords[:3, 0] - effective_r
+        kernel_affine = np.dot(voxel_transformation_affine, shift)
+
+        return Nifti1Image(dataobj=kernel, affine=kernel_affine)
 
 
 def parse(spec, unit="mm") -> Tuple[float, float, float]:

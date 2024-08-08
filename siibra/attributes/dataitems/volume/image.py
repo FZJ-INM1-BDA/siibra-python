@@ -49,6 +49,10 @@ class Image(Volume):
         bbox_getter = get_bbox_getter(self.format)
         return bbox_getter(self)
 
+    def get_affine(self, **fetch_kwargs: FetchKwargs):
+        # TODO: pull from source without fetching the whole image
+        return self.fetch(**fetch_kwargs).affine
+
     def fetch(
         self,
         bbox: "BoundingBox" = None,
