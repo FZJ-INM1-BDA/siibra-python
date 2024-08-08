@@ -39,7 +39,7 @@ class PointCloud(Location):
 
     def __iter__(self) -> Iterator[point.Point]:
         """Return an iterator over the coordinate locations."""
-        yield self.to_pts()
+        yield from self.to_pts()
 
     def __len__(self):
         """The number of points in this PointCloud."""

@@ -37,7 +37,7 @@ SPACEWARP_IDS = {
     "minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588": "Big Brain (Histology)",
 }
 
-T = TypeVar("T", Location)
+T = TypeVar("T", bound=Location)
 _warpers: Dict["Location", Callable] = {}
 session = requests.Session()
 
