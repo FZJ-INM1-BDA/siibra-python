@@ -18,6 +18,7 @@ from typing import Union, Tuple
 
 import numpy as np
 import nibabel as nib
+from nilearn.image import resample_to_img
 from pathlib import Path
 from hashlib import md5
 from io import BytesIO
@@ -34,7 +35,6 @@ from ....retrieval.volume_fetcher.volume_fetcher import (
     FetchKwargs,
     IMAGE_FORMATS,
 )
-from ....commons_new.logger import logger
 
 
 @dataclass
@@ -93,6 +93,90 @@ class Image(Volume):
             yield f"Image (format={self.format})", suffix, BytesIO(gzipped)
         except Exception as e:
             yield f"Image (format={self.format}): to zippable error.", ".error.txt", BytesIO(str(e).encode("utf-8"))
+
+    def read_values_at_points(
+        self,
+        ptcloud: Union["point.Point", "pointset.PointCloud"],
+        **fetch_kwargs: FetchKwargs,
+    ):
+        """
+        Evaluate the image at the positions of the given points.
+
+        Note
+        ----
+        Uses nearest neighbor interpolation. Other interpolation schemes are not
+        yet implemented.
+
+        Parameters
+        ----------
+        points: PointSet
+        outside_value: int, float. Default: 0
+        fetch_kwargs: dict
+            Any additional arguments are passed to the `fetch()` call for
+            retrieving the image data.
+        """
+        if ptcloud.space.ID != self.space.ID:
+            raise ValueError(
+                "Points and Image must be in the same space. You can warp points "
+                "space of the image with `warp()` method."
+            )
+
+        if isinstance(ptcloud, point.Point):
+            ptcloud_ = pointset.from_points(points=[ptcloud])
+        else:
+            ptcloud_ = ptcloud
+
+        nii = self.fetch(**fetch_kwargs)
+
+        # transform the points to the voxel space of the volume for extracting values
+        phys2vox = np.linalg.inv(nii.affine)
+        voxels = pointset.PointCloud.transform(ptcloud_, phys2vox)
+
+        return self.read_voxels(
+            voxel_coordinates=np.array(voxels.coordinates).astype("int"),
+            **fetch_kwargs,
+        )
+
+    def read_voxels(
+        self,
+        voxel_coordinates: Union[
+            Tuple[int, int, int], Tuple[np.ndarray, np.ndarray, np.ndarray]
+        ],
+        **fetch_kwargs,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Read out the values of this Image for a given set of voxel coordinates.
+
+        Note
+        ----
+        The fetch_kwargs are passed on to the `image.fetch()`.
+
+        Parameters
+        ----------
+        voxel_coordinates : Union[ Tuple[int, int, int], Tuple[np.ndarray, np.ndarray, np.ndarray] ]
+
+
+        Returns
+        -------
+        Tuple[np.ndarray, np.ndarray]
+            First array provides the indicies of valid voxel coordinates, and the
+            second contains the respective values. Invalid voxel coordinate means
+            the values lie outside of the nifti array.
+        """
+        nii = self.fetch(**fetch_kwargs)
+
+        if any(isinstance(di, int) for di in voxel_coordinates):
+            xyz = np.stack(tuple(np.array(di) for di in voxel_coordinates), axis=1)
+        else:
+            xyz = np.stack(voxel_coordinates, axis=1)
+
+        valid_points_mask = np.all(
+            [(0 <= di) & (di < vol_size) for vol_size, di in zip(nii.shape, xyz.T)], axis=0
+        )
+        x, y, z = xyz[valid_points_mask].T
+        valid_points_indices, *_ = np.where(valid_points_mask)
+        valid_nii_values = np.asanyarray(nii.dataobj)[x, y, z]
+        return valid_points_indices, valid_nii_values
 
 
 def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "Image":
@@ -166,34 +250,75 @@ def compare_ptcloud_to_image(ptcloud: pointset.PointCloud, image: Image):
 def intersect_ptcld_image(
     ptcloud: pointset.PointCloud, image: Image
 ) -> pointset.PointCloud:
-    if image.space_id != ptcloud.space_id:
-        raise InvalidAttrCompException(
-            "ptcloud and image are in different space. Cannot compare the two."
+    value_outside = 0
+    values = image.read_values_at_points(ptcloud, outside_value=value_outside)
+    inside = list(np.where(values != value_outside)[0])
+    return replace(ptcloud, coordinates=[ptcloud.coordinates[i] for i in inside])
+
+
+@_loc_intersection.register(Image, Image)
+def intersect_image_to_image(image0: Image, image1: Image):
+    nii0 = image0.fetch()
+    nii1 = image1.fetch()
+    if np.issubdtype(nii0.dataobj, np.floating) or np.issubdtype(
+        nii1.dataobj, np.floating
+    ):
+        pass
+    else:
+        elementwise_mask_intersection = intersect_nii_to_nii(nii0, nii1)
+        return from_nifti(
+            elementwise_mask_intersection,
+            space_id=image0.space_id,
         )
 
-    value_outside = 0
 
-    img = image.fetch()
-    arr = np.asanyarray(img.dataobj)
+def resample_img_to_img(
+    source_img: nib.Nifti1Image, target_img: nib.Nifti1Image, interpolation: str = ""
+) -> nib.Nifti1Image:
+    """
+    Resamples to source image to match the target image according to target's
+    affine. (A wrapper of `nilearn.image.resample_to_img`.)
 
-    # transform the points to the voxel space of the volume for extracting values
-    phys2vox = np.linalg.inv(img.affine)
-    voxels = pointset.PointCloud.transform(ptcloud, phys2vox)
-    XYZ = np.array(voxels.coordinates).astype("int")
+    Parameters
+    ----------
+    source_img : Nifti1Image
+    target_img : Nifti1Image
+    interpolation : str, Default: "nearest" if the source image is a mask otherwise "linear".
+        Can be 'continuous', 'linear', or 'nearest'. Indicates the resample method.
 
-    # temporarily set all outside voxels to (0,0,0) so that the index access doesn't fail
-    # TODO in previous version, zero'th voxel is excluded on all sides (i.e. (XYZ > 0) was tested)
-    # is there a reason why the zero-th voxel is excluded?
-    inside = np.all((XYZ < arr.shape) & (XYZ >= 0), axis=1)
-    XYZ[~inside, :] = 0
+    Returns
+    -------
+    Nifti1Image
+    """
+    interpolation = (
+        "nearest" if np.array_equal(np.unique(source_img.dataobj), [0, 1]) else "linear"
+    )
+    resampled_img = resample_to_img(
+        source_img=source_img, target_img=target_img, interpolation=interpolation
+    )
+    return resampled_img
 
-    # read out the values
-    X, Y, Z = XYZ.T
-    values = arr[X, Y, Z]
 
-    # fix the outside voxel values, which might have an inconsistent value now
-    values[~inside] = value_outside
+def intersect_nii_to_nii(nii0: nib.Nifti1Image, nii1: nib.Nifti1Image):
+    """
+    Get the intersection of the images' masks.
 
-    inside = list(np.where(values != value_outside)[0])
+    Note
+    ----
+    Assumes the background is 0 for both nifti.
 
-    return replace(ptcloud, coordinates=[ptcloud.coordinates[i] for i in inside])
+    Parameters
+    ----------
+    nii0 : nib.Nifti1Image
+    nii1 : nib.Nifti1Image
+
+    Returns
+    -------
+    nib.Nifti1Image
+        returns a mask (i.e. dtype('uint8'))
+    """
+    arr0 = np.asanyarray(nii0.dataobj).astype("uint8")
+    nii1_on_nii0 = resample_img_to_img(nii1, nii0)
+    arr1 = np.asanyarray(nii1_on_nii0.dataobj).astype("uint8")
+    elementwise_min = np.minimum(arr0, arr1)
+    return nib.Nifti1Image(dataobj=elementwise_min, affine=nii0.affine)
