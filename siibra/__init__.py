@@ -38,7 +38,7 @@ from .atlases.region import filter_newest
 from .attributes import Attribute, AttributeCollection
 from .attributes.descriptions import Modality, RegionSpec, Gene
 from .attributes.descriptions.modality import modality_vocab
-from .attributes.locations import Location
+from .attributes.locations import Location, Point, PointCloud, BoundingBox
 from .concepts import AtlasElement, QueryParam, Feature
 from .assignment import (
     string_search,
