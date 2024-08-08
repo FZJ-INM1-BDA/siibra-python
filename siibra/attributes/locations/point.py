@@ -23,7 +23,10 @@ import re
 import numpy as np
 
 from .base import Location
-from ...commons_new.logger import logger
+
+
+if TYPE_CHECKING:
+    from nibabel import Nifti1Image
 
 
 @dataclass
@@ -35,13 +38,6 @@ class Point(Location):
     @property
     def homogeneous(self):
         return np.atleast_2d(list(self.coordinate) + [1,])
-
-    @staticmethod
-    def transform(pt: "Point", affine: np.ndarray):
-        x, y, z, h = np.dot(affine, pt.homogeneous.T)
-        if h != 1:
-            logger.warning(f"Homogeneous coordinate is not one: {h}")
-        return replace(pt, coordinate=[x / h, y / h, z / h])
 
     def __add__(self, other):
         """Add the coordinates of two points to get

@@ -43,24 +43,6 @@ class BoundingBox(Location):
             return False
         return self.minpoint == other.minpoint and self.maxpoint == other.maxpoint
 
-    @staticmethod
-    def transform(bbox: "BoundingBox", affine: np.ndarray):
-        xs, ys, zs = zip(
-            bbox._minpoint,
-            bbox._maxpoint
-        )
-        corners = [
-            point.Point(coordinate=[x, y, z], space_id=bbox.space_id)
-            for x, y, z in product(xs, ys, zs)
-        ]
-
-        new_corners = [point.Point.transform(cornerpt, affine) for cornerpt in corners]
-        new_coorner_coord = np.array([cnr.coordinate for cnr in new_corners])
-
-        new_maxpt = np.max(new_coorner_coord, axis=0).tolist()
-        new_minpt = np.min(new_coorner_coord, axis=0).tolist()
-        return replace(bbox, maxpoint=new_maxpt, minpoint=new_minpt)
-
     @property
     def volume(self) -> float:
         """The volume of the boundingbox in mm^3"""
@@ -98,22 +80,14 @@ class BoundingBox(Location):
         ]
         TODO: deal with sigma. Currently, returns the mean of min and max point.
         """
-        x0, y0, z0 = self.minpoint
-        x1, y1, z1 = self.maxpoint
-        all_corners = [
-            (x0, y0, z0),
-            (x1, y0, z0),
-            (x0, y1, z0),
-            (x1, y1, z0),
-            (x0, y0, z1),
-            (x1, y0, z1),
-            (x0, y1, z1),
-            (x1, y1, z1)
-        ]
-        return pointset.PointCloud(
-            coordinates=all_corners,
-            space_id=self.space_id,
-            sigma=[0 for _ in all_corners],
+        xs, ys, zs = zip(
+            self.minpoint,
+            self.maxpoint
+        )
+        return pointset.PointCloud(coordinates=[
+            [x, y, z]
+            for x, y, z in product(xs, ys, zs)
+        ], space_id=self.space_id
         )
 
 

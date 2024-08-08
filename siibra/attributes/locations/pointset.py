@@ -26,9 +26,16 @@ from . import point, boundingbox as _boundingbox
 @dataclass
 class PointCloud(Location):
     # TODO: reconsider how to implement `labels`.
+    # TODO: coordinates should be a numpy array
     schema = "siibra/attr/loc/pointcloud/v0.1"
     coordinates: List[List[float]] = field(default_factory=list, repr=False)
     sigma: List[float] = field(default_factory=list, repr=False)
+
+    def __post_init__(self):
+        if self.sigma:
+            assert len(self.sigma) == len(self.coordinates)
+        else:
+            self.sigma = np.zeros(len(self.coordinates), 0).to_list()
 
     def __iter__(self) -> Iterator[point.Point]:
         """Return an iterator over the coordinate locations."""
@@ -66,15 +73,6 @@ class PointCloud(Location):
             for coord in self.coordinates
         ]
 
-    @staticmethod
-    def transform(ptcloud: "PointCloud", affine: np.ndarray):
-        new_coord: np.ndarray = np.dot(affine, ptcloud.homogeneous.T)[:3, :].T
-        return PointCloud(
-            coordinates=new_coord.tolist(),
-            space_id=ptcloud.space_id,
-            sigma=ptcloud.sigma,
-        )
-
     def append(self, pt: "point.Point"):
         self.coordinates.append(pt.coordinate)
         self.sigma.append(pt.sigma)
@@ -87,15 +85,16 @@ class PointCloud(Location):
     @property
     def boundingbox(self):
         """Return the bounding box of these points."""
-        XYZ = np.array(self.coordinates)
+        minpoint = np.min(self.coordinates, axis=0)
+        maxpoint = np.max(self.coordinates, axis=0)
 
         # TODO pointcloud sigma is currently broken
         # sigma length does not necessary equal to length of points
-        sigma_min = [0] # max(self.sigma[i] for i in XYZ.argmin(0))
-        sigma_max = [0] # max(self.sigma[i] for i in XYZ.argmax(0))
+        sigma_min = [0]  # max(self.sigma[i] for i in XYZ.argmin(0))
+        sigma_max = [0]  # max(self.sigma[i] for i in XYZ.argmax(0))
         return _boundingbox.BoundingBox(
-            minpoint=XYZ.min(0) - max(sigma_min),
-            maxpoint=XYZ.max(0) + max(sigma_max),
+            minpoint=minpoint - max(sigma_min),
+            maxpoint=maxpoint + max(sigma_max),
             space_id=self.space_id,
         )
 

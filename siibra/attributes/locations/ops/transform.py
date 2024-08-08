@@ -31,6 +31,7 @@
 
 from typing import Generic, TypeVar, Dict, Callable
 from functools import wraps
+from dataclasses import replace
 
 import numpy as np
 
@@ -40,7 +41,7 @@ from ..pointset import PointCloud
 from ..boundingbox import BoundingBox
 from ....commons_new.logger import logger
 
-T = TypeVar("T")
+T = TypeVar("T", Location)
 _tranformers: Dict["Location", Callable] = {}
 
 
@@ -60,7 +61,9 @@ def _register_warper(location_type: Generic[T]):
 
 
 @_register_warper(Point)
-def transform_point(point: Point, affine: np.ndarray, target_space_id: str = None) -> Point:
+def transform_point(
+    point: Point, affine: np.ndarray, target_space_id: str = None
+) -> Point:
     """Returns a new Point obtained by transforming the
     coordinate of this one with the given affine matrix.
     TODO this needs to maintain sigma
@@ -81,26 +84,29 @@ def transform_point(point: Point, affine: np.ndarray, target_space_id: str = Non
     x, y, z, h = np.dot(affine, point.homogeneous.T)
     if h != 1:
         logger.warning(f"Homogeneous coordinate is not one: {h}")
-    return Point(
-        coordinate=[x / h, y / h, z / h], space_id=target_space_id
-    )
+    return replace(point, coordinate=[x / h, y / h, z / h], space_id=target_space_id)
 
 
 @_register_warper(PointCloud)
-def transform_pointcloud(ptcloud: PointCloud, affine: np.ndarray, target_space_id: str = None) -> PointCloud:
+def transform_pointcloud(
+    ptcloud: PointCloud, affine: np.ndarray, target_space_id: str = None
+) -> PointCloud:
     if any(s != 0 for s in ptcloud.sigma):
         logger.warning("NotYetImplemented: sigma won't be retained.")
-    return PointCloud(
+    return replace(
+        ptcloud,
         coordinates=np.dot(affine, ptcloud.homogeneous.T)[:3, :].T,
-        space_id=target_space_id
+        space_id=target_space_id,
     )
 
 
 @_register_warper(BoundingBox)
-def transform_boundingbox(bbox: BoundingBox, affine: np.ndarray, target_space_id: str = None) -> BoundingBox:
+def transform_boundingbox(
+    bbox: BoundingBox, affine: np.ndarray, target_space_id: str = None
+) -> BoundingBox:
     tranformed_corners = bbox.corners.transform(affine, target_space_id)
     return tranformed_corners.boundingbox
 
 
-def transform(loc: Location, space_id: str) -> Location:
-    return _tranformers[type(loc)](loc, space_id)
+def transform(loc: T, affine: np.ndarray, space_id: str = None) -> T:
+    return _tranformers[type(loc)](loc, affine, space_id)

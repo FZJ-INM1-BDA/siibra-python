@@ -14,9 +14,13 @@
 # limitations under the License.
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from ...attributes import Attribute
 from ...commons_new.iterable import assert_ooo
+
+if TYPE_CHECKING:
+    from numpy import ndarray
 
 
 @dataclass
@@ -51,7 +55,7 @@ class Location(Attribute):
 
         return _warp(self, space_id)
 
-    def transform(self, space_id: str):
+    def transform(self, affine: "ndarray", space_id: str = None):
         from .ops.transform import transform as _transform
 
-        return _transform(self, space_id)
+        return _transform(self, affine, space_id)
