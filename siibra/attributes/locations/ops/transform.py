@@ -37,7 +37,7 @@ import numpy as np
 
 from ..base import Location
 from ..point import Point
-from ..pointset import PointCloud
+from ..pointcloud import PointCloud
 from ..boundingbox import BoundingBox
 from ....commons_new.logger import logger
 
