@@ -29,7 +29,7 @@ from ..retrieval.file_fetcher.dataproxy_fetcher import DataproxyRepository
 
 if TYPE_CHECKING:
     from . import Space, Parcellation
-    from ..attributes.locations import PointCloud
+    from ..attributes.locations import PointCloud, BoundingBox
     from ..assignment.qualification import Qualification
 
 
@@ -88,6 +88,27 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
 
         spatialprops = self._get_spatialprops(space=space, maptype="labelled")
         return PointCloud([sp["centroid"] for sp in spatialprops], space_id=space.ID)
+
+
+    def get_boundingbox(self, space: Union[str, "Space", None] = None) -> "BoundingBox":
+        from ..attributes.locations.boundingbox import from_array, BoundingBox
+        from .. import get_space, find_maps
+
+        if isinstance(space, str):
+            space = get_space(space)
+
+        if space is None:
+            mps = find_maps(parcellation=self.parcellation.ID)
+            assert len(mps) == 1, f"Expected one and only one map for {str(self)}, but found {len(mps)}."
+            mp = mps[0]
+            space = mp.space
+
+        mask = self.fetch_regional_mask(space)
+        bbox = from_array(mask.dataobj)
+        bbox = BoundingBox.transform(bbox, mask.affine)
+        bbox.space_id = space.ID
+        return bbox
+
 
     def get_components(self, space: Union[str, "Space", None] = None):
         spatialprops = self._get_spatialprops(space=space, maptype="labelled")

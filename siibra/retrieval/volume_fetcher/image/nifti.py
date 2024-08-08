@@ -39,7 +39,7 @@ def create_mask(
 def extract_labels(nii: Nifti1Image, labels: List[int]):
     arr = np.asanyarray(nii.dataobj)
     new_arr = sum([label * (arr == label) for label in labels])
-    return Nifti1Image(new_arr, nii.affine)
+    return Nifti1Image(new_arr, nii.affine, dtype=nii.get_data_dtype())
 
 
 def extract_float_range(nii: Nifti1Image, range: Tuple[float, float]):

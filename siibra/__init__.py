@@ -89,8 +89,8 @@ def find_parcellations(parc_spec: str):
 
 @fn_call_cache
 def find_maps(
-    parcellation: str = None,
-    space: str = None,
+    parcellation: Union[str, None] = None,
+    space: Union[str, None] = None,
     maptype: str = "labelled",
     extra_spec: str = "",
 ):
@@ -99,11 +99,16 @@ def find_maps(
     from .attributes.descriptions import SpaceSpec, ParcSpec
     from .concepts import QueryParam
 
-    space_query = QueryParam(attributes=[SpaceSpec(value=space)])
-    parc_query = QueryParam(attributes=[ParcSpec(value=parcellation)])
+    queries = []
+    if space:
+        space_query = QueryParam(attributes=[SpaceSpec(value=space)])
+        queries.append(space_query)
+    if parcellation:
+        parc_query = QueryParam(attributes=[ParcSpec(value=parcellation)])
+        queries.append(parc_query)
     return [
         mp
-        for mp in find([space_query, parc_query], parcellationmap.Map)
+        for mp in find(queries, parcellationmap.Map)
         if mp.maptype == maptype and extra_spec in mp.name
     ]
 
