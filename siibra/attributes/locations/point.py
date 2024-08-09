@@ -16,7 +16,7 @@
 """Singular coordinate defined on a space, possibly with an uncertainty."""
 
 from dataclasses import dataclass, field
-from typing import Tuple, List, TYPE_CHECKING
+from typing import Tuple, TYPE_CHECKING
 import numbers
 import re
 
@@ -32,16 +32,26 @@ if TYPE_CHECKING:
 @dataclass
 class Point(Location):
     schema = "siibra/attr/loc/point/v0.1"
-    coordinate: List[float] = field(default_factory=list)
+    coordinate: Tuple[float] = field(default_factory=tuple)
     sigma: float = 0.0
 
+    def __post_init__(self):
+        if isinstance(self.coordinate, (list, np.ndarray)):
+            self.coordinate = tuple(self.coordinate)
+
     @property
-    def homogeneous(self):
+    def homogeneous(self) -> np.ndarray:
         return np.atleast_2d(list(self.coordinate) + [1,])
 
+    def to_ndarray(self) -> np.ndarray:
+        """Return the coordinates as an numpy array"""
+        return np.asarray(self.coordinate)
+
     def __add__(self, other):
-        """Add the coordinates of two points to get
-        a new point representing."""
+        """
+        Add the coordinates of two points to get a new point representing the
+        elementwise addition.
+        """
         if isinstance(other, numbers.Number):
             return Point(
                 coordinate=[c + other for c in self.coordinate],
@@ -87,8 +97,7 @@ class Point(Location):
         return all(self[i] == other[i] for i in range(3)) and self.sigma == other.sigma
 
     def __iter__(self):
-        """Return an iterator over the location,
-        so the Point can be easily cast to list or tuple."""
+        """Return an iterator over dimensions of the coordinate."""
         return iter(self.coordinate)
 
     def create_gaussian_kernel(

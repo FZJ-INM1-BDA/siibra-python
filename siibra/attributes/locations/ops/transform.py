@@ -84,7 +84,7 @@ def transform_point(
     x, y, z, h = np.dot(affine, point.homogeneous.T)
     if h != 1:
         logger.warning(f"Homogeneous coordinate is not one: {h}")
-    return replace(point, coordinate=[x / h, y / h, z / h], space_id=target_space_id)
+    return replace(point, coordinate=(x / h, y / h, z / h), space_id=target_space_id)
 
 
 @_register_warper(PointCloud)
@@ -95,7 +95,9 @@ def transform_pointcloud(
         logger.warning("NotYetImplemented: sigma won't be retained.")
     return replace(
         ptcloud,
-        coordinates=np.dot(affine, ptcloud.homogeneous.T)[:3, :].T.tolist(),
+        coordinates=PointCloud._parse_values(
+            np.dot(affine, ptcloud.homogeneous.T)[:3, :].T
+        )[0],
         space_id=target_space_id,
     )
 

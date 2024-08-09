@@ -15,9 +15,10 @@
 
 """A set of coordinates on a reference space."""
 
-from typing import List, Union, Iterator
-import numpy as np
+from typing import List, Union, Iterator, Tuple
 from dataclasses import dataclass, field
+
+import numpy as np
 
 from .base import Location
 from . import point, boundingbox as _boundingbox
@@ -26,20 +27,31 @@ from . import point, boundingbox as _boundingbox
 @dataclass
 class PointCloud(Location):
     # TODO: reconsider how to implement `labels`.
-    # TODO: coordinates should be a numpy array
     schema = "siibra/attr/loc/pointcloud/v0.1"
-    coordinates: List[List[float]] = field(default_factory=list, repr=False)
+    coordinates: List[Tuple[float]] = field(default_factory=list, repr=False)
     sigma: List[float] = field(default_factory=list, repr=False)
 
-    def __post_init__(self):
-        if self.sigma:
-            assert len(self.sigma) == len(self.coordinates)
+    @staticmethod
+    def _parse_values(
+        coordinates: Union[List[Tuple[float]], np.ndarray],
+        sigma: Union[List, np.ndarray] = None,
+    ) -> Tuple[List[Tuple[float]], List[float]]:
+        if sigma:
+            assert len(sigma) == len(coordinates)
         else:
-            self.sigma = np.zeros(len(self.coordinates)).tolist()
+            sigma = list(np.zeros(len(coordinates)))
+        if isinstance(sigma, (tuple, np.ndarray)):
+            sigma = list(sigma)
+        if isinstance(coordinates, (tuple, np.ndarray)):
+            coordinates = list(tuple(c) for c in coordinates)
+        return coordinates, sigma
+
+    def __post_init__(self):
+        self.coordinates, self.sigma = self._parse_values(self.coordinates, self.sigma)
 
     def __iter__(self) -> Iterator[point.Point]:
         """Return an iterator over the coordinate locations."""
-        yield from self.to_pts()
+        yield from self.to_points()
 
     def __len__(self):
         """The number of points in this PointCloud."""
@@ -64,14 +76,18 @@ class PointCloud(Location):
         )
 
     @property
-    def homogeneous(self):
+    def homogeneous(self) -> np.ndarray:
         return np.c_[self.coordinates, np.ones(len(self.coordinates))]
 
-    def to_pts(self):
+    def to_points(self) -> List[point.Point]:
         return [
             point.Point(space_id=self.space_id, coordinate=coord)
             for coord in self.coordinates
         ]
+
+    def to_ndarray(self) -> np.ndarray:
+        """Return the coordinates as an numpy array"""
+        return np.asarray(self.coordinates)
 
     def append(self, pt: "point.Point"):
         self.coordinates.append(pt.coordinate)
@@ -145,7 +161,7 @@ class Contour(PointCloud):
 
 def from_points(points: List["point.Point"]) -> "PointCloud":
     if len(points) == 0:
-        return PointCloud([])
+        return PointCloud(coordinates=(), sigma=(), space_id=None)
     spaces = {p.space for p in points}
     assert (
         len(spaces) == 1
@@ -157,18 +173,18 @@ def from_points(points: List["point.Point"]) -> "PointCloud":
 
 # TODO: requires labels
 # def find_clusters(self, min_fraction=1 / 200, max_fraction=1 / 8):
-    # try:
-    #     from sklearn.cluster import HDBSCAN
+# try:
+#     from sklearn.cluster import HDBSCAN
 
-    #     _HAS_HDBSCAN = True
-    # except ImportError:
-    #     import sklearn
+#     _HAS_HDBSCAN = True
+# except ImportError:
+#     import sklearn
 
-    #     _HAS_HDBSCAN = False
-    #     logger.warning(
-    #         f"HDBSCAN is not available with your version {sklearn.__version__} of sckit-learn."
-    #         "`PointSet.find_clusters()` will not be avaiable."
-    #     )
+#     _HAS_HDBSCAN = False
+#     logger.warning(
+#         f"HDBSCAN is not available with your version {sklearn.__version__} of sckit-learn."
+#         "`PointSet.find_clusters()` will not be avaiable."
+#     )
 #     if not _HAS_HDBSCAN:
 #         raise RuntimeError(
 #             f"HDBSCAN is not available with your version {sklearn.__version__} "

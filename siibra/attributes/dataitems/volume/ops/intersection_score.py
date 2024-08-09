@@ -276,7 +276,7 @@ def get_pointcloud_intersection_score(
     if (len(set(points.sigma)) == 1) and (
         points.sigma[0] / scaling < voxel_sigma_threshold
     ):
-        for pointindex, value in image.read_values_at_points(
+        for (pointindex, value) in image.read_values_at_points(
             ptcloud=points_, **fetch_kwargs
         ):
             if value <= statistical_map_lower_threshold:
@@ -284,7 +284,7 @@ def get_pointcloud_intersection_score(
             assignments.append(
                 ImageAssignment(
                     input_structure=pointindex,
-                    centroid=points[pointindex].coordinate,
+                    centroid=points.coordinates[pointindex],
                     map_value=value,
                 )
             )
@@ -301,7 +301,7 @@ def get_pointcloud_intersection_score(
             assignments.append(
                 ImageAssignment(
                     input_structure=pointindex,
-                    centroid=points[pointindex].coordinate,
+                    centroid=points.coordinates[pointindex],
                     map_value=value,
                 )
             )

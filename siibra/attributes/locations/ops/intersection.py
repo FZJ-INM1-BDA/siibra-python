@@ -58,7 +58,7 @@ def pt_bbox(pt: Point, bbox: BoundingBox):
 def ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
     if ptclda.space_id != ptcldb.space_id:
         raise InvalidAttrCompException
-    pts = [pt for pt in ptclda.to_pts() if pt_ptcld(pt, ptcldb) is not None]
+    pts = [pt for pt in ptclda.to_points() if pt_ptcld(pt, ptcldb) is not None]
     if len(pts) == 0:
         return
     if len(pts) == 1:
@@ -70,7 +70,7 @@ def ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
 def ptcld_bbox(ptcld: PointCloud, bbox: BoundingBox):
     if ptcld.space_id != bbox.space_id:
         raise InvalidAttrCompException
-    pts = [pt for pt in ptcld.to_pts() if pt_bbox(pt, bbox) is not None]
+    pts = [pt for pt in ptcld.to_points() if pt_bbox(pt, bbox) is not None]
     if len(pts) == 0:
         return
     if len(pts) == 1:
