@@ -180,7 +180,7 @@ class Image(Volume):
         valid_points_indices, *_ = np.where(valid_points_mask)
         nii_arr = np.asanyarray(nii.dataobj).astype(nii.dataobj.dtype)
         valid_nii_values = nii_arr[valid_x, valid_y, valid_z]
-        return valid_points_indices.tolist(), valid_nii_values
+        return valid_points_indices.astype(int).tolist(), valid_nii_values
 
 
 def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "Image":
