@@ -48,14 +48,8 @@ _tranformers: Dict["Location", Callable] = {}
 def _register_warper(location_type: Generic[T]):
 
     def outer(fn: Callable[[Location], Location]):
-
-        @wraps(fn)
-        def inner(loc: "Location", affine: np.ndarray, target_space: str):
-            return fn(loc, affine, target_space)
-
-        _tranformers[location_type] = inner
-
-        return inner
+        _tranformers[location_type] = fn
+        return fn
 
     return outer
 
