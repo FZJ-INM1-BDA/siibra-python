@@ -10,25 +10,25 @@ Each of the many statistical maps catalogued by siibra often contains hundreds o
 
 2/ iterate over all NifTI images and only read them as needed with no caching
 
-The former boasts significant improvement to speed to subsequent assignments, at the cost of significant memory usage[1]. Despite this, the performance of both approaches suffer from a cold start, as hundreds of NiFTi files needs to be opened and potentially decompressed. (This performance penalty punishes the latter more severly, as each subsequent probabilistic assignment would incur performance cost over and over again.)
+The former boasts significant improvement to speed to subsequent assignments, at the cost of significant memory usage[1]. Despite this, the performance of both approaches suffer from a cold start, as hundreds of NiFTi files need to be opened and potentially decompressed. (This performance penalty punishes the latter more severely, as each subsequent probabilistic assignment would incur performance cost over and over again.)
 
-Spatial index exploits the nature of statistical maps in that they are often localized to a small number of voxels. Both memory usage and peroformance can be greatly improved by replacing the sparsely populated NiFTi images with a "spatial dictionary", where the voxel value encodes values on how the statistical value can be retrieved.
+Spatial index exploits the nature of statistical maps in that they are often localized to a small number of voxels. Both memory usage and performance can be greatly improved by replacing the sparsely populated NiFTi images with a "spatial dictionary", where the voxel value encodes values on how the statistical value can be retrieved, from an "assignment table"
 
-## Motiviation of MESI
+## Motivation of MESI
 
-The first implementation of spatial index (here after referred to as "old spatial index") contains several inefficiencies, some of these, MESI will try to address.
+The first implementation of spatial index (hereafter referred to as "old spatial index") contains several inefficiencies:
 
 - spatial index encodes line number 
 
-The old spatial index, each of the voxel encode the line number in the corresponding assignment table. As a result, in order to decode an entry in the spatial dictionary, one must start parsing from the beginning. Either read and parse the entire text, or until number of line breaks has been encountered.
+The old spatial index, each of the voxel encodes the line number in the corresponding assignment table. As a result, in order to decode an entry in the spatial dictionary, the "assignment table" file needs to be read from the beginning of the file.
 
 - assignment table contains full region name
 
-The old spatial index contain region names in the assignment table. This bloats the size of the assignment table. To alleviate the bloat, the assignment table is gzipped.
+The old spatial index contains region names in the assignment table. This bloats the size of the assignment table. To alleviate the bloat, the assignment table is gzipped.
 
 - the assignment table is stored in memory
 
-The combination of both of above means that the assignment table is often downloaded (or read) and decompressed in memory. 
+The combination of both of the above means that the assignment table is often downloaded (or read) and decompressed in memory. 
 
 - lack of version info
 
@@ -63,21 +63,21 @@ uint64 NiFTi 1 Image file. Each voxel encodes two 32 bit values, offset and byte
 
 2.3/ For every voxel, offset (2.1) + bytes (2.2) *must* be less or equal to the file size of probability file (3.)
 
-### 3/ Probability file `{filename}.mesi.probs.txt`
+### 3/ Assignment table file `{filename}.mesi.probs.txt`
 
 3.1/ For all voxel in (2.), byte range from offset (2.1) to 
 offset + bytes (2.2) (i.e. `seek(offset); read(bytes)`) *must* be a utf-8 encoded string.
 
-3.2/ All string in 3.1. *must* be either an empty string or a JSON object.
+3.2/ All strings in 3.1. *must* be either an empty string or a JSON object.
 
 3.3/ For all JSON object in 3.2, its keys *must* follow the following regex format: `^([1-9][0-9]+|0)$` (i.e. can be converted to `int`)
 
-3.4/ Each of the keys in 3.3., on converted to `int` must be less than the size of number of JSON object parsed in (1.2.)
+3.4/ Each of the keys in 3.3., when converted to `int` must be less than the count of of JSON objects parsed in (1.2.)
 
 
 ## Usage
 
-Below demonstrates a step-by-step walkthrough on MESI's read and write implmementations. They have already been implemented in python, but is never the less useful for:
+Below demonstrates a step-by-step walkthrough on MESI's read and write implmentations. They have already been implemented in python, but is nevertheless useful for:
 
 1/ translating it into other languages
 
@@ -87,7 +87,7 @@ Below demonstrates a step-by-step walkthrough on MESI's read and write implmemen
 
 To access the probability assignment at `[x, y, z]` voxel position
 
-0/ read `{filename}.mesi.meta.txt`, ignore the first line, then split by new line characters. For each of the line as a JSON object.
+0/ read `{filename}.mesi.meta.txt`, ignore the first line, then split by new line characters. For each of the lines as a JSON object.
 
 1/ read the `uint64` value at the voxel position `[x, y, z]` from `{filename}.mesi.voxel.nii.gz`
 
@@ -97,7 +97,7 @@ To access the probability assignment at `[x, y, z]` voxel position
 
 4/ load result from 3/, decode as utf-8, parse the string as JSON. This should be a dictionary with `str` as key and `float` as value. 
 
-5/ for each of the key in 4/, parse as `int`. Use the result value as the list index from the list in 0/ to retrieve a dictionary. Use `regionname` string accessor on the said dictionary to retrieve the region name
+5/ for each of the keys in 4/, parse as `int`. Use the result value as the list index from the list in 0/ to retrieve a dictionary. Use `regionname` string accessor on the said dictionary to retrieve the region name
 
 
 ## Examples
@@ -134,7 +134,7 @@ The below example reads the MESI saved above.
 import siibra
 from tqdm import tqdm
 
-spi = siibra.atlases.sparsemap.MESI("icbm152_julich2_9", "mesi", mode="r")
+spi = siibra.atlases.sparsemap.SparseIndex("mesi/icbm152_julich2_9", mode="r")
 
 pt_phys = [-4.077, -79.717, 11.356]
 space = siibra.get_space("icbm 152")
@@ -145,13 +145,17 @@ voxelcoord = np.array(pt_voxel.coordinate).astype("int")
 
 val = spi.read([voxelcoord])
 print(val) # prints [{'Area hOc2 (V2, 18) - left hemisphere': 0.33959856629371643, 'Area hOc1 (V1, 17, CalcS) - left hemisphere': 0.6118946075439453}]
+
+remote_spi = siibra.atlases.sparsemap.SparseIndex("https://data-proxy.ebrains.eu/api/v1/buckets/test-sept-22/icbm152_julich2_9.mesi", mode="r")
+
+assert remote_spi.read([voxelcoord]) == val
 ```
 
 ## Advantages
 
 - memory efficiency
 
-    The only files that needs to be read in memory is `{filename}.mesi.voxel.nii.gz` and `{filename}.mesi.meta.txt`. See [2] and [3] for a memory usage comparison.
+    The only files that need to be stored in memory are `{filename}.mesi.voxel.nii.gz` and `{filename}.mesi.meta.txt`. See [2] and [3] for a memory usage comparison.
 
 - better cold start performance
 
@@ -161,7 +165,7 @@ print(val) # prints [{'Area hOc2 (V2, 18) - left hemisphere': 0.3395985662937164
 
 - MESI much easily invalidated
 
-    As MESI uses offset and byte ranges as pointer, any changes to the spatial index will likely invalidate the entire index. But generating index is a (relatively) quick process, and should not 
+    As MESI uses offset and byte ranges as pointers, any changes to the spatial index will likely invalidate the entire index. But generating index is a (relatively) quick process, and should not 
 
 - mild performance penalty
 
@@ -169,7 +173,7 @@ print(val) # prints [{'Area hOc2 (V2, 18) - left hemisphere': 0.3395985662937164
 
 - `{filename}.mesi.probs.txt` cannot be compressed (per file basis)
     
-    As MESI uses byte range, no compression on the file level will work. However, storage is more readily available than memory. In most circumstance, this is a good tradeoff. 
+    As MESI uses byte range, no compression on the file level will work. However, storage is more readily available than memory. In most circumstances, this is a good tradeoff. 
 
 
 ## Potential future developments
@@ -188,7 +192,7 @@ Binary probability file/metadata file to improve performance and further reduce 
 = 11942029400 bytes = 11389 mb
 ```
 
-[2] conservative estimage of memory usage of MESI of a map in ICBM 152 nolinear assymetric space
+[2] conservative estimate of memory usage of MESI of a map in ICBM 152 nonlinear asymetric space
 
 ```
 193 * 229 * 193 (NifTI shape) * 8 (uint64 datatype)
@@ -196,7 +200,7 @@ Binary probability file/metadata file to improve performance and further reduce 
 = 68240168 bytes = 65 mb
 ```
 
-[3] conservative estimage of memory usage of old spatial index of a map in ICBM 152 nolinear assymetric space
+[3] conservative estimate of memory usage of old spatial index of a map in ICBM 152 nonlinear asymetric space
 
 ```
 193 * 229 * 193 (NifTI shape) * 4 (uint32 datatype)

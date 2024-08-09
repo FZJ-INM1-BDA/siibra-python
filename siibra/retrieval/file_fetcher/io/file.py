@@ -21,7 +21,7 @@ from .base import PartialReader
 
 class PartialFileReader(PartialReader):
     def __init__(self, filepath: str) -> None:
-        super().__init__()
+        super().__init__(filepath)
 
         # TODO fix
         # __new__ and __init__ is hard
