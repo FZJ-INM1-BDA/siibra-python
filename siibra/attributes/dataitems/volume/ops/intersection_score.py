@@ -86,6 +86,21 @@ def get_connected_components(
 
 
 def pearson_correlation_coefficient(arr1: np.ndarray, arr2: np.ndarray):
+    """
+    See https://en.wikipedia.org/wiki/Pearson_correlation_coefficient
+
+    Parameters
+    ----------
+    arr1 : np.ndarray
+        _description_
+    arr2 : np.ndarray
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     a1_0 = arr1 - arr1.mean()
     a2_0 = arr2 - arr2.mean()
     dem = np.sqrt(np.sum(a1_0**2) * np.sum(a2_0**2))
@@ -191,6 +206,7 @@ def get_image_intersection_score(
     target_image: Image,
     split_components: bool = False,
     iou_lower_threshold: float = 0.0,
+    statistical_map_lower_threshold: float = 0.0,
     **fetch_kwargs: FetchKwargs,
 ) -> List[ImageAssignment]:
     assert query_image.space == target_image.space, ValueError(
@@ -211,6 +227,8 @@ def get_image_intersection_score(
     for compmode, voxelmask in iter_components(querydata_resamp):
         score = calculate_nifti_intersection_score(voxelmask, target_nii)
         if score.intersection_over_union <= iou_lower_threshold:
+            continue
+        if score.map_value <= statistical_map_lower_threshold:
             continue
         component_position = np.array(np.where(voxelmask)).T.mean(0)
         assignments.append(
@@ -239,6 +257,7 @@ def get_pointcloud_intersection_score(
     image: Image,
     voxel_sigma_threshold: int = 3,
     iou_lower_threshold: float = 0.0,
+    statistical_map_lower_threshold: float = 0.0,
     **fetch_kwargs: FetchKwargs,
 ):
     assignments: List[ImageAssignment] = []
@@ -260,6 +279,8 @@ def get_pointcloud_intersection_score(
         for pointindex, value in image.read_values_at_points(
             ptcloud=points_, **fetch_kwargs
         ):
+            if value <= statistical_map_lower_threshold:
+                continue
             assignments.append(
                 ImageAssignment(
                     input_structure=pointindex,
@@ -275,6 +296,8 @@ def get_pointcloud_intersection_score(
         # voxel-precise enough. Just read out the value in the maps
         if (pt.sigma / scaling) < voxel_sigma_threshold:
             _, value = image.read_values_at_points(ptcloud=pt, **fetch_kwargs)
+            if value <= statistical_map_lower_threshold:
+                continue
             assignments.append(
                 ImageAssignment(
                     input_structure=pointindex,
@@ -308,6 +331,7 @@ def get_intersection_scores(
     target_image: Image,
     iou_lower_threshold: Union[int, float] = 0.0,
     voxel_sigma_threshold: int = 3,
+    statistical_map_lower_threshold: float = 0.0,
     split_components: bool = False,
     **fetch_kwargs: FetchKwargs,
 ) -> List[ImageAssignment]:
@@ -321,6 +345,7 @@ def get_intersection_scores(
             image=target_image,
             voxel_sigma_threshold=voxel_sigma_threshold,
             iou_lower_threshold=iou_lower_threshold,
+            statistical_map_lower_threshold=statistical_map_lower_threshold,
             **fetch_kwargs,
         )
 
@@ -330,6 +355,7 @@ def get_intersection_scores(
             image=target_image,
             voxel_sigma_threshold=voxel_sigma_threshold,
             iou_lower_threshold=iou_lower_threshold,
+            statistical_map_lower_threshold=statistical_map_lower_threshold,
             **fetch_kwargs,
         )
 
@@ -339,6 +365,7 @@ def get_intersection_scores(
             target_image=target_image,
             split_components=split_components,
             iou_lower_threshold=iou_lower_threshold,
+            statistical_map_lower_threshold=statistical_map_lower_threshold,
             **fetch_kwargs,
         )
 

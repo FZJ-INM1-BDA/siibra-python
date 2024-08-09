@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, replace
-from typing import Union, Tuple
+from typing import Union, Tuple, List
 
 import numpy as np
 import nibabel as nib
@@ -42,7 +42,9 @@ class Image(Volume):
     schema: str = "siibra/attr/data/image/v0.1"
 
     def __post_init__(self):
-        assert self.format in IMAGE_FORMATS, f"Expected image format {self.format} to be in {IMAGE_FORMATS}, but was not."
+        assert (
+            self.format in IMAGE_FORMATS
+        ), f"Expected image format {self.format} to be in {IMAGE_FORMATS}, but was not."
 
     @property
     def boundingbox(self) -> "BoundingBox":
@@ -92,7 +94,9 @@ class Image(Volume):
             gzipped = gzip.compress(nii.to_bytes())
             yield f"Image (format={self.format})", suffix, BytesIO(gzipped)
         except Exception as e:
-            yield f"Image (format={self.format}): to zippable error.", ".error.txt", BytesIO(str(e).encode("utf-8"))
+            yield f"Image (format={self.format}): to zippable error.", ".error.txt", BytesIO(
+                str(e).encode("utf-8")
+            )
 
     def read_values_at_points(
         self,
@@ -131,17 +135,14 @@ class Image(Volume):
         # transform the points to the voxel space of the volume for extracting values
         phys2vox = np.linalg.inv(nii.affine)
         voxels = pointcloud.PointCloud.transform(ptcloud_, phys2vox)
-
-        return self.read_voxels(
-            voxel_coordinates=np.array(voxels.coordinates).astype("int"),
-            **fetch_kwargs,
-        )
+        x, y, z = np.array(voxels.coordinates, dtype=int).T
+        return self.read_voxels(x=x, y=y, z=z, **fetch_kwargs)
 
     def read_voxels(
         self,
-        voxel_coordinates: Union[
-            Tuple[int, int, int], Tuple[np.ndarray, np.ndarray, np.ndarray]
-        ],
+        x: Union[int, np.ndarray, List],
+        y: Union[int, np.ndarray, List],
+        z: Union[int, np.ndarray, List],
         **fetch_kwargs,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -163,20 +164,23 @@ class Image(Volume):
             second contains the respective values. Invalid voxel coordinate means
             the values lie outside of the nifti array.
         """
-        nii = self.fetch(**fetch_kwargs)
-
-        if any(isinstance(di, int) for di in voxel_coordinates):
-            xyz = np.stack(tuple(np.array(di) for di in voxel_coordinates), axis=1)
-        else:
-            xyz = np.stack(voxel_coordinates, axis=1)
-
-        valid_points_mask = np.all(
-            [(0 <= di) & (di < vol_size) for vol_size, di in zip(nii.shape, xyz.T)], axis=0
+        xyz = np.stack(
+            [np.array([_]) if isinstance(_, int) else np.array(_) for _ in (x, y, z)],
+            axis=1,
         )
-        x, y, z = xyz[valid_points_mask].T
+        nii = self.fetch(**fetch_kwargs)
+        valid_points_mask = np.all(
+            [
+                (0 <= dim_val) & (dim_val < dim_len)
+                for dim_len, dim_val in zip(nii.shape, xyz.T)
+            ],
+            axis=0,
+        )
+        valid_x, valid_y, valid_z = xyz[valid_points_mask].T
         valid_points_indices, *_ = np.where(valid_points_mask)
-        valid_nii_values = np.asanyarray(nii.dataobj)[x, y, z]
-        return valid_points_indices, valid_nii_values
+        nii_arr = np.asanyarray(nii.dataobj).astype(nii.dataobj.dtype)
+        valid_nii_values = nii_arr[valid_x, valid_y, valid_z]
+        return zip(valid_points_indices, valid_nii_values)
 
 
 def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "Image":
