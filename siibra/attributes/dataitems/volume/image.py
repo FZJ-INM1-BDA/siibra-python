@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, replace
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Iterator
 
 import numpy as np
 import nibabel as nib
@@ -113,7 +113,7 @@ class Image(Volume):
 
         Parameters
         ----------
-        points: PointSet
+        ptcloud: PointSet
         outside_value: int, float. Default: 0
         fetch_kwargs: dict
             Any additional arguments are passed to the `fetch()` call for
@@ -144,7 +144,7 @@ class Image(Volume):
         y: Union[int, np.ndarray, List],
         z: Union[int, np.ndarray, List],
         **fetch_kwargs,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> Iterator[Tuple[List[int], np.ndarray]]:
         """
         Read out the values of this Image for a given set of voxel coordinates.
 
@@ -159,7 +159,7 @@ class Image(Volume):
 
         Returns
         -------
-        Tuple[np.ndarray, np.ndarray]
+        Iterator[valid_voxel_indices, values]
             First array provides the indicies of valid voxel coordinates, and the
             second contains the respective values. Invalid voxel coordinate means
             the values lie outside of the nifti array.
@@ -180,7 +180,7 @@ class Image(Volume):
         valid_points_indices, *_ = np.where(valid_points_mask)
         nii_arr = np.asanyarray(nii.dataobj).astype(nii.dataobj.dtype)
         valid_nii_values = nii_arr[valid_x, valid_y, valid_z]
-        return zip(valid_points_indices, valid_nii_values)
+        return zip(valid_points_indices.tolist(), valid_nii_values)
 
 
 def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "Image":

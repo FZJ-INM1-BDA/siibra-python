@@ -152,7 +152,7 @@ def from_points(points: List["point.Point"]) -> "PointCloud":
     ), f"PointCloud can only be constructed with points from the same space.\n{spaces}"
 
     coords, sigmas = zip(*((p.coordinate, p.sigma) for p in points))
-    return PointCloud(coordinates=coords, space=next(iter(spaces)), sigma_mm=sigmas)
+    return PointCloud(coordinates=coords, space_id=next(iter(spaces)).ID, sigma=sigmas)
 
 
 # TODO: requires labels
