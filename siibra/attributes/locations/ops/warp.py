@@ -78,6 +78,11 @@ def warp_point(point: Point, target_space_id: str) -> Point:
             f"Warping {str(point)} to {SPACEWARP_IDS[target_space_id]} resulted in 'NaN'"
         )
 
+    if point.sigma != 0:
+        logger.warning(
+            "Warping currently cannot handle sigmas. Warped point will not retain its sigma."
+        )
+
     return Point(coordinate=tuple(response["target_point"]), space_id=target_space_id)
 
 
@@ -125,6 +130,11 @@ def warp_pointcloud(ptcloud: PointCloud, target_space_id: str) -> PointCloud:
             )
 
         tgt_points.extend(list(response["target_points"]))
+
+    if set(ptcloud.sigma) != {0}:
+        logger.warning(
+            "Warping currently cannot handle sigmas. Warped points will not retain their sigmas."
+        )
 
     return PointCloud(coordinates=tuple(tgt_points), space_id=target_space_id)
 
