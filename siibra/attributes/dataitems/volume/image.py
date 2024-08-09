@@ -257,9 +257,11 @@ def intersect_ptcld_image(
     value_outside = 0
     values = image.read_values_at_points(ptcloud, outside_value=value_outside)
     inside = list(np.where(values != value_outside)[0])
-    return replace(ptcloud,
-                   coordinates=[ptcloud.coordinates[i] for i in inside],
-                   sigma=[ptcloud.sigma[i] for i in inside],)
+    return replace(
+        ptcloud,
+        coordinates=[ptcloud.coordinates[i] for i in inside],
+        sigma=[ptcloud.sigma[i] for i in inside],
+    )
 
 
 @_loc_intersection.register(Image, Image)
