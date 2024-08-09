@@ -14,20 +14,24 @@ from siibra.assignment.attribute_qualification import qualify, Qualification
 def bbox_x_flat(dim: int):
     point0 = Point(space_id="foo", coordinate=[0, 0, 0])
     point1 = Point(space_id="foo", coordinate=[100, 100, 100])
-    point1.coordinate[dim] = 1
+    coords1 = list(point1.coordinate)
+    coords1[dim] = 1
+    point1 = replace(point1, coordinate=coords1)
+
+    delta = Point(space_id="foo", coordinate=[5 if v == dim else 0 for v in range(3)])
 
     p00 = replace(point0)
     p01 = replace(point1)
 
     p10 = replace(point0)
-    p10.coordinate[dim] += 5
+    p10 += delta
     p11 = replace(point1)
-    p11.coordinate[dim] += 5
+    p11 += delta
 
     p20 = replace(point0)
-    p20.coordinate[dim] += 5
+    p20 += delta
     p21 = replace(point1)
-    p21.coordinate[dim] += 5
+    p21 += delta
 
     return [
         BoundingBox(space_id="foo", minpoint=minpoint.coordinate, maxpoint=maxpoint.coordinate)
