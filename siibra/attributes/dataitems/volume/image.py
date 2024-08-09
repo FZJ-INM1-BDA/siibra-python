@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace, asdict
 from typing import Union, Tuple, List
 
 import numpy as np
@@ -181,6 +181,36 @@ class Image(Volume):
         nii_arr = np.asanyarray(nii.dataobj).astype(nii.dataobj.dtype)
         valid_nii_values = nii_arr[valid_x, valid_y, valid_z]
         return valid_points_indices.astype(int).tolist(), valid_nii_values
+
+    def get_intersection_scores(
+        self,
+        item: Union[point.Point, pointcloud.PointCloud, BoundingBox, "Image"],
+        iou_lower_threshold: Union[int, float] = 0.0,
+        voxel_sigma_threshold: int = 3,
+        statistical_map_lower_threshold: float = 0.0,
+        split_components: bool = False,
+        **fetch_kwargs: FetchKwargs,
+    ):
+        from pandas import DataFrame
+        from .ops.intersection_score import get_intersection_scores
+
+        assignments = get_intersection_scores(
+            item=item,
+            target_image=self,
+            split_components=split_components,
+            voxel_sigma_threshold=voxel_sigma_threshold,
+            iou_lower_threshold=iou_lower_threshold,
+            statistical_map_lower_threshold=statistical_map_lower_threshold,
+            **fetch_kwargs,
+        )
+
+        assignments_unpacked = [asdict(a) for a in assignments]
+
+        return (
+            DataFrame(assignments_unpacked)
+            .convert_dtypes()  # convert will guess numeric column types
+            .dropna(axis="columns", how="all")
+        )
 
 
 def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "Image":

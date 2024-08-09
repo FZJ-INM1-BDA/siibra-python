@@ -381,6 +381,7 @@ class Map(AtlasElement):
         split_components: bool = True,
         voxel_sigma_threshold: int = 3,
         iou_lower_threshold=0.0,
+        statistical_map_lower_threshold: float = 0.0,
         **fetch_kwargs: FetchKwargs,
     ):
         from pandas import DataFrame
@@ -396,6 +397,7 @@ class Map(AtlasElement):
                 split_components=split_components,
                 voxel_sigma_threshold=voxel_sigma_threshold,
                 iou_lower_threshold=iou_lower_threshold,
+                statistical_map_lower_threshold=statistical_map_lower_threshold,
                 **fetch_kwargs,
             ):
                 assignments.append(Map.RegionAssignment(**asdict(assgnmt), region=region))

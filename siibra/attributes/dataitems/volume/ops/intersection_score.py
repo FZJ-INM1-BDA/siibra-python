@@ -38,13 +38,13 @@ class ImageIntersectionScore:
 
 @dataclass
 class ImageAssignment:
-    input_structure: int
+    input_structure_index: int
     centroid: Union[Tuple[np.ndarray], Point]
     map_value: np.ndarray
 
 
 def get_connected_components(
-    imgdata: np.ndarray,
+    nii: Nifti1Image,
     background: int = 0,
     connectivity: int = 2,
     threshold: float = 0.0,
@@ -75,11 +75,17 @@ def get_connected_components(
     """
     from skimage.measure import label as measure_label
 
+    imgdata = np.asarray(nii.dataobj, dtype=nii.dataobj.dtype)
     mask = (imgdata > threshold).astype("uint8")
     components = measure_label(mask, connectivity=connectivity, background=background)
     component_labels = np.unique(components)
     yield from (
-        (label, (components == label).astype("uint8"))
+        (
+            label,
+            Nifti1Image(
+                dataobj=(components == label).astype("uint8"), affine=nii.affine
+            ),
+        )
         for label in component_labels
         if label > 0
     )
@@ -221,10 +227,9 @@ def get_image_intersection_score(
     querynii = query_image.fetch(**fetch_kwargs)
     target_nii = target_image.fetch(**fetch_kwargs)
     querynii_resamp = resample_img_to_img(querynii, target_nii)
-    querydata_resamp = np.asanyarray(querynii_resamp.dataobj).squeeze()
 
     assignments: List[ImageAssignment] = []
-    for compmode, voxelmask in iter_components(querydata_resamp):
+    for compmode, voxelmask in iter_components(querynii_resamp):
         score = calculate_nifti_intersection_score(voxelmask, target_nii)
         if score.intersection_over_union <= iou_lower_threshold:
             continue
@@ -233,9 +238,11 @@ def get_image_intersection_score(
         component_position = np.array(np.where(voxelmask)).T.mean(0)
         assignments.append(
             ImageAssignment(
-                input_structure=compmode, centroid=tuple(component_position)
+                input_structure_index=compmode, centroid=tuple(component_position)
             )
         )
+
+    return assignments
 
 
 def get_bounding_intersection_score(
@@ -267,7 +274,7 @@ def get_pointcloud_intersection_score(
         [np.linalg.norm(image.get_affine(**fetch_kwargs)[:, i]) for i in range(3)]
     ).mean()
 
-    points_ = points.warp(
+    points_wrpd = points.warp(
         image.space_id
     )  # returns the same points if in the same space
 
@@ -276,14 +283,14 @@ def get_pointcloud_intersection_score(
     if (len(set(points.sigma)) == 1) and (
         points.sigma[0] / scaling < voxel_sigma_threshold
     ):
-        for pointindex, value in zip(*image.read_values_at_points(
-            ptcloud=points_, **fetch_kwargs
-        )):
+        for pointindex, value in zip(
+            *image.read_values_at_points(ptcloud=points_wrpd, **fetch_kwargs)
+        ):
             if value <= statistical_map_lower_threshold:
                 continue
             assignments.append(
                 ImageAssignment(
-                    input_structure=pointindex,
+                    input_structure_index=pointindex,
                     centroid=points.coordinates[pointindex],
                     map_value=value,
                 )
@@ -292,17 +299,18 @@ def get_pointcloud_intersection_score(
 
     # If we get here, we need to handle each point independently. This is much
     # slower but more precise in dealing with the uncertainties of the coordinates.
-    for pointindex, pt in enumerate(points_):
+    for pointindex, pt in enumerate(points_wrpd):
         # voxel-precise enough. Just read out the value in the maps
-        if (pt.sigma / scaling) < voxel_sigma_threshold:
+        voxel_sigma = points[pointindex].sigma / scaling  # use unwarped point
+        if voxel_sigma < voxel_sigma_threshold:
             _, value = image.read_values_at_points(ptcloud=pt, **fetch_kwargs)
-            if value <= statistical_map_lower_threshold:
+            if value[0] <= statistical_map_lower_threshold:
                 continue
             assignments.append(
                 ImageAssignment(
-                    input_structure=pointindex,
+                    input_structure_index=pointindex,
                     centroid=points.coordinates[pointindex],
-                    map_value=value,
+                    map_value=value[0],
                 )
             )
             continue
@@ -315,11 +323,14 @@ def get_pointcloud_intersection_score(
             query_image=from_nifti(gaussian_kernel, image.space_id),
             target_image=image,
             split_components=False,
+            iou_lower_threshold=iou_lower_threshold,
+            statistical_map_lower_threshold=statistical_map_lower_threshold,
+            **fetch_kwargs,
         )
         for score in kernel_assignments:
             if score.intersection_over_union <= iou_lower_threshold:
                 continue
-            score.input_structure = pointindex
+            score.input_structure_index = pointindex
             score.centroid = points[pointindex].coordinate
             assignments.append(score)
 
