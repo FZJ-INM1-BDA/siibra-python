@@ -14,24 +14,45 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, List, Dict, Tuple, Union
-import re
+from typing import List, Dict, Tuple, Union
 import numpy as np
-
-from siibra.commons_new.iterable import assert_ooo
+import json
+from pathlib import Path
+from nibabel import Nifti1Image, load as nib_load
+import gzip
+import os
+import pandas as pd
+import requests
+from gzip import decompress
+from abc import ABC, abstractmethod
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 from .parcellationmap import Map
-from ..atlases import Region
 from ..cache import fn_call_cache
-from ..commons_new.logger import siibra_tqdm
-from ..retrieval.volume_fetcher import FetchKwargs
-
-from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
+from ..commons_new.logger import siibra_tqdm, logger
+from ..commons_new.iterable import assert_ooo
 
 
-if TYPE_CHECKING:
-    from ..attributes.locations import BoundingBox
-    from nibabel import Nifti1Image
+class ABCSparseIndex(ABC):
+
+    @abstractmethod
+    def save(self, *args, **kwargs) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def add_img(self, nii: Nifti1Image, regionname: str, **kwargs) -> None:
+        raise NotImplementedError
+    
+    @abstractmethod
+    def read(self, pos: np.ndarray, **kwargs) -> List[Dict[str, float]]:
+        raise NotImplementedError
+    
+    @abstractmethod
+    def get_bbox(self, regionname: str, **kwargs) -> List[int]:
+        raise NotImplementedError
 
 
 @dataclass(repr=False)
@@ -47,38 +68,6 @@ class SparseIndex:
         "bboxes": ".sparseindex.bboxes.csv.gz",
         "voxels": ".sparseindex.voxels.nii.gz",
     }
-
-    def get_coords(self, regionname: str):
-        # Nx3 array with x/y/z coordinates of the N nonzero values of the given mapindex
-        coord_ids = [i for i, l in enumerate(self.probs) if regionname in l]
-        x0, y0, z0 = self.bboxes[regionname][:3]
-        x1, y1, z1 = self.bboxes[regionname][3:]
-        return (
-            np.array(
-                np.where(
-                    np.isin(
-                        self.voxels[x0 : x1 + 1, y0 : y1 + 1, z0 : z1 + 1],
-                        coord_ids,
-                    )
-                )
-            ).T
-            + (x0, y0, z0)
-        ).T
-
-    def get_mapped_voxels(self, regionname: str):
-        # returns the x, y, and z coordinates of nonzero voxels for the map
-        # with the given index, together with their corresponding values v.
-        x, y, z = [v.squeeze() for v in np.split(self.get_coords(regionname), 3)]
-        v = [self.probs[i][regionname] for i in self.voxels[x, y, z]]
-        return x, y, z, v
-
-    def fetch(self, regionname: str):
-        from nibabel import Nifti1Image
-
-        x, y, z, v = self.get_mapped_voxels(regionname)
-        result = np.zeros(self.shape, dtype=np.float32)
-        result[x, y, z] = v
-        return Nifti1Image(dataobj=result, affine=self.affine)
 
     @classmethod
     def load(cls, filepath_or_url: str) -> "SparseIndex":
@@ -98,10 +87,6 @@ class SparseIndex:
         -------
         SparseIndex
         """
-        from gzip import decompress
-        import os
-        import requests
-        from pandas import read_csv
 
         spindtxt_decoder = lambda b: decompress(b).decode("utf-8").strip().splitlines()
 
@@ -130,7 +115,7 @@ class SparseIndex:
             probs.append(D)
 
         bboxes = {}
-        bbox_table = read_csv(
+        bbox_table = pd.read_csv(
             requests.get(bboxfile).content, sep=";", compression="gzip", index_col=0
         )
         bboxes = bbox_table.T.to_dict("list")
@@ -157,10 +142,6 @@ class SparseIndex:
             - base_filename.sparseindex.voxels.nii.gz
         folder: str, default=""
         """
-        import gzip
-        import os
-        import pandas as pd
-        from nibabel import Nifti1Image
 
         fullpath = os.path.join(folder, base_filename)
 
@@ -227,7 +208,7 @@ def build_sparse_index(parcmap: "SparseMap") -> SparseIndex:
                     "Building sparse maps from volumes with different voxel "
                     "spaces is not yet supported in siibra."
                 )
-        spind = add_img(spind, nii, region)
+        add_img(spind, nii, region)
         added_image_count += 1
     return SparseIndex(
         probs=spind["probs"],
@@ -238,6 +219,225 @@ def build_sparse_index(parcmap: "SparseMap") -> SparseIndex:
     )
 
 
+class MESI(ABCSparseIndex):
+
+    HEADER = """MESI-UTF8-V0"""
+
+    META_SUFFIX = ".mesi.meta.txt"
+    PROBS_SUFFIX = ".mesi.probs.txt"
+    VOXEL_SUFFIX = ".mesi.voxel.nii.gz"
+
+    UINT32_MAX = 4_294_967_295
+
+    def __init__(self, base_filename: str, folder: str="", mode=Literal["r", "w"]):
+        self.base_filename = base_filename
+        self.folder = folder
+        self.mode = mode
+
+        # regionname -> regionalias (implicitly from str of element index in list, i.e. '0', '1', '2', etc)
+        self.region_name_mapping: List[str] = []
+
+        # regionalias -> prob
+        self.probs: List[
+            Dict[str, float]
+        ] = []
+
+        # regionalias (implicitly from element indx in list) -> prob
+        self.bbox: List[List[int]] = []
+
+        # voxel coord -> element index in self.probs
+        self.voxels: Dict[
+            Tuple[int, int, int],
+            int
+        ] = {}
+
+        self._shape = None
+        self._affine = None
+        self._readable_nii = None
+        self._readable_meta = None
+    
+    @property
+    def shape(self):
+        if self.readable:
+            return self.readable_nii.dataobj.shape
+        return self._shape
+
+    @shape.setter
+    def shape(self, value):
+        if not self.writable:
+            logger.warning(f"Attempting to set shape in non writable sparseindex. Ignored.")
+            return
+        self._shape = value
+    
+    @property
+    def affine(self):
+        if self.readable:
+            return self.readable_nii.affine
+        return self._affine
+
+    @affine.setter
+    def affine(self, value):
+        if not self.writable:
+            logger.warning(f"Attempting to set affine in non writable sparseindex. Ignored.")
+            return
+        self._affine = value
+
+    @property
+    def readable_nii(self) -> Nifti1Image:
+        if not self.readable:
+            return
+        
+        filename = Path(self.folder) / (self.base_filename + self.VOXEL_SUFFIX)
+        if not self._readable_nii:
+            self._readable_nii = nib_load(filename)
+        return self._readable_nii
+
+    @property
+    def readable_meta(self):
+        if not self.readable:
+            return
+        
+        filename = Path(self.folder) / (self.base_filename + self.META_SUFFIX)
+        if not self._readable_meta:
+            with open(filename, "r") as fp:
+                self._readable_meta = fp.read()
+        return self._readable_meta
+
+    @property
+    def readable(self):
+        return self.mode == "r"
+    
+    @property
+    def writable(self):
+        return self.mode == "w"
+    
+    def _decode_regionalias(self, alias: str):
+        if not self.readable:
+            raise RuntimeError(f"Cannot decode a non-readable SparseIndex")
+        lines = self.readable_meta.splitlines()
+        return json.loads(lines[int(alias) + 1]).get("regionname")
+    
+    def read(self, pos: Union[List[List[int]], np.ndarray]):
+        if not self.readable:
+            raise RuntimeError(f"SparseIndex not readable")
+        
+        pos = np.array(pos)
+        assert len(pos.shape) == 2 and pos.shape[1] == 3, f"Expecting Nx3 array, but got {pos.shape}"
+        
+        probfile = Path(self.folder) / f"{self.base_filename}{self.PROBS_SUFFIX}"
+        fp = open(probfile, "r")
+
+        nii = np.array(self.readable_nii.dataobj, dtype=np.uint64)
+        x, y, z = pos.T
+        
+        result = []
+        for val in nii[x, y, z].tolist():
+            offset = val >> 32
+            bytes_to_read = val & self.UINT32_MAX
+            fp.seek(int(offset))
+            decoded = fp.read(int(bytes_to_read))
+            prob = {
+                self._decode_regionalias(key): prob
+                for key, prob in json.loads(decoded).items()
+            }
+            result.append(prob)
+        return result
+
+    def save(self):
+        if not self.writable:
+            raise RuntimeError(f"Readable only")
+
+        if self.affine is None:
+            raise RuntimeError(f"No image has been added yet")
+        
+        _dir = Path(self.folder)
+        _dir.mkdir(parents=True, exist_ok=True)
+
+        # newline-separated json objects on all region metadata
+        regionmeta = "\n".join(json.dumps({ "regionname": regionname, "bbox": bbox })
+            for regionname, bbox
+            in zip(self.region_name_mapping, self.bbox))
+        
+        # write metadata
+        with open(_dir / (self.base_filename + self.META_SUFFIX), "w") as fp:
+            fp.write(self.HEADER)
+            fp.write("\n")
+            fp.write(regionmeta)
+
+        current_offset = 0
+
+        # offset/bytes
+        # only recording offset, since the bytes can be calculated by getting the next contiguous offset
+        # inherits element-wise index of self.probs
+        offset_record: List[Tuple[int, int]] = []
+
+        with open(_dir / (self.base_filename + self.PROBS_SUFFIX), "w") as fp:
+            
+            for prob in self.probs:
+                str_to_write = json.dumps(prob) + "\n"
+                byte_count = len(str_to_write.encode("utf-8"))
+                fp.write(str_to_write)
+
+                # purely for ascethic and easy debugging purpose
+
+                offset_record.append((current_offset, byte_count))
+                current_offset += byte_count
+
+        # saving voxel map, containing offset
+        lut = np.zeros(self.shape, dtype=np.uint64, order="C")
+        for (x, y, z), list_idx in self.voxels.items():
+            offset, bytes_used = offset_record[list_idx]
+            assert offset < self.UINT32_MAX, f"offset > unit32 max"
+            # print(offset << 32)
+            lut[x, y, z] = np.uint64(offset << 32) + np.uint64(bytes_used)
+
+        nii = Nifti1Image(lut, affine=self.affine, dtype=np.uint64)
+        nii.to_filename(_dir / (self.base_filename + self.VOXEL_SUFFIX))
+
+    def add_img(self, nii: "Nifti1Image", regionname: str):
+        if not self.writable:
+            raise RuntimeError(f"Readable only")
+
+        if self.shape is None:
+            self.shape = nii.dataobj.shape
+        else:
+            assert np.all(self.shape == nii.dataobj.shape), f"Sparse index from different shape not supported is None"
+
+        if self.affine is None:
+            self.affine = nii.affine
+        else:
+            assert np.all(self.affine == nii.affine), f"Sparse index from different affine is not supported"
+
+        assert regionname not in self.region_name_mapping, f"{regionname} has already been mapped"
+
+        # eventually, the alias will become dictionary keys. JSON keys *must* be str
+        regionalias = str(len(self.region_name_mapping))
+        self.region_name_mapping.append(regionname)
+
+        imgdata = np.asanyarray(nii.dataobj)
+        X, Y, Z = [v.astype("int32") for v in np.where(imgdata > 0)]
+        for x, y, z, prob in zip(X, Y, Z, imgdata[X, Y, Z]):
+            coord_id = (x, y, z)
+            prob = prob.astype("float")
+
+            if coord_id not in self.voxels:
+                self.probs.append({regionalias: prob})
+                self.voxels[coord_id] = len(self.probs) - 1
+
+            if coord_id in self.voxels:
+                probidx = self.voxels[coord_id]
+                self.probs[probidx][regionalias] = prob
+
+        self.bbox.append(
+            np.array([X.min(), Y.min(), Z.min(), X.max(), Y.max(), Z.max()]).tolist()
+        )
+
+    def get_bbox(self, regionname: str, **kwargs) -> List[int]:
+        for line in self.readable_meta.splitlines()[1:]:
+            parsed_line = json.loads(line)
+            if regionname == parsed_line.get("regionname"):
+                return parsed_line.get("bbox")
+
 @dataclass(repr=False, eq=False)
 class SparseMap(Map):
     use_sparse_index: bool = False
@@ -246,54 +446,3 @@ class SparseMap(Map):
     def _sparse_index(self) -> SparseIndex:
         return build_sparse_index(self)
 
-    def fetch(
-        self,
-        region: Union[str, re.Pattern, Region, None] = None,
-        frmt: str = None,
-        bbox: "BoundingBox" = None,
-        resolution_mm: float = None,
-        max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
-        color_channel: int = None,
-    ):
-        matched = None
-        if region is None:
-            if len(self.regions) != 1:
-                raise RuntimeError(f"Map has multiple regions: {self.regions}. Region must be provided for fetch()")
-            matched = self.regions[0]
-        
-        if isinstance(region, Region):
-            matched = region.name
-
-        if isinstance(region, (str, re.Pattern)):
-            matched = self.parcellation.get_region(region).name
-
-        assert isinstance(matched, str), (
-            "region must be of type str, re.Pattern or siibra.Region. You provided"
-            f"{type(region)}"
-        )
-
-        assert matched in self.regions, (
-            f"Statistical map of region '{matched}' is not available in '{self.name}'."
-        )
-
-        if not self.use_sparse_index:
-            fetch_kwargs = FetchKwargs(
-                bbox=bbox,
-                resolution_mm=resolution_mm,
-                color_channel=color_channel,
-                max_download_GB=max_download_GB,
-            )
-            return super().fetch(region=matched, frmt=frmt, **fetch_kwargs)
-
-        nii = self._sparse_index.fetch(matched)
-        if bbox:
-            from ..retrieval.volume_fetcher.image.nifti import extract_voi
-
-            nii = extract_voi(nii, bbox)
-
-        if resolution_mm:
-            from ..retrieval.volume_fetcher.image.nifti import resample
-
-            nii = resample(nii, bbox)
-
-        return nii
