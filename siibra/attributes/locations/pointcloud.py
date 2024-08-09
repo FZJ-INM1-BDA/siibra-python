@@ -58,7 +58,7 @@ class PointCloud(Location):
                 f"Index out of range; PointCloud has {self.__len__()} points."
             )
         return point.Point(
-            coordinate=self.coordinates[index, :],
+            coordinate=self.coordinates[index],
             space_id=self.space_id,
             sigma=self.sigma[index],
         )
