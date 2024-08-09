@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass
+from pathlib import Path
 import requests
 try:
     from typing import TypedDict
@@ -23,7 +24,7 @@ except ImportError:
 
 from ...attributes import Attribute
 from ...cache import fn_call_cache
-from ...retrieval.file_fetcher import ZipRepository, TarRepository
+from ...retrieval.file_fetcher import ZipRepository, TarRepository, LocalDirectoryRepository
 
 
 class Archive(TypedDict):
@@ -33,6 +34,9 @@ class Archive(TypedDict):
 
 @fn_call_cache
 def get_bytesio_from_url(url: str, archive_options: Archive = None) -> bytes:
+    if Path(url).is_file():
+        pth = Path(url)
+        return LocalDirectoryRepository(pth.parent).get(pth.name)
     # TODO: stream bytesio instead
     if not archive_options:
         resp = requests.get(url)
