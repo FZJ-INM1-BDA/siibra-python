@@ -14,14 +14,13 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Union
 import numpy as np
 import json
 from pathlib import Path
 import nibabel as nib
 import requests
 import gzip
-from io import BytesIO
+
 try:
     from typing import Literal
 except ImportError:
@@ -43,7 +42,7 @@ class SparseIndex:
     readable = False
     writable = False
 
-    def __new__(cls, *args, mode: Literal["r", "w"]="r", **kwargs):
+    def __new__(cls, *args, mode: Literal["r", "w"] = "r", **kwargs):
         if mode == "r":
             instance = object.__new__(ReadableSparseIndex)
             type(instance).__init__(instance, *args, **kwargs)
@@ -54,7 +53,7 @@ class SparseIndex:
             return instance
         return super().__new__(cls)
 
-    def __init__(self, filepath: Union[str, Path], mode: Literal["r", "w"]="r"):
+    def __init__(self, filepath: Union[str, Path], mode: Literal["r", "w"] = "r"):
         self.filepath = None
         self.url = None
         self.mode = mode
@@ -69,12 +68,13 @@ class SparseIndex:
 
     def save(self):
         raise NotImplementedError
-    
+
     def add_img(self, nii: nib.Nifti1Image, regionname: str):
         raise NotImplementedError
-    
+
     def get_boundingbox_extrema(self, regionname: str, **kwargs) -> List[int]:
         raise NotImplementedError
+
 
 class WritableSparseIndex(SparseIndex):
     writable = True
@@ -86,36 +86,32 @@ class WritableSparseIndex(SparseIndex):
         self._region_name_mapping: List[str] = []
 
         # regionalias -> prob
-        self._probs: List[
-            Dict[str, float]
-        ] = []
+        self._probs: List[Dict[str, float]] = []
 
         # regionalias (implicitly from element indx in list) -> prob
         self._bbox: List[List[int]] = []
 
         # voxel coord -> element index in self.probs
-        self._voxels: Dict[
-            Tuple[int, int, int],
-            int
-        ] = {}
+        self._voxels: Dict[Tuple[int, int, int], int] = {}
 
         self._shape = None
         self._affine = None
-    
+
     def save(self):
         if self._affine is None:
-            raise RuntimeError(f"No image has been added yet")
-        
+            raise RuntimeError("No image has been added yet")
+
         basename = self.filepath
         basename.parent.mkdir(parents=True, exist_ok=True)
 
         # newline-separated json objects on all region metadata
-        regionmeta = "\n".join(json.dumps({ "regionname": regionname, "bbox": bbox })
-            for regionname, bbox
-            in zip(self._region_name_mapping, self._bbox))
-        
+        regionmeta = "\n".join(
+            json.dumps({"regionname": regionname, "bbox": bbox})
+            for regionname, bbox in zip(self._region_name_mapping, self._bbox)
+        )
+
         # write metadata
-        with open( basename.with_suffix(self.META_SUFFIX), "w") as fp:
+        with open(basename.with_suffix(self.META_SUFFIX), "w") as fp:
             fp.write(self.HEADER)
             fp.write("\n")
             fp.write(regionmeta)
@@ -128,7 +124,7 @@ class WritableSparseIndex(SparseIndex):
         offset_record: List[Tuple[int, int]] = []
 
         with open(basename.with_suffix(self.PROBS_SUFFIX), "w") as fp:
-            
+
             for prob in self._probs:
                 str_to_write = json.dumps(prob) + "\n"
                 byte_count = len(str_to_write.encode("utf-8"))
@@ -143,7 +139,7 @@ class WritableSparseIndex(SparseIndex):
         lut = np.zeros(self._shape, dtype=np.uint64, order="C")
         for (x, y, z), list_idx in self._voxels.items():
             offset, bytes_used = offset_record[list_idx]
-            assert offset < self.UINT32_MAX, f"offset > unit32 max"
+            assert offset < self.UINT32_MAX, "offset > unit32 max"
             # print(offset << 32)
             lut[x, y, z] = np.uint64(offset << 32) + np.uint64(bytes_used)
 
@@ -154,14 +150,20 @@ class WritableSparseIndex(SparseIndex):
         if self._shape is None:
             self._shape = nii.dataobj.shape
         else:
-            assert np.all(self._shape == nii.dataobj.shape), f"Sparse index from different shape not supported is None"
+            assert np.all(
+                self._shape == nii.dataobj.shape
+            ), "Sparse index from different shape not supported is None"
 
         if self._affine is None:
             self._affine = nii.affine
         else:
-            assert np.all(self._affine == nii.affine), f"Sparse index from different affine is not supported"
+            assert np.all(
+                self._affine == nii.affine
+            ), "Sparse index from different affine is not supported"
 
-        assert regionname not in self._region_name_mapping, f"{regionname} has already been mapped"
+        assert (
+            regionname not in self._region_name_mapping
+        ), f"{regionname} has already been mapped"
 
         # eventually, the alias will become dictionary keys. JSON keys *must* be str
         regionalias = str(len(self._region_name_mapping))
@@ -205,7 +207,7 @@ class ReadableSparseIndex(SparseIndex):
             except gzip.BadGzipFile:
                 ...
             self._readable_nii = nib.Nifti1Image.from_bytes(content)
-            
+
             resp = session.get(self.url + self.META_SUFFIX)
             resp.raise_for_status()
             self._readable_meta = resp.content.decode("utf-8")
@@ -216,21 +218,23 @@ class ReadableSparseIndex(SparseIndex):
 
     def _decode_regionalias(self, alias: str):
         if not self.readable:
-            raise RuntimeError(f"Cannot decode a non-readable SparseIndex")
+            raise RuntimeError("Cannot decode a non-readable SparseIndex")
         lines = self._readable_meta.splitlines()
         return json.loads(lines[int(alias) + 1]).get("regionname")
-    
+
     def read(self, pos: Union[List[List[int]], np.ndarray]):
-        
+
         probreader = PartialReader(str(self.url or self.filepath) + self.PROBS_SUFFIX)
         probreader.open()
 
         pos = np.array(pos)
-        assert len(pos.shape) == 2 and pos.shape[1] == 3, f"Expecting Nx3 array, but got {pos.shape}"
+        assert (
+            len(pos.shape) == 2 and pos.shape[1] == 3
+        ), f"Expecting Nx3 array, but got {pos.shape}"
 
         nii = np.array(self._readable_nii.dataobj, dtype=np.uint64)
         x, y, z = pos.T
-        
+
         result = []
         for val in nii[x, y, z].tolist():
             offset = val >> 32
@@ -251,6 +255,7 @@ class ReadableSparseIndex(SparseIndex):
             parsed_line = json.loads(line)
             if regionname == parsed_line.get("regionname"):
                 return parsed_line.get("bbox")
+
 
 @dataclass(repr=False, eq=False)
 class SparseMap(Map):
