@@ -42,7 +42,9 @@ class PointCloud(Location):
             sigma = list(np.zeros(len(coordinates)))
         if isinstance(sigma, (tuple, np.ndarray)):
             sigma = list(sigma)
-        if isinstance(coordinates, (tuple, np.ndarray)):
+        if isinstance(coordinates, np.ndarray):
+            coordinates = coordinates.tolist()
+        if isinstance(coordinates, (list, tuple)):
             coordinates = list(tuple(c) for c in coordinates)
         return coordinates, sigma
 
@@ -81,8 +83,8 @@ class PointCloud(Location):
 
     def to_points(self) -> List[point.Point]:
         return [
-            point.Point(space_id=self.space_id, coordinate=coord)
-            for coord in self.coordinates
+            point.Point(space_id=self.space_id, coordinate=coord, sigma=sigma)
+            for coord, sigma in zip(self.coordinates, self.sigma)
         ]
 
     def to_ndarray(self) -> np.ndarray:

@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from siibra.attributes.locations import PointCloud
 
@@ -12,6 +13,29 @@ ptcloud = PointCloud(
     ],
     space_id="foo",
 )
+
+ptcld_args = [
+    ([[0, 0, 0], [1, 1, 1]], None, None),
+    ([(0, 0, 0), (1, 1, 1)], None, None),
+    (([0, 0, 0], [1, 1, 1]), None, None),
+    (((0, 0, 0), (1, 1, 1)), None, None),
+    (np.array([[0, 0, 0], [1, 1, 1]]), None, None),
+    ([[0, 0, 0], [1, 1, 1]], [0], AssertionError),
+]
+
+@pytest.mark.parametrize("coordinates, sigma, Error", ptcld_args)
+def test_ptcloud_postinit(coordinates, sigma, Error):
+    if Error:
+        with pytest.raises(Error):
+            PointCloud(coordinates=coordinates, sigma=sigma)
+        return
+    ptcld = PointCloud(coordinates=coordinates, sigma=sigma)
+
+    assert isinstance(ptcld.coordinates, list)
+    assert all(isinstance(pos, tuple) for pos in ptcld.coordinates)
+    assert all(isinstance(v, (float, int))
+               for pos in ptcld.coordinates
+               for v in pos)
 
 
 def test_ptcloud_homogenous():
