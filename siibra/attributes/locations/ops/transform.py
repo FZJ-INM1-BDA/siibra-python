@@ -29,7 +29,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Generic, TypeVar, Dict, Callable
+from typing import Generic, TypeVar, Dict, Callable, Union
 from functools import wraps
 from dataclasses import replace
 
@@ -47,7 +47,7 @@ _tranformers: Dict["Location", Callable] = {}
 
 def _register_warper(location_type: Generic[T]):
 
-    def outer(fn: Callable[[Location], Location]):
+    def outer(fn: Callable[[Location, np.ndarray, Union[str, None]], Location]):
         _tranformers[location_type] = fn
         return fn
 
@@ -75,10 +75,10 @@ def transform_point(
     """
     if point.sigma != 0:
         logger.warning("NotYetImplemented: sigma won't be retained.")
-    x, y, z, h = np.dot(affine, point.homogeneous.T)
+    x, y, z, h = np.squeeze(np.dot(affine, point.homogeneous.T))
     if h != 1:
         logger.warning(f"Homogeneous coordinate is not one: {h}")
-    return replace(point, coordinate=(x / h, y / h, z / h), space_id=target_space_id)
+    return replace(point, coordinate=(float(x / h), float(y / h), float(z / h)), space_id=target_space_id or point.space_id)
 
 
 @_register_warper(PointCloud)
