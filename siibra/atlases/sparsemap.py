@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass
+from typing import List, Dict, Tuple, Union, TYPE_CHECKING
 import numpy as np
 import json
 from pathlib import Path
@@ -27,7 +28,13 @@ except ImportError:
     from typing_extensions import Literal
 
 from .parcellationmap import Map
+from .region import Region
+from ..retrieval.volume_fetcher import FetchKwargs
 from ..retrieval.file_fetcher.io.base import PartialReader
+from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
+
+if TYPE_CHECKING:
+    from ..attributes.locations import BoundingBox
 
 
 class SparseIndex:
@@ -259,9 +266,36 @@ class ReadableSparseIndex(SparseIndex):
 
 @dataclass(repr=False, eq=False)
 class SparseMap(Map):
-    use_sparse_index: bool = False
 
-    @property
-    def _sparse_index(self):
-        raise NotImplementedError
+    def fetch(
+        self,
+        region: Union[str, Region] = None,
+        frmt: str = None,
+        bbox: "BoundingBox" = None,
+        resolution_mm: float = None,
+        max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
+        color_channel: int = None,
+    ):
+        if region is None:
+            assert len(self.regions) == 1, ValueError(
+                "To fetch a volume from a SparseMap, please provide a region "
+                "name mapped in this SparseMap."
+            )
+            matched = self.regions[0]
+        else:
+            if isinstance(region, Region):
+                matched = region.name
+            else:
+                matched = self.parcellation.get_region(region).name
 
+        assert (
+            matched in self.regions
+        ), f"Statistical map of region '{matched}' is not available in '{self.name}'."
+
+        fetch_kwargs = FetchKwargs(
+            bbox=bbox,
+            resolution_mm=resolution_mm,
+            color_channel=color_channel,
+            max_download_GB=max_download_GB,
+        )
+        return super().fetch(region=matched, frmt=frmt, **fetch_kwargs)
