@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Union, Dict, Generator, Tuple
+from typing import List, Union, Dict
 import numpy as np
 from nilearn.image import resample_to_img, resample_img
 from tqdm import tqdm
