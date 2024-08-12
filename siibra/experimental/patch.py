@@ -13,19 +13,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-from ..volumes import volume
-from ..locations import pointset, boundingbox
-from ..commons import translation_matrix, y_rotation_matrix
+import math
 
 import numpy as np
-import math
 from nilearn import image
+
+from ..attributes.dataitems.volume.image import Image, from_nifti
+from ..attributes.locations import pointcloud, boundingbox
+
+
+def translation_matrix(tx: float, ty: float, tz: float):
+    """Construct a 3D homoegneous translation matrix."""
+    return np.array([
+        [1, 0, 0, tx],
+        [0, 1, 0, ty],
+        [0, 0, 1, tz],
+        [0, 0, 0, 1]
+    ])
+
+
+def y_rotation_matrix(alpha: float):
+    """Construct a 3D y axis rotation matrix."""
+    return np.array([
+        [math.cos(alpha), 0, math.sin(alpha), 0],
+        [0, 1, 0, 0],
+        [-math.sin(alpha), 0, math.cos(alpha), 0],
+        [0, 0, 0, 1]
+    ])
 
 
 class Patch:
 
-    def __init__(self, corners: pointset.PointSet):
+    def __init__(self, corners: pointcloud.PointSet):
         """Construct a patch in physical coordinates.
         As of now, only patches aligned in the y plane of the physical space
         are supported."""
@@ -42,7 +61,7 @@ class Patch:
         """Flips the patch. """
         self.corners._coordinates = self.corners.coordinates[[2, 3, 0, 1]]
 
-    def extract_volume(self, image_volume: volume.Volume, resolution_mm: float):
+    def extract_volume(self, image_volume: Image, resolution_mm: float):
         """
         fetches image data in a planar patch.
         TODO The current implementation only covers patches which are strictly
@@ -92,7 +111,7 @@ class Patch:
         xmax, ymax, zmax = pixels.max(0)[:3] - 1
         h, w = xmax - xmin, zmax - zmin
         affine = np.dot(affine_rot, translation_matrix(xmin, 0, zmin))
-        return volume.from_nifti(
+        return from_nifti(
             image.resample_img(patch, target_affine=affine, target_shape=[h, 1, w]),
             space=image_volume.space,
             name=f"Rotated patch with corner points {self.corners} sampled from {image_volume.name}",

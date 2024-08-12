@@ -781,21 +781,3 @@ def generate_uuid(string: str):
     return str(UUID(hex=hex_string))
 
 
-def translation_matrix(tx: float, ty: float, tz: float):
-    """Construct a 3D homoegneous translation matrix."""
-    return np.array([
-        [1, 0, 0, tx],
-        [0, 1, 0, ty],
-        [0, 0, 1, tz],
-        [0, 0, 0, 1]
-    ])
-
-
-def y_rotation_matrix(alpha: float):
-    """Construct a 3D y axis rotation matrix."""
-    return np.array([
-        [math.cos(alpha), 0, math.sin(alpha), 0],
-        [0, 1, 0, 0],
-        [-math.sin(alpha), 0, math.cos(alpha), 0],
-        [0, 0, 0, 1]
-    ])
