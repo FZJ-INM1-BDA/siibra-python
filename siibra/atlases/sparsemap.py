@@ -52,11 +52,9 @@ class SparseIndex:
     def __new__(cls, *args, mode: Literal["r", "w"] = "r", **kwargs):
         if mode == "r":
             instance = object.__new__(ReadableSparseIndex)
-            type(instance).__init__(instance, *args, **kwargs)
             return instance
         if mode == "w":
             instance = object.__new__(WritableSparseIndex)
-            type(instance).__init__(instance, *args, **kwargs)
             return instance
         return super().__new__(cls)
 
@@ -81,6 +79,10 @@ class SparseIndex:
 
     def get_boundingbox_extrema(self, regionname: str, **kwargs) -> List[int]:
         raise NotImplementedError
+    
+    @property
+    def affine(self):
+        raise NotImplementedError
 
 
 class WritableSparseIndex(SparseIndex):
@@ -88,6 +90,9 @@ class WritableSparseIndex(SparseIndex):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        if self.filepath is None:
+            raise RuntimeError(f"WritableSparseIndex must point to a local file")
 
         # regionname -> regionalias (implicitly from str of element index in list, i.e. '0', '1', '2', etc)
         self._region_name_mapping: List[str] = []
@@ -193,6 +198,12 @@ class WritableSparseIndex(SparseIndex):
         self._bbox.append(
             np.array([X.min(), Y.min(), Z.min(), X.max(), Y.max(), Z.max()]).tolist()
         )
+    
+    @property
+    def affine(self):
+        if self._affine is None:
+            raise RuntimeError(f"You must call .add_img first, before the affine is populated.")
+        return self._affine
 
 
 class ReadableSparseIndex(SparseIndex):
@@ -203,9 +214,10 @@ class ReadableSparseIndex(SparseIndex):
 
         self._readable_nii = None
         self._readable_meta = None
+        self._affine = None
 
         if self.url:
-            session = requests.session()
+            session = requests.Session()
             resp = session.get(self.url + self.VOXEL_SUFFIX)
             resp.raise_for_status()
             content = resp.content
@@ -222,6 +234,14 @@ class ReadableSparseIndex(SparseIndex):
             self._readable_nii = nib.load(self.filepath.with_suffix(self.VOXEL_SUFFIX))
             with open(self.filepath.with_suffix(self.META_SUFFIX), "r") as fp:
                 self._readable_meta = fp.read()
+    
+
+    @property
+    def affine(self):
+        if self._affine is None:
+            self._affine = self._readable_nii.affine
+        return self._affine
+
 
     def _decode_regionalias(self, alias: str):
         if not self.readable:
