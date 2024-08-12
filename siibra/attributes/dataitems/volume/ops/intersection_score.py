@@ -382,7 +382,7 @@ def get_intersection_scores(
 
     elif isinstance(item, Image):
         return get_image_intersection_score(
-            queryvolume=item,
+            query_image=item,
             target_image=target_image,
             split_components=split_components,
             iou_lower_threshold=iou_lower_threshold,

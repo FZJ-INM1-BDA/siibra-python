@@ -387,7 +387,10 @@ class Map(AtlasElement):
         from pandas import DataFrame
 
         assignments: List[Map.RegionAssignment] = []
-        for region in self.regions:
+        for region in siibra_tqdm(
+            self.regions,
+            unit="region"
+        ):
             region_image = self.find_volumes(
                 region=region, frmt="image", **fetch_kwargs
             )[0]
