@@ -109,9 +109,10 @@ The below example writes Julich Brain 2.9 statistical map to base filename `icbm
 ```python
 import siibra
 from tqdm import tqdm
+from siibra.atlases.sparsemap import SparseIndex
 
 mp = siibra.get_map("2.9", "icbm 152", "statistical")
-spi = siibra.atlases.sparsemap.MESI("icbm152_julich2_9", "mesi", mode="w")
+spi = SparseIndex("icbm152_julich2_9", mode="w")
 
 
 progress = tqdm(total=len(mp.regions), leave=True)
@@ -132,9 +133,12 @@ The below example reads the MESI saved above.
 ```python
 
 import siibra
-from tqdm import tqdm
+import numpy as np
+from siibra.attributes.locations import Point
+from siibra.atlases.sparsemap import SparseIndex
 
-spi = siibra.atlases.sparsemap.SparseIndex("mesi/icbm152_julich2_9", mode="r")
+
+spi = siibra.atlases.sparsemap.SparseIndex("icbm152_julich2_9", mode="r")
 
 pt_phys = [-4.077, -79.717, 11.356]
 space = siibra.get_space("icbm 152")
@@ -146,9 +150,16 @@ voxelcoord = np.array(pt_voxel.coordinate).astype("int")
 val = spi.read([voxelcoord])
 print(val) # prints [{'Area hOc2 (V2, 18) - left hemisphere': 0.33959856629371643, 'Area hOc1 (V1, 17, CalcS) - left hemisphere': 0.6118946075439453}]
 
+```
+
+If the spatial index is available over HTTP:
+
+```python
+import siibra
+
 remote_spi = siibra.atlases.sparsemap.SparseIndex("https://data-proxy.ebrains.eu/api/v1/buckets/test-sept-22/icbm152_julich2_9.mesi", mode="r")
 
-assert remote_spi.read([voxelcoord]) == val
+print(remote_spi.read([voxelcoord])) # prints [{'Area hOc2 (V2, 18) - left hemisphere': 0.33959856629371643, 'Area hOc1 (V1, 17, CalcS) - left hemisphere': 0.6118946075439453}]
 ```
 
 ## Advantages
