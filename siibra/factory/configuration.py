@@ -16,6 +16,7 @@
 import json
 from typing import Iterator, Union, List, Tuple, Type, Dict
 from requests import HTTPError
+from os import getenv
 
 from .factory import build_feature, build_space, build_parcellation, build_map
 from .iterator import preconfigured_ac_registrar, iter_preconfigured_ac
@@ -28,21 +29,23 @@ from ..retrieval.file_fetcher import (
     GithubRepository,
 )
 from ..commons_new.logger import logger
-from ..commons import SIIBRA_USE_CONFIGURATION
+
+SIIBRA_USE_CONFIGURATION = getenv("SIIBRA_USE_CONFIGURATION")
 
 
 class Configuration:
 
-    DEFAULT_REPO_SPECS: List[
-        Tuple[Type[Repository], List, Dict]
-    ] = [
+    DEFAULT_REPO_SPECS: List[Tuple[Type[Repository], List, Dict]] = [
         (
-            GithubRepository, # Cls of repository to be used
-            [], # args
-            dict(owner="FZJ-INM1-BDA", # kwargs
-                 repo="siibra-configurations",
-                 reftag="refactor_attr",
-                 eager=True))
+            GithubRepository,  # Cls of repository to be used
+            [],  # args
+            dict(
+                owner="FZJ-INM1-BDA",  # kwargs
+                repo="siibra-configurations",
+                reftag="refactor_attr",
+                eager=True,
+            ),
+        )
     ]
 
     configured_repo: Repository = None
@@ -56,7 +59,7 @@ class Configuration:
                 f"at {SIIBRA_USE_CONFIGURATION}"
             )
             self.use_configuration(SIIBRA_USE_CONFIGURATION)
-        
+
         # using_default_configuration flag can be set by other class methods, namely use_configuration
         if self.__class__.using_default_configuration:
             for Cls, args, kwargs in self.DEFAULT_REPO_SPECS:
@@ -68,8 +71,11 @@ class Configuration:
                         f"Could not connect to default configuration repository Cls={Cls.__name__} args={args}, kwargs={kwargs}"
                     )
                     continue
-                except Exception as e:
-                    logger.warning(f"Error initializing repo Cls={Cls.__name__} args={args}, kwargs={kwargs}")
+                except Exception:
+                    logger.warning(
+                        f"Error initializing repo Cls={Cls.__name__} args={args}, kwargs={kwargs}",
+                        exc_info=1
+                    )
                     continue
             else:
                 raise RuntimeError(
@@ -122,18 +128,19 @@ class Configuration:
     @classmethod
     def use_configuration(cls, repository: Union[str, Repository]):
         """
-        Use a local/remote repository, rather than the default repository. This method will also clear all extended configuration.
+        Use a local/remote repository, rather than the default repository.
+        This method will also clear all extended configuration.
         """
-
-        # TODO should use_configuration clear all extended configurations? I think it should.
         if isinstance(repository, str):
             repository = Repository.from_url(repository)
         if not isinstance(repository, Repository):
             raise RuntimeError(
                 f"repository={repository!r} needs to be an instance of Repository or a valid str leading to one."
             )
+        logger.info("Using the requested configuration and clearing the rest (including extended_repos).")
         cls.configured_repo = repository
         cls.extended_repos.clear()
+        cls.using_default_configuration = False
 
 
 #

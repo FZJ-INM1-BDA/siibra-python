@@ -24,7 +24,12 @@ except ImportError:
 import numpy as np
 
 from ..concepts import AtlasElement
-from ..retrieval.volume_fetcher import FetchKwargs, IMAGE_FORMATS, MESH_FORMATS
+from ..retrieval.volume_fetcher import (
+    FetchKwargs,
+    IMAGE_FORMATS,
+    MESH_FORMATS,
+    SIIBRA_MAX_FETCH_SIZE_GIB,
+)
 from ..commons_new.iterable import assert_ooo
 from ..commons_new.maps import merge_volumes, compute_centroid, create_mask
 from ..commons_new.string import convert_hexcolor_to_rgbtuple
@@ -37,8 +42,6 @@ from ..attributes.dataitems.volume.ops.intersection_score import (
     ScoredImageAssignment,
     get_intersection_scores,
 )
-
-from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
     from ..retrieval.volume_fetcher import Mapping
@@ -387,10 +390,7 @@ class Map(AtlasElement):
         from pandas import DataFrame
 
         assignments: List[Map.RegionAssignment] = []
-        for region in siibra_tqdm(
-            self.regions,
-            unit="region"
-        ):
+        for region in siibra_tqdm(self.regions, unit="region"):
             region_image = self.find_volumes(
                 region=region, frmt="image", **fetch_kwargs
             )[0]
@@ -403,7 +403,9 @@ class Map(AtlasElement):
                 statistical_map_lower_threshold=statistical_map_lower_threshold,
                 **fetch_kwargs,
             ):
-                assignments.append(Map.RegionAssignment(**asdict(assgnmt), region=region))
+                assignments.append(
+                    Map.RegionAssignment(**asdict(assgnmt), region=region)
+                )
 
         assignments_unpacked = [asdict(a) for a in assignments]
 

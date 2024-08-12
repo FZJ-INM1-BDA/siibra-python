@@ -29,9 +29,8 @@ except ImportError:
 
 from .parcellationmap import Map
 from .region import Region
-from ..retrieval.volume_fetcher import FetchKwargs
+from ..retrieval.volume_fetcher import FetchKwargs, SIIBRA_MAX_FETCH_SIZE_GIB
 from ..retrieval.file_fetcher.io.base import PartialReader
-from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
     from ..attributes.locations import BoundingBox
@@ -79,7 +78,7 @@ class SparseIndex:
 
     def get_boundingbox_extrema(self, regionname: str, **kwargs) -> List[int]:
         raise NotImplementedError
-    
+
     @property
     def affine(self):
         raise NotImplementedError
@@ -92,7 +91,7 @@ class WritableSparseIndex(SparseIndex):
         super().__init__(*args, **kwargs)
 
         if self.filepath is None:
-            raise RuntimeError(f"WritableSparseIndex must point to a local file")
+            raise RuntimeError("WritableSparseIndex must point to a local file")
 
         # regionname -> regionalias (implicitly from str of element index in list, i.e. '0', '1', '2', etc)
         self._region_name_mapping: List[str] = []
@@ -198,11 +197,13 @@ class WritableSparseIndex(SparseIndex):
         self._bbox.append(
             np.array([X.min(), Y.min(), Z.min(), X.max(), Y.max(), Z.max()]).tolist()
         )
-    
+
     @property
     def affine(self):
         if self._affine is None:
-            raise RuntimeError(f"You must call .add_img first, before the affine is populated.")
+            raise RuntimeError(
+                "You must call .add_img first, before the affine is populated."
+            )
         return self._affine
 
 
@@ -234,14 +235,12 @@ class ReadableSparseIndex(SparseIndex):
             self._readable_nii = nib.load(self.filepath.with_suffix(self.VOXEL_SUFFIX))
             with open(self.filepath.with_suffix(self.META_SUFFIX), "r") as fp:
                 self._readable_meta = fp.read()
-    
 
     @property
     def affine(self):
         if self._affine is None:
             self._affine = self._readable_nii.affine
         return self._affine
-
 
     def _decode_regionalias(self, alias: str):
         if not self.readable:

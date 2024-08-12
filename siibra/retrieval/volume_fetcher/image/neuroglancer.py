@@ -25,11 +25,14 @@ from neuroglancer_scripts.precomputed_io import (
     PrecomputedIO,
 )
 
-from ...volume_fetcher.volume_fetcher import register_volume_fetcher, FetchKwargs, register_bbox_getter
+from ...volume_fetcher.volume_fetcher import (
+    register_volume_fetcher,
+    FetchKwargs,
+    register_bbox_getter,
+    SIIBRA_MAX_FETCH_SIZE_GIB,
+)
 from ....cache import fn_call_cache
 from ....commons_new.logger import logger
-
-from ....commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
     from ....attributes.dataitems import Image
@@ -37,7 +40,7 @@ if TYPE_CHECKING:
 
 
 def extract_label_mask(arr: np.ndarray, label: int):
-    return np.asanyarray(arr == label, dtype='uint8')
+    return np.asanyarray(arr == label, dtype="uint8")
 
 
 @fn_call_cache
@@ -151,9 +154,15 @@ class Scale:
             .ravel()
         )
 
-    def fetch(self, bbox: Union["BoundingBox", None]=None, channel: int = None, label: int = None):
+    def fetch(
+        self,
+        bbox: Union["BoundingBox", None] = None,
+        channel: int = None,
+        label: int = None,
+    ):
         # define the bounding box in this scale's voxel space
         from ....attributes.locations import BoundingBox
+
         if bbox is None:
             bbox_ = BoundingBox(minpoint=(0, 0, 0), maxpoint=self.size, space_id=None)
         else:
@@ -275,16 +284,21 @@ def fetch_neuroglancer(image: "Image", fetchkwargs: FetchKwargs) -> "nib.Nifti1I
     else:
         return scale.fetch(bbox=fetchkwargs["bbox"])
 
+
 @register_bbox_getter("neuroglancer/precomputed")
 @register_bbox_getter("neuroglancer/precompmesh")
 @fn_call_cache
-def fetch_ng_bbox(image: "Image", fetchkwargs: Union[FetchKwargs, None]=None) -> "BoundingBox":
+def fetch_ng_bbox(
+    image: "Image", fetchkwargs: Union[FetchKwargs, None] = None
+) -> "BoundingBox":
     from ....attributes.locations import BoundingBox
 
     provided_bbox = fetchkwargs["bbox"] if fetchkwargs else None
     if provided_bbox and provided_bbox.space_id != image.space_id:
-        raise RuntimeError(f"Fetching ngbbox error. image.space_id={image.space_id!r} "
-                           f"!= provided_bbox.space_id={provided_bbox.space_id!r}")
+        raise RuntimeError(
+            f"Fetching ngbbox error. image.space_id={image.space_id!r} "
+            f"!= provided_bbox.space_id={provided_bbox.space_id!r}"
+        )
 
     resp = requests.get(f"{image.url}/info")
     resp.raise_for_status()
@@ -308,9 +322,10 @@ def fetch_ng_bbox(image: "Image", fetchkwargs: Union[FetchKwargs, None]=None) ->
     bbox = BoundingBox(
         minpoint=min.tolist(), maxpoint=max.tolist(), space_id=image.space_id
     )
-    
+
     if not provided_bbox:
         return bbox
-    
+
     from ....attributes.locations.ops.intersection import bbox_bbox
+
     return bbox_bbox(bbox, provided_bbox)

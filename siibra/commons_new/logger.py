@@ -16,12 +16,12 @@
 import logging
 from typing import Iterable, TypeVar
 from tqdm import tqdm
-from os.path import extsep
+from os import path, getenv
 
-from ..commons import SIIBRA_LOG_LEVEL
+SIIBRA_LOG_LEVEL = getenv("SIIBRA_LOG_LEVEL", "INFO")
 
 
-logger = logging.getLogger(__name__.split(extsep)[0])
+logger = logging.getLogger(__name__.split(path.extsep)[0])
 ch = logging.StreamHandler()
 formatter = logging.Formatter("[{name}:{levelname}] {message}", style="{")
 ch.setFormatter(formatter)

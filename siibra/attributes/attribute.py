@@ -72,16 +72,15 @@ class Attribute:
         # TODO use str.removeprefix when py3.9 is the lowest python version supported
         return pd.DataFrame(
             [
-                {
-                    "key": key.replace("facet/", ""),
-                    "value": self.extra[key]
-                }
+                {"key": key.replace("facet/", ""), "value": self.extra[key]}
                 for key in self.extra
                 if key.startswith("facet/")
             ]
         )
-    
-    def _iter_zippable(self) -> Iterable[Tuple[str, Union[str, None], Union[BinaryIO, None]]]:
+
+    def _iter_zippable(
+        self,
+    ) -> Iterable[Tuple[str, Union[str, None], Union[BinaryIO, None]]]:
         """
         This method allows attributes to expose what kind of data to be written when user calls `to_zip`.
         Attribute collection will iterate over all _iter_zippable. For each:

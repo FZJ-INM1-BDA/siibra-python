@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from typing import TYPE_CHECKING, Callable, Dict, Union, Tuple
+from os import getenv
 from functools import wraps
 try:
     from typing import TypedDict, Literal
@@ -21,8 +22,7 @@ except ImportError:
     # support python 3.7
     from typing_extensions import TypedDict, Literal
 
-from ...commons import SIIBRA_MAX_FETCH_SIZE_GIB
-
+SIIBRA_MAX_FETCH_SIZE_GIB = getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2)
 
 if TYPE_CHECKING:
     from ...attributes.locations import BoundingBox

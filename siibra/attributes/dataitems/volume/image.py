@@ -24,8 +24,6 @@ from hashlib import md5
 from io import BytesIO
 import gzip
 
-from ....commons import SIIBRA_MAX_FETCH_SIZE_GIB
-
 from .base import Volume
 from ...locations import point, pointcloud, BoundingBox
 from ...locations.ops.intersection import _loc_intersection
@@ -34,6 +32,7 @@ from ....retrieval.volume_fetcher.volume_fetcher import (
     get_bbox_getter,
     FetchKwargs,
     IMAGE_FORMATS,
+    SIIBRA_MAX_FETCH_SIZE_GIB,
 )
 
 

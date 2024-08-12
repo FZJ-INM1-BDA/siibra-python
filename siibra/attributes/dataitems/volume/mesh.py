@@ -17,8 +17,6 @@ from dataclasses import dataclass
 
 from nibabel import GiftiImage
 
-from ....commons import SIIBRA_MAX_FETCH_SIZE_GIB
-
 from .base import Volume
 from ...locations import BoundingBox
 from ....retrieval.volume_fetcher.volume_fetcher import (
@@ -26,6 +24,7 @@ from ....retrieval.volume_fetcher.volume_fetcher import (
     get_bbox_getter,
     FetchKwargs,
     MESH_FORMATS,
+    SIIBRA_MAX_FETCH_SIZE_GIB,
 )
 
 
