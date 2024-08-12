@@ -100,6 +100,7 @@ class Point(Location):
         """Return an iterator over dimensions of the coordinate."""
         return iter(self.coordinate)
 
+    # TODO: profile the impact during map assignment.
     def create_gaussian_kernel(
         self, target_affine: np.ndarray, voxel_sigma_threshold: int = 3
     ) -> "Nifti1Image":
@@ -125,7 +126,7 @@ class Point(Location):
         )
         shift = np.identity(4)
         shift[:3, -1] = voxel_coords[:3, 0] - effective_r
-        kernel_affine = np.dot(voxel_transformation_affine, shift)
+        kernel_affine = np.dot(target_affine, shift)
 
         return Nifti1Image(dataobj=kernel, affine=kernel_affine)
 
