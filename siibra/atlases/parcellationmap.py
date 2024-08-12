@@ -34,7 +34,7 @@ from ..attributes.dataitems import Image, Mesh, FORMAT_LOOKUP
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
 from ..attributes.locations import BoundingBox, Point, PointCloud
 from ..attributes.dataitems.volume.ops.intersection_score import (
-    ImageAssignment,
+    ScoredImageAssignment,
     get_intersection_scores,
 )
 
@@ -372,7 +372,7 @@ class Map(AtlasElement):
         return centroids
 
     @dataclass
-    class RegionAssignment(ImageAssignment):
+    class RegionAssignment(ScoredImageAssignment):
         region: str
 
     def find_intersecting_regions(

@@ -98,7 +98,7 @@ class Image(Volume):
                 str(e).encode("utf-8")
             )
 
-    def read_values_at_points(
+    def read_points(
         self,
         ptcloud: Union["point.Point", "pointcloud.PointCloud"],
         **fetch_kwargs: FetchKwargs,
@@ -285,7 +285,7 @@ def intersect_ptcld_image(
     ptcloud: pointcloud.PointCloud, image: Image
 ) -> pointcloud.PointCloud:
     value_outside = 0
-    values = image.read_values_at_points(ptcloud, outside_value=value_outside)
+    values = image.read_points(ptcloud, outside_value=value_outside)
     inside = list(np.where(values != value_outside)[0])
     return replace(
         ptcloud,

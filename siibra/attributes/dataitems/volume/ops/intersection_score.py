@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Union, Tuple, Generator, List
 
 import numpy as np
@@ -22,18 +22,8 @@ from nibabel import Nifti1Image
 from ..image import Image, from_nifti
 from ....locations import Point, BoundingBox
 from ....locations import pointcloud
-from .....commons_new.maps import resample_img_to_img
+from .....commons_new.maps import resample_img_to_img, compute_centroid
 from .....retrieval.volume_fetcher import FetchKwargs
-
-
-@dataclass
-class ImageIntersectionScore:
-    intersection_over_union: float
-    intersection_over_first: float
-    intersection_over_second: float
-    correlation: float
-    weighted_mean_of_first: float
-    weighted_mean_of_second: float
 
 
 @dataclass
@@ -41,6 +31,23 @@ class ImageAssignment:
     input_structure_index: int
     centroid: Union[Tuple[np.ndarray], Point]
     map_value: np.ndarray
+
+
+@dataclass
+class NiftiIntersectionScore:
+    intersection_over_union: float
+    intersection_over_first: float
+    intersection_over_second: float
+    correlation: float
+    weighted_mean_of_first: float
+    weighted_mean_of_second: float
+    map_value_mean: float
+    map_value_std: float
+
+
+@dataclass
+class ScoredImageAssignment(ImageAssignment, NiftiIntersectionScore):
+    pass
 
 
 def get_connected_components(
@@ -163,13 +170,15 @@ def calculate_nifti_intersection_score(nii1: Nifti1Image, nii2: Nifti1Image):
     m1, m2 = ((v > 0).astype("uint8") for v in [v1, v2])
     intersection = np.minimum(m1, m2).sum()
     if intersection == 0:
-        return ImageIntersectionScore(
+        return NiftiIntersectionScore(
             intersection_over_union=0,
             intersection_over_first=0,
             intersection_over_second=0,
             correlation=0,
             weighted_mean_of_first=0,
             weighted_mean_of_second=0,
+            map_value_mean=0,
+            map_value_std=0
         )
 
     # Compute the nonzero voxels in map1 with their correspondences in map2
@@ -197,13 +206,15 @@ def calculate_nifti_intersection_score(nii1: Nifti1Image, nii2: Nifti1Image):
 
     union = np.maximum((arr1 > 0).astype("uint8"), (arr2 > 0).astype("uint8")).sum()
 
-    return ImageIntersectionScore(
+    return NiftiIntersectionScore(
         intersection_over_union=intersection / union,
         intersection_over_first=intersection / (a1 > 0).sum(),
         intersection_over_second=intersection / (a2 > 0).sum(),
         correlation=rho,
         weighted_mean_of_first=np.sum(a1 * a2) / np.sum(a2),
         weighted_mean_of_second=np.sum(a1 * a2) / np.sum(a1),
+        map_value_mean=a1.mean(),
+        map_value_std=a1.std(),
     )
 
 
@@ -214,7 +225,8 @@ def get_image_intersection_score(
     iou_lower_threshold: float = 0.0,
     statistical_map_lower_threshold: float = 0.0,
     **fetch_kwargs: FetchKwargs,
-) -> List[ImageAssignment]:
+) -> List[ScoredImageAssignment]:
+    # TODO: well-define thresholds and ensure where to use a mask or not
     assert query_image.space == target_image.space, ValueError(
         "Assigned volume must be in the same space as the map."
     )
@@ -228,19 +240,17 @@ def get_image_intersection_score(
     target_nii = target_image.fetch(**fetch_kwargs)
     querynii_resamp = resample_img_to_img(querynii, target_nii)
 
-    assignments: List[ImageAssignment] = []
+    assignments: List[ScoredImageAssignment] = []
     for compmode, voxelmask in iter_components(querynii_resamp):
         score = calculate_nifti_intersection_score(voxelmask, target_nii)
         if score.intersection_over_union <= iou_lower_threshold:
             continue
-        if score.map_value <= statistical_map_lower_threshold:
-            continue
-        component_position = np.array(np.where(voxelmask)).T.mean(0)
-        assignments.append(
-            ImageAssignment(
-                input_structure_index=compmode, centroid=tuple(component_position)
-            )
-        )
+        assignments.append(ScoredImageAssignment(
+            input_structure_index=compmode,
+            centroid=compute_centroid(voxelmask).coordinate,
+            map_value=None,
+            **asdict(score)
+        ))
 
     return assignments
 
@@ -267,7 +277,7 @@ def get_pointcloud_intersection_score(
     statistical_map_lower_threshold: float = 0.0,
     **fetch_kwargs: FetchKwargs,
 ):
-    assignments: List[ImageAssignment] = []
+    assignments: List[Union[ImageAssignment, ScoredImageAssignment]] = []
 
     # convert sigma to voxel coordinates
     scaling = np.array(
@@ -284,14 +294,14 @@ def get_pointcloud_intersection_score(
         points.sigma[0] / scaling < voxel_sigma_threshold
     ):
         for pointindex, value in zip(
-            *image.read_values_at_points(ptcloud=points_wrpd, **fetch_kwargs)
+            *image.read_points(ptcloud=points_wrpd, **fetch_kwargs)
         ):
             if value <= statistical_map_lower_threshold:
                 continue
             assignments.append(
                 ImageAssignment(
                     input_structure_index=pointindex,
-                    centroid=points.coordinates[pointindex],
+                    centroid=points[pointindex].coordinate,
                     map_value=value,
                 )
             )
@@ -303,13 +313,13 @@ def get_pointcloud_intersection_score(
         # voxel-precise enough. Just read out the value in the maps
         voxel_sigma = points[pointindex].sigma / scaling  # use unwarped point
         if voxel_sigma < voxel_sigma_threshold:
-            _, value = image.read_values_at_points(ptcloud=pt, **fetch_kwargs)
+            _, value = image.read_points(ptcloud=pt, **fetch_kwargs)
             if value[0] <= statistical_map_lower_threshold:
                 continue
             assignments.append(
                 ImageAssignment(
                     input_structure_index=pointindex,
-                    centroid=points.coordinates[pointindex],
+                    centroid=points[pointindex].coordinate,
                     map_value=value[0],
                 )
             )
@@ -345,7 +355,7 @@ def get_intersection_scores(
     statistical_map_lower_threshold: float = 0.0,
     split_components: bool = False,
     **fetch_kwargs: FetchKwargs,
-) -> List[ImageAssignment]:
+) -> List[Union[ImageAssignment, ScoredImageAssignment]]:
     if isinstance(item, Point):
         return get_pointcloud_intersection_score(
             points=pointcloud.PointCloud(
