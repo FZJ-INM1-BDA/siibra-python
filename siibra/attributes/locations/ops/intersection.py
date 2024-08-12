@@ -63,9 +63,11 @@ def ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
         return
     if len(pts) == 1:
         return pts[0]
-    return replace(ptclda,
-                   coordinates=[pt.coordinate for pt in pts],
-                   sigma=[pt.sigma for pt in pts])
+    return replace(
+        ptclda,
+        coordinates=[pt.coordinate for pt in pts],
+        sigma=[pt.sigma for pt in pts],
+    )
 
 
 @_loc_intersection.register(PointCloud, BoundingBox)
@@ -77,9 +79,9 @@ def ptcld_bbox(ptcld: PointCloud, bbox: BoundingBox):
         return
     if len(pts) == 1:
         return pts[0]
-    return replace(ptcld,
-                   coordinates=[pt.coordinate for pt in pts],
-                   sigma=[pt.sigma for pt in pts])
+    return replace(
+        ptcld, coordinates=[pt.coordinate for pt in pts], sigma=[pt.sigma for pt in pts]
+    )
 
 
 @_loc_intersection.register(BoundingBox, BoundingBox)

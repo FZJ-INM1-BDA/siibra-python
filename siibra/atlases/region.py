@@ -89,7 +89,6 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         spatialprops = self._get_spatialprops(space=space, maptype="labelled")
         return PointCloud([sp["centroid"] for sp in spatialprops], space_id=space.ID)
 
-
     def get_boundingbox(self, space: Union[str, "Space", None] = None) -> "BoundingBox":
         from ..attributes.locations.boundingbox import from_array, BoundingBox
         from .. import get_space, find_maps
@@ -99,7 +98,9 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
 
         if space is None:
             mps = find_maps(parcellation=self.parcellation.ID)
-            assert len(mps) == 1, f"Expected one and only one map for {str(self)}, but found {len(mps)}."
+            assert (
+                len(mps) == 1
+            ), f"Expected one and only one map for {str(self)}, but found {len(mps)}."
             mp = mps[0]
             space = mp.space
 
@@ -108,7 +109,6 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         bbox = BoundingBox.transform(bbox, mask.affine)
         bbox.space_id = space.ID
         return bbox
-
 
     def get_components(self, space: Union[str, "Space", None] = None):
         spatialprops = self._get_spatialprops(space=space, maptype="labelled")
@@ -197,7 +197,9 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             space=space, maptype=maptype, via_space=via_space, frmt=frmt
         )
         return create_mask(
-            region_map, background_value=background_value, lower_threshold=lower_threshold
+            region_map,
+            background_value=background_value,
+            lower_threshold=lower_threshold,
         )
 
     def get_related_regions(self):
