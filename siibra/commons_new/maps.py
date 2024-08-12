@@ -195,7 +195,7 @@ def _resample_and_merge_niftis(
 
 def spatial_props(
     img: Nifti1Image,
-    space_id: str,
+    space_id: str = None,
     background: float = 0.0,
     maptype: Literal["labelled", "statistical"] = "labelled",
     threshold_statistical: float = None,
@@ -233,7 +233,7 @@ def spatial_props(
     return spatialprops
 
 
-def compute_centroid(img: Nifti1Image, space_id: str, background: float = 0.0):
+def compute_centroid(img: Nifti1Image, space_id: str = None, background: float = 0.0):
     from ..attributes.locations import Point
 
     maparr = np.asanyarray(img.dataobj)
