@@ -24,6 +24,7 @@ import numpy as np
 from .base import Location
 from . import point, pointcloud
 from ...commons_new.logger import logger
+from ...cache import fn_call_cache
 
 
 @dataclass
@@ -37,6 +38,10 @@ class BoundingBox(Location):
         # TODO: correctly parse sigma vals
         self._minpoint = point.Point(coordinate=self.minpoint, space_id=self.space_id)
         self._maxpoint = point.Point(coordinate=self.maxpoint, space_id=self.space_id)
+
+        for pt in self.minpoint, self.maxpoint:
+            assert isinstance(pt, list), f"expected to be a list, but is {type(pt).__name__}"
+            assert all(isinstance(p, float) for p in pt), f"expected all to be float"
 
     def __eq__(self, other: 'BoundingBox'):
         if not isinstance(other, BoundingBox):
@@ -152,11 +157,12 @@ def estimate_affine(bbox: BoundingBox, space):
 
     return affine
 
-
-def _determine_bounds(array: np.ndarray, threshold=0):
+@fn_call_cache
+def _determine_bounds(array: np.ndarray, threshold=0.):
     """
-    Bounding box of nonzero values in a 3D array.
-    https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
+    TODO move to commons_new/maps.py
+    TODO rename commons_new/maps.py -> commons_new/volume|image.py
+    Returns inclusive bounds of a given 3D ndarray, thresholed by the given threshold. 
     """
     x = np.any(array > threshold, axis=(1, 2))
     y = np.any(array > threshold, axis=(0, 2))
@@ -168,18 +174,25 @@ def _determine_bounds(array: np.ndarray, threshold=0):
     xmin, xmax = nzx[0][[0, -1]]
     ymin, ymax = nzy[0][[0, -1]]
     zmin, zmax = nzz[0][[0, -1]]
-    return np.array([[xmin, xmax + 1], [ymin, ymax + 1], [zmin, zmax + 1], [1, 1]])
+    return np.array([[xmin, xmax], [ymin, ymax], [zmin, zmax], [1, 1]])
 
 
-def from_array(array: np.ndarray, threshold=0, space_id: str = None) -> "BoundingBox":
+def from_array(array: np.ndarray, threshold=0.) -> "BoundingBox":
     """
-    Find the bounding box of an array.
+    Find the bounding box of a 3D array, clipped in all three dimenions inclusively by the provided threshold.
+    This method returns a BoundingBox in the voxel units of the input array.
+
+    n.b. Whilst the minpoints and maxpoints are cast to float due to the limitation of BoundingBox, it should *not* be
+    used to infer the precision of the calculation. Downstream users should adapt the usage accordingly.
 
     Parameters
     ----------
     array : np.ndarray
-    threshold : int, default: 0
-    space : Space, default: None
+    threshold : float, default: 0.
     """
     bounds = _determine_bounds(array, threshold)
-    return BoundingBox(minpoint=bounds[:3, 0], maxpoint=bounds[:3, 1], space_id=space_id)
+    if bounds is None:
+        return None
+    return BoundingBox(minpoint=bounds[:3, 0].astype("float").tolist(),
+                       maxpoint=bounds[:3, 1].astype("float").tolist(),
+                       space_id=None)

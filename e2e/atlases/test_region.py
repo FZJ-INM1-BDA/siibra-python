@@ -96,17 +96,17 @@ def test_related_region_hemisphere():
 @pytest.fixture(scope="session")
 def jba29_fp1lh_reg_map():
     region = siibra.get_region("julich 2.9", "fp1 left")
-    yield region.fetch_regional_map("icbm 152")
+    yield region.fetch_regional_map("icbm 152"), [0, 212]
 
 @pytest.fixture(scope="session")
 def jba29_fp1bh_reg_map():
     region = siibra.get_region("julich 2.9", "fp1")
-    yield region.fetch_regional_map("icbm 152")
+    yield region.fetch_regional_map("icbm 152"), [0, 212]
 
 @pytest.fixture(scope="session")
 def jba29_fpf_reg_map():
     region = siibra.get_region("julich 2.9", "frontal pole")
-    yield region.fetch_regional_map("icbm 152")
+    yield region.fetch_regional_map("icbm 152"), [0, 211, 212]
 
 jba29_regmap_fx_name = [
     "jba29_fp1lh_reg_map",
@@ -126,3 +126,10 @@ def test_regional_map_returns_mask(fx_name, request):
     if isinstance(nii, nib.Nifti1Image):
         assert np.unique(nii.dataobj).tolist() == [0, 1], f"Expected only 0 and 1 in fetched nii"
 
+@pytest.mark.parametrize("space_spec", ["icbm 152", "colin 27"])
+def test_get_boundingbox(space_spec):
+    hoc1_l = siibra.get_region('julich 2.9', 'hoc1 left')
+    hoc1_r = siibra.get_region('julich 2.9', 'hoc1 right')
+    bbox_l = hoc1_l.get_boundingbox(space_spec)
+    bbox_r = hoc1_r.get_boundingbox(space_spec)
+    assert bbox_l != bbox_r, "Left and right hoc1 should not have the same bounding boxes"

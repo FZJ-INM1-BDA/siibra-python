@@ -41,8 +41,10 @@ class Point(Location):
         assert len(self.coordinate) == 3, f"Expected 3 elements, but got {len(self.coordinate)}"
         assert all(
             isinstance(coord, float) for coord in self.coordinate
-        ), "Expected coordinates to be of type float, but was "
-        f"{', '.join(type(coord).__name__ for coord in self.coordinate)}"
+        ), (
+            "Expected coordinates to be of type float, but was "
+            f"{', '.join(type(coord).__name__ for coord in self.coordinate)}"
+        )
 
     @property
     def homogeneous(self) -> np.ndarray:

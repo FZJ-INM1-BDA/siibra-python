@@ -45,7 +45,8 @@ class PointCloud(Location):
         if isinstance(coordinates, np.ndarray):
             coordinates = coordinates.tolist()
         if isinstance(coordinates, (list, tuple)):
-            coordinates = list(tuple(c) for c in coordinates)
+            coordinates = list(tuple(float(c) for c in coord)
+                               for coord in coordinates)
         return coordinates, sigma
 
     def __post_init__(self):
@@ -111,8 +112,8 @@ class PointCloud(Location):
         sigma_min = [0]  # max(self.sigma[i] for i in XYZ.argmin(0))
         sigma_max = [0]  # max(self.sigma[i] for i in XYZ.argmax(0))
         return _boundingbox.BoundingBox(
-            minpoint=minpoint - max(sigma_min),
-            maxpoint=maxpoint + max(sigma_max),
+            minpoint=(minpoint - max(sigma_min)).tolist(),
+            maxpoint=(maxpoint + max(sigma_max)).tolist(),
             space_id=self.space_id,
         )
 

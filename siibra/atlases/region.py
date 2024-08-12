@@ -17,25 +17,42 @@ import anytree
 import json
 from typing import Iterable, Union, TYPE_CHECKING, List, Tuple
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 
 from ..concepts import atlas_elements
 from ..attributes.descriptions import Name
+from ..attributes.locations import boundingbox, PointCloud
 from ..commons_new.string import get_spec, SPEC_TYPE, extract_uuid
 from ..commons_new.iterable import assert_ooo
 from ..commons_new.maps import spatial_props, create_mask
 from ..commons_new.logger import logger
 from ..commons_new.register_recall import RegisterRecall
 from ..retrieval.file_fetcher.dataproxy_fetcher import DataproxyRepository
+from ..cache import fn_call_cache
 
 if TYPE_CHECKING:
     from . import Space, Parcellation
-    from ..attributes.locations import PointCloud, BoundingBox
     from ..assignment.qualification import Qualification
 
 
 def filter_newest(regions: List["Region"]) -> List["Region"]:
     _parcellations = {r.parcellation for r in regions}
     return [r for r in regions if r.parcellation.next_version not in _parcellations]
+
+
+@fn_call_cache
+def _get_region_boundingbox(parc_id: str, region_name: str, space_id: str):
+    from .. import find_regions
+    regions = find_regions(parc_id, region_name)
+    assert len(regions) == 1, f"Expecting one and only one region"
+    region = regions[0]
+    mask = region.fetch_regional_mask(space_id)
+    
+    bbox = boundingbox.from_array(mask.dataobj)
+    bbox = replace(bbox, maxpoint=[v + 1.0 for v in bbox.maxpoint])
+    bbox = boundingbox.BoundingBox.transform(bbox, mask.affine)
+    bbox.space_id = space_id
+    return bbox
 
 
 class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
@@ -89,26 +106,17 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         spatialprops = self._get_spatialprops(space=space, maptype="labelled")
         return PointCloud([sp["centroid"] for sp in spatialprops], space_id=space.ID)
 
-    def get_boundingbox(self, space: Union[str, "Space", None] = None) -> "BoundingBox":
-        from ..attributes.locations.boundingbox import from_array, BoundingBox
-        from .. import get_space, find_maps
+    def get_boundingbox(self, space: Union[str, "Space", None] = None) -> boundingbox.BoundingBox:
+        from .. import get_space, Space
 
+        space_id = None
         if isinstance(space, str):
             space = get_space(space)
-
-        if space is None:
-            mps = find_maps(parcellation=self.parcellation.ID)
-            assert (
-                len(mps) == 1
-            ), f"Expected one and only one map for {str(self)}, but found {len(mps)}."
-            mp = mps[0]
-            space = mp.space
-
-        mask = self.fetch_regional_mask(space)
-        bbox = from_array(mask.dataobj)
-        bbox = BoundingBox.transform(bbox, mask.affine)
-        bbox.space_id = space.ID
-        return bbox
+        if isinstance(space, Space):
+            space_id = space.ID
+        if space_id is None:
+            raise RuntimeError(f"space must be of type str or Space. You provided {type(space).__name__}")
+        return _get_region_boundingbox(self.parcellation.ID, self.name, space_id)
 
     def get_components(self, space: Union[str, "Space", None] = None):
         spatialprops = self._get_spatialprops(space=space, maptype="labelled")
