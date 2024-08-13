@@ -116,7 +116,11 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
         region = regions[0]
 
         # since we are only interested in map in mni152 space
-        images = region.find_regional_maps("icbm 152")
+        images = [
+            image
+            for map in region.find_regional_maps("icbm 152")
+            for image in map.find_volumes(region)
+        ]
 
         if len(images) != 1:
             logger.warning(
