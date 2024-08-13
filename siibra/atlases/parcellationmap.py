@@ -39,8 +39,9 @@ from ..attributes.dataitems import Image, Mesh, FORMAT_LOOKUP
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
 from ..attributes.locations import BoundingBox, Point, PointCloud
 from ..attributes.dataitems.volume.ops.intersection_score import (
+    ImageAssignment,
     ScoredImageAssignment,
-    get_intersection_scores,
+    get_intersection_values,
 )
 
 if TYPE_CHECKING:
@@ -375,7 +376,11 @@ class Map(AtlasElement):
         return centroids
 
     @dataclass
-    class RegionAssignment(ScoredImageAssignment):
+    class RegionAssignment(ImageAssignment):
+        region: str
+
+    @dataclass
+    class ScoredRegionAssignment(ScoredImageAssignment):
         region: str
 
     def find_intersecting_regions(
@@ -389,7 +394,7 @@ class Map(AtlasElement):
     ):
         from pandas import DataFrame
 
-        assignments: List[Map.RegionAssignment] = []
+        assignments: List[Union[Map.RegionAssignment, Map.ScoredRegionAssignment]] = []
         for region in siibra_tqdm(self.regions, unit="region"):
             region_image = self.find_volumes(
                 region=region, frmt="image", **fetch_kwargs
@@ -404,8 +409,12 @@ class Map(AtlasElement):
                     statistical_map_lower_threshold=statistical_map_lower_threshold,
                     **fetch_kwargs,
                 ):
+                    if isinstance(assgnmt, ImageAssignment):
+                        assgnmt_type = Map.RegionAssignment
+                    else:
+                        assgnmt_type = Map.ScoredRegionAssignment
                     assignments.append(
-                        Map.RegionAssignment(**asdict(assgnmt), region=region)
+                        assgnmt_type(**asdict(assgnmt), region=region)
                     )
 
         assignments_unpacked = [asdict(a) for a in assignments]
