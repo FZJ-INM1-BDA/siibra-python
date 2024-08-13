@@ -1,13 +1,14 @@
 import pytest
-
+from unittest.mock import patch, Mock
 
 from dataclasses import replace
 from typing import Type
 from itertools import chain, product
 
 
-from siibra.attributes.locations import Point, BoundingBox
-from siibra.exceptions import InvalidAttrCompException
+from siibra.attributes import locations
+from siibra.attributes.locations import Point, BoundingBox, Location
+from siibra.exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 from siibra.assignment.attribute_qualification import qualify, Qualification
 
 
@@ -34,7 +35,11 @@ def bbox_x_flat(dim: int):
     p21 += delta
 
     return [
-        BoundingBox(space_id="foo", minpoint=minpoint.coordinate, maxpoint=maxpoint.coordinate)
+        BoundingBox(
+            space_id="foo",
+            minpoint=list(minpoint.coordinate),
+            maxpoint=list(maxpoint.coordinate),
+        )
         for minpoint, maxpoint in (
             (p00, p01),
             (p10, p11),
@@ -46,15 +51,18 @@ def bbox_x_flat(dim: int):
 flatxbbox, flatybbox, flatzbbox = [bbox_x_flat(dim) for dim in range(3)]
 
 
-def test_qualify_raise():
+@patch.object(Location, "warp")
+def test_qualify_different_space(warp_mock: Mock):
+    warp_mock.side_effect = RuntimeError
     bboxfoo = BoundingBox(space_id="foo", minpoint=[0, 0, 0], maxpoint=[1, 1, 1])
     bboxbar = BoundingBox(
         space_id="bar",
         minpoint=[0, 0, 0],
         maxpoint=[1, 1, 1],
     )
-    with pytest.raises(InvalidAttrCompException):
+    with pytest.raises(UnregisteredAttrCompException):
         qualify(bboxfoo, bboxbar)
+    warp_mock.assert_called_once_with(bboxbar.space_id)
 
 
 @pytest.mark.parametrize(
@@ -97,7 +105,7 @@ bbox_foo_5_10 = BoundingBox(space_id="foo", minpoint=[5, 5, 5], maxpoint=[10, 10
             bbox_foo_5_10,
             Point(coordinate=[7, 7, 7], space_id="bar"),
             None,
-            InvalidAttrCompException,
+            UnregisteredAttrCompException,
         ],
         [
             Point(coordinate=[7, 7, 7], space_id="foo"),
@@ -137,7 +145,11 @@ bbox_foo_5_10 = BoundingBox(space_id="foo", minpoint=[5, 5, 5], maxpoint=[10, 10
         ],
     ],
 )
-def test_compare_loc_to_loc(arg1, arg2, expected: bool, ExCls: Type[Exception]):
+@patch.object(Location, "warp")
+def test_compare_loc_to_loc(
+    warp_mock: Mock, arg1, arg2, expected: bool, ExCls: Type[Exception]
+):
+    warp_mock.side_effect = RuntimeError
     if ExCls:
         with pytest.raises(ExCls):
             qualify(arg1, arg2)
