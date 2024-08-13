@@ -137,7 +137,7 @@ class Point(Location):
             Point.transform(self, voxel_transformation_affine).coordinate, dtype="int"
         )
         shift = np.identity(4)
-        shift[:3, -1] = voxel_coords[:3, 0] - effective_r
+        shift[:3, -1] = voxel_coords[:3] - effective_r
         kernel_affine = np.dot(target_affine, shift)
 
         return Nifti1Image(dataobj=kernel, affine=kernel_affine)
