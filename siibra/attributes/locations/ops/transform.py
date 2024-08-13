@@ -39,6 +39,7 @@ from ..point import Point
 from ..pointcloud import PointCloud
 from ..boundingbox import BoundingBox
 from ....commons.logger import logger
+from ....cache import fn_call_cache
 
 T = TypeVar("T", bound=Location)
 _tranformers: Dict["Location", Callable] = {}
@@ -53,6 +54,7 @@ def _register_warper(location_type: Generic[T]):
 
 
 @_register_warper(Point)
+@fn_call_cache
 def transform_point(
     point: Point, affine: np.ndarray, target_space_id: str = None
 ) -> Point:
@@ -84,6 +86,7 @@ def transform_point(
 
 
 @_register_warper(PointCloud)
+@fn_call_cache
 def transform_pointcloud(
     ptcloud: PointCloud, affine: np.ndarray, target_space_id: str = None
 ) -> PointCloud:
@@ -99,6 +102,7 @@ def transform_pointcloud(
 
 
 @_register_warper(BoundingBox)
+@fn_call_cache
 def transform_boundingbox(
     bbox: BoundingBox, affine: np.ndarray, target_space_id: str = None
 ) -> BoundingBox:
