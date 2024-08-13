@@ -33,7 +33,7 @@ from ..retrieval.volume_fetcher import (
 from ..commons.iterable import assert_ooo
 from ..commons.maps import merge_volumes, compute_centroid, create_mask
 from ..commons.string import convert_hexcolor_to_rgbtuple
-from ..commons.logger import logger, siibra_tqdm
+from ..commons.logger import logger, siibra_tqdm, QUIET
 from ..atlases import Parcellation, Space, Region
 from ..attributes.dataitems import Image, Mesh, FORMAT_LOOKUP
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
@@ -394,18 +394,19 @@ class Map(AtlasElement):
             region_image = self.find_volumes(
                 region=region, frmt="image", **fetch_kwargs
             )[0]
-            for assgnmt in get_intersection_scores(
-                item=item,
-                target_image=region_image,
-                split_components=split_components,
-                voxel_sigma_threshold=voxel_sigma_threshold,
-                iou_lower_threshold=iou_lower_threshold,
-                statistical_map_lower_threshold=statistical_map_lower_threshold,
-                **fetch_kwargs,
-            ):
-                assignments.append(
-                    Map.RegionAssignment(**asdict(assgnmt), region=region)
-                )
+            with QUIET:
+                for assgnmt in get_intersection_scores(
+                    item=item,
+                    target_image=region_image,
+                    split_components=split_components,
+                    voxel_sigma_threshold=voxel_sigma_threshold,
+                    iou_lower_threshold=iou_lower_threshold,
+                    statistical_map_lower_threshold=statistical_map_lower_threshold,
+                    **fetch_kwargs,
+                ):
+                    assignments.append(
+                        Map.RegionAssignment(**asdict(assgnmt), region=region)
+                    )
 
         assignments_unpacked = [asdict(a) for a in assignments]
 
