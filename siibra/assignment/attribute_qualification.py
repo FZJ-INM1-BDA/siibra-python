@@ -255,24 +255,26 @@ def qualify_ptcld_image(ptcld: PointCloud, image: Image):
         return Qualification.OVERLAPS
 
 
-@fn_call_cache
-def _find_all_volumes(regionspec: RegionSpec, space_id: str):
-    return [
-        volume
-        for region in regionspec.decode()
-        for mp in region.find_regional_maps(space_id)
-        for volume in mp.find_volumes(region)
-    ]
-
-
 @register_attr_qualifier(RegionSpec, Image)
 def qualify_regionspec_image(regionspec: RegionSpec, image: Image):
+    logger.debug(
+        "RegionSpec and Image comparison is disabled on purpose. This comparison turns out to be "
+        "quite expensive even when caching the intermediate steps. Developers should implement their"
+        "own logic to decode regionspec to boundingbox or image (NYI).\n\nThis comparison is still"
+        "registered, so that no other RegionSpec x Image can be registered"
+    )
+    return
     if not image.space_id:
         return
-    all_matching_volumes = _find_all_volumes(regionspec, image.space_id)
-    for volume in all_matching_volumes:
+    from ..atlases.region import _get_region_boundingbox
+
+    for region in regionspec.decode():
+
+        bbox = _get_region_boundingbox(
+            region.parcellation.ID, region.name, image.space_id
+        )
+        _intersect = qualify_bbox_bbox(bbox, image.boundingbox)
         try:
-            _intersect = intersect(volume.boundingbox, image.boundingbox)
             if _intersect:
                 return Qualification.APPROXIMATE
         except Exception as e:
