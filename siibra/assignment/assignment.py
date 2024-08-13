@@ -18,7 +18,10 @@ from collections import defaultdict
 from itertools import product
 import math
 
-from .attribute_qualification import qualify as attribute_qualify
+from .attribute_qualification import (
+    qualify as attribute_qualify,
+    is_qualifiable as attribute_is_qualifiable,
+)
 from ..commons.logger import logger
 from ..attributes import AttributeCollection
 from ..attributes.locations import Location, BoundingBox
@@ -59,7 +62,10 @@ def qualify(col_a: AttributeCollection, col_b: AttributeCollection):
     Raises: UnregisteredAttrCompException if no combination of attributes can be found.
     """
     attr_compared_flag = False
-    for attra, attrb in product(col_a.attributes, col_b.attributes):
+    for attra, attrb in product(
+        filter(lambda a: attribute_is_qualifiable(type(a)), col_a.attributes),
+        filter(lambda a: attribute_is_qualifiable(type(a)), col_b.attributes),
+    ):
         try:
             match_result = attribute_qualify(attra, attrb)
             attr_compared_flag = True

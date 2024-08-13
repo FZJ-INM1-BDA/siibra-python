@@ -16,6 +16,19 @@
 from dataclasses import dataclass
 
 from .base import Description
+from ...cache import fn_call_cache
+
+
+@fn_call_cache
+def _decode(regionspec: "RegionSpec"):
+    # n.b. method cannot be directly decorated with joblib memory, because of the "self" first argument
+    # TODO try to not cache region (or parcellation)
+    # it caches the entire tree
+    from ...atlases import Region
+    from ...concepts import QueryParam
+    from ...assignment import find
+
+    return find([QueryParam(attributes=[regionspec])], Region)
 
 
 @dataclass
@@ -27,8 +40,4 @@ class RegionSpec(Description):
         return hash(f"{self.parcellation_id}{self.value}")
 
     def decode(self):
-        from ...atlases import Region
-        from ...concepts import QueryParam
-        from ...assignment import find
-
-        return find([QueryParam(attributes=[self])], Region)
+        return _decode(self)
