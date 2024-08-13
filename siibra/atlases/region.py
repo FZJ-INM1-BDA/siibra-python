@@ -28,6 +28,7 @@ from ..commons.maps import spatial_props, create_mask
 from ..commons.logger import logger
 from ..commons.register_recall import RegisterRecall
 from ..retrieval.file_fetcher.dataproxy_fetcher import DataproxyRepository
+from ..retrieval.volume_fetcher import IMAGE_FORMATS
 from ..cache import fn_call_cache
 
 if TYPE_CHECKING:
@@ -42,13 +43,12 @@ def filter_newest(regions: List["Region"]) -> List["Region"]:
 
 @fn_call_cache
 def _get_region_boundingbox(parc_id: str, region_name: str, space_id: str):
-    from .. import find_regions
+    from .. import get_region
 
-    regions = find_regions(parc_id, region_name)
-    assert len(regions) == 1, f"Expecting one and only one region"
-    region = regions[0]
+    region = get_region(parc_id, region_name)
     mask = region.fetch_regional_mask(space_id)
-
+    if mask is None:
+        raise RuntimeError(f"{parc_id} {region_name} in {space_id} has no boundingbox")
     bbox = boundingbox.from_array(mask.dataobj)
     bbox = replace(bbox, maxpoint=[v + 1.0 for v in bbox.maxpoint])
     bbox = boundingbox.BoundingBox.transform(bbox, mask.affine)
@@ -123,6 +123,30 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             )
         return _get_region_boundingbox(self.parcellation.ID, self.name, space_id)
 
+    def find_boundingboxes(self):
+        from .. import find_maps
+
+        maps = find_maps(self.parcellation.ID)
+
+        image_mps = [
+            m for m in maps if any(format in IMAGE_FORMATS for format in m.formats)
+        ]
+
+        return_result: List[boundingbox.BoundingBox] = []
+        for map in image_mps:
+            try:
+                return_result.append(
+                    _get_region_boundingbox(
+                        self.parcellation.ID, self.name, map.space_id
+                    )
+                )
+            except Exception as e:
+                print(e)
+                logger.debug(
+                    f"Error fetching boundingbox for {str(self)} in {str(map)}: {str(e)}"
+                )
+        return return_result
+
     def get_components(self, space: Union[str, "Space", None] = None):
         spatialprops = self._get_spatialprops(space=space, maptype="labelled")
         return [sp["volume"] for sp in spatialprops]
@@ -193,7 +217,9 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
                 )
                 selectedmap = maps[0]
             else:
-                raise ValueError("Found no maps matching the specs for this region.")
+                raise ValueError(
+                    f"Found no maps matching the specs for this region., {space}"
+                )
 
         return selectedmap.fetch(frmt=frmt)
 
@@ -209,6 +235,8 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         region_map = self.fetch_regional_map(
             space=space, maptype=maptype, via_space=via_space, frmt=frmt
         )
+        if region_map is None:
+            return
         return create_mask(
             region_map,
             background_value=background_value,
