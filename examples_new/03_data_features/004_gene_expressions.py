@@ -32,17 +32,16 @@ region mask to filter the probes.
 # %%
 import siibra
 from nilearn import plotting
-from siibra.locations import PointCloud
+from siibra.attributes.locations import PointCloud
 
 # %%
 # We select a brain region and query for expression levels of GABARAPL2.
 region = siibra.get_region("julich 2.9", "V1")
 features = siibra.find_features(
-    region, siibra.modality_types.GENE_EXPRESSIONS,
-    genes=["GABARAPL2"]
+    region, siibra.modality_vocab.modality.GENE_EXPRESSIONS, genes=["GABARAPL2"]
 )
 
-feature, *_ = features[0]
+feature = features[0]
 # Take a peek at how the data looks
 feature.data[0].head()
 
@@ -58,7 +57,9 @@ print(space.name)
 loc = feature.locations[0]
 assert isinstance(loc, PointCloud)
 
-all_coords = [p for p in loc.coordinates]
+all_coords = [p for loc in feature.locations for p in loc.coordinates]
 masks = region.find_regional_maps(space)
 display = plotting.plot_roi(masks[0].fetch())
 display.add_markers(all_coords, marker_size=5)
+
+# %%
