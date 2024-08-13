@@ -139,6 +139,7 @@ def warp_pointcloud(ptcloud: PointCloud, target_space_id: str) -> PointCloud:
 
 
 @_register_warper(BoundingBox)
+@fn_call_cache
 def warp_boundingbox(bbox: BoundingBox, space_id: str) -> BoundingBox:
     corners = bbox.corners
     corners_warped = warp_pointcloud(corners, target_space_id=space_id)

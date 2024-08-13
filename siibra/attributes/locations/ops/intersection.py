@@ -23,6 +23,7 @@ from ..boundingbox import BoundingBox
 from ..base import Location
 from ....exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 from ....commons.binary_op import BinaryOp
+from ....commons.logger import logger
 
 _loc_intersection = BinaryOp[Location, Union[Location, None]]()
 
@@ -105,9 +106,18 @@ def bbox_bbox(bboxa: BoundingBox, bboxb: BoundingBox):
 
 
 def intersect(loca: Location, locb: Location):
+    """
+    Get intersection between location A and location B. If the
+    """
     value = _loc_intersection.get(loca, locb)
     if value is None:
         raise UnregisteredAttrCompException
     fn, switch_flag = value
+    if loca.space_id != locb.space_id:
+        try:
+            loca = loca.warp(locb.space_id)
+        except Exception as e:
+            logger.debug(f"Location warp error: {str(e)}")
+            raise UnregisteredAttrCompException from e
     args = [locb, loca] if switch_flag else [loca, locb]
     return fn(*args)
