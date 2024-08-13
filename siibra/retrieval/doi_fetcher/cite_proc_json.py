@@ -127,21 +127,22 @@ def process_cite_proc_json(bytes: bytes) -> str:
     title = result[
         "title"
     ]  # Structural Brain Magnetic Resonance Imaging of Limbic and Thalamic Volumes in Pediatric Bipolar Disorder
-    journal_title = result["container-title"]  # American Journal of Psychiatry
+    journal_title = result.get("container-title")  # American Journal of Psychiatry
     journal_issue = result.get("issue")  # 7
     journal_volume = result.get(
         "volume"
     )  # https://dx.doi.org/10.1016/B978-012693019-1/50023-X has no volume
-    published = result["published"]["date-parts"]
-    page = result["page"]
+    published = result.get("published", {}).get("date-parts")
+    page = result.get("page")
 
-    assert len(published) == 1
     published_str = ""
-    try:
-        published_str += str(published[0][0])
-        published_str += calendar.month_name[int(published[0][1])]
-    except IndexError:
-        pass
+    if published:
+        assert len(published) == 1
+        try:
+            published_str += str(published[0][0])
+            published_str += calendar.month_name[int(published[0][1])]
+        except IndexError:
+            pass
 
     journal_str = ""
     if journal_volume:
@@ -155,10 +156,14 @@ def process_cite_proc_json(bytes: bytes) -> str:
     "Am J Psychiatry."
     "2005 Jul;162(7):1256-65"
     first = [
-        stringify_author(author) for author in authors if author["sequence"] == "first"
+        stringify_author(author)
+        for author in authors
+        if author.get("sequence") == "first"
     ]
     other = [
-        stringify_author(author) for author in authors if author["sequence"] != "first"
+        stringify_author(author)
+        for author in authors
+        if author.get("sequence") != "first"
     ]
     authors_str = ", ".join([*first, *other])
 

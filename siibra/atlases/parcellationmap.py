@@ -41,7 +41,7 @@ from ..attributes.locations import BoundingBox, Point, PointCloud
 from ..attributes.dataitems.volume.ops.intersection_score import (
     ImageAssignment,
     ScoredImageAssignment,
-    get_intersection_values,
+    get_intersection_scores,
 )
 
 if TYPE_CHECKING:
@@ -413,9 +413,7 @@ class Map(AtlasElement):
                         assgnmt_type = Map.ScoredRegionAssignment
                     else:
                         assgnmt_type = Map.RegionAssignment
-                    assignments.append(
-                        assgnmt_type(**asdict(assgnmt), region=region)
-                    )
+                    assignments.append(assgnmt_type(**asdict(assgnmt), region=region))
 
         assignments_unpacked = [asdict(a) for a in assignments]
 
