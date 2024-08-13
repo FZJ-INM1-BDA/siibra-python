@@ -409,10 +409,10 @@ class Map(AtlasElement):
                     statistical_map_lower_threshold=statistical_map_lower_threshold,
                     **fetch_kwargs,
                 ):
-                    if isinstance(assgnmt, ImageAssignment):
-                        assgnmt_type = Map.RegionAssignment
-                    else:
+                    if isinstance(assgnmt, ScoredImageAssignment):
                         assgnmt_type = Map.ScoredRegionAssignment
+                    else:
+                        assgnmt_type = Map.RegionAssignment
                     assignments.append(
                         assgnmt_type(**asdict(assgnmt), region=region)
                     )
