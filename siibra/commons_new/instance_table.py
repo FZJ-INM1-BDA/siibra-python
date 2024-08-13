@@ -13,7 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Generic, Iterable, TypeVar, Dict, Iterator, Union, List, Callable, Union
+from typing import (
+    Generic,
+    Iterable,
+    TypeVar,
+    Dict,
+    Iterator,
+    Union,
+    List,
+    Callable
+)
 
 from .string import create_key
 from ..commons_new.logger import logger
@@ -25,17 +34,18 @@ V = TypeVar("V")
 def default_comparison(a, b):
     return a == b
 
+
 class TabCompleteCollection(Generic[T], Iterable):
     def __init__(self, elements: Union[Dict[str, T], None] = None) -> None:
         if elements is None:
             elements: Dict[str, T] = {}
-            
+
         assert isinstance(elements, dict), "Element must be of type dict"
         assert all(
             isinstance(k, str) for k in elements.keys()
         ), "All dictionary key must be type str"
         self._elements: Dict[str, T] = elements
-    
+
     def values(self):
         return list(self._elements.values())
 
@@ -62,7 +72,7 @@ class TabCompleteCollection(Generic[T], Iterable):
     def __len__(self) -> int:
         """Return the number of elements in the registry"""
         return len(self._elements)
-    
+
     def __getattr__(self, index: str) -> T:
         """Access elements by using their keys as attributes.
         Keys are auto-generated from the provided names to be uppercase,
@@ -91,14 +101,16 @@ class TabCompleteCollection(Generic[T], Iterable):
 class BkwdCompatInstanceTable(TabCompleteCollection[T]):
     """
     Backwards compatible instance table for space, parcellation and map.
-    siibra v2.0 introduced generic string matching. Rather than keep two 
+    siibra v2.0 introduced generic string matching. Rather than keep two
     separate maching mechanism (instance table & attribute based matching),
     instance table matching will be retired. To maintain some backwards-
     compatibility, this class act exposes the API similar to that of instance
     table. Underneath, it uses the new attribute based matching.
     """
 
-    def __init__(self, getitem: Callable[[str], T], elements: Union[Dict[str, T], None] = None) -> None:
+    def __init__(
+        self, getitem: Callable[[str], T], elements: Union[Dict[str, T], None] = None
+    ) -> None:
         super().__init__(elements)
         self._getitem = getitem
 
@@ -108,7 +120,7 @@ class BkwdCompatInstanceTable(TabCompleteCollection[T]):
                 self._elements.keys()
             )
         return f"Empty {self.__class__.__name__}"
-    
+
     def __getitem__(self, key: str):
         return self._getitem(key)
 
@@ -141,7 +153,6 @@ class BaseInstanceTable(TabCompleteCollection[T]):
             matchfunc, "__call__"
         ), "matchfunc must implement __call__ method"
         self._matchfunc: Callable[[T, V], bool] = matchfunc
-
 
     def __str__(self) -> str:
         if len(self) > 0:
@@ -219,7 +230,9 @@ class BaseInstanceTable(TabCompleteCollection[T]):
         if isinstance(spec, int):
             if spec < len(self._elements):
                 return [list(self._elements.values())[spec]]
-            raise IndexError(f"Provided spec={spec!r} is larger than {len(self._elements)}")
+            raise IndexError(
+                f"Provided spec={spec!r} is larger than {len(self._elements)}"
+            )
 
         if isinstance(spec, str):
             # string matching on keys
