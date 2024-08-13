@@ -28,19 +28,16 @@ def runtime_path(fname: str):
     return path.join(RT_DIR, fname)
 
 
-with open(runtime_path('gene_names.json'), 'r') as f:
+with open(runtime_path("gene_names.json"), "r") as f:
     _gene_names = json.load(f)
     GENE_NAMES = TabCompleteCollection(
-        elements={
-            k: {'symbol': k, 'description': v}
-            for k, v in _gene_names.items()
-        }
+        elements={k: {"symbol": k, "description": v} for k, v in _gene_names.items()}
     )
 
 
-with open(runtime_path('receptor_symbols.json'), 'r') as f:
+with open(runtime_path("receptor_symbols.json"), "r") as f:
     RECEPTOR_SYMBOLS = json.load(f)
 
 
-with open(runtime_path('region_aliases.json'), 'r') as f:
+with open(runtime_path("region_aliases.json"), "r") as f:
     REGION_ALIASES = json.load(f)

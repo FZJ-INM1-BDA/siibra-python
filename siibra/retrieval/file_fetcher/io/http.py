@@ -27,7 +27,6 @@ BLOCK_SIZE = 1024
 
 
 class PartialHttpReader(PartialReader):
-
     def __init__(self, url: str) -> None:
         super().__init__(url)
         self.url = url

@@ -39,7 +39,6 @@ class Commit:
 
 
 class GitHttpRepository(ArchivalRepository):
-
     def __init__(self, url: str, branch: str) -> None:
         self.sess = requests.Session()
         self.base_url = url
@@ -48,7 +47,6 @@ class GitHttpRepository(ArchivalRepository):
         self.branch = branch
 
     def _populate_ref_map(self):
-
         resp = requests.get(f"{self.base_url}/info/refs")
         resp.raise_for_status()
         for line in resp.text.split("\n"):
@@ -66,7 +64,6 @@ class GitHttpRepository(ArchivalRepository):
         return None
 
     def decode_tree(self, b: bytes):
-
         hdr, body = b.split(b"\x00", 1)
         arr: List[TreeResult] = []
         while True:
@@ -91,7 +88,6 @@ class GitHttpRepository(ArchivalRepository):
         return Commit(tree=treesha, parent=parentsha, msg=body.decode())
 
     def get_object(self, sha: str):
-
         resp = self.sess.get(f"{self.base_url}/objects/{sha[:2]}/{sha[2:]}")
         resp.raise_for_status()
         result = zlib.decompress(resp.content)

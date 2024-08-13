@@ -25,5 +25,6 @@ from typing import TypeVar, Type
 
 T = TypeVar("T", bound=AttributeCollection)
 
+
 def iter_livequery_clss(_type: Type[T]):
     yield from LiveQuery.get_clss(_type)

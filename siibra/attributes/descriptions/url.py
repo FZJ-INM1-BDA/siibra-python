@@ -25,4 +25,6 @@ class Url(Description):
 
     def _iter_zippable(self):
         yield from super()._iter_zippable()
-        yield "URL: " + (f"[{self.value}]({self.text})" if self.text else self.value), None, None
+        yield "URL: " + (
+            f"[{self.value}]({self.text})" if self.text else self.value
+        ), None, None

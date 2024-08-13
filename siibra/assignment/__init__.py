@@ -15,10 +15,7 @@
 
 from typing import TypeVar, List, Type
 
-from .assignment import (
-    match as collection_match,
-    qualify as collection_qualify
-)
+from .assignment import match as collection_match, qualify as collection_qualify
 from ..factory.livequery import LiveQuery
 from ..factory.iterator import iter_preconfigured_ac
 from ..attributes import AttributeCollection
@@ -26,15 +23,17 @@ from ..attributes.descriptions import ID, Name
 
 T = TypeVar("T", bound=AttributeCollection)
 
+
 def find(criteria: List[AttributeCollection], find_type: Type[T]):
     return list(finditer(criteria, find_type))
 
+
 def finditer(criteria: List[AttributeCollection], find_type: Type[T]):
     """Providing a list of AttributeCollection and Type. Yields instances of the given type.
-    
+
     For preconfigured instances, will yield if and only if every instance of attribute_collection
     matches with the instance of _find_type.
-    
+
     For LiveQuery instances, it is configured at runtime."""
     for item in iter_preconfigured_ac(find_type):
         if all(collection_match(cri, item) for cri in criteria):
@@ -42,7 +41,7 @@ def finditer(criteria: List[AttributeCollection], find_type: Type[T]):
     for cls in LiveQuery.get_clss(find_type):
         inst = cls(criteria)
         yield from inst.generate()
-    
+
 
 def string_search(input: str, req_type: Type[T]) -> List[T]:
     id_attr = ID(value=input)

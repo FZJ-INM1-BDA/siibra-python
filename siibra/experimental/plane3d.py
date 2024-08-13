@@ -160,7 +160,6 @@ class Plane3D:
         labels = []
         face_id = 0  # index of the mesh face to consider
         while len(face_indices) > 0:
-
             # continue the contour with the next foward edge intersection
             p = fwd_intersections[face_id]
             points.append(p)
@@ -237,7 +236,9 @@ class Plane3D:
         )
         err = (self.project_points(corners).coordinates - corners.coordinates).sum()
         if err > 1e-5:
-            print(f"WARNING: patch coordinates were not exactly in-plane (error={err}).")
+            print(
+                f"WARNING: patch coordinates were not exactly in-plane (error={err})."
+            )
         return patch.Patch(self.project_points(corners))
 
     @classmethod

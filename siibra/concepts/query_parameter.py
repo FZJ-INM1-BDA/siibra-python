@@ -18,7 +18,6 @@ from dataclasses import dataclass
 from ..attributes import AttributeCollection
 
 
-
 @dataclass
 class QueryParam(AttributeCollection):
     schema: str = "siibra/attrCln/queryParam"

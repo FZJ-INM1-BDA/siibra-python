@@ -40,7 +40,8 @@ class Space(AtlasElement):
         return list(
             dict.fromkeys(
                 key
-                for vol in self.volumes if vol.mapping is not None
+                for vol in self.volumes
+                if vol.mapping is not None
                 for key in vol.mapping.keys()
             )
         )
@@ -111,6 +112,8 @@ class Space(AtlasElement):
 
         # check if only one variant has been selected and merge
         variants = dict.fromkeys(key for tmp in templates for key in tmp.mapping.keys())
-        assert len(variants) == 1, f"Found several variants matching {_variant!r}. Please select a variant: {self.variants}"
+        assert (
+            len(variants) == 1
+        ), f"Found several variants matching {_variant!r}. Please select a variant: {self.variants}"
         print("Found several volumes. Merging...")
         return merge_volumes([tmp.fetch(**fetch_kwargs) for tmp in templates])

@@ -135,7 +135,6 @@ class WritableSparseIndex(SparseIndex):
         offset_record: List[Tuple[int, int]] = []
 
         with open(basename.with_suffix(self.PROBS_SUFFIX), "w") as fp:
-
             for prob in self._probs:
                 str_to_write = json.dumps(prob) + "\n"
                 byte_count = len(str_to_write.encode("utf-8"))
@@ -249,7 +248,6 @@ class ReadableSparseIndex(SparseIndex):
         return json.loads(lines[int(alias) + 1]).get("regionname")
 
     def read(self, pos: Union[List[List[int]], np.ndarray]):
-
         probreader = PartialReader(str(self.url or self.filepath) + self.PROBS_SUFFIX)
         probreader.open()
 
@@ -285,7 +283,6 @@ class ReadableSparseIndex(SparseIndex):
 
 @dataclass(repr=False, eq=False)
 class SparseMap(Map):
-
     def fetch(
         self,
         region: Union[str, Region] = None,

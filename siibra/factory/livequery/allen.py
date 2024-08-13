@@ -54,7 +54,6 @@ Gene expressions extracted from microarray data in the Allen Atlas.
 
 @fn_call_cache
 def _retrieve_measurements(gene_names: List[str]):
-
     probe_ids = _AllenGeneQuery._retrieve_probe_ids(gene_names)
     specimen = {
         spcid: _AllenGeneQuery._retrieve_specimen(spcid)
@@ -65,7 +64,6 @@ def _retrieve_measurements(gene_names: List[str]):
     measurement = []
     for donor_id in _AllenGeneQuery._DONOR_IDS:
         for item in _AllenGeneQuery._retrieve_microarray(donor_id, probe_ids):
-
             # coordinate conversion to ICBM152 standard space
             sample_mri = item.pop(_AllenGeneQuery._SAMPLE_MRI)
             donor_name = item.get("donor_name")
@@ -97,28 +95,33 @@ def add_allen_modality():
 # generates=Feature -> the declaration here is to indicate to the baseclass that this class generates Feature
 class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
     def generate(self):
-        
-        # If none of the 
+        # If none of the
         all_mods = [mod for li in self.find_attributes(Modality) for mod in li]
         if modality_of_interest not in all_mods:
             return
         all_genes = [mod for li in self.find_attributes(Gene) for mod in li]
         if len(all_genes) == 0:
-            logger.warning(f"AllenLiveQueryError: expecting at least one gene, but got {len(all_genes)}.")
+            logger.warning(
+                f"AllenLiveQueryError: expecting at least one gene, but got {len(all_genes)}."
+            )
             return
-        
+
         regions = self.find_attribute_collections(Region)
         if len(regions) != 1:
-            logger.warning(f"AllenLiveQueryError: expecting one and only one Region, but got {len(regions)}.")
+            logger.warning(
+                f"AllenLiveQueryError: expecting one and only one Region, but got {len(regions)}."
+            )
             return
-        
+
         region = regions[0]
 
         # since we are only interested in map in mni152 space
         images = region.find_regional_maps("icbm 152")
 
         if len(images) != 1:
-            logger.warning(f"AllenLiveQueryError: expecting one and only one Image, but got {len(regions)}.")
+            logger.warning(
+                f"AllenLiveQueryError: expecting one and only one Image, but got {len(regions)}."
+            )
 
         image = images[0]
         print(ALLEN_ATLAS_NOTIFICATION)
@@ -149,12 +152,10 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
         yield Feature(attributes=attributes)
 
 
-
 BASE_URL = "http://api.brain-map.org/api/v2/data"
 
 
 class _AllenGeneQuery:
-
     _QUERY = {
         "probe": BASE_URL
         + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq'{gene}'],rma::options[only$eq'probes.id']",
@@ -316,7 +317,6 @@ class _AllenGeneQuery:
         probes, samples = [response["msg"][n] for n in ["probes", "samples"]]
 
         for i, sample in enumerate(samples):
-
             donor_id = sample["donor"]["id"]
             donor_name = sample["donor"]["name"]
 

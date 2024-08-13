@@ -34,7 +34,6 @@ SIIBRA_USE_CONFIGURATION = getenv("SIIBRA_USE_CONFIGURATION")
 
 
 class Configuration:
-
     DEFAULT_REPO_SPECS: List[Tuple[Type[Repository], List, Dict]] = [
         (
             GithubRepository,  # Cls of repository to be used
@@ -74,7 +73,7 @@ class Configuration:
                 except Exception:
                     logger.warning(
                         f"Error initializing repo Cls={Cls.__name__} args={args}, kwargs={kwargs}",
-                        exc_info=1
+                        exc_info=1,
                     )
                     continue
             else:
@@ -137,7 +136,9 @@ class Configuration:
             raise RuntimeError(
                 f"repository={repository!r} needs to be an instance of Repository or a valid str leading to one."
             )
-        logger.info("Using the requested configuration and clearing the rest (including extended_repos).")
+        logger.info(
+            "Using the requested configuration and clearing the rest (including extended_repos)."
+        )
         cls.configured_repo = repository
         cls.extended_repos.clear()
         cls.using_default_configuration = False

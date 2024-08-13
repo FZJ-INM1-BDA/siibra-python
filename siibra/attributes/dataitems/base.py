@@ -16,6 +16,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 import requests
+
 try:
     from typing import TypedDict
 except ImportError:
@@ -24,7 +25,11 @@ except ImportError:
 
 from ...attributes import Attribute
 from ...cache import fn_call_cache
-from ...retrieval.file_fetcher import ZipRepository, TarRepository, LocalDirectoryRepository
+from ...retrieval.file_fetcher import (
+    ZipRepository,
+    TarRepository,
+    LocalDirectoryRepository,
+)
 
 
 class Archive(TypedDict):
@@ -48,7 +53,9 @@ def get_bytesio_from_url(url: str, archive_options: Archive = None) -> bytes:
     elif archive_options["format"] == "tar":
         ArchiveRepoType = TarRepository
     else:
-        raise NotImplementedError(f"{archive_options['format']} is not a supported archive format yet.")
+        raise NotImplementedError(
+            f"{archive_options['format']} is not a supported archive format yet."
+        )
 
     filename = archive_options["file"]
     assert filename, "Data attribute 'file' field not populated!"

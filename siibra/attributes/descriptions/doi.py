@@ -21,7 +21,6 @@ class Doi(Description):
 
     @property
     def url(self):
-
         url = self.value
         assert (
             "doi.org" in url

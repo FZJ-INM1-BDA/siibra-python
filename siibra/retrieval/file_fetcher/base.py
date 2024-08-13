@@ -20,7 +20,6 @@ import os
 
 
 class Repository(ABC):
-
     @abstractmethod
     def search_files(self, prefix: Union[str, None] = None) -> Iterable[str]:
         raise NotImplementedError

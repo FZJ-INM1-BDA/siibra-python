@@ -18,12 +18,15 @@ import pandas as pd
 
 from ..attributes.locations import Location
 from ..attributes.descriptions import Modality
-from ..attributes.attribute_collection import AttributeCollection, MATRIX_INDEX_ENTITY_KEY, attr_of_general_interest
+from ..attributes.attribute_collection import (
+    AttributeCollection,
+    MATRIX_INDEX_ENTITY_KEY,
+    attr_of_general_interest,
+)
 
 
 class Feature(AttributeCollection):
     schema: str = "siibra/concepts/feature/v0.2"
-
 
     @property
     def modalities(self):
@@ -48,7 +51,6 @@ class Feature(AttributeCollection):
 
         dfs: List[pd.DataFrame] = [d.get_data() for d in self._find(Tabular)]
         if len(matrix_entity_key.attributes) > 0:
-
             mapping_idx = {
                 attr.extra[MATRIX_INDEX_ENTITY_KEY]: attr
                 for attr in matrix_entity_key.attributes

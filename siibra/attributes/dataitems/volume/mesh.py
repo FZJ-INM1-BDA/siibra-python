@@ -56,7 +56,7 @@ class Mesh(Volume):
             resolution_mm=resolution_mm,
             color_channel=color_channel,
             max_download_GB=max_download_GB,
-            mapping=self.mapping
+            mapping=self.mapping,
         )
         if color_channel is not None:
             assert self.format == "neuroglancer/precomputed"
@@ -69,7 +69,8 @@ class Mesh(Volume):
             details = next(iter(mapping.values()))
             if "subspace" in details:
                 s_ = tuple(
-                    slice(None) if isinstance(s, str) else s for s in details["subspace"]
+                    slice(None) if isinstance(s, str) else s
+                    for s in details["subspace"]
                 )
                 gii = gii.slicer[s_]
             if "label" in details:

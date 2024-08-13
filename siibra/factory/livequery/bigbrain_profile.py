@@ -65,7 +65,6 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
         input_attrs = [attr for attr_col in self.input for attr in attr_col.attributes]
 
         for attr in input_attrs:
-
             try:
                 matched = intersect(attr, ptcld)
             except UnregisteredAttrCompException:
@@ -104,14 +103,18 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                     ]
                 ).reshape((-1, 200))
                 means = [
-                    matched_profiles[layer_labels == layer].mean() for layer in range(1, 7)
+                    matched_profiles[layer_labels == layer].mean()
+                    for layer in range(1, 7)
                 ]
                 std = [
-                    matched_profiles[layer_labels == layer].std() for layer in range(1, 7)
+                    matched_profiles[layer_labels == layer].std()
+                    for layer in range(1, 7)
                 ]
 
                 dataframe = pd.DataFrame(
-                    np.array([means, std]).T, columns=["mean", "std"], index=LAYERS[1:-1]
+                    np.array([means, std]).T,
+                    columns=["mean", "std"],
+                    index=LAYERS[1:-1],
                 )
                 attr = Tabular(
                     extra={X_DATA: dataframe, X_BIGBRAIN_LAYERWISE_INTENSITY: True}
@@ -132,7 +135,9 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                         extra={
                             X_PRECALCULATED_BOUNDARY_KEY: [
                                 Polyline(
-                                    points=(Point(coordinate=[value, 0, 0], space_id=None)),
+                                    points=(
+                                        Point(coordinate=[value, 0, 0], space_id=None)
+                                    ),
                                     space_id=None,
                                 )
                                 for value in boundary_depths[index].tolist()
@@ -144,7 +149,6 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                     attributes.append(layer_boundary)
 
                 yield Feature(attributes=attributes)
-
 
 
 REPO = "https://github.com/kwagstyl/cortical_layers_tutorial/raw/main"

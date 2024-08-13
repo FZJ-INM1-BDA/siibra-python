@@ -45,8 +45,7 @@ class PointCloud(Location):
         if isinstance(coordinates, np.ndarray):
             coordinates = coordinates.tolist()
         if isinstance(coordinates, (list, tuple)):
-            coordinates = list(tuple(float(c) for c in coord)
-                               for coord in coordinates)
+            coordinates = list(tuple(float(c) for c in coord) for coord in coordinates)
         return coordinates, sigma
 
     def __post_init__(self):

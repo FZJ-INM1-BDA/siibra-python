@@ -19,6 +19,7 @@ from nilearn.image import resample_to_img, resample_img
 from tqdm import tqdm
 from nibabel.nifti1 import Nifti1Image
 from nibabel.gifti import GiftiImage, GiftiDataArray
+
 try:
     from typing import Literal
 except ImportError:
@@ -251,4 +252,6 @@ def create_mask(
     if isinstance(volume, GiftiImage):
         raise NotImplementedError
     if isinstance(volume, Nifti1Image):
-        return create_mask_from_nifti(volume, background_value=background_value, lower_threshold=lower_threshold)
+        return create_mask_from_nifti(
+            volume, background_value=background_value, lower_threshold=lower_threshold
+        )

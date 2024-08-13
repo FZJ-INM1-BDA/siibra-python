@@ -37,7 +37,6 @@ class WarmupParam(NamedTuple):
 
 
 class Warmup:
-
     _warmup_fns: List[WarmupParam] = []
 
     @staticmethod
@@ -46,12 +45,21 @@ class Warmup:
 
     @classmethod
     def is_registered(cls, fn):
-        return len([warmup_fn.fn
+        return (
+            len(
+                [
+                    warmup_fn.fn
                     for warmup_fn in cls._warmup_fns
-                    if cls.fn_eql(warmup_fn.fn, fn)]) > 0
+                    if cls.fn_eql(warmup_fn.fn, fn)
+                ]
+            )
+            > 0
+        )
 
     @classmethod
-    def register_warmup_fn(cls, warmup_level: WarmupLevel = WarmupLevel.INSTANCE, *, is_factory=False):
+    def register_warmup_fn(
+        cls, warmup_level: WarmupLevel = WarmupLevel.INSTANCE, *, is_factory=False
+    ):
         def outer(fn):
             if cls.is_registered(fn):
                 raise WarmupRegException
@@ -62,12 +70,14 @@ class Warmup:
 
             cls._warmup_fns.append(WarmupParam(warmup_level, inner, is_factory))
             return inner
+
         return outer
 
     @classmethod
     def deregister_warmup_fn(cls, original_fn):
         cls._warmup_fns = [
-            warmup_fn for warmup_fn in cls._warmup_fns
+            warmup_fn
+            for warmup_fn in cls._warmup_fns
             if not cls.fn_eql(warmup_fn.fn, original_fn)
         ]
 
@@ -85,12 +95,8 @@ class Warmup:
         with Lock(CACHE.build_filename("lockfile", ".warmup")):
             with ThreadPoolExecutor(max_workers=max_workers) as ex:
                 for _ in siibra_tqdm(
-                    ex.map(
-                        call_fn,
-                        all_fns
-                    ),
+                    ex.map(call_fn, all_fns),
                     desc="Warming cache",
                     total=len(all_fns),
                 ):
                     ...
-

@@ -19,13 +19,19 @@ from typing import Dict, Iterator, List
 
 from .base import LiveQuery
 from ...commons.logger import logger
-from ...attributes.descriptions import register_modalities, Modality, RegionSpec, ID, Name
+from ...attributes.descriptions import (
+    register_modalities,
+    Modality,
+    RegionSpec,
+    ID,
+    Name,
+)
 from ...concepts import Feature
 
-cell_body_density_modality = Modality(category="cellular",
-                                      value="Cell body density")
+cell_body_density_modality = Modality(category="cellular", value="Cell body density")
 
 source_feature_modality = Modality(value="Segmented cell body density")
+
 
 @register_modalities()
 def register_cell_body_density():
@@ -35,9 +41,9 @@ def register_cell_body_density():
 class CellbodyDensityAggregator(LiveQuery, generates=Feature):
     def generate(self) -> Iterator:
         from ...factory.configuration import iter_preconfigured_ac
-        
+
         mods = [mod for mods in self.find_attributes(Modality) for mod in mods]
-        
+
         if cell_body_density_modality not in mods:
             return
 

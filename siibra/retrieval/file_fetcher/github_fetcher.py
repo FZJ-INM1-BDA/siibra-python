@@ -45,7 +45,7 @@ class GithubRepository(GitHttpRepository):
         return (
             f"https://raw.githubusercontent.com/{self.owner}/{self.repo}/{self.reftag}"
         )
-    
+
     def ls(self):
         yield from self.search_files()
 

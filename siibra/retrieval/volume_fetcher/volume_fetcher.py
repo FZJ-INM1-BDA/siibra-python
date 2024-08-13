@@ -16,6 +16,7 @@
 from typing import TYPE_CHECKING, Callable, Dict, Union, Tuple
 from os import getenv
 from functools import wraps
+
 try:
     from typing import TypedDict, Literal
 except ImportError:
@@ -35,6 +36,7 @@ class Mapping(TypedDict):
     Represents restrictions to apply to an image to get partial information,
     such as labelled mask, a specific slice etc.
     """
+
     label: int = None
     range: Tuple[float, float]
     subspace: Tuple[slice, ...]
@@ -49,6 +51,7 @@ class FetchKwargs(TypedDict):
     ----
     Not all parameters are avaialble for all formats and volumes.
     """
+
     bbox: "BoundingBox" = None
     resolution_mm: float = None
     max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB
@@ -67,13 +70,11 @@ MESH_FORMATS = []
 
 
 def register_volume_fetcher(format: str, volume_type: Literal["image", "mesh"]):
-
     def outer(
         fn: Callable[
             [Union["Image", "Mesh"], FetchKwargs], Union["Nifti1Image", "GiftiImage"]
         ]
     ):
-
         @wraps(fn)
         def inner(volume: Union["Image", "Mesh"], fetchkwargs: FetchKwargs):
             assert (
@@ -100,9 +101,10 @@ def get_volume_fetcher(format: str):
 
 
 def register_bbox_getter(format: str):
-
     def outer(fn: Callable[["Image", Union[FetchKwargs, None]], "BoundingBox"]):
-        assert format not in BBOX_GETTER_REGISTRY, f"format={format!r} already registered bbox getter"
+        assert (
+            format not in BBOX_GETTER_REGISTRY
+        ), f"format={format!r} already registered bbox getter"
         BBOX_GETTER_REGISTRY[format] = fn
         return fn
 

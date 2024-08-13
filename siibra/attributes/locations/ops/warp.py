@@ -105,7 +105,6 @@ def warp_pointcloud(ptcloud: PointCloud, target_space_id: str) -> PointCloud:
             f"Warping {numofpoints} points from {ptcloud.space.name} to {SPACEWARP_IDS[target_space_id]} space"
         )
     for i0 in range(0, numofpoints, chunksize):
-
         i1 = min(i0 + chunksize, numofpoints)
         data = json.dumps(
             {

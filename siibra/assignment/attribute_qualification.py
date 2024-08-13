@@ -95,7 +95,9 @@ def qualify_name(name1: Name, name2: Name):
     if name1.shortform and name2.shortform:
         if name1.shortform == name2.shortform:
             return Qualification.EXACT
-        if fuzzy_match(name1.shortform, name2.shortform) or fuzzy_match(name2.shortform, name1.shortform):
+        if fuzzy_match(name1.shortform, name2.shortform) or fuzzy_match(
+            name2.shortform, name1.shortform
+        ):
             return Qualification.APPROXIMATE
 
 
@@ -117,7 +119,6 @@ def qualify_modality(mod1: Modality, mod2: Modality):
 @register_attr_qualifier(RegionSpec, RegionSpec)
 @fn_call_cache
 def qualify_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
-
     # if both parcellation_ids are present, short curcuit if parc id do not match
     if (
         regspec1.parcellation_id is not None
@@ -253,12 +254,16 @@ def qualify_ptcld_image(ptcld: PointCloud, image: Image):
     if isinstance(intersected, Point):
         return Qualification.OVERLAPS
 
+
 @fn_call_cache
 def _find_all_volumes(regionspec: RegionSpec, space_id: str):
-    return [volume
-            for region in regionspec.decode()
-            for mp in region.find_regional_maps(space_id)
-            for volume in mp.find_volumes(region)]
+    return [
+        volume
+        for region in regionspec.decode()
+        for mp in region.find_regional_maps(space_id)
+        for volume in mp.find_volumes(region)
+    ]
+
 
 @register_attr_qualifier(RegionSpec, Image)
 def qualify_regionspec_image(regionspec: RegionSpec, image: Image):
@@ -272,6 +277,7 @@ def qualify_regionspec_image(regionspec: RegionSpec, image: Image):
                 return Qualification.APPROXIMATE
         except Exception as e:
             logger.debug(f"Matching RegionSpec x Image Exception: {str(e)}")
+
 
 # TODO implement
 # @register_attr_qualifier(BBox, Image)

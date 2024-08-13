@@ -175,4 +175,3 @@ def extract_uuid(long_id: Union[str, Dict]) -> str:
     uuid_search = re.search(r"(?P<uuid>[a-f0-9-]+)$", long_id)
     assert uuid_search, "uuid not found"
     return uuid_search.group("uuid")
-

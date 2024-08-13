@@ -21,7 +21,6 @@ from .tar_fetcher import TarRepository
 
 
 class GitlabRepository(GitHttpRepository):
-
     PER_PAGE = 100
 
     def __init__(

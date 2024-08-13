@@ -27,7 +27,9 @@ class Parcellation(region.Region):
     schema: str = "siibra/atlases/parcellation/v0.1"
 
     def __lt__(self, other) -> bool:
-        assert isinstance(other, type(self)), TypeError(f"'>' not supported between instances of '{type(self)}' and '{type(other)}'")
+        assert isinstance(other, type(self)), TypeError(
+            f"'>' not supported between instances of '{type(self)}' and '{type(other)}'"
+        )
         try:
             assert (self.version is not None) and (other.version is not None)
         except AssertionError:
@@ -61,6 +63,7 @@ class Parcellation(region.Region):
         if not next_id:
             return None
         from siibra.factory.iterator import iter_preconfigured_ac
+
         for parc in iter_preconfigured_ac(Parcellation):
             if parc.ID == next_id:
                 return parc
@@ -78,7 +81,9 @@ class Parcellation(region.Region):
     def is_newest_version(self):
         return (self.version is None) or (self._get(Version).next_id is None)
 
-    def find_maps(self, space_id: str = None, maptype: str = "labelled", extra_spec: str = ""):
+    def find_maps(
+        self, space_id: str = None, maptype: str = "labelled", extra_spec: str = ""
+    ):
         # TODO: reconsider the placement of this method and reference them at the package level
         from ..factory import iter_preconfigured_ac
         from . import Map
@@ -97,7 +102,9 @@ class Parcellation(region.Region):
 
         return return_result
 
-    def get_map(self, space_id: str = None, maptype: str = "labelled", extra_spec: str = ""):
+    def get_map(
+        self, space_id: str = None, maptype: str = "labelled", extra_spec: str = ""
+    ):
         # TODO: reconsider the placement of this method and reference them at the package level
         searched_maps = self.find_maps(space_id, maptype, extra_spec)
         return assert_ooo(searched_maps)

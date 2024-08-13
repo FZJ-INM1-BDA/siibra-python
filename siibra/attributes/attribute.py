@@ -68,7 +68,6 @@ class Attribute:
 
     @property
     def facets(self):
-
         # TODO use str.removeprefix when py3.9 is the lowest python version supported
         return pd.DataFrame(
             [

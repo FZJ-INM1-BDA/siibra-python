@@ -40,10 +40,12 @@ class BoundingBox(Location):
         self._maxpoint = point.Point(coordinate=self.maxpoint, space_id=self.space_id)
 
         for pt in self.minpoint, self.maxpoint:
-            assert isinstance(pt, list), f"expected to be a list, but is {type(pt).__name__}"
+            assert isinstance(
+                pt, list
+            ), f"expected to be a list, but is {type(pt).__name__}"
             assert all(isinstance(p, float) for p in pt), f"expected all to be float"
 
-    def __eq__(self, other: 'BoundingBox'):
+    def __eq__(self, other: "BoundingBox"):
         if not isinstance(other, BoundingBox):
             return False
         return self.minpoint == other.minpoint and self.maxpoint == other.maxpoint
@@ -54,7 +56,7 @@ class BoundingBox(Location):
         return np.prod(self.shape)
 
     @property
-    def center(self) -> 'point.Point':
+    def center(self) -> "point.Point":
         return self._minpoint + (self._maxpoint - self._minpoint) / 2
 
     @property
@@ -85,14 +87,10 @@ class BoundingBox(Location):
         ]
         TODO: deal with sigma. Currently, returns the mean of min and max point.
         """
-        xs, ys, zs = zip(
-            self.minpoint,
-            self.maxpoint
-        )
-        return pointcloud.PointCloud(coordinates=[
-            [x, y, z]
-            for x, y, z in product(xs, ys, zs)
-        ], space_id=self.space_id
+        xs, ys, zs = zip(self.minpoint, self.maxpoint)
+        return pointcloud.PointCloud(
+            coordinates=[[x, y, z] for x, y, z in product(xs, ys, zs)],
+            space_id=self.space_id,
         )
 
 
@@ -121,17 +119,15 @@ def estimate_affine(bbox: BoundingBox, space):
             (x1, y0, z0),
             (x1, y0, z1),
             (x1, y1, z0),
-            (x1, y1, z1)
+            (x1, y1, z1),
         ],
-        space_id=bbox.space_id
+        space_id=bbox.space_id,
     )
 
     # coefficient matrix from original points
     A = np.hstack(
-        [
-            [np.kron(np.eye(3), np.r_[tuple(c), 1])]
-            for c in corners1
-        ]).squeeze()
+        [[np.kron(np.eye(3), np.r_[tuple(c), 1])] for c in corners1]
+    ).squeeze()
 
     # righthand side from warped points
     corners2 = corners1.warp(space)
@@ -145,10 +141,7 @@ def estimate_affine(bbox: BoundingBox, space):
     errors = []
     for c1, c2 in zip(list(corners1), list(corners2)):
         errors.append(
-            np.linalg.norm(
-                np.dot(affine, np.r_[tuple(c1), 1])
-                - np.r_[tuple(c2), 1]
-            )
+            np.linalg.norm(np.dot(affine, np.r_[tuple(c1), 1]) - np.r_[tuple(c2), 1])
         )
     logger.debug(
         f"Average projection error under linear approximation "
@@ -157,12 +150,13 @@ def estimate_affine(bbox: BoundingBox, space):
 
     return affine
 
+
 @fn_call_cache
-def _determine_bounds(array: np.ndarray, threshold=0.):
+def _determine_bounds(array: np.ndarray, threshold=0.0):
     """
     TODO move to commons_new/maps.py
     TODO rename commons_new/maps.py -> commons_new/volume|image.py
-    Returns inclusive bounds of a given 3D ndarray, thresholed by the given threshold. 
+    Returns inclusive bounds of a given 3D ndarray, thresholed by the given threshold.
     """
     x = np.any(array > threshold, axis=(1, 2))
     y = np.any(array > threshold, axis=(0, 2))
@@ -177,7 +171,7 @@ def _determine_bounds(array: np.ndarray, threshold=0.):
     return np.array([[xmin, xmax], [ymin, ymax], [zmin, zmax], [1, 1]])
 
 
-def from_array(array: np.ndarray, threshold=0.) -> "BoundingBox":
+def from_array(array: np.ndarray, threshold=0.0) -> "BoundingBox":
     """
     Find the bounding box of a 3D array, clipped in all three dimenions inclusively by the provided threshold.
     This method returns a BoundingBox in the voxel units of the input array.
@@ -193,6 +187,8 @@ def from_array(array: np.ndarray, threshold=0.) -> "BoundingBox":
     bounds = _determine_bounds(array, threshold)
     if bounds is None:
         return None
-    return BoundingBox(minpoint=bounds[:3, 0].astype("float").tolist(),
-                       maxpoint=bounds[:3, 1].astype("float").tolist(),
-                       space_id=None)
+    return BoundingBox(
+        minpoint=bounds[:3, 0].astype("float").tolist(),
+        maxpoint=bounds[:3, 1].astype("float").tolist(),
+        space_id=None,
+    )

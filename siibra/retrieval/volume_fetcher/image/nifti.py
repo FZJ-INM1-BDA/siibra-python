@@ -27,7 +27,9 @@ if TYPE_CHECKING:
 
 
 def create_mask(
-    nii: Nifti1Image, background_value: Union[int, float] = 0, lower_threshold: float = None
+    nii: Nifti1Image,
+    background_value: Union[int, float] = 0,
+    lower_threshold: float = None,
 ):
     arr = np.asanyarray(nii.dataobj)
     if lower_threshold is not None:
@@ -96,7 +98,8 @@ def fetch_nifti(image: "Image", fetchkwargs: FetchKwargs) -> "Nifti1Image":
         if len(mapping) == 1:
             if "subspace" in details:
                 s_ = tuple(
-                    slice(None) if isinstance(s, str) else s for s in details["subspace"]
+                    slice(None) if isinstance(s, str) else s
+                    for s in details["subspace"]
                 )
                 nii = nii.slicer[s_]
             if "range" in details:

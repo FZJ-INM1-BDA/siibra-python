@@ -13,16 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import (
-    Generic,
-    Iterable,
-    TypeVar,
-    Dict,
-    Iterator,
-    Union,
-    List,
-    Callable
-)
+from typing import Generic, Iterable, TypeVar, Dict, Iterator, Union, List, Callable
 
 from .string import create_key
 from ..commons.logger import logger

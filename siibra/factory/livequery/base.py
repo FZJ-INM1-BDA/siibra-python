@@ -1,4 +1,3 @@
-
 from typing import Iterator, List, Type, Dict, TypeVar, Generic
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -9,9 +8,11 @@ T = TypeVar("T")
 V = TypeVar("V", bound=AttributeCollection)
 Y = TypeVar("Y", bound=Attribute)
 
-class LiveQuery(ABC, Generic[T]):
 
-    _ATTRIBUTE_COLLECTION_REGISTRY: Dict[Type[V], List[Type["LiveQuery[V]"]]] = defaultdict(list)
+class LiveQuery(ABC, Generic[T]):
+    _ATTRIBUTE_COLLECTION_REGISTRY: Dict[
+        Type[V], List[Type["LiveQuery[V]"]]
+    ] = defaultdict(list)
 
     def __init__(self, input: List[AttributeCollection]):
         self.input = input
@@ -27,7 +28,7 @@ class LiveQuery(ABC, Generic[T]):
     @abstractmethod
     def generate(self) -> Iterator[T]:
         raise NotImplementedError
-    
+
     def find_attributes(self, type: Type[Y]):
         """Filters for the type indicated, returns List of List of attributes.
         Subclass is responsible for deciding what to do with this information

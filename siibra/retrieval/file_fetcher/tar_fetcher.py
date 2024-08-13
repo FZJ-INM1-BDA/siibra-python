@@ -25,10 +25,11 @@ from ...commons.logger import logger
 
 
 class TarRepository(ArchivalRepository):
-
     _warmed_up = False
 
-    def __init__(self, path: str, *args, relative_path="", gzip=False, **kwargs) -> None:
+    def __init__(
+        self, path: str, *args, relative_path="", gzip=False, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self.path = path
@@ -60,7 +61,11 @@ class TarRepository(ArchivalRepository):
         if self._warmed_up:
             assert self.unpacked_dir.is_dir()
             yield from [
-                str(Path(f"{dirpath}/{filename}").relative_to(self.unpacked_dir).relative_to(self.relative_path or ""))
+                str(
+                    Path(f"{dirpath}/{filename}")
+                    .relative_to(self.unpacked_dir)
+                    .relative_to(self.relative_path or "")
+                )
                 for dirpath, dirnames, filenames in os.walk(self.unpacked_dir)
                 for filename in filenames
             ]

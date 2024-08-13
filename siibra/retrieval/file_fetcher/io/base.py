@@ -94,7 +94,7 @@ class PartialReader(io.IOBase, ABC):
 
     _size = None
 
-    def __init__(self, path: str=None) -> None:
+    def __init__(self, path: str = None) -> None:
         super().__init__()
         self.marker = 0
 

@@ -43,11 +43,12 @@ def filter_newest(regions: List["Region"]) -> List["Region"]:
 @fn_call_cache
 def _get_region_boundingbox(parc_id: str, region_name: str, space_id: str):
     from .. import find_regions
+
     regions = find_regions(parc_id, region_name)
     assert len(regions) == 1, f"Expecting one and only one region"
     region = regions[0]
     mask = region.fetch_regional_mask(space_id)
-    
+
     bbox = boundingbox.from_array(mask.dataobj)
     bbox = replace(bbox, maxpoint=[v + 1.0 for v in bbox.maxpoint])
     bbox = boundingbox.BoundingBox.transform(bbox, mask.affine)
@@ -106,7 +107,9 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         spatialprops = self._get_spatialprops(space=space, maptype="labelled")
         return PointCloud([sp["centroid"] for sp in spatialprops], space_id=space.ID)
 
-    def get_boundingbox(self, space: Union[str, "Space", None] = None) -> boundingbox.BoundingBox:
+    def get_boundingbox(
+        self, space: Union[str, "Space", None] = None
+    ) -> boundingbox.BoundingBox:
         from .. import get_space, Space
 
         space_id = None
@@ -115,7 +118,9 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         if isinstance(space, Space):
             space_id = space.ID
         if space_id is None:
-            raise RuntimeError(f"space must be of type str or Space. You provided {type(space).__name__}")
+            raise RuntimeError(
+                f"space must be of type str or Space. You provided {type(space).__name__}"
+            )
         return _get_region_boundingbox(self.parcellation.ID, self.name, space_id)
 
     def get_components(self, space: Union[str, "Space", None] = None):

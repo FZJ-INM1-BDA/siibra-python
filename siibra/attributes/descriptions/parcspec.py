@@ -23,6 +23,7 @@ class ParcSpec(Description):
     """
     Internal attribute used for querying parcellation with a given spec.
     """
+
     schema = "siibra-internal/attr/desc/parcspec/v0.1"
 
     def __hash__(self) -> int:

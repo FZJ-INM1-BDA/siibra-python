@@ -21,6 +21,7 @@ from .base import Description
 from ...retrieval.file_fetcher.dataproxy_fetcher import DataproxyRepository
 from ...commons.string import extract_uuid
 
+
 @dataclass
 class EbrainsRef(Description):
     schema = "siibra/attr/desc/ebrains/v0.1"
@@ -37,9 +38,8 @@ class EbrainsRef(Description):
             if isinstance(value, str):
                 value = [value]
 
-            assert (
-                isinstance(value, list)
-                and all(isinstance(v, str) for v in value)
+            assert isinstance(value, list) and all(
+                isinstance(v, str) for v in value
             ), f"Expected all ids to be str, but was not {value}"
 
             for v in value:
@@ -49,7 +49,9 @@ class EbrainsRef(Description):
                     result.append(pev_desc)
                 for pe_ref in j.get("isVersionOf", []):
                     extracted_id = extract_uuid(pe_ref)
-                    pe = json.loads(repo.get(f"ebrainsquery/v3/Dataset/{extracted_id}.json"))
+                    pe = json.loads(
+                        repo.get(f"ebrainsquery/v3/Dataset/{extracted_id}.json")
+                    )
                     pe_desc = pe.get("description")
                     if pe_desc:
                         result.append(pe_desc)

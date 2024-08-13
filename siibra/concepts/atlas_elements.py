@@ -14,11 +14,7 @@
 # limitations under the License.
 
 from ..attributes.attribute_collection import AttributeCollection
-from ..attributes.descriptions import (
-    Name,
-    SpeciesSpec,
-    ID as _ID
-)
+from ..attributes.descriptions import Name, SpeciesSpec, ID as _ID
 
 MUSTHAVE_ATTRIBUTES = {Name, _ID, SpeciesSpec}
 

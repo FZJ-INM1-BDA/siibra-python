@@ -45,21 +45,25 @@ def fetch_mesh_voxels(url: str) -> Tuple[np.ndarray, np.ndarray]:
     return vertices_vox, triangles_vox
 
 
-def ngvoxelmesh_to_gii(vertices_vox: np.ndarray, triangles_vox: np.ndarray, transform_nm):
-    vertices, triangles = affine_transform_mesh(vertices_vox, triangles_vox, transform_nm)
+def ngvoxelmesh_to_gii(
+    vertices_vox: np.ndarray, triangles_vox: np.ndarray, transform_nm
+):
+    vertices, triangles = affine_transform_mesh(
+        vertices_vox, triangles_vox, transform_nm
+    )
     vertices /= 1e6
-    return arrs_to_gii({'verts': vertices, 'faces': triangles})
+    return arrs_to_gii({"verts": vertices, "faces": triangles})
 
 
-def get_meshindex_info(self, base_url: str, meshindex: int) -> Dict[str, Tuple[str, ]]:
-    mesh_key = get_mesh_info(base_url).get('mesh')
+def get_meshindex_info(self, base_url: str, meshindex: int) -> Dict[str, Tuple[str,]]:
+    mesh_key = get_mesh_info(base_url).get("mesh")
     meshurl = f"{base_url}/{mesh_key}/{str(meshindex)}:0"
     transform_nm = get_transform_nm(base_url)
 
     req = requests.get(url=meshurl)
     req.raise_for_status()
     meshdetails = req.json()
-    fragment_names = meshdetails.get('fragments')
+    fragment_names = meshdetails.get("fragments")
 
     if len(fragment_names) == 0:
         raise RuntimeError(f"No fragments found at {meshurl}")
@@ -76,9 +80,10 @@ def get_meshindex_info(self, base_url: str, meshindex: int) -> Dict[str, Tuple[s
         # only one mesh was configured, so we might still
         # see muliple fragments under the mesh url
         for fragment_name in fragment_names:
-            result[fragment_name] = (f"{spec['url']}/{mesh_key}/{fragment_name}", transform_nm)
-
-
+            result[fragment_name] = (
+                f"{spec['url']}/{mesh_key}/{fragment_name}",
+                transform_nm,
+            )
 
 
 @register_volume_fetcher("neuroglancer/precompmesh", "mesh")

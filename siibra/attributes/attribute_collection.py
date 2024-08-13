@@ -177,7 +177,6 @@ class AttributeCollection:
         from .._version import __version__
 
         with ZipFile(filelike, "w") as fp:
-
             readme_md = f"""{self.__class__.__name__} (exported by siibra-python {__version__})"""
             filenum_counter = 0
 

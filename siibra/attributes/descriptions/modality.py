@@ -24,10 +24,11 @@ from ...cache import fn_call_cache
 
 from ..._version import __version__
 
+
 @dataclass
 class Modality(Description):
     schema = "siibra/attr/desc/modality/v0.1"
-    category: str=None
+    category: str = None
 
     def __hash__(self) -> int:
         return hash((self.category or "") + self.value)
@@ -42,9 +43,10 @@ class Modality(Description):
 
 modalities_generator: List[Callable[[], Iterable[Modality]]] = []
 
+
 @fn_call_cache
 def get_modalities(_version, _len, category=None) -> Dict[str, Modality]:
-    # getting all modalities require iterating over all feature iterators. 
+    # getting all modalities require iterating over all feature iterators.
     # this can be expensive
     # As a result, the _version and _len of modality generate act as cache busters
     # on disk cache will be busted if:
@@ -66,9 +68,9 @@ def get_modalities(_version, _len, category=None) -> Dict[str, Modality]:
             logger.warning(f"Generating modality exception: {str(e)}")
     return result
 
+
 def register_modalities():
     def outer(fn):
-
         if fn in modalities_generator:
             raise RuntimeError("fn already registered")
         modalities_generator.append(fn)
@@ -76,13 +78,27 @@ def register_modalities():
 
     return outer
 
+
 class ModalityVocab:
     """Class that exist purely for the ease of access of category/modality InstanceTable."""
 
-    category = JitInstanceTable(getitem=lambda: {
-        value.category: JitInstanceTable(getitem=partial(get_modalities, __version__, len(modalities_generator), category=value.category))
-        for value in get_modalities(__version__, len(modalities_generator)).values()
-        if value.category })
-    modality = JitInstanceTable(getitem=lambda: get_modalities(__version__, len(modalities_generator)))
+    category = JitInstanceTable(
+        getitem=lambda: {
+            value.category: JitInstanceTable(
+                getitem=partial(
+                    get_modalities,
+                    __version__,
+                    len(modalities_generator),
+                    category=value.category,
+                )
+            )
+            for value in get_modalities(__version__, len(modalities_generator)).values()
+            if value.category
+        }
+    )
+    modality = JitInstanceTable(
+        getitem=lambda: get_modalities(__version__, len(modalities_generator))
+    )
+
 
 modality_vocab = ModalityVocab()

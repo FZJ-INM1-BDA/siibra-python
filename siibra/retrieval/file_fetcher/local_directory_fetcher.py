@@ -26,7 +26,9 @@ class LocalDirectoryRepository(Repository):
         self.path = path
         assert Path(
             path
-        ).is_dir(), f"LocalRepository needs path={path!r} to be a directory, but is not."
+        ).is_dir(), (
+            f"LocalRepository needs path={path!r} to be a directory, but is not."
+        )
 
     def search_files(self, prefix: str = None) -> Iterable[str]:
         root_path = Path(self.path)

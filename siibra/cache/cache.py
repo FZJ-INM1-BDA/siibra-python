@@ -25,7 +25,6 @@ SKIP_CACHEINIT_MAINTENANCE = os.getenv("SKIP_CACHEINIT_MAINTENANCE")
 
 
 class Cache:
-
     @staticmethod
     def assert_folder(folder):
         # make sure the folder exists and is writable, then return it.

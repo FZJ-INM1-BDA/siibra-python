@@ -26,5 +26,7 @@ class Version(Description):
     next_id: str = None  # None if there is no next
 
     def __lt__(self, other: "Version"):
-        assert isinstance(other, Version), TypeError(f"'>' not supported between instances of '{type(self)}' and '{type(other)}'")
+        assert isinstance(other, Version), TypeError(
+            f"'>' not supported between instances of '{type(self)}' and '{type(other)}'"
+        )
         return PackagingVersion(self.value) < PackagingVersion(other.value)

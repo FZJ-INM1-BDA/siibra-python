@@ -38,17 +38,22 @@ class Point(Location):
     def __post_init__(self):
         if isinstance(self.coordinate, (list, np.ndarray)):
             self.coordinate = tuple(self.coordinate)
-        assert len(self.coordinate) == 3, f"Expected 3 elements, but got {len(self.coordinate)}"
-        assert all(
-            isinstance(coord, float) for coord in self.coordinate
-        ), (
+        assert (
+            len(self.coordinate) == 3
+        ), f"Expected 3 elements, but got {len(self.coordinate)}"
+        assert all(isinstance(coord, float) for coord in self.coordinate), (
             "Expected coordinates to be of type float, but was "
             f"{', '.join(type(coord).__name__ for coord in self.coordinate)}"
         )
 
     @property
     def homogeneous(self) -> np.ndarray:
-        return np.atleast_2d(list(self.coordinate) + [1,])
+        return np.atleast_2d(
+            list(self.coordinate)
+            + [
+                1,
+            ]
+        )
 
     def to_ndarray(self) -> np.ndarray:
         """Return the coordinates as an numpy array"""

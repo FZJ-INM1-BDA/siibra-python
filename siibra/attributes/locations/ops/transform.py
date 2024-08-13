@@ -46,7 +46,6 @@ _tranformers: Dict["Location", Callable] = {}
 
 
 def _register_warper(location_type: Generic[T]):
-
     def outer(fn: Callable[[Location, np.ndarray, Union[str, None]], Location]):
         _tranformers[location_type] = fn
         return fn
@@ -78,7 +77,11 @@ def transform_point(
     x, y, z, h = np.squeeze(np.dot(affine, point.homogeneous.T))
     if h != 1:
         logger.warning(f"Homogeneous coordinate is not one: {h}")
-    return replace(point, coordinate=(float(x / h), float(y / h), float(z / h)), space_id=target_space_id or point.space_id)
+    return replace(
+        point,
+        coordinate=(float(x / h), float(y / h), float(z / h)),
+        space_id=target_space_id or point.space_id,
+    )
 
 
 @_register_warper(PointCloud)

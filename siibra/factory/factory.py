@@ -39,7 +39,6 @@ def parse_attributes(attribute_objs: List):
 
 def register_build_type(type_str: str):
     def outer(fn: Callable[[Dict], V]):
-
         @wraps(fn)
         def inner(*args, **kwargs):
             kwargs.pop("@type", None)

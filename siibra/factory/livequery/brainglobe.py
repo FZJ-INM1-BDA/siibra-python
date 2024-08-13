@@ -23,6 +23,7 @@ from hashlib import md5
 import numpy as np
 from PIL import Image as PILImage
 import nibabel as nib
+
 try:
     from typing import TypedDict, Literal
 except ImportError:
@@ -56,6 +57,7 @@ def tiff_to_nii(tiff_bytes: bytes, affine: np.ndarray) -> str:
     nii = nib.Nifti1Image(stacked_array, affine)
     nib.save(nii, filename)
     return filename
+
 
 url = "https://gin.g-node.org/BrainGlobe/atlases.git"
 fileurl = "https://gin.g-node.org/BrainGlobe/atlases/raw/master/{filename}.tar.gz"
@@ -106,6 +108,7 @@ PREFIX = "bg:"
 def get_id(name, type: Literal["space", "parcellation", "map"]):
     return f"{PREFIX}{name}:{type}"
 
+
 def get_name(input: str):
     input = input.replace(PREFIX, "")
     return re.sub(r"(:space|:parcellatoin|:map)$", "", input)
@@ -118,6 +121,7 @@ def _get_repo():
         repo = GitHttpRepository(url=url, branch="master")
     return repo
 
+
 def list_all() -> List[str]:
     repo = _get_repo()
     return [
@@ -129,23 +133,29 @@ def list_all() -> List[str]:
 
 class SpaceLiveQuery(LiveQuery[Space], generates=Space):
     def generate(self) -> Iterator[Space]:
-        ids = [id
-               for ids in self.find_attributes(ID)
-               for id in ids
-               if id.value.startswith(PREFIX)]
+        ids = [
+            id
+            for ids in self.find_attributes(ID)
+            for id in ids
+            if id.value.startswith(PREFIX)
+        ]
         if len(ids) == 0:
             logger.debug(f"no ID attribute start with {PREFIX}, skip.")
             return
         if len(ids) > 1:
-            logger.warning(f"Expected one and only one ID attribute starting with {PREFIX}, but got {len(ids)}. Skipping")
+            logger.warning(
+                f"Expected one and only one ID attribute starting with {PREFIX}, but got {len(ids)}. Skipping"
+            )
             return
         id_value = ids[0].value
         atlas_name = get_name(id_value)
-        
+
         repo = TarRepository(fileurl.format(filename=atlas_name), gzip=True)
-        
+
         metadata: Metadata = json.loads(repo.get(f"{atlas_name}/metadata.json"))
-        affine = np.array(metadata.get("transform_to_bg") or metadata.get("trasform_to_bg"))
+        affine = np.array(
+            metadata.get("transform_to_bg") or metadata.get("trasform_to_bg")
+        )
         ref_img_filename = tiff_to_nii(repo.get(f"{atlas_name}/reference.tiff"), affine)
         speciesspec = SpeciesSpec(value=metadata["species"])
 
@@ -162,7 +172,6 @@ class SpaceLiveQuery(LiveQuery[Space], generates=Space):
 
 
 class ParcellationLiveQuery(LiveQuery[Parcellation], generates=Parcellation):
-    
     @staticmethod
     def populate_regions(
         structures: List[Structure],
@@ -208,23 +217,29 @@ class ParcellationLiveQuery(LiveQuery[Parcellation], generates=Parcellation):
             region.parent = parent_region
 
     def generate(self) -> Iterator[Parcellation]:
-        ids = [id
-               for ids in self.find_attributes(ID)
-               for id in ids
-               if id.value.startswith(PREFIX)]
+        ids = [
+            id
+            for ids in self.find_attributes(ID)
+            for id in ids
+            if id.value.startswith(PREFIX)
+        ]
         if len(ids) == 0:
             logger.debug(f"no ID attribute start with {PREFIX}, skip.")
             return
         if len(ids) > 1:
-            logger.warning(f"Expected one and only one ID attribute starting with {PREFIX}, but got {len(ids)}. Skipping")
+            logger.warning(
+                f"Expected one and only one ID attribute starting with {PREFIX}, but got {len(ids)}. Skipping"
+            )
             return
         id_value = ids[0].value
         atlas_name = get_name(id_value)
-        
+
         repo = TarRepository(fileurl.format(filename=atlas_name), gzip=True)
-        
+
         metadata: Metadata = json.loads(repo.get(f"{atlas_name}/metadata.json"))
-        structures: List[Structure] = json.loads(repo.get(f"{atlas_name}/structures.json"))
+        structures: List[Structure] = json.loads(
+            repo.get(f"{atlas_name}/structures.json")
+        )
         speciesspec = SpeciesSpec(value=metadata["species"])
 
         parcellation_id = get_id(atlas_name, "parcellation")
@@ -242,25 +257,30 @@ class ParcellationLiveQuery(LiveQuery[Parcellation], generates=Parcellation):
 
 
 class MapLiveQuery(LiveQuery[Map], generates=Map):
-    
     def generate(self) -> Iterator[Map]:
-        ids = [id
-               for ids in self.find_attributes(ID)
-               for id in ids
-               if id.value.startswith(PREFIX)]
+        ids = [
+            id
+            for ids in self.find_attributes(ID)
+            for id in ids
+            if id.value.startswith(PREFIX)
+        ]
         if len(ids) == 0:
             logger.debug(f"no ID attribute start with {PREFIX}, skip.")
             return
         if len(ids) > 1:
-            logger.warning(f"Expected one and only one ID attribute starting with {PREFIX}, but got {len(ids)}. Skipping")
+            logger.warning(
+                f"Expected one and only one ID attribute starting with {PREFIX}, but got {len(ids)}. Skipping"
+            )
             return
         id_value = ids[0].value
         atlas_name = get_name(id_value)
-        
+
         repo = TarRepository(fileurl.format(filename=atlas_name), gzip=True)
-        
+
         metadata: Metadata = json.loads(repo.get(f"{atlas_name}/metadata.json"))
-        structures: List[Structure] = json.loads(repo.get(f"{atlas_name}/structures.json"))
+        structures: List[Structure] = json.loads(
+            repo.get(f"{atlas_name}/structures.json")
+        )
         speciesspec = SpeciesSpec(value=metadata["species"])
 
         parcellation_id = get_id(atlas_name, "parcellation")
@@ -268,9 +288,13 @@ class MapLiveQuery(LiveQuery[Map], generates=Map):
         map_id = get_id(atlas_name, "map")
 
         # "trasform_to_bg" typo seen in allen human 500um
-        affine = np.array(metadata.get("transform_to_bg") or metadata.get("trasform_to_bg"))
-        annot_img_filename = tiff_to_nii(repo.get(f"{atlas_name}/annotation.tiff"), affine)
-        
+        affine = np.array(
+            metadata.get("transform_to_bg") or metadata.get("trasform_to_bg")
+        )
+        annot_img_filename = tiff_to_nii(
+            repo.get(f"{atlas_name}/annotation.tiff"), affine
+        )
+
         _region_attributes = {
             structure["name"]: {
                 "label": structure["id"],
@@ -296,4 +320,3 @@ class MapLiveQuery(LiveQuery[Map], generates=Map):
                 speciesspec,
             ),
         )
-

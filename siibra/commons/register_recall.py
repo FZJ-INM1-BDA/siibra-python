@@ -30,7 +30,6 @@ P = ParamSpec("P")
 
 class RegisterRecall(Generic[P]):
     def __init__(self, cache=True) -> None:
-
         self.on_new_registration: Callable[[Type], None] = None
         self._registry: Dict[Type[T], List[Callable[P, List[T]]]] = defaultdict(list)
 
@@ -42,19 +41,18 @@ class RegisterRecall(Generic[P]):
             self._cached_iter = fn_call_cache(
                 self._cached_iter,
                 cache_validation_callback=self._cache_invalidation_cb,
-                ignore=["self"]
+                ignore=["self"],
             )
 
     def register(self, _type: Type[T]):
         def outer(fn):
-
             @wraps(fn)
             def inner(*args, **kwargs):
                 return fn(*args, **kwargs)
 
             self._registry[_type].append(inner)
             return inner
-        
+
         if self.on_new_registration:
             self.on_new_registration(_type)
 

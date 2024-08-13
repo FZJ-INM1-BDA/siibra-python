@@ -178,7 +178,7 @@ def calculate_nifti_intersection_score(nii1: Nifti1Image, nii2: Nifti1Image):
             weighted_mean_of_first=0,
             weighted_mean_of_second=0,
             map_value_mean=0,
-            map_value_std=0
+            map_value_std=0,
         )
 
     # Compute the nonzero voxels in map1 with their correspondences in map2
@@ -245,12 +245,14 @@ def get_image_intersection_score(
         score = calculate_nifti_intersection_score(voxelmask, target_nii)
         if score.intersection_over_union <= iou_lower_threshold:
             continue
-        assignments.append(ScoredImageAssignment(
-            input_structure_index=compmode,
-            centroid=compute_centroid(voxelmask).coordinate,
-            map_value=None,
-            **asdict(score)
-        ))
+        assignments.append(
+            ScoredImageAssignment(
+                input_structure_index=compmode,
+                centroid=compute_centroid(voxelmask).coordinate,
+                map_value=None,
+                **asdict(score),
+            )
+        )
 
     return assignments
 

@@ -3,20 +3,23 @@ from ebrains_drive import BucketApiClient
 
 from .base import ArchivalRepository
 
+
 class DataproxyRepository(ArchivalRepository):
     """
     Proxy to BucketApiClient, satisfying ArchivalRepository constraint.
-    
+
     User can access dataset buckets by passing is_dataset=True. n.b. not all dataset
     stores files in dataproxy.
-    
+
     User can provide a JWT token to access private buckets/dataset. n.b. if a token is passed
     the instance of dataproxyrepository will *no longer* be able to access public dataset/bucket
     """
 
     anony_client = BucketApiClient()
 
-    def __init__(self, bucketname: str, is_dataset: bool=False, token: str=None) -> None:
+    def __init__(
+        self, bucketname: str, is_dataset: bool = False, token: str = None
+    ) -> None:
         super().__init__()
         self.bucketname = bucketname
         self.client = BucketApiClient(token=token) if token else self.anony_client
@@ -31,7 +34,7 @@ class DataproxyRepository(ArchivalRepository):
 
     def warmup(self, *args, **kwargs):
         raise NotImplementedError(f"dataproxy repository cannot be warmed up")
-    
+
     def search_files(self, prefix: str = None) -> Iterable[str]:
         for f in self.bucket.ls(prefix):
             yield f.name

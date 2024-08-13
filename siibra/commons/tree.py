@@ -46,7 +46,6 @@ def collapse_nodes(input_nodes: List[T]) -> List[T]:
         if circuit_breaker < 0:
             raise RuntimeError
         for active_node in list_of_nodes:
-
             if active_node.parent is None:
                 continue
             siblings = active_node.siblings

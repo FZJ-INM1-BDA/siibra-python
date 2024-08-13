@@ -94,6 +94,7 @@ def encode_url(
     query_params={},
 ):
     from siibra.locations import Point
+
     overlay_url = None
     encoded_position = None
     if location:
@@ -130,19 +131,25 @@ def encode_url(
         return_url = return_url + f"/f:{sanitize_id(feature.id)}"
 
     if region is None:
-        return return_url + nav_string.format(encoded_nav=encoded_position or "0.0.0", **zoom_kwargs)
+        return return_url + nav_string.format(
+            encoded_nav=encoded_position or "0.0.0", **zoom_kwargs
+        )
 
     return_url = f"{return_url}/rn:{get_hash(region.name)}"
 
     try:
         result_props = region.spatial_props(space, maptype="labelled")
         if len(result_props.components) == 0:
-            return return_url + nav_string.format(encoded_nav=encoded_position or "0.0.0", **zoom_kwargs)
+            return return_url + nav_string.format(
+                encoded_nav=encoded_position or "0.0.0", **zoom_kwargs
+            )
     except Exception as e:
         print(f"Cannot get_spatial_props {str(e)}")
         if not ignore_warning:
             raise e
-        return return_url + nav_string.format(encoded_nav=encoded_position or "0.0.0", **zoom_kwargs)
+        return return_url + nav_string.format(
+            encoded_nav=encoded_position or "0.0.0", **zoom_kwargs
+        )
 
     centroid = result_props.components[0].centroid
 

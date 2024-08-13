@@ -23,6 +23,7 @@ class SpaceSpec(Description):
     """
     Internal attribute used for querying space with a given spec.
     """
+
     schema = "siibra-internal/attr/desc/spacespec/v0.1"
 
     def __hash__(self) -> int:
