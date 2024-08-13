@@ -90,7 +90,8 @@ def get_connected_components(
         (
             label,
             Nifti1Image(
-                dataobj=(components == label).astype("uint8"), affine=nii.affine
+                dataobj=imgdata * (components == label).astype("uint8"),
+                affine=nii.affine,
             ),
         )
         for label in component_labels
@@ -241,14 +242,14 @@ def get_image_intersection_score(
     querynii_resamp = resample_img_to_img(querynii, target_nii)
 
     assignments: List[ScoredImageAssignment] = []
-    for compmode, voxelmask in iter_components(querynii_resamp):
-        score = calculate_nifti_intersection_score(voxelmask, target_nii)
+    for component_index, querynii_component in iter_components(querynii_resamp):
+        score = calculate_nifti_intersection_score(querynii_component, target_nii)
         if score.intersection_over_union <= iou_lower_threshold:
             continue
         assignments.append(
             ScoredImageAssignment(
-                input_structure_index=compmode,
-                centroid=compute_centroid(voxelmask).coordinate,
+                input_structure_index=component_index,
+                centroid=compute_centroid(querynii_component).coordinate,
                 map_value=None,
                 **asdict(score),
             )
