@@ -39,7 +39,7 @@ from ..base import Location
 from ..point import Point
 from ..pointcloud import PointCloud
 from ..boundingbox import BoundingBox
-from ....commons_new.logger import logger
+from ....commons.logger import logger
 
 T = TypeVar("T", bound=Location)
 _tranformers: Dict["Location", Callable] = {}

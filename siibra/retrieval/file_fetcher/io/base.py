@@ -17,7 +17,7 @@ from abc import ABC, abstractmethod
 import io
 import requests
 
-from ....commons_new.logger import logger
+from ....commons.logger import logger
 
 BLOCK_SIZE = 512
 

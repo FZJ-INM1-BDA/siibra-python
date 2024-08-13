@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ...attributes import Attribute
-from ...commons_new.iterable import assert_ooo
+from ...commons.iterable import assert_ooo
 
 if TYPE_CHECKING:
     from numpy import ndarray

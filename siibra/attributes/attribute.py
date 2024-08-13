@@ -16,7 +16,7 @@
 from dataclasses import dataclass, field
 from typing import List, Any, Dict, Iterable, Tuple, BinaryIO, Union
 import pandas as pd
-from ..commons_new.logger import logger
+from ..commons.logger import logger
 
 SCHEMAS = {}
 

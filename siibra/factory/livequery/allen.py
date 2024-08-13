@@ -24,7 +24,7 @@ import requests
 from .base import LiveQuery
 from ...atlases import Region
 from ...cache import fn_call_cache
-from ...commons_new.logger import logger
+from ...commons.logger import logger
 from ...concepts import Feature
 from ...attributes.descriptions import register_modalities, Modality, Gene
 from ...attributes.locations import PointCloud

@@ -1,7 +1,7 @@
 import pytest
 import re
 
-from siibra.commons_new.string import fuzzy_match, splitstr, get_spec
+from siibra.commons.string import fuzzy_match, splitstr, get_spec
 
 splitstr_args = [
     (

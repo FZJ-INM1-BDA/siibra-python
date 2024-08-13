@@ -25,7 +25,7 @@ from typing import (
 )
 
 from .string import create_key
-from ..commons_new.logger import logger
+from ..commons.logger import logger
 
 T = TypeVar("T")
 V = TypeVar("V")

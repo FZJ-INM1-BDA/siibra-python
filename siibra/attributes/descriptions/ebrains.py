@@ -19,7 +19,7 @@ import json
 
 from .base import Description
 from ...retrieval.file_fetcher.dataproxy_fetcher import DataproxyRepository
-from ...commons_new.string import extract_uuid
+from ...commons.string import extract_uuid
 
 @dataclass
 class EbrainsRef(Description):

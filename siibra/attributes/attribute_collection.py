@@ -20,8 +20,8 @@ from zipfile import ZipFile
 
 from .attribute import Attribute
 from ..attributes.descriptions import Url, Doi, TextDescription, Facet, EbrainsRef
-from ..commons_new.iterable import assert_ooo
-from ..commons_new.logger import siibra_tqdm
+from ..commons.iterable import assert_ooo
+from ..commons.logger import siibra_tqdm
 
 T = TypeVar("T")
 
@@ -171,10 +171,10 @@ class AttributeCollection:
         - the metadata associated with the attribute collection
         - a list of other files saved in the same zip file
         """
-        from . import __version__
         from .descriptions.base import Description
         from .locations.base import Location
         from .dataitems.base import Data
+        from .._version import __version__
 
         with ZipFile(filelike, "w") as fp:
 

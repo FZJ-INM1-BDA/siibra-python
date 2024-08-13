@@ -30,10 +30,10 @@ from ..retrieval.volume_fetcher import (
     MESH_FORMATS,
     SIIBRA_MAX_FETCH_SIZE_GIB,
 )
-from ..commons_new.iterable import assert_ooo
-from ..commons_new.maps import merge_volumes, compute_centroid, create_mask
-from ..commons_new.string import convert_hexcolor_to_rgbtuple
-from ..commons_new.logger import logger, siibra_tqdm
+from ..commons.iterable import assert_ooo
+from ..commons.maps import merge_volumes, compute_centroid, create_mask
+from ..commons.string import convert_hexcolor_to_rgbtuple
+from ..commons.logger import logger, siibra_tqdm
 from ..atlases import Parcellation, Space, Region
 from ..attributes.dataitems import Image, Mesh, FORMAT_LOOKUP
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec

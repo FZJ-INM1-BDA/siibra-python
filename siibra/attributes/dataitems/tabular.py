@@ -45,7 +45,7 @@ class Tabular(Data):
 
     def plot(self, *args, **kwargs):
         if "matrix" in self.plot_options:
-            from ...commons_new.logger import logger
+            from ...commons.logger import logger
 
             try:
                 from nilearn import plotting

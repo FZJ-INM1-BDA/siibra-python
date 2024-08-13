@@ -21,7 +21,7 @@ import os
 from .base import ArchivalRepository
 from .io import PartialReader
 from ...cache import CACHE
-from ...commons_new.logger import logger
+from ...commons.logger import logger
 
 
 class TarRepository(ArchivalRepository):

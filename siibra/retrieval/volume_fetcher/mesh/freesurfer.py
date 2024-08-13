@@ -21,7 +21,7 @@ from nibabel import freesurfer, gifti
 
 from ..volume_fetcher import FetchKwargs, register_volume_fetcher
 from ....cache import CACHE
-from ....commons_new.maps import arrs_to_gii
+from ....commons.maps import arrs_to_gii
 
 if TYPE_CHECKING:
     from ....attributes.dataitems import Mesh

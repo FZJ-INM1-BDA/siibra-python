@@ -18,7 +18,7 @@ from collections import defaultdict
 from typing import Dict, Iterator, List
 
 from .base import LiveQuery
-from ...commons_new.logger import logger
+from ...commons.logger import logger
 from ...attributes.descriptions import register_modalities, Modality, RegionSpec, ID, Name
 from ...concepts import Feature
 

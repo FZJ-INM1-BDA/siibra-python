@@ -16,10 +16,10 @@
 from typing import List
 
 from ..atlases import region
-from ..commons_new.logger import logger
-from ..commons_new.string import SPEC_TYPE
-from ..commons_new.tree import collapse_nodes
-from ..commons_new.iterable import assert_ooo
+from ..commons.logger import logger
+from ..commons.string import SPEC_TYPE
+from ..commons.tree import collapse_nodes
+from ..commons.iterable import assert_ooo
 from ..attributes.descriptions import Version
 
 

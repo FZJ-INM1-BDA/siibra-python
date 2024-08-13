@@ -30,8 +30,8 @@ except ImportError:
     from typing_extensions import TypedDict, Literal
 
 from .base import LiveQuery
-from ...commons_new.logger import logger
-from ...commons_new.string import to_hex
+from ...commons.logger import logger
+from ...commons.string import to_hex
 from ...attributes import Attribute
 from ...attributes.descriptions import Name, ID, Url, SpeciesSpec
 from ...attributes.dataitems import Image

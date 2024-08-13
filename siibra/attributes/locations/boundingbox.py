@@ -23,7 +23,7 @@ import numpy as np
 
 from .base import Location
 from . import point, pointcloud
-from ...commons_new.logger import logger
+from ...commons.logger import logger
 from ...cache import fn_call_cache
 
 

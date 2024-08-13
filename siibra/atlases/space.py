@@ -20,8 +20,8 @@ from ..retrieval.volume_fetcher import (
     IMAGE_FORMATS,
     MESH_FORMATS,
 )
-from ..commons_new.iterable import assert_ooo
-from ..commons_new.maps import merge_volumes
+from ..commons.iterable import assert_ooo
+from ..commons.maps import merge_volumes
 from ..attributes.dataitems import FORMAT_LOOKUP
 
 if TYPE_CHECKING:

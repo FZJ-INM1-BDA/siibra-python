@@ -18,7 +18,7 @@ from typing import Dict
 
 from ..base import Data
 from ....retrieval.volume_fetcher import IMAGE_FORMATS, MESH_FORMATS, Mapping
-from ....commons_new.iterable import assert_ooo
+from ....commons.iterable import assert_ooo
 
 FORMAT_LOOKUP = {
     None: IMAGE_FORMATS + MESH_FORMATS,

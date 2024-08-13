@@ -18,7 +18,7 @@ from ..pointcloud import PointCloud, from_points
 from ..boundingbox import BoundingBox
 from ..base import Location
 from ....exceptions import InvalidAttrCompException
-from ....commons_new.binary_op import BinaryOp
+from ....commons.binary_op import BinaryOp
 
 _loc_union = BinaryOp[Location, Location]()
 

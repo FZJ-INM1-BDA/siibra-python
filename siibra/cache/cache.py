@@ -18,7 +18,7 @@ import tempfile
 from appdirs import user_cache_dir
 import hashlib
 
-from ..commons_new.logger import logger
+from ..commons.logger import logger
 
 SIIBRA_CACHEDIR = os.getenv("SIIBRA_CACHEDIR")
 SKIP_CACHEINIT_MAINTENANCE = os.getenv("SKIP_CACHEINIT_MAINTENANCE")

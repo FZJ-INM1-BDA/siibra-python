@@ -1,6 +1,6 @@
 from anytree import Node
 import pytest
-from siibra.commons_new.tree import collapse_nodes
+from siibra.commons.tree import collapse_nodes
 
 grand = Node("grand")
 

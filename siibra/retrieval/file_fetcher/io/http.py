@@ -20,7 +20,7 @@ import os
 
 from .base import PartialReader
 from ....cache import CACHE
-from ....commons_new.logger import logger, siibra_tqdm
+from ....commons.logger import logger, siibra_tqdm
 
 PROGRESS_BAR_THRESHOLD = 2e8
 BLOCK_SIZE = 1024

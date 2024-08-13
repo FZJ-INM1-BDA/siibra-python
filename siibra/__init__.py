@@ -19,12 +19,13 @@ import os as _os
 import math
 
 from .exceptions import NotFoundException
-from .commons_new.logger import logger, QUIET, VERBOSE, set_log_level
-from .commons_new.iterable import assert_ooo
-from .commons_new.instance_table import BkwdCompatInstanceTable
-from .commons_new.tree import collapse_nodes
+from .commons.logger import logger, QUIET, VERBOSE, set_log_level
+from .commons.iterable import assert_ooo
+from .commons.instance_table import BkwdCompatInstanceTable
+from .commons.tree import collapse_nodes
 from .cache import fn_call_cache, Warmup, WarmupLevel, CACHE as cache
 
+from . import _version
 from . import factory
 from . import retrieval
 from . import attributes
@@ -41,12 +42,7 @@ from .assignment import (
 )
 from .factory.iterator import iter_preconfigured_ac
 
-
-ROOT_DIR = _os.path.dirname(_os.path.abspath(__file__))
-with open(_os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
-    __version__ = fp.read().strip()
-
-logger.info(f"Version: {__version__}")
+logger.info(f"Version: {_version.__version__}")
 logger.warning("This is a development release. Use at your own risk.")
 logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."

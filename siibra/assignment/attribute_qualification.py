@@ -17,9 +17,9 @@ from typing import Union, Type
 from itertools import product
 
 from .qualification import Qualification
-from ..commons_new.logger import logger
-from ..commons_new.binary_op import BinaryOp
-from ..commons_new.string import fuzzy_match, clear_name
+from ..commons.logger import logger
+from ..commons.binary_op import BinaryOp
+from ..commons.string import fuzzy_match, clear_name
 from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 from ..attributes import Attribute
 from ..attributes.dataitems import Image

@@ -22,11 +22,11 @@ from dataclasses import replace
 from ..concepts import atlas_elements
 from ..attributes.descriptions import Name
 from ..attributes.locations import boundingbox, PointCloud
-from ..commons_new.string import get_spec, SPEC_TYPE, extract_uuid
-from ..commons_new.iterable import assert_ooo
-from ..commons_new.maps import spatial_props, create_mask
-from ..commons_new.logger import logger
-from ..commons_new.register_recall import RegisterRecall
+from ..commons.string import get_spec, SPEC_TYPE, extract_uuid
+from ..commons.iterable import assert_ooo
+from ..commons.maps import spatial_props, create_mask
+from ..commons.logger import logger
+from ..commons.register_recall import RegisterRecall
 from ..retrieval.file_fetcher.dataproxy_fetcher import DataproxyRepository
 from ..cache import fn_call_cache
 

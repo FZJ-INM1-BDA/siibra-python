@@ -25,7 +25,7 @@ from ..point import Point
 from ..pointcloud import PointCloud
 from ..boundingbox import BoundingBox
 from ....cache import fn_call_cache
-from ....commons_new.logger import logger
+from ....commons.logger import logger
 from ....exceptions import SpaceWarpingFailedError
 
 SPACEWARP_SERVER = "https://hbp-spatial-backend.apps.hbp.eu/v1"

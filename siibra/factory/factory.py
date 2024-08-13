@@ -19,8 +19,8 @@ from functools import wraps
 from ..attributes.attribute import Attribute
 from ..concepts.feature import Feature
 from ..attributes.descriptions import Name, SpeciesSpec, ID, RegionSpec
-from ..commons_new.string import create_key
-from ..commons_new.iterable import assert_ooo
+from ..commons.string import create_key
+from ..commons.iterable import assert_ooo
 from ..atlases import region, parcellation, space, parcellationmap, sparsemap
 
 

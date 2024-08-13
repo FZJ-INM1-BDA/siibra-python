@@ -22,7 +22,7 @@ from ..pointcloud import PointCloud
 from ..boundingbox import BoundingBox
 from ..base import Location
 from ....exceptions import InvalidAttrCompException, UnregisteredAttrCompException
-from ....commons_new.binary_op import BinaryOp
+from ....commons.binary_op import BinaryOp
 
 _loc_intersection = BinaryOp[Location, Union[Location, None]]()
 

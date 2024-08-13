@@ -19,7 +19,7 @@ from itertools import product
 
 
 from .attribute_qualification import qualify as attribute_qualify
-from ..commons_new.logger import logger
+from ..commons.logger import logger
 from ..attributes import AttributeCollection
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 

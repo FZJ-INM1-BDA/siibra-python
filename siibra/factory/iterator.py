@@ -15,7 +15,7 @@
 
 from typing import Type, TypeVar, Iterable
 
-from ..commons_new.register_recall import RegisterRecall
+from ..commons.register_recall import RegisterRecall
 
 T = TypeVar("T")
 

@@ -22,7 +22,7 @@ from nibabel import GiftiImage
 
 from .base import LiveQuery
 from ...cache import fn_call_cache, Warmup, WarmupLevel
-from ...commons_new.logger import logger
+from ...commons.logger import logger
 from ...concepts import Feature
 from ...attributes.descriptions import Modality, register_modalities
 from ...attributes.dataitems.tabular import Tabular, X_DATA

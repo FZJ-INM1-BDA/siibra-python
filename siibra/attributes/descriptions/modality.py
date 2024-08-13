@@ -18,10 +18,11 @@ from dataclasses import dataclass
 from functools import partial
 
 from .base import Description
-from ...commons_new.instance_table import JitInstanceTable
-from ...commons_new.logger import logger
-from ...commons import __version__
+from ...commons.instance_table import JitInstanceTable
+from ...commons.logger import logger
 from ...cache import fn_call_cache
+
+from ..._version import __version__
 
 @dataclass
 class Modality(Description):

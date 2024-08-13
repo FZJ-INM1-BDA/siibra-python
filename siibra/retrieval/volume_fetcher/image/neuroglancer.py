@@ -32,7 +32,7 @@ from ...volume_fetcher.volume_fetcher import (
     SIIBRA_MAX_FETCH_SIZE_GIB,
 )
 from ....cache import fn_call_cache
-from ....commons_new.logger import logger
+from ....commons.logger import logger
 
 if TYPE_CHECKING:
     from ....attributes.dataitems import Image

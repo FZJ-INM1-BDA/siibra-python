@@ -28,7 +28,7 @@ from ..retrieval.file_fetcher.base import Repository
 from ..retrieval.file_fetcher import (
     GithubRepository,
 )
-from ..commons_new.logger import logger
+from ..commons.logger import logger
 
 SIIBRA_USE_CONFIGURATION = getenv("SIIBRA_USE_CONFIGURATION")
 
