@@ -245,7 +245,7 @@ def compute_centroid(img: Nifti1Image, space_id: str = None, background: float =
 
 
 def create_mask(
-    volume: Union[Nifti1Image, GiftiImage],
+    volume: Union[Nifti1Image, GiftiImage, None],
     background_value: Union[int, float] = 0,
     lower_threshold: float = None,
 ):
@@ -255,3 +255,6 @@ def create_mask(
         return create_mask_from_nifti(
             volume, background_value=background_value, lower_threshold=lower_threshold
         )
+    raise RuntimeError(
+        f"volume must be of type nifti or gifti, but go {type(volume).__name__}"
+    )

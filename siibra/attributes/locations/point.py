@@ -16,7 +16,7 @@
 """Singular coordinate defined on a space, possibly with an uncertainty."""
 
 from dataclasses import dataclass, field
-from typing import Tuple, TYPE_CHECKING
+from typing import Tuple, TYPE_CHECKING, Union
 import numbers
 import re
 
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 @dataclass
 class Point(Location):
     schema = "siibra/attr/loc/point/v0.1"
-    coordinate: Tuple[float] = field(default_factory=tuple)
+    coordinate: Tuple[Union[float, int]] = field(default_factory=tuple)
     sigma: float = 0.0
 
     def __post_init__(self):
@@ -41,7 +41,7 @@ class Point(Location):
         assert (
             len(self.coordinate) == 3
         ), f"Expected 3 elements, but got {len(self.coordinate)}"
-        assert all(isinstance(coord, float) for coord in self.coordinate), (
+        assert all(isinstance(coord, (float, int)) for coord in self.coordinate), (
             "Expected coordinates to be of type float, but was "
             f"{', '.join(type(coord).__name__ for coord in self.coordinate)}"
         )

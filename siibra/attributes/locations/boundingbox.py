@@ -17,7 +17,7 @@
 
 from itertools import product
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Union
 
 import numpy as np
 
@@ -30,8 +30,8 @@ from ...cache import fn_call_cache
 @dataclass
 class BoundingBox(Location):
     schema = "siibra/attr/loc/boundingbox/v0.1"
-    minpoint: List[float] = field(default_factory=list)
-    maxpoint: List[float] = field(default_factory=list)
+    minpoint: List[Union[float, int]] = field(default_factory=list)
+    maxpoint: List[Union[float, int]] = field(default_factory=list)
     space_id: str = None
 
     def __post_init__(self):
@@ -43,7 +43,9 @@ class BoundingBox(Location):
             assert isinstance(
                 pt, list
             ), f"expected to be a list, but is {type(pt).__name__}"
-            assert all(isinstance(p, float) for p in pt), f"expected all to be float"
+            assert all(
+                isinstance(p, (float, int)) for p in pt
+            ), f"expected all to be float"
 
     def __eq__(self, other: "BoundingBox"):
         if not isinstance(other, BoundingBox):

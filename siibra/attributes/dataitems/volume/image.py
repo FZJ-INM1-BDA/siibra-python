@@ -284,7 +284,7 @@ def intersect_ptcld_image(
     ptcloud: pointcloud.PointCloud, image: Image
 ) -> pointcloud.PointCloud:
     value_outside = 0
-    values = image.read_points(ptcloud, outside_value=value_outside)
+    values = image.read_points(ptcloud)
     inside = list(np.where(values != value_outside)[0])
     return replace(
         ptcloud,
