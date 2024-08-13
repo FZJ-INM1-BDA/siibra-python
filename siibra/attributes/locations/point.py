@@ -29,6 +29,50 @@ if TYPE_CHECKING:
     from nibabel import Nifti1Image
 
 
+def parse_coordinate(
+    spec: Union[Tuple[numbers.Number, numbers.Number, numbers.Number], np.ndarray, str],
+    unit="mm",
+) -> Tuple[float, float, float]:
+    """
+    Converts a 3D coordinate specification into a 3D tuple of floats.
+
+    Parameters
+    ----------
+    spec : Union[Tuple[numbers.Number, numbers.Number, numbers.Number], np.ndarray, str]
+        For string specifications, comma separation with decimal points are expected.
+    unit: str, default = 'mm'
+        currently, only 'mm' is supported
+
+    Returns
+    -------
+    tuple(float, float, float)
+    """
+    if unit != "mm":
+        raise NotImplementedError(
+            "Coordinate parsing from strings is only supported for mm specifications so far."
+        )
+
+    if isinstance(spec, str):
+        pat = r"([-\d\.]*)" + unit
+        values = re.findall(pat, spec)
+    elif isinstance(spec, (tuple, list)):
+        return tuple(
+            float(v.item()) if isinstance(v, np.ndarray) else float(v) for v in spec
+        )
+    elif isinstance(spec, np.ndarray):
+        assert spec.size == 3
+        values = spec.flatten()
+    else:
+        raise ValueError(
+            f"Cannot decode coordinate specification {spec} (type {type(spec)}) to create a point."
+        )
+
+    if len(values) > 3:
+        raise ValueError(f"Expected 3 elements, but got {len(values)}")
+
+    return tuple(float(v) for v in values)
+
+
 @dataclass
 class Point(Location):
     schema = "siibra/attr/loc/point/v0.1"
@@ -36,8 +80,7 @@ class Point(Location):
     sigma: float = 0.0
 
     def __post_init__(self):
-        if isinstance(self.coordinate, (list, np.ndarray)):
-            self.coordinate = tuple(self.coordinate)
+        self.coordinate = parse_coordinate(self.coordinate)
         assert (
             len(self.coordinate) == 3
         ), f"Expected 3 elements, but got {len(self.coordinate)}"
@@ -141,41 +184,3 @@ class Point(Location):
         kernel_affine = np.dot(target_affine, shift)
 
         return Nifti1Image(dataobj=kernel, affine=kernel_affine)
-
-
-def parse(spec, unit="mm") -> Tuple[float, float, float]:
-    """Converts a 3D coordinate specification into a 3D tuple of floats.
-
-    Parameters
-    ----------
-    spec: Any of str, tuple(float,float,float)
-        For string specifications, comma separation with decimal points are expected.
-    unit: str
-        specification of the unit (only 'mm' supported so far)
-    Returns
-    -------
-    tuple(float, float, float)
-    """
-    if unit != "mm":
-        raise NotImplementedError(
-            "Coordinate parsing from strings is only supported for mm specifications so far."
-        )
-    if isinstance(spec, str):
-        pat = r"([-\d\.]*)" + unit
-        digits = re.findall(pat, spec)
-        if len(digits) == 3:
-            return tuple(float(d) for d in digits)
-    elif isinstance(spec, (tuple, list)) and len(spec) in [3, 4]:
-        if len(spec) == 4:
-            assert spec[3] == 1
-        return tuple(
-            float(v.item()) if isinstance(v, np.ndarray) else float(v) for v in spec[:3]
-        )
-    elif isinstance(spec, np.ndarray) and spec.size == 3:
-        return tuple(
-            float(v.item()) if isinstance(v, np.ndarray) else float(v) for v in spec[:3]
-        )
-
-    raise ValueError(
-        f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
-    )
