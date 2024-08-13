@@ -15,7 +15,11 @@
 
 from typing import TypeVar, List, Type
 
-from .assignment import match as collection_match, qualify as collection_qualify
+from .assignment import (
+    match as collection_match,
+    qualify as collection_qualify,
+    preprocess_concept,
+)
 from ..factory.livequery import LiveQuery
 from ..factory.iterator import iter_preconfigured_ac
 from ..attributes import AttributeCollection

@@ -40,13 +40,5 @@ class AtlasElement(AttributeCollection):
         return hash(self.ID)
 
     @property
-    def name(self):
-        return self._get(Name).value
-
-    @property
-    def ID(self):
-        return self._get(_ID).value
-
-    @property
     def species(self):
         return self._get(SpeciesSpec).value

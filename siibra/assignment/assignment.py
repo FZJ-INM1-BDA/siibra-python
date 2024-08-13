@@ -13,14 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Type, Callable, Dict, Iterable, List, TypeVar
+from typing import Type, Callable, Dict, Iterable, List, TypeVar, Union
 from collections import defaultdict
 from itertools import product
-
+import math
 
 from .attribute_qualification import qualify as attribute_qualify
 from ..commons.logger import logger
 from ..attributes import AttributeCollection
+from ..attributes.locations import Location, BoundingBox
+from ..concepts import AtlasElement, QueryParam
+from ..atlases import Region, Space
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 
 V = TypeVar("V")
@@ -70,3 +73,37 @@ def qualify(col_a: AttributeCollection, col_b: AttributeCollection):
     if attr_compared_flag:
         return
     raise UnregisteredAttrCompException
+
+
+def preprocess_concept(concept: Union[AtlasElement, Location]):
+    """
+    User provided concepts may need preprocessed. e.g.
+
+    - When user provides a boundingbox (attribute) this function converts it to a QueryParam with
+    the corresponding boundingbox attribute.
+
+    - When user provides Region, this function adds all mapped boundingboxes in all available spaces
+
+    - When user provides Space, this function adds an infinite boundingbox
+    """
+    if isinstance(concept, Location):
+        concept = QueryParam(attributes=[concept])
+    assert isinstance(
+        concept, AttributeCollection
+    ), f"Expect concept to be either AtlasElement or Location, but was {type(concept)} instead"
+
+    if isinstance(concept, Region):
+        bboxes = concept.find_boundingboxes()
+        concept.attributes = [*concept.attributes, *bboxes]
+
+    if isinstance(concept, Space):
+        # When user query space, we are assuming that they really want to see all features that overlaps with
+        # an infinite bounding box in this space. If we query the full space, we run into trouble with comparison
+        # of e.g. space.image (template image) x feature.region_spec
+        inf_bbox = BoundingBox(
+            space_id=concept.ID,
+            minpoint=[-math.inf, -math.inf, -math.inf],
+            maxpoint=[math.inf, math.inf, math.inf],
+        )
+        concept = QueryParam(attributes=[inf_bbox])
+    return concept

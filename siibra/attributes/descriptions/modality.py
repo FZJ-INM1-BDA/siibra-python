@@ -30,6 +30,12 @@ class Modality(Description):
     schema = "siibra/attr/desc/modality/v0.1"
     category: str = None
 
+    def __str__(self):
+        return self.__repr__()
+
+    def __repr__(self) -> str:
+        return f"Modality<{self.value}{(', category=' + self.category) if self.category else ''}>"
+
     def __hash__(self) -> int:
         return hash((self.category or "") + self.value)
 

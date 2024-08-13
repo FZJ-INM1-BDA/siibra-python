@@ -14,14 +14,36 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field, replace
-from typing import Tuple, Type, TypeVar, Iterable, Callable, List, Union, BinaryIO
+from typing import (
+    Tuple,
+    Type,
+    TypeVar,
+    Iterable,
+    Callable,
+    List,
+    Union,
+    BinaryIO,
+    TYPE_CHECKING,
+)
 import pandas as pd
 from zipfile import ZipFile
 
 from .attribute import Attribute
+from ..attributes.locations import Location
 from ..attributes.descriptions import Url, Doi, TextDescription, Facet, EbrainsRef
 from ..commons.iterable import assert_ooo
 from ..commons.logger import siibra_tqdm
+from ..attributes.descriptions import (
+    Url,
+    Doi,
+    TextDescription,
+    Facet,
+    EbrainsRef,
+    ID,
+    Name,
+)
+from .._version import __version__
+
 
 T = TypeVar("T")
 
@@ -57,6 +79,20 @@ class AttributeCollection:
         return replace(
             self, attributes=tuple(attr for attr in self.attributes if filter_fn(attr))
         )
+
+    @property
+    def name(self):
+        try:
+            return self._get(Name).value
+        except AssertionError:
+            pass
+
+    @property
+    def ID(self):
+        try:
+            return self._get(ID).value
+        except AssertionError:
+            pass
 
     @property
     def publications(self):
@@ -138,11 +174,13 @@ class AttributeCollection:
     def find_facets(attribute_collections: List["AttributeCollection"]):
         return pd.concat([ac.facets for ac in attribute_collections])
 
-    def relates_to(self, attribute_collection: "AttributeCollection"):
+    def relates_to(self, attribute_collection: Union["AttributeCollection", Location]):
         """Yields attribute from self, attribute from target attribute_collection, and how they relate"""
-        from ..assignment import collection_qualify
+        from ..assignment import collection_qualify, preprocess_concept
 
-        yield from collection_qualify(self, attribute_collection)
+        yield from collection_qualify(
+            preprocess_concept(self), preprocess_concept(attribute_collection)
+        )
 
     @property
     def ebrains_ids(self) -> Iterable[Tuple[str, str]]:

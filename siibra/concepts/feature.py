@@ -28,6 +28,18 @@ from ..attributes.attribute_collection import (
 class Feature(AttributeCollection):
     schema: str = "siibra/concepts/feature/v0.2"
 
+    def __str__(self):
+        return self.__repr__()
+
+    def __repr__(self) -> str:
+        return f"Feature<name={self.name}>"
+
+    @property
+    def name(self):
+        return (
+            super().name or f"Unnamed feature: {', '.join(map(str, self.modalities))}"
+        )
+
     @property
     def modalities(self):
         return self._find(Modality)

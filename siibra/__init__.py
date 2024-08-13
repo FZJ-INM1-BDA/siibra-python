@@ -25,10 +25,10 @@ from .commons.instance_table import BkwdCompatInstanceTable
 from .commons.tree import collapse_nodes
 from .cache import fn_call_cache, Warmup, WarmupLevel, CACHE as cache
 
-from . import _version
 from . import factory
 from . import retrieval
 from . import attributes
+from ._version import __version__
 from .atlases import Space, Parcellation, Region, parcellationmap
 from .atlases.region import filter_newest
 from .attributes import Attribute, AttributeCollection
@@ -39,10 +39,11 @@ from .concepts import AtlasElement, QueryParam, Feature
 from .assignment import (
     string_search,
     find,
+    preprocess_concept,
 )
 from .factory.iterator import iter_preconfigured_ac
 
-logger.info(f"Version: {_version.__version__}")
+logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
 logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
@@ -121,32 +122,18 @@ def find_features(
     modality: Union[Modality, str],
     **kwargs,
 ):
-    if isinstance(concept, Location):
-        concept = QueryParam(attributes=[concept])
-    assert isinstance(
-        concept, AttributeCollection
-    ), f"Expect concept to be either AtlasElement or Location, but was {type(concept)} instead"
+    concept = preprocess_concept(concept)
 
     if isinstance(modality, str):
         mod_str = modality
         modality = modality_vocab.modality[modality]
         logger.info(f"Provided {mod_str} parsed as {modality}")
+
     assert isinstance(
         modality, Modality
     ), f"Expecting modality to be of type str or Modality, but is {type(modality)}."
 
     modality_query_param = QueryParam(attributes=[modality])
-
-    if isinstance(concept, Space):
-        # When user query space, we are assuming that they really want to see all features that overlaps with
-        # an infinite bounding box in this space. If we query the full space, we run into trouble with comparison
-        # of e.g. space.image (template image) x feature.region_spec
-        inf_bbox = attributes.locations.BoundingBox(
-            space_id=concept.ID,
-            minpoint=[-math.inf, -math.inf, -math.inf],
-            maxpoint=[math.inf, math.inf, math.inf],
-        )
-        concept = QueryParam(attributes=[inf_bbox])
 
     query_ac = [concept, modality_query_param]
 
