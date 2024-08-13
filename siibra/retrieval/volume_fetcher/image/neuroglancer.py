@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, Callable, List, Union
+from typing import TYPE_CHECKING, Dict, Callable, List, Union, ClassVar
 import requests
 from itertools import product
 import numpy as np
@@ -45,12 +45,16 @@ def extract_label_mask(arr: np.ndarray, label: int):
 
 @fn_call_cache
 def get_info(url: str) -> Dict:
-    return requests.get(f"{url}/info").json()
+    resp = Scale._session.get(f"{url}/info")
+    resp.raise_for_status()
+    return resp.json()
 
 
 @fn_call_cache
 def get_transform_nm(url: str) -> Dict:
-    return requests.get(f"{url}/transform.json").json()
+    resp = Scale._session.get(f"{url}/transform.json")
+    resp.raise_for_status()
+    return resp.json()
 
 
 def get_io(url: str) -> PrecomputedIO:
@@ -70,8 +74,10 @@ class Scale:
     encoding: str
     key: str
     resolution_nanometer: np.ndarray
-    size: int
+    size: List[int]
     voxel_offset: np.ndarray
+
+    _session: ClassVar[requests.Session] = requests.Session()
 
     def __init__(self, scaleinfo: dict, url: str):
         self.url = url
@@ -131,12 +137,12 @@ class Scale:
         """Test whether the resolution of this scale is sufficient to provide the given resolution."""
         return all(r <= resolution_mm for r in self.resolution_mm)
 
-    def _estimate_nbytes(self, bbox: "BoundingBox" = None):
+    def _estimate_nbytes(self, bbox: Union["BoundingBox", None] = None):
         """Estimate the size image array to be fetched in bytes, given a bounding box."""
         from ....attributes.locations import BoundingBox
 
         if bbox is None:
-            bbox_ = BoundingBox(minpoint=(0, 0, 0), maxpoint=self.size, space_id=None)
+            bbox_ = BoundingBox(minpoint=[0, 0, 0], maxpoint=self.size, space_id=None)
         else:
             bbox_ = BoundingBox.transform(bbox, np.linalg.inv(self.affine))
         result = get_dtype(self.url).itemsize * bbox_.volume
@@ -164,7 +170,7 @@ class Scale:
         from ....attributes.locations import BoundingBox
 
         if bbox is None:
-            bbox_ = BoundingBox(minpoint=(0, 0, 0), maxpoint=self.size, space_id=None)
+            bbox_ = BoundingBox(minpoint=[0, 0, 0], maxpoint=self.size, space_id=None)
         else:
             bbox_ = bbox.transform(np.linalg.inv(self.affine))
 
@@ -300,13 +306,9 @@ def fetch_ng_bbox(
             f"!= provided_bbox.space_id={provided_bbox.space_id!r}"
         )
 
-    resp = requests.get(f"{image.url}/info")
-    resp.raise_for_status()
-    info_json = resp.json()
+    info_json = get_info(image.url)
 
-    resp = requests.get(f"{image.url}/transform.json")
-    resp.raise_for_status()
-    transform_json = resp.json()
+    transform_json = get_transform_nm(image.url)
 
     scale, *_ = info_json.get("scales")
     size = scale.get("size")
