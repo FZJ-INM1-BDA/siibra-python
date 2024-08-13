@@ -24,13 +24,14 @@ This example shows how some features are linked to anatomical regions in differe
 
 # %%
 import siibra
+
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 
 # %%
 # Available feature types are listed in the module `siibra.features`.
 # Most of these represent specifically supported data modalities, and will
 # be covered one by one in the next examples.
-siibra.modality_types
+siibra.modality_vocab.modality
 
 # %%
 # Regional features
@@ -39,9 +40,9 @@ siibra.modality_types
 # As a first example, we use brain region V2 to query for "EbrainsRegionalDataset" features.
 # See :ref:`ebrains_datasets` for more information about this modality.
 v2 = siibra.get_region("julich 2.9", "hoc2 left")
-features = siibra.find_features(v2, siibra.modality_types.STREAMLINECOUNTS)
-for feature, explanation, *_ in features:
-    print(f" - {feature} {explanation}")
+features = siibra.find_features(v2, siibra.modality_vocab.modality.STREAMLINECOUNTS)
+for feature in features:
+    print(f" - {feature}")
 
 # %%
 # Mappings to brain regions can have different precision:
@@ -62,15 +63,17 @@ for feature, explanation, *_ in features:
 # Here we hardly encounter an exact match, but many contained and approximately corresponding features.
 # We print only some of the returned datasets.
 occ = siibra.get_region("julich 2.9", "occipital lobe")
-for f, explanation, *_ in siibra.find_features(occ, "receptor"):
+for f in siibra.find_features(occ, "receptor"):
     print(f)
+    explanation = next(f.relates_to(occ))
     print(" -> ", explanation)
 
 # %%
 # If we query a rather specific region, we get more exact matches.
 v1 = siibra.get_region("julich 2.9", "v1")
-for f, explanation, *_ in siibra.find_features(v1, "receptor"):
+for f in siibra.find_features(v1, "receptor"):
     print(f)
+    explanation = next(f.relates_to(v1))
     print(" -> ", explanation)
 
 
@@ -85,14 +88,17 @@ for f, explanation, *_ in siibra.find_features(v1, "receptor"):
 # When querying for datasets related to only the left hemisphere of v1,
 # the match is qualified as "contains":
 v1l = siibra.get_region("julich 2.9", "v1 left")
-for f, explanation, *_ in siibra.find_features(v1l, "receptor"):
+for f in siibra.find_features(v1l, "receptor"):
     print(f)
+    explanation = next(f.relates_to(v1l))
     print(" -> ", explanation)
     print()
 
 # %%
 # Lastly, when querying for datasets related to the occipital cortex, the match is qualified as "contained":
-for f, explanation, *_ in siibra.find_features(occ, "receptor"):
+occ = siibra.get_region("julich 2.9", "occipital lobe")
+for f in siibra.find_features(occ, "receptor"):
+    explanation = next(f.relates_to(occ))
     print(" -> ", explanation)
 
 # %%
@@ -106,8 +112,11 @@ for f, explanation, *_ in siibra.find_features(occ, "receptor"):
 # while the region is only mapped in the MNI spaces - it warps the bounding box
 # of the region to the space of the feature for the test.
 ca1 = siibra.get_region("julich 2.9", "ca1")
-matched_results = siibra.find_features(ca1, siibra.modality_types.PLI_HSV_FIBRE_ORIENTATION_MAP)
-feature, explanation, *_ = matched_results[0]
+matched_results = siibra.find_features(
+    ca1, siibra.modality_vocab.modality.PLI_HSV_FIBRE_ORIENTATION_MAP
+)
+feature = matched_results[0]
+explanation = next(feature.relates_to(ca1))
 print(feature, explanation)
 
 
@@ -118,7 +127,11 @@ print(feature, explanation)
 # For example, the gene expressions retrieved from the Allen atlas are linked by the coordinate
 # For example, the gene expressions retrieved from the Allen atlas are linked by the coordinate
 # of their tissue probes in MNI space. If a coordinate is inside the selected brain regions, it is an exact match.
-features = siibra.find_features(v1l, siibra.modality_types.GENE_EXPRESSIONS, genes=["MAOA", "TAC1"])
+features = siibra.find_features(
+    v1l, siibra.modality_vocab.modality.GENE_EXPRESSIONS, genes=["MAOA", "TAC1"]
+)
 assert len(features) == 1
-feature, explanation, *_ = features[0]
+feature = features[0]
 print(explanation)
+
+# %%
