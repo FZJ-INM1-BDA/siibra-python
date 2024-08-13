@@ -223,40 +223,51 @@ class PreconfiguredMapQuery(
         from ..atlases import Space, Parcellation
         from ..assignment import find
 
+        spaces = []
+        parcellations = []
+
         space_specs = [
             spec for specss in self.find_attributes(SpaceSpec) for spec in specss
         ]
-        space_query_attrs = [
-            attr
-            for spec in space_specs
-            for attr in (ID(value=spec.value), Name(value=spec.value))
-        ]
-        spaces = find([QueryParam(attributes=space_query_attrs)], Space)
-        if len(spaces) == 0:
-            logger.warning(
-                f"Cannot find any space with the specification {', '.join([s.value for s in space_specs])}"
-            )
-            return
+        if len(space_specs) > 0:
+            space_query_attrs = [
+                attr
+                for spec in space_specs
+                for attr in (ID(value=spec.value), Name(value=spec.value))
+            ]
+            spaces = find([QueryParam(attributes=space_query_attrs)], Space)
+            if len(spaces) == 0:
+                logger.warning(
+                    f"Cannot find any space with the specification {', '.join([s.value for s in space_specs])}"
+                )
+                return
 
         parc_specs = [
             spec for specss in self.find_attributes(ParcSpec) for spec in specss
         ]
-        parc_query_attrs = [
-            attr
-            for spec in parc_specs
-            for attr in (ID(value=spec.value), Name(value=spec.value))
-        ]
-        parcellations = find([QueryParam(attributes=parc_query_attrs)], Parcellation)
-        if len(parcellations) == 0:
-            logger.warning(
-                f"Cannot find any parcellation with the specification {', '.join([s.value for s in parc_specs])}"
+        if len(parc_specs) > 0:
+            parc_query_attrs = [
+                attr
+                for spec in parc_specs
+                for attr in (ID(value=spec.value), Name(value=spec.value))
+            ]
+            parcellations = find(
+                [QueryParam(attributes=parc_query_attrs)], Parcellation
             )
-            return
+            if len(parcellations) == 0:
+                logger.warning(
+                    f"Cannot find any parcellation with the specification {', '.join([s.value for s in parc_specs])}"
+                )
+                return
 
         space_ids = [space.ID for space in spaces]
         parc_ids = [parc.ID for parc in parcellations]
+
         yield from [
             mp
             for mp in iter_preconfigured_ac(parcellationmap.Map)
-            if mp.parcellation_id in parc_ids and mp.space_id in space_ids
+            if (
+                (len(space_specs) == 0 or mp.space_id in space_ids)
+                and (len(parc_specs) == 0 or mp.parcellation_id in parc_ids)
+            )
         ]
