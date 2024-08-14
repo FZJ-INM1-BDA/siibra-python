@@ -23,7 +23,7 @@ from ..volume_fetcher import register_volume_fetcher, FetchKwargs
 
 if TYPE_CHECKING:
     from ....attributes.dataitems import Image
-    from ....locations import BBox
+    from ....attributes.locations import BoundingBox
 
 
 def create_mask(
@@ -55,7 +55,7 @@ def extract_float_range(nii: Nifti1Image, range: Tuple[float, float]):
     )
 
 
-def extract_voi(nifti: Nifti1Image, voi: "BBox"):
+def extract_voi(nifti: Nifti1Image, voi: "BoundingBox"):
     bb_vox = voi.transform(np.linalg.inv(nifti.affine))
     (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
     shift = np.identity(4)
