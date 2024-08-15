@@ -97,7 +97,29 @@ class Image(Volume):
                 str(e).encode("utf-8")
             )
 
-    def read_points(
+    def _points_to_voxels_coords(
+        self, ptcloud: Union["point.Point", "pointcloud.PointCloud"], **fetch_kwargs
+    ) -> Tuple[int, int, int]:
+        if ptcloud.space_id != self.space_id:
+            raise ValueError(
+                "Points and Image must be in the same space. You can warp points "
+                "space of the image with `warp()` method."
+            )
+
+        if isinstance(ptcloud, point.Point):
+            ptcloud_ = pointcloud.PointCloud.from_points(points=[ptcloud])
+        else:
+            ptcloud_ = ptcloud
+
+        nii = self.fetch(**fetch_kwargs)
+
+        # transform the points to the voxel space of the volume for extracting values
+        phys2vox = np.linalg.inv(nii.affine)
+        voxels = pointcloud.PointCloud.transform(ptcloud_, phys2vox)
+        x, y, z = np.array(voxels.coordinates, dtype=int).T
+        return x, y, z
+
+    def get_values_at_points(
         self,
         ptcloud: Union["point.Point", "pointcloud.PointCloud"],
         **fetch_kwargs: FetchKwargs,
@@ -118,23 +140,7 @@ class Image(Volume):
             Any additional arguments are passed to the `fetch()` call for
             retrieving the image data.
         """
-        if ptcloud.space_id != self.space_id:
-            raise ValueError(
-                "Points and Image must be in the same space. You can warp points "
-                "space of the image with `warp()` method."
-            )
-
-        if isinstance(ptcloud, point.Point):
-            ptcloud_ = pointcloud.from_points(points=[ptcloud])
-        else:
-            ptcloud_ = ptcloud
-
-        nii = self.fetch(**fetch_kwargs)
-
-        # transform the points to the voxel space of the volume for extracting values
-        phys2vox = np.linalg.inv(nii.affine)
-        voxels = pointcloud.PointCloud.transform(ptcloud_, phys2vox)
-        x, y, z = np.array(voxels.coordinates, dtype=int).T
+        x, y, z = self._points_to_voxels_coords(ptcloud, **fetch_kwargs)
         return self.read_voxels(x=x, y=y, z=z, **fetch_kwargs)
 
     def read_voxels(
@@ -194,12 +200,12 @@ class Image(Volume):
         from .ops.intersection_score import get_intersection_scores
 
         assignments = get_intersection_scores(
-            item=item,
+            queryitem=item,
             target_image=self,
             split_components=split_components,
             voxel_sigma_threshold=voxel_sigma_threshold,
             iou_lower_threshold=iou_lower_threshold,
-            statistical_map_lower_threshold=statistical_map_lower_threshold,
+            target_masking_lower_threshold=statistical_map_lower_threshold,
             **fetch_kwargs,
         )
 
@@ -284,7 +290,7 @@ def intersect_ptcld_image(
     ptcloud: pointcloud.PointCloud, image: Image
 ) -> pointcloud.PointCloud:
     value_outside = 0
-    values = image.read_points(ptcloud)
+    values = image.get_values_at_points(ptcloud)
     inside = list(np.where(values != value_outside)[0])
     return replace(
         ptcloud,

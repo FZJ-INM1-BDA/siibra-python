@@ -15,10 +15,8 @@
 
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Union, TYPE_CHECKING
-import numpy as np
 import json
 from pathlib import Path
-import nibabel as nib
 import requests
 import gzip
 
@@ -27,10 +25,15 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
+import numpy as np
+from pandas import DataFrame
+import nibabel as nib
+
 from .parcellationmap import Map
 from .region import Region
 from ..retrieval.volume_fetcher import FetchKwargs, SIIBRA_MAX_FETCH_SIZE_GIB
 from ..retrieval.file_fetcher.io.base import PartialReader
+from ..attributes.locations import Point, PointCloud
 
 if TYPE_CHECKING:
     from ..attributes.locations import BoundingBox
@@ -247,7 +250,20 @@ class ReadableSparseIndex(SparseIndex):
         lines = self._readable_meta.splitlines()
         return json.loads(lines[int(alias) + 1]).get("regionname")
 
-    def read(self, pos: Union[List[List[int]], np.ndarray]):
+    def read(self, pos: Union[List[List[int]], np.ndarray]) -> Dict[str, float]:
+        """
+        For a given list of voxel coordinates, get the name and value mapped
+        at each voxel.
+
+        Parameters
+        ----------
+        pos : Union[List[List[int]], np.ndarray]
+
+        Returns
+        -------
+        Dict[str, float]
+            regionname: value
+        """
         probreader = PartialReader(str(self.url or self.filepath) + self.PROBS_SUFFIX)
         probreader.open()
 
@@ -283,6 +299,11 @@ class ReadableSparseIndex(SparseIndex):
 
 @dataclass(repr=False, eq=False)
 class SparseMap(Map):
+
+    @property
+    def _readable_sparseindex(self) -> ReadableSparseIndex:
+        pass
+
     def fetch(
         self,
         region: Union[str, Region] = None,
@@ -315,3 +336,41 @@ class SparseMap(Map):
             max_download_GB=max_download_GB,
         )
         return super().fetch(region=matched, frmt=frmt, **fetch_kwargs)
+
+    def designate_points(
+        self,
+        points: Union[Point, PointCloud],
+        **fetch_kwargs: FetchKwargs,
+    ) -> DataFrame:
+        if self._readable_sparseindex is None:
+            return super().designate_points(points, **fetch_kwargs)
+
+        points_ = (
+            PointCloud.from_points([points]) if isinstance(points, Point) else points
+        )
+        if any(s not in {0.0} for s in points_.sigma):
+            raise ValueError(
+                f"Cannot designate uncertain points. Please use '{self.get_intersection_score.__name__}' instead."
+            )
+
+        points_wrpd = points_.warp(self.space_id)
+
+        first_volume = self.find_volumes(self.regions[0])[0]
+        # TODO: consider just using affine to transform the points
+        vx, vy, vz = first_volume._points_to_voxels_coords(points_wrpd)
+
+        assignments: List[Map.RegionAssignment] = []
+        for pointindex, region, map_value in enumerate(
+            zip(*self._readable_sparseindex.read(np.stack(vx, vy, vz)))
+        ):
+            if map_value == 0:
+                continue
+            assignments.append(
+                Map.RegionAssignment(
+                    input_structure_index=pointindex,
+                    centroid=points_[pointindex].coordinate,
+                    map_value=map_value,
+                    region=region,
+                )
+            )
+        return Map._convert_point_samples_to_dataframe(assignments)

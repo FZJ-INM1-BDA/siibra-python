@@ -20,8 +20,7 @@ import numpy as np
 from nibabel import Nifti1Image
 
 from ..image import Image, from_nifti
-from ....locations import Point, BoundingBox
-from ....locations import pointcloud
+from ....locations import Point, BoundingBox, PointCloud
 from .....commons.maps import resample_img_to_img, compute_centroid
 from .....retrieval.volume_fetcher import FetchKwargs
 
@@ -124,7 +123,9 @@ def pearson_correlation_coefficient(arr1: np.ndarray, arr2: np.ndarray):
         return np.sum(np.multiply(a1_0, a2_0)) / dem
 
 
-def calculate_nifti_intersection_score(nii1: Nifti1Image, nii2: Nifti1Image):
+def calculate_nifti_intersection_score(
+    nii1: Nifti1Image, nii2: Nifti1Image, target_masking_lower_threshold: float = 0.0
+):
     """
     Compare two arrays in physical space as defined by the given affine matrices.
     Matrices map voxel coordinates to physical coordinates.
@@ -224,7 +225,7 @@ def get_image_intersection_score(
     target_image: Image,
     split_components: bool = False,
     iou_lower_threshold: float = 0.0,
-    statistical_map_lower_threshold: float = 0.0,
+    target_masking_lower_threshold: float = 0.0,
     **fetch_kwargs: FetchKwargs,
 ) -> List[ScoredImageAssignment]:
     # TODO: well-define thresholds and ensure where to use a mask or not
@@ -243,7 +244,11 @@ def get_image_intersection_score(
 
     assignments: List[ScoredImageAssignment] = []
     for component_index, querynii_component in iter_components(querynii_resamp):
-        score = calculate_nifti_intersection_score(querynii_component, target_nii)
+        score = calculate_nifti_intersection_score(
+            querynii_component,
+            target_nii,
+            target_masking_lower_threshold=target_masking_lower_threshold,
+        )
         if score.intersection_over_union <= iou_lower_threshold:
             continue
         assignments.append(
@@ -273,61 +278,20 @@ def get_bounding_intersection_score(
 
 
 def get_pointcloud_intersection_score(
-    points: pointcloud.PointCloud,
+    points: PointCloud,
     image: Image,
     voxel_sigma_threshold: int = 3,
     iou_lower_threshold: float = 0.0,
-    statistical_map_lower_threshold: float = 0.0,
+    target_masking_lower_threshold: float = 0.0,
     **fetch_kwargs: FetchKwargs,
 ):
     assignments: List[Union[ImageAssignment, ScoredImageAssignment]] = []
-
-    # convert sigma to voxel coordinates
-    scaling = np.array(
-        [np.linalg.norm(image.get_affine(**fetch_kwargs)[:, i]) for i in range(3)]
-    ).mean()
 
     points_wrpd = points.warp(
         image.space_id
     )  # returns the same points if in the same space
 
-    # If all points have the same sigma, and lead to a standard deviation below
-    # voxel_sigma_threshold voxels, we are much faster with a multi-coordinate readout.
-    if (len(set(points.sigma)) == 1) and (
-        points.sigma[0] / scaling < voxel_sigma_threshold
-    ):
-        for pointindex, value in zip(
-            *image.read_points(ptcloud=points_wrpd, **fetch_kwargs)
-        ):
-            if value <= statistical_map_lower_threshold:
-                continue
-            assignments.append(
-                ImageAssignment(
-                    input_structure_index=pointindex,
-                    centroid=points[pointindex].coordinate,
-                    map_value=value,
-                )
-            )
-        return assignments
-
-    # If we get here, we need to handle each point independently. This is much
-    # slower but more precise in dealing with the uncertainties of the coordinates.
     for pointindex, pt in enumerate(points_wrpd):
-        # voxel-precise enough. Just read out the value in the maps
-        voxel_sigma = points[pointindex].sigma / scaling  # use unwarped point
-        if voxel_sigma < voxel_sigma_threshold:
-            _, value = image.read_points(ptcloud=pt, **fetch_kwargs)
-            if value[0] <= statistical_map_lower_threshold:
-                continue
-            assignments.append(
-                ImageAssignment(
-                    input_structure_index=pointindex,
-                    centroid=points[pointindex].coordinate,
-                    map_value=value[0],
-                )
-            )
-            continue
-
         # build an Image of the Gaussian kernel, then recurse this into assign_image
         gaussian_kernel = pt.create_gaussian_kernel(
             image.get_affine(**fetch_kwargs), voxel_sigma_threshold
@@ -337,7 +301,7 @@ def get_pointcloud_intersection_score(
             target_image=image,
             split_components=False,
             iou_lower_threshold=iou_lower_threshold,
-            statistical_map_lower_threshold=statistical_map_lower_threshold,
+            target_masking_lower_threshold=target_masking_lower_threshold,
             **fetch_kwargs,
         )
         for score in kernel_assignments:
@@ -351,50 +315,47 @@ def get_pointcloud_intersection_score(
 
 
 def get_intersection_scores(
-    item: Union[Point, pointcloud.PointCloud, BoundingBox, Image],
+    queryitem: Union[Point, PointCloud, BoundingBox, Image],
     target_image: Image,
     iou_lower_threshold: Union[int, float] = 0.0,
-    voxel_sigma_threshold: int = 3,
-    statistical_map_lower_threshold: float = 0.0,
+    target_masking_lower_threshold: float = 0.0,
     split_components: bool = False,
     **fetch_kwargs: FetchKwargs,
 ) -> List[Union[ImageAssignment, ScoredImageAssignment]]:
-    if isinstance(item, Point):
+    if isinstance(queryitem, (Point, PointCloud)):
+        pointcld = (
+            queryitem
+            if isinstance(queryitem, PointCloud)
+            else PointCloud.from_points([queryitem])
+        )
         return get_pointcloud_intersection_score(
-            points=pointcloud.PointCloud(
-                coordinates=[item.coordinate],
-                space_id=item.space.ID,
-                sigma=[item.sigma],
-            ),
+            pointcld,
             image=target_image,
-            voxel_sigma_threshold=voxel_sigma_threshold,
             iou_lower_threshold=iou_lower_threshold,
-            statistical_map_lower_threshold=statistical_map_lower_threshold,
+            target_masking_lower_threshold=target_masking_lower_threshold,
             **fetch_kwargs,
         )
 
-    elif isinstance(item, pointcloud.PointCloud):
-        return get_pointcloud_intersection_score(
-            item,
-            image=target_image,
-            voxel_sigma_threshold=voxel_sigma_threshold,
+    if isinstance(queryitem, BoundingBox):
+        return get_bounding_intersection_score(
+            bbox=queryitem,
+            target_image=target_image,
             iou_lower_threshold=iou_lower_threshold,
-            statistical_map_lower_threshold=statistical_map_lower_threshold,
+            statistical_map_lower_threshold=target_masking_lower_threshold,
             **fetch_kwargs,
         )
 
-    elif isinstance(item, Image):
+    if isinstance(queryitem, Image):
         return get_image_intersection_score(
-            query_image=item,
+            query_image=queryitem,
             target_image=target_image,
             split_components=split_components,
             iou_lower_threshold=iou_lower_threshold,
-            statistical_map_lower_threshold=statistical_map_lower_threshold,
+            target_masking_lower_threshold=target_masking_lower_threshold,
             **fetch_kwargs,
         )
 
-    else:
-        raise TypeError(
-            f"Items of type {item.__class__.__name__} cannot be used for image "
-            "intersection score calculation."
-        )
+    raise TypeError(
+        f"Items of type {queryitem.__class__.__name__} cannot be used for image "
+        "intersection score calculation."
+    )

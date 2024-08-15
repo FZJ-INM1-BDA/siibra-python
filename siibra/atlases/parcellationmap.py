@@ -22,6 +22,7 @@ except ImportError:
     from typing_extensions import Literal
 
 import numpy as np
+from pandas import DataFrame
 
 from ..concepts import AtlasElement
 from ..retrieval.volume_fetcher import (
@@ -383,42 +384,75 @@ class Map(AtlasElement):
     class ScoredRegionAssignment(ScoredImageAssignment):
         region: str
 
-    def find_intersecting_regions(
+    def get_intersection_score(
         self,
-        item: Union[Point, PointCloud, Image],
+        queryitem: Union[Point, PointCloud, Image],
         split_components: bool = True,
         voxel_sigma_threshold: int = 3,
         iou_lower_threshold=0.0,
         statistical_map_lower_threshold: float = 0.0,
         **fetch_kwargs: FetchKwargs,
-    ):
-        from pandas import DataFrame
-
-        assignments: List[Union[Map.RegionAssignment, Map.ScoredRegionAssignment]] = []
+    ) -> DataFrame:
+        assignments: List[Map.ScoredRegionAssignment] = []
         for region in siibra_tqdm(self.regions, unit="region"):
             region_image = self.find_volumes(
                 region=region, frmt="image", **fetch_kwargs
             )[0]
             with QUIET:
                 for assgnmt in get_intersection_scores(
-                    item=item,
+                    queryitem=queryitem,
                     target_image=region_image,
                     split_components=split_components,
                     voxel_sigma_threshold=voxel_sigma_threshold,
                     iou_lower_threshold=iou_lower_threshold,
-                    statistical_map_lower_threshold=statistical_map_lower_threshold,
+                    target_masking_lower_threshold=statistical_map_lower_threshold,
                     **fetch_kwargs,
                 ):
-                    if isinstance(assgnmt, ScoredImageAssignment):
-                        assgnmt_type = Map.ScoredRegionAssignment
-                    else:
-                        assgnmt_type = Map.RegionAssignment
-                    assignments.append(assgnmt_type(**asdict(assgnmt), region=region))
+                    assignments.append({**asdict(assgnmt), "region": region})
 
-        assignments_unpacked = [asdict(a) for a in assignments]
+        return DataFrame(assignments).dropna(axis="columns", how="all")
 
-        return (
-            DataFrame(assignments_unpacked)
-            .convert_dtypes()  # convert will guess numeric column types
-            .dropna(axis="columns", how="all")
+    def _convert_point_samples_to_dataframe(assignments: List["Map.RegionAssignment"]):
+        return DataFrame(
+            assignments,
+            columns=["input_structure_index", "centroid", "map_value", "region"],
         )
+
+    def designate_points(
+        self,
+        points: Union[Point, PointCloud],
+        **fetch_kwargs: FetchKwargs,
+    ) -> DataFrame:
+        assignments: List[Map.RegionAssignment] = []
+
+        points_ = (
+            PointCloud.from_points([points]) if isinstance(points, Point) else points
+        )
+        if any(s not in {0.0} for s in points_.sigma):
+            raise ValueError(
+                f"Cannot designate uncertain points. Please use '{self.get_intersection_score.__name__}' instead."
+            )
+
+        points_wrpd = points_.warp(self.space_id)
+
+        for region in siibra_tqdm(self.regions, unit="region"):
+            region_image = self.find_volumes(
+                region=region, frmt="image", **fetch_kwargs
+            )[0]
+            with QUIET:
+                for pointindex, map_value in zip(
+                    *region_image.get_values_at_points(
+                        ptcloud=points_wrpd, **fetch_kwargs
+                    )
+                ):
+                    if map_value == 0:
+                        continue
+                    assignments.append(
+                        Map.RegionAssignment(
+                            input_structure_index=pointindex,
+                            centroid=points_[pointindex].coordinate,
+                            map_value=map_value,
+                            region=region,
+                        )
+                    )
+        return Map._convert_point_samples_to_dataframe(assignments)
