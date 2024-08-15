@@ -30,3 +30,9 @@ class Doi(Description):
         if not url.startswith("https://"):
             url = "https://" + url
         return url
+
+    @property
+    def citation(self):
+        from ...retrieval.doi_fetcher import get_citation
+
+        return get_citation(self)

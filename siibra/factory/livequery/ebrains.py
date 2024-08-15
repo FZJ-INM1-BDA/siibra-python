@@ -124,6 +124,30 @@ DatasetVersion = TypedDict(
 )
 
 
+VersionTD = TypedDict(
+    "VersionTD", {"fullName": str, "identifier": List[str], "id": str}
+)
+
+Custodian = TypedDict(
+    "Custodian", {"identifier": List[str], "type": List[str], "id": str}
+)
+
+# type: ignore
+Dataset = TypedDict(
+    "Dataset",
+    {
+        "@context": Context,
+        "shortName": str,
+        "custodian": List[Custodian],
+        "fullName": str,
+        "description": str,
+        "identifier": List[str],
+        "versions": List[VersionTD],
+        "type": List[str],
+        "id": str,
+    },
+)
+
 ebrains_modality = Modality(value="ebrains datasets")
 
 
@@ -166,6 +190,11 @@ class EbrainsQuery(LiveQuery[Feature], generates=Feature):
     @classmethod
     def get_dsv(cls, dsv: str) -> DatasetVersion:
         fp = filepath.format(schema="DatasetVersion", id=dsv)
+        return json.loads(cls.repo.get(fp))
+
+    @classmethod
+    def get_ds(cls, ds: str) -> Dataset:
+        fp = filepath.format(schema="Dataset", id=ds)
         return json.loads(cls.repo.get(fp))
 
     @classmethod

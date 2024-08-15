@@ -37,14 +37,10 @@ def get_citation(doi: "Doi"):
     resp = requests.get(url, headers=headers)
     resp.raise_for_status()
     content_type = resp.headers.get("content-type")
-    content_type, *_ = content_type.split(";")  # filter out ""; charset utf-8"
+    content_type, *_ = content_type.split(";")  # filter out "; charset utf-8"
     assert (
         content_type in content_type_registry
     ), f"Got content type content_type={content_type!r}. This type has not been registered"
 
-    try:
-        result = content_type_registry[content_type](resp.content)
-    except Exception as e:
-        print("erro", url)
-        raise e from e
+    result = content_type_registry[content_type](resp.content)
     return result

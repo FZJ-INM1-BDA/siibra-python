@@ -41,10 +41,6 @@ class Feature(AttributeCollection):
         )
 
     @property
-    def modalities(self):
-        return self._find(Modality)
-
-    @property
     def locations(self):
         return self._find(Location)
 

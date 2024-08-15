@@ -41,6 +41,7 @@ from ..attributes.descriptions import (
     EbrainsRef,
     ID,
     Name,
+    Modality,
 )
 from .._version import __version__
 
@@ -93,6 +94,10 @@ class AttributeCollection:
             return self._get(ID).value
         except AssertionError:
             pass
+
+    @property
+    def modalities(self):
+        return [m.value for m in self._find(Modality)]
 
     @property
     def publications(self):
