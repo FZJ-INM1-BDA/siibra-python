@@ -99,18 +99,16 @@ def fetch_nifti(image: "Image", fetchkwargs: FetchKwargs) -> "Nifti1Image":
     if fetchkwargs["resolution_mm"] is not None:
         nii = resample(nii, fetchkwargs["resolution_mm"])
 
-    if fetchkwargs["mapping"] is None:
+    if image.mapping is None:
         return nii
 
-    mapping = fetchkwargs["mapping"]
-    if mapping is not None:
-        details = next(iter(mapping.values()))
-        if len(mapping) == 1:
-            if "subspace" in details:
-                nii = extract_subspace(nii, details["subspace"])
-            if "range" in details:
-                nii = extract_float_range(nii, details["range"])
-        if "label" in details:
-            nii = extract_labels(nii, [m["label"] for m in mapping.values()])
+    details = next(iter(image.mapping.values()))
+    if len(image.mapping) == 1:
+        if "subspace" in details:
+            nii = extract_subspace(nii, details["subspace"])
+        if "range" in details:
+            nii = extract_float_range(nii, details["range"])
+    if "label" in details:
+        nii = extract_labels(nii, [m["label"] for m in image.mapping.values()])
 
     return nii
