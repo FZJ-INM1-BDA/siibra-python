@@ -57,6 +57,14 @@ def extract_float_range(nii: Nifti1Image, range: Tuple[float, float]):
     )
 
 
+def extract_subspace(nii: Nifti1Image, subspace: slice):
+    s_ = tuple(
+        slice(None) if isinstance(s, str) else s
+        for s in subspace
+    )
+    return nii.slicer[s_]
+
+
 def extract_voi(nifti: Nifti1Image, voi: "BoundingBox"):
     bb_vox = voi.transform(np.linalg.inv(nifti.affine))
     (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
@@ -99,11 +107,7 @@ def fetch_nifti(image: "Image", fetchkwargs: FetchKwargs) -> "Nifti1Image":
         details = next(iter(mapping.values()))
         if len(mapping) == 1:
             if "subspace" in details:
-                s_ = tuple(
-                    slice(None) if isinstance(s, str) else s
-                    for s in details["subspace"]
-                )
-                nii = nii.slicer[s_]
+                nii = extract_subspace(nii, details["subspace"])
             if "range" in details:
                 nii = extract_float_range(nii, details["range"])
         if "label" in details:
