@@ -21,7 +21,8 @@ from ..concepts.feature import Feature
 from ..attributes.descriptions import Name, SpeciesSpec, ID, RegionSpec
 from ..commons.string import create_key
 from ..commons.iterable import assert_ooo
-from ..atlases import region, parcellation, space, parcellationmap, sparsemap
+from ..commons.logger import logger
+from ..atlases import parcellationscheme, region, space, parcellationmap, sparsemap
 
 
 V = TypeVar("V")
@@ -115,7 +116,7 @@ def build_region(dict_obj: dict, parc_id: ID = None, species: SpeciesSpec = None
     )
 
 
-@register_build_type(parcellation.Parcellation.schema)
+@register_build_type(parcellationscheme.ParcellationScheme.schema)
 def build_parcellation(dict_obj: dict):
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
@@ -133,7 +134,7 @@ def build_parcellation(dict_obj: dict):
         RegionSpec(parcellation_id=id_attribute.value, value=name_attribute.value),
     )
 
-    return parcellation.Parcellation(
+    return parcellationscheme.ParcellationScheme(
         attributes=attributes,
         children=tuple(
             map(
@@ -168,6 +169,11 @@ def build_map(dict_obj):
 
 def build_object(dict_obj: Dict):
     schema = dict_obj.get("@type", None)  # TODO: consider popping instead
+    if schema == "siibra/atlases/parcellation/v0.1":
+        logger.warning(
+            "@type siibra/atlases/parcellation/v0.1 deprecated. You should use siibra/atlases/parcellationscheme/v0.1 instead."
+        )
+        schema = "siibra/atlases/parcellationscheme/v0.1"
     assert (
         schema
     ), f"build_obj require the '@type' property of the object to be populated! dict_obj={dict_obj!r}"

@@ -15,7 +15,7 @@
 
 from typing import List
 
-from ..atlases import region
+from . import region
 from ..commons.logger import logger
 from ..commons.string import SPEC_TYPE
 from ..commons.tree import collapse_nodes
@@ -23,8 +23,8 @@ from ..commons.iterable import assert_ooo
 from ..attributes.descriptions import Version
 
 
-class Parcellation(region.Region):
-    schema: str = "siibra/atlases/parcellation/v0.1"
+class ParcellationScheme(region.Region):
+    schema: str = "siibra/atlases/parcellationscheme/v0.1"
 
     def __lt__(self, other) -> bool:
         assert isinstance(other, type(self)), TypeError(
@@ -36,7 +36,7 @@ class Parcellation(region.Region):
             raise TypeError("Cannot compare Parcellations with no version information")
         return self.version.prev_id == other.version.next_id
 
-    def __eq__(self, other: "Parcellation") -> bool:
+    def __eq__(self, other: "ParcellationScheme") -> bool:
         return self.ID == other.ID
 
     def __hash__(self):
@@ -64,7 +64,7 @@ class Parcellation(region.Region):
             return None
         from siibra.factory.iterator import iter_preconfigured_ac
 
-        for parc in iter_preconfigured_ac(Parcellation):
+        for parc in iter_preconfigured_ac(ParcellationScheme):
             if parc.ID == next_id:
                 return parc
         logger.warning(f"Cannot find parcellation with id {next_id}")

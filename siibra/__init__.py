@@ -29,7 +29,7 @@ from . import factory
 from . import retrieval
 from . import attributes
 from ._version import __version__
-from .atlases import Space, Parcellation, Region, parcellationmap
+from .atlases import Space, ParcellationScheme, Region, parcellationmap
 from .atlases.region import filter_newest
 from .attributes import Attribute, AttributeCollection
 from .attributes.descriptions import Modality, RegionSpec, Gene
@@ -69,7 +69,7 @@ def fetch_template(
 
 def get_parcellation(parc_spec: str):
     """Convenient access to parcellations."""
-    searched_parcs = list(string_search(parc_spec, Parcellation))
+    searched_parcs = list(string_search(parc_spec, ParcellationScheme))
     newest_versions = [
         p
         for p in searched_parcs
@@ -80,7 +80,7 @@ def get_parcellation(parc_spec: str):
 
 @fn_call_cache
 def find_parcellations(parc_spec: str):
-    return list(string_search(parc_spec, Parcellation))
+    return list(string_search(parc_spec, ParcellationScheme))
 
 
 @fn_call_cache
@@ -204,7 +204,9 @@ spaces = LazyBkwdCompatInstanceTable(
 
 parcellations = LazyBkwdCompatInstanceTable(
     getitem=get_parcellation,
-    get_elements=lambda: {spc.name: spc for spc in iter_preconfigured_ac(Parcellation)},
+    get_elements=lambda: {
+        spc.name: spc for spc in iter_preconfigured_ac(ParcellationScheme)
+    },
 )
 
 

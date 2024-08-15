@@ -21,7 +21,7 @@ from os import getenv
 from .factory import build_feature, build_space, build_parcellation, build_map
 from .iterator import preconfigured_ac_registrar, iter_preconfigured_ac
 from .livequery import LiveQuery
-from ..atlases import Space, Parcellation, Region, parcellationmap
+from ..atlases import Space, ParcellationScheme, Region, parcellationmap
 from ..attributes.descriptions import register_modalities, Modality, RegionSpec
 from ..concepts import Feature
 from ..retrieval.file_fetcher.base import Repository
@@ -168,7 +168,7 @@ def _iter_preconf_spaces():
     return [build_space(obj) for obj in cfg.iter_jsons("spaces")]
 
 
-@preconfigured_ac_registrar.register(Parcellation)
+@preconfigured_ac_registrar.register(ParcellationScheme)
 def _iter_preconf_parcellations():
     cfg = Configuration()
 
@@ -208,7 +208,7 @@ class PreconfiguredRegionQuery(LiveQuery[Region], generates=Region):
         regspec = region_specs[0]
         yield from [
             region
-            for parc in iter_preconfigured_ac(Parcellation)
+            for parc in iter_preconfigured_ac(ParcellationScheme)
             if regspec.parcellation_id is None or regspec.parcellation_id == parc.ID
             for region in parc.find(regspec.value)
         ]
@@ -220,7 +220,7 @@ class PreconfiguredMapQuery(
     def generate(self) -> Iterator[parcellationmap.Map]:
         from ..attributes.descriptions import SpaceSpec, ParcSpec, ID, Name
         from ..concepts import QueryParam
-        from ..atlases import Space, Parcellation
+        from ..atlases import Space, ParcellationScheme
         from ..assignment import find
 
         spaces = []
@@ -252,7 +252,7 @@ class PreconfiguredMapQuery(
                 for attr in (ID(value=spec.value), Name(value=spec.value))
             ]
             parcellations = find(
-                [QueryParam(attributes=parc_query_attrs)], Parcellation
+                [QueryParam(attributes=parc_query_attrs)], ParcellationScheme
             )
             if len(parcellations) == 0:
                 logger.warning(

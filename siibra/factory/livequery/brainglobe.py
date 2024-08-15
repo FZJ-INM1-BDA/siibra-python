@@ -36,7 +36,7 @@ from ...commons.string import to_hex
 from ...attributes import Attribute
 from ...attributes.descriptions import Name, ID, Url, SpeciesSpec
 from ...attributes.dataitems import Image
-from ...atlases import Space, Parcellation, Map
+from ...atlases import Space, ParcellationScheme, Map
 from ...retrieval.file_fetcher import GitHttpRepository, TarRepository
 
 
@@ -171,11 +171,13 @@ class SpaceLiveQuery(LiveQuery[Space], generates=Space):
         )
 
 
-class ParcellationLiveQuery(LiveQuery[Parcellation], generates=Parcellation):
+class ParcellationLiveQuery(
+    LiveQuery[ParcellationScheme], generates=ParcellationScheme
+):
     @staticmethod
     def populate_regions(
         structures: List[Structure],
-        parcellation: "Parcellation",
+        parcellation: "ParcellationScheme",
         additional_attrs: List["Attribute"] = None,
     ):
         from ...attributes.descriptions import Name, RGBColor, ID
@@ -216,7 +218,7 @@ class ParcellationLiveQuery(LiveQuery[Parcellation], generates=Parcellation):
             parent_region = _dict_id_to_region[parent_id]
             region.parent = parent_region
 
-    def generate(self) -> Iterator[Parcellation]:
+    def generate(self) -> Iterator[ParcellationScheme]:
         ids = [
             id
             for ids in self.find_attributes(ID)
@@ -243,7 +245,7 @@ class ParcellationLiveQuery(LiveQuery[Parcellation], generates=Parcellation):
         speciesspec = SpeciesSpec(value=metadata["species"])
 
         parcellation_id = get_id(atlas_name, "parcellation")
-        parcellation = Parcellation(
+        parcellation = ParcellationScheme(
             attributes=[
                 ID(value=parcellation_id),
                 Name(value=metadata["name"] + " bg parcellation"),

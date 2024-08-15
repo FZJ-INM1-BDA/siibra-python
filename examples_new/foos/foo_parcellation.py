@@ -1,8 +1,8 @@
 import siibra
 from siibra.factory.iterator import iter_preconfigured_ac
-from siibra.atlases import Parcellation
+from siibra.atlases import ParcellationScheme
 
-for parc in iter_preconfigured_ac(Parcellation):
+for parc in iter_preconfigured_ac(ParcellationScheme):
     print(parc, parc.name)
     for pub in parc.publications:
         print(f"[{pub.text}]({pub.value})")

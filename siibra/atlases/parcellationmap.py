@@ -35,7 +35,7 @@ from ..commons.iterable import assert_ooo
 from ..commons.maps import merge_volumes, compute_centroid, create_mask
 from ..commons.string import convert_hexcolor_to_rgbtuple
 from ..commons.logger import logger, siibra_tqdm, QUIET
-from ..atlases import Parcellation, Space, Region
+from ..atlases import ParcellationScheme, Space, Region
 from ..attributes.dataitems import Image, Mesh, FORMAT_LOOKUP
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
 from ..attributes.locations import BoundingBox, Point, PointCloud
@@ -70,13 +70,13 @@ class Map(AtlasElement):
         super().__post_init__()
 
     @property
-    def parcellation(self) -> "Parcellation":
+    def parcellation(self) -> "ParcellationScheme":
         from ..factory import iter_preconfigured_ac
 
         return assert_ooo(
             [
                 parc
-                for parc in iter_preconfigured_ac(Parcellation)
+                for parc in iter_preconfigured_ac(ParcellationScheme)
                 if parc.ID == self.parcellation_id
             ]
         )

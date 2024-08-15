@@ -32,7 +32,7 @@ from ..retrieval.volume_fetcher import IMAGE_FORMATS
 from ..cache import fn_call_cache
 
 if TYPE_CHECKING:
-    from . import Space, Parcellation
+    from . import Space, ParcellationScheme
     from ..assignment.qualification import Qualification
 
 
@@ -73,7 +73,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         return f"{self.__class__.__name__}({self.name!r} in {self.parcellation.name!r})"
 
     @property
-    def parcellation(self) -> "Parcellation":
+    def parcellation(self) -> "ParcellationScheme":
         return self.root
 
     def tree2str(self):
@@ -386,9 +386,9 @@ class RegionRelationAssessments:
     @classmethod
     def yield_all_regions(cls) -> Iterable[Region]:
         from ..factory import iter_preconfigured_ac
-        from ..atlases import Parcellation
+        from . import ParcellationScheme
 
-        for p in iter_preconfigured_ac(Parcellation):
+        for p in iter_preconfigured_ac(ParcellationScheme):
             for region in p:
                 yield region
 
