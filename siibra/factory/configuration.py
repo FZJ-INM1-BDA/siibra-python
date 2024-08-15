@@ -172,7 +172,7 @@ def _iter_preconf_spaces():
 def _iter_preconf_parcellations():
     cfg = Configuration()
 
-    return [build_parcellation(obj) for obj in cfg.iter_jsons("parcellations")]
+    return [build_parcellation(obj) for obj in cfg.iter_jsons("parcellationschemes")]
 
 
 @preconfigured_ac_registrar.register(Feature)
