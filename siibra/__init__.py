@@ -21,7 +21,7 @@ import math
 from .exceptions import NotFoundException
 from .commons.logger import logger, QUIET, VERBOSE, set_log_level
 from .commons.iterable import assert_ooo
-from .commons.instance_table import BkwdCompatInstanceTable
+from .commons.instance_table import LazyBkwdCompatInstanceTable
 from .commons.tree import collapse_nodes
 from .cache import fn_call_cache, Warmup, WarmupLevel, CACHE as cache
 
@@ -197,13 +197,14 @@ def find_regions(parcellation_spec: str, regionspec: str):
     ]
 
 
-spaces = BkwdCompatInstanceTable(
-    getitem=get_space, elements={spc.name: spc for spc in iter_preconfigured_ac(Space)}
+spaces = LazyBkwdCompatInstanceTable(
+    getitem=get_space,
+    get_elements=lambda: {spc.name: spc for spc in iter_preconfigured_ac(Space)},
 )
 
-parcellations = BkwdCompatInstanceTable(
+parcellations = LazyBkwdCompatInstanceTable(
     getitem=get_parcellation,
-    elements={spc.name: spc for spc in iter_preconfigured_ac(Parcellation)},
+    get_elements=lambda: {spc.name: spc for spc in iter_preconfigured_ac(Parcellation)},
 )
 
 
@@ -211,9 +212,11 @@ def _not_implemented(*args):
     raise NotImplementedError("map getitem not yet implemented")
 
 
-maps = BkwdCompatInstanceTable(
+maps = LazyBkwdCompatInstanceTable(
     getitem=_not_implemented,
-    elements={mp.name: mp for mp in iter_preconfigured_ac(parcellationmap.Map)},
+    get_elements=lambda: {
+        mp.name: mp for mp in iter_preconfigured_ac(parcellationmap.Map)
+    },
 )
 
 

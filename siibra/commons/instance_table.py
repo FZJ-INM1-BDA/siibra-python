@@ -119,6 +119,49 @@ class BkwdCompatInstanceTable(TabCompleteCollection[T]):
         return self._getitem(spec)
 
 
+class LazyBkwdCompatInstanceTable(BkwdCompatInstanceTable[T]):
+    """
+    Lazy version of BkwdCompatInstanceTable. Instead of providing an elements dict,
+    provide a callable, on called will return dict. This will only happen once. Future
+    calls will use cached value.
+    """
+
+    def __init__(
+        self,
+        getitem: Callable[[str], T],
+        get_elements: Callable[[], Union[Dict[str, T], None]],
+    ) -> None:
+        super().__init__(getitem, {})
+        self._getitem = getitem
+        self._lazy_elements: Dict[str, T] = {}
+        self._lazy_populated_flag = False
+        self._lazy_get_elements = get_elements
+
+    @property
+    def _elements(self):
+        if not self._lazy_populated_flag:
+            self._lazy_elements = self._lazy_get_elements()
+            self._lazy_populated_flag = True
+        return self._lazy_elements
+
+    @_elements.setter
+    def _elements(self, value):
+        self._lazy_elements = value
+
+    def __str__(self) -> str:
+        if len(self) > 0:
+            return f"{self.__class__.__name__}:\n - " + "\n - ".join(
+                self._elements.keys()
+            )
+        return f"Empty {self.__class__.__name__}"
+
+    def __getitem__(self, key: str):
+        return self._getitem(key)
+
+    def get(self, spec: str):
+        return self._getitem(spec)
+
+
 class BaseInstanceTable(TabCompleteCollection[T]):
     """
     Lookup table for instances of a given class by name/id.
