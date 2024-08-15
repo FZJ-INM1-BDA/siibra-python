@@ -373,7 +373,9 @@ class Map(AtlasElement):
             img = self.fetch(
                 region=regionname, **fetch_kwargs
             )  # returns a mask of the region
-            centroids[regionname] = compute_centroid(img, space_id=self.space)
+            centroid = compute_centroid(img)
+            centroid.space_id = self.space_id
+            centroids[regionname] = centroid
         return centroids
 
     @dataclass

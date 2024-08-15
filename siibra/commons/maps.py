@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Union, Dict
+from typing import List, Union, Dict, TYPE_CHECKING
 import numpy as np
 from nilearn.image import resample_to_img, resample_img
 from tqdm import tqdm
@@ -21,11 +21,14 @@ from nibabel.nifti1 import Nifti1Image
 from nibabel.gifti import GiftiImage, GiftiDataArray
 
 try:
-    from typing import Literal
+    from typing import Literal, TypedDict
 except ImportError:
-    from typing_extensions import Literal
+    from typing_extensions import Literal, TypedDict
 
 from ..retrieval.volume_fetcher.image.nifti import create_mask as create_mask_from_nifti
+
+if TYPE_CHECKING:
+    from ..attributes.locations import Point
 
 
 def resample_img_to_img(
@@ -194,13 +197,17 @@ def _resample_and_merge_niftis(
     return Nifti1Image(dataobj=merged_array, affine=affine)
 
 
+class SpatialProp(TypedDict):
+    centroid: "Point"
+    volume: int
+
+
 def spatial_props(
     img: Nifti1Image,
-    space_id: str = None,
     background: float = 0.0,
     maptype: Literal["labelled", "statistical"] = "labelled",
     threshold_statistical: float = None,
-):
+) -> Dict[int, SpatialProp]:
     from skimage import measure
 
     spatialprops = {}
@@ -226,7 +233,6 @@ def spatial_props(
         spatialprops[label] = {
             "centroid": compute_centroid(
                 img=Nifti1Image(nonzero, img.affine),
-                space_id=space_id,
                 background=background,
             ),
             "volume": nonzero.shape[0] * scale,
@@ -234,14 +240,12 @@ def spatial_props(
     return spatialprops
 
 
-def compute_centroid(img: Nifti1Image, space_id: str = None, background: float = 0.0):
+def compute_centroid(img: Nifti1Image, background: float = 0.0):
     from ..attributes.locations import Point
 
     maparr = np.asanyarray(img.dataobj)
     centroid_vox = np.mean(np.where(maparr != background), axis=1)
-    return Point(
-        coordinate=np.dot(img.affine, np.r_[centroid_vox, 1])[:3], space_id=space_id
-    )
+    return Point(coordinate=np.dot(img.affine, np.r_[centroid_vox, 1])[:3])
 
 
 def create_mask(

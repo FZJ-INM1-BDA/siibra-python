@@ -157,10 +157,16 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         maptype: str = "labelled",
         threshold: float = 0.0,
     ):
-        mask = self.find_regional_maps(space=space, maptype=maptype)
-        return spatial_props(
-            mask, space_id=space.ID, maptype=maptype, threshold_statistical=threshold
+        mask = self.fetch_regional_mask(
+            space=space, maptype=maptype, lower_threshold=threshold
         )
+        _spatial_props = spatial_props(
+            mask, maptype=maptype, threshold_statistical=threshold
+        )
+        _map = next(self._finditer_regional_maps(space, maptype=maptype))
+        for prop in _spatial_props.values():
+            prop["centroid"].space_id = _map.space_id
+        return _spatial_props
 
     def _finditer_regional_maps(
         self, space: Union[str, "Space", None] = None, maptype: str = "labelled"
