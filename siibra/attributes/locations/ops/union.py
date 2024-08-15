@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from ..point import Point
-from ..pointcloud import PointCloud, from_points
+from ..pointcloud import PointCloud
 from ..boundingbox import BoundingBox
 from ..base import Location
 from ....exceptions import InvalidAttrCompException
@@ -28,9 +28,9 @@ def pt_pt(pta: Point, ptb: Point, is_switched: bool = False):
     if pta.space_id != ptb.space_id:
         raise InvalidAttrCompException
     if is_switched:
-        return from_points([ptb, pta])
+        return PointCloud.from_points([ptb, pta])
     else:
-        return from_points([pta, ptb])
+        return PointCloud.from_points([pta, ptb])
 
 
 @_loc_union.register(Point, PointCloud)
@@ -40,7 +40,7 @@ def pt_ptcld(pt: Point, ptcld: PointCloud, is_switched: bool = False):
     if is_switched:
         return ptcld.append(pt)
     else:
-        return from_points([pt]).extend(ptcld)
+        return PointCloud.from_points([pt]).extend(ptcld)
 
 
 @_loc_union.register(PointCloud, PointCloud)
@@ -58,9 +58,9 @@ def pt_bbox(pt: Point, bbox: BoundingBox, is_switched: bool = False):
     if pt.space_id != bbox.space_id:
         raise InvalidAttrCompException
     if is_switched:
-        return ptcld_bbox(bbox, from_points(pt))
+        return ptcld_bbox(bbox, PointCloud.from_points(pt))
     else:
-        return ptcld_bbox(from_points(pt), bbox)
+        return ptcld_bbox(PointCloud.from_points(pt), bbox)
 
 
 @_loc_union.register(PointCloud, BoundingBox)

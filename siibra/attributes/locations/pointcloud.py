@@ -116,6 +116,18 @@ class PointCloud(Location):
             space_id=self.space_id,
         )
 
+    @staticmethod
+    def from_points(points: List["point.Point"]) -> "PointCloud":
+        if len(points) == 0:
+            return PointCloud(coordinates=(), sigma=(), space_id=None)
+        spaces = {p.space for p in points}
+        assert (
+            len(spaces) == 1
+        ), f"PointCloud can only be constructed with points from the same space.\n{spaces}"
+
+        coords, sigmas = zip(*((p.coordinate, p.sigma) for p in points))
+        return PointCloud(coordinates=coords, space_id=next(iter(spaces)).ID, sigma=sigmas)
+
 
 @dataclass
 class Contour(PointCloud):
@@ -159,18 +171,6 @@ class Contour(PointCloud):
     #     self.labels = old_labels
 
     #     return segments
-
-
-def from_points(points: List["point.Point"]) -> "PointCloud":
-    if len(points) == 0:
-        return PointCloud(coordinates=(), sigma=(), space_id=None)
-    spaces = {p.space for p in points}
-    assert (
-        len(spaces) == 1
-    ), f"PointCloud can only be constructed with points from the same space.\n{spaces}"
-
-    coords, sigmas = zip(*((p.coordinate, p.sigma) for p in points))
-    return PointCloud(coordinates=coords, space_id=next(iter(spaces)).ID, sigma=sigmas)
 
 
 # TODO: requires labels
