@@ -116,7 +116,7 @@ class Image(Volume):
         # transform the points to the voxel space of the volume for extracting values
         phys2vox = np.linalg.inv(nii.affine)
         voxels = pointcloud.PointCloud.transform(ptcloud_, phys2vox)
-        x, y, z = np.array(voxels.coordinates, dtype=int).T
+        x, y, z = np.round(voxels.coordinates).astype('int').T
         return x, y, z
 
     def get_values_at_points(
