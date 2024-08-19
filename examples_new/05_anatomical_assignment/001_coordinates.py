@@ -43,7 +43,7 @@ julich_pmaps = siibra.get_map(
 # dataframe, which includes the values of different probability maps at the
 # given location. We can sort the table by these values, to see that the region
 # with highest probability is indeed the expected region.
-point = siibra.Point(coordinate=(28.25, -31.5, 64.225), space_id=mnispace.ID)
+point = siibra.Point(coordinate=(27.75, -32., 63.725), space_id=mnispace.ID)
 designations = julich_pmaps.designate_points(point)
 designations.sort_values(by=['map value'], ascending=False)
 
@@ -70,7 +70,7 @@ julich_mpm.designate_points(point)
 # least 0.5, that is, the regions in which the uncertain point is likely
 # contained.
 point_uncertain = siibra.Point(
-    coordinate=(28.25, -31.5, 64.225), space_id=mnispace.ID, sigma=3.0
+    coordinate=(27.75, -32., 63.725), space_id=mnispace.ID, sigma=3.0
 )
 assignments = julich_pmaps.get_intersection_score(point_uncertain)
 assignments.query("`input_containedness` >= 0.5").dropna(axis=1)
