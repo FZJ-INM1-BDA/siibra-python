@@ -14,11 +14,12 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Union, TYPE_CHECKING
+from typing import List, Dict, Tuple, Union, TYPE_CHECKING, Union
 import json
 from pathlib import Path
 import requests
 import gzip
+import hashlib
 
 try:
     from typing import Literal
@@ -40,11 +41,12 @@ if TYPE_CHECKING:
 
 
 class SparseIndex:
-    HEADER = """MESI-UTF8-V0"""
+    # TODO rename to siibrasparseindex
+    HEADER = """SPARSEINDEX-UTF8-V0"""
 
-    META_SUFFIX = ".mesi.meta.txt"
-    PROBS_SUFFIX = ".mesi.probs.txt"
-    VOXEL_SUFFIX = ".mesi.voxel.nii.gz"
+    ALIAS_BBOX_SUFFIX = ".sparseindex.alias.json"
+    PROBS_SUFFIX = ".sparseindex.probs.txt"
+    VOXEL_SUFFIX = ".sparseindex.voxel.nii.gz"
 
     UINT32_MAX = 4_294_967_295
 
@@ -96,46 +98,49 @@ class WritableSparseIndex(SparseIndex):
         if self.filepath is None:
             raise RuntimeError("WritableSparseIndex must point to a local file")
 
-        # regionname -> regionalias (implicitly from str of element index in list, i.e. '0', '1', '2', etc)
-        self._region_name_mapping: List[str] = []
+        self._region_name_mapping: Dict[str, str] = {}
+        """regionname -> regionalias"""
 
-        # regionalias -> prob
         self._probs: List[Dict[str, float]] = []
+        """regionalias -> prob"""
 
-        # regionalias (implicitly from element indx in list) -> prob
-        self._bbox: List[List[int]] = []
+        self._bbox: Dict[str, List[int]] = {}
+        """regionalias -> bbox"""
 
-        # voxel coord -> element index in self.probs
         self._voxels: Dict[Tuple[int, int, int], int] = {}
+        """voxelcoord -> element index in self._probs"""
 
         self._shape = None
         self._affine = None
+        self._aliassize = 6
 
     def save(self):
         if self._affine is None:
             raise RuntimeError("No image has been added yet")
 
         basename = self.filepath
+        assert basename, "self.filepath is not defined. It must be defined."
         basename.parent.mkdir(parents=True, exist_ok=True)
 
         # newline-separated json objects on all region metadata
-        regionmeta = "\n".join(
-            json.dumps({"regionname": regionname, "bbox": bbox})
-            for regionname, bbox in zip(self._region_name_mapping, self._bbox)
-        )
+        regionmetas = {}
+        for regionname, regionalias in self._region_name_mapping.items():
+            assert (
+                regionalias in self._bbox
+            ), f"Expected regionalias {regionalias} in _bbox, but was not. regionname={regionname}"
+            regionmetas[regionalias] = {
+                "name": regionname,
+                "bbox": self._bbox[regionalias],
+            }
 
         # write metadata
-        with open(basename.with_suffix(self.META_SUFFIX), "w") as fp:
-            fp.write(self.HEADER)
-            fp.write("\n")
-            fp.write(regionmeta)
+        with open(basename.with_suffix(self.ALIAS_BBOX_SUFFIX), "w") as fp:
+            json.dump(regionmetas, indent=2, fp=fp)
 
         current_offset = 0
 
-        # offset/bytes
-        # only recording offset, since the bytes can be calculated by getting the next contiguous offset
-        # inherits element-wise index of self.probs
         offset_record: List[Tuple[int, int]] = []
+        """offset/bytes"""
 
         with open(basename.with_suffix(self.PROBS_SUFFIX), "w") as fp:
             for prob in self._probs:
@@ -153,11 +158,14 @@ class WritableSparseIndex(SparseIndex):
         for (x, y, z), list_idx in self._voxels.items():
             offset, bytes_used = offset_record[list_idx]
             assert offset < self.UINT32_MAX, "offset > unit32 max"
-            # print(offset << 32)
             lut[x, y, z] = np.uint64(offset << 32) + np.uint64(bytes_used)
 
         nii = nib.Nifti1Image(lut, affine=self._affine, dtype=np.uint64)
         nii.to_filename(basename.with_suffix(self.VOXEL_SUFFIX))
+
+        # saving root meta file
+        with open(basename, "w") as fp:
+            fp.write(self.HEADER)
 
     def add_img(self, nii: nib.Nifti1Image, regionname: str):
         if self._shape is None:
@@ -178,9 +186,16 @@ class WritableSparseIndex(SparseIndex):
             regionname not in self._region_name_mapping
         ), f"{regionname} has already been mapped"
 
-        # eventually, the alias will become dictionary keys. JSON keys *must* be str
-        regionalias = str(len(self._region_name_mapping))
-        self._region_name_mapping.append(regionname)
+        regionalias = self._encode_regionname(regionname)
+        self._region_name_mapping[regionname] = regionalias
+
+        assert (
+            regionalias not in self._bbox
+        ), f"regionalias={regionalias} already added to _bbox regionname={regionname}"
+
+        assert (
+            regionalias not in self._probs
+        ), f"regionalias={regionalias} already added to _probs regionname={regionname}"
 
         imgdata = np.asanyarray(nii.dataobj)
         X, Y, Z = [v.astype("int32") for v in np.where(imgdata > 0)]
@@ -196,9 +211,9 @@ class WritableSparseIndex(SparseIndex):
                 probidx = self._voxels[coord_id]
                 self._probs[probidx][regionalias] = prob
 
-        self._bbox.append(
-            np.array([X.min(), Y.min(), Z.min(), X.max(), Y.max(), Z.max()]).tolist()
-        )
+        self._bbox[regionalias] = np.array(
+            [X.min(), Y.min(), Z.min(), X.max(), Y.max(), Z.max()]
+        ).tolist()
 
     @property
     def affine(self):
@@ -208,6 +223,9 @@ class WritableSparseIndex(SparseIndex):
             )
         return self._affine
 
+    def _encode_regionname(self, regionname: str) -> str:
+        return hashlib.md5(regionname.encode("utf-8")).hexdigest()[: self._aliassize]
+
 
 class ReadableSparseIndex(SparseIndex):
     readable = True
@@ -216,11 +234,18 @@ class ReadableSparseIndex(SparseIndex):
         super().__init__(filepath)
 
         self._readable_nii = None
-        self._readable_meta = None
         self._affine = None
+        self._alias_dict: Union[None, Dict[str, Dict]] = None
+        self._name_bbox_dict: Dict[str, Tuple[int, ...]] = {}
 
         if self.url:
             session = requests.Session()
+            resp = session.get(self.url)
+            header = resp.text
+            assert header.startswith(
+                self.HEADER
+            ), f"header file does not start with {self.HEADER}, it was {header}."
+
             resp = session.get(self.url + self.VOXEL_SUFFIX)
             resp.raise_for_status()
             content = resp.content
@@ -230,13 +255,19 @@ class ReadableSparseIndex(SparseIndex):
                 ...
             self._readable_nii = nib.Nifti1Image.from_bytes(content)
 
-            resp = session.get(self.url + self.META_SUFFIX)
+            resp = session.get(self.url + self.ALIAS_BBOX_SUFFIX)
             resp.raise_for_status()
-            self._readable_meta = resp.content.decode("utf-8")
+            self._alias_dict = resp.json()
+
         if self.filepath:
             self._readable_nii = nib.load(self.filepath.with_suffix(self.VOXEL_SUFFIX))
-            with open(self.filepath.with_suffix(self.META_SUFFIX), "r") as fp:
-                self._readable_meta = fp.read()
+            with open(self.filepath.with_suffix(self.ALIAS_BBOX_SUFFIX), "r") as fp:
+                self._alias_dict = json.load(fp=fp)
+
+        assert self._alias_dict, "self._alias_dict not populated"
+        for obj in self._alias_dict.values():
+            name, bbox = obj.get("name"), obj.get("bbox")
+            self._name_bbox_dict[name] = bbox
 
     @property
     def affine(self):
@@ -244,11 +275,11 @@ class ReadableSparseIndex(SparseIndex):
             self._affine = self._readable_nii.affine
         return self._affine
 
-    def _decode_regionalias(self, alias: str):
-        if not self.readable:
-            raise RuntimeError("Cannot decode a non-readable SparseIndex")
-        lines = self._readable_meta.splitlines()
-        return json.loads(lines[int(alias) + 1]).get("regionname")
+    def _decode_regionalias(self, alias: str) -> str:
+        assert (
+            alias in self._alias_dict
+        ), f"alias={alias} not found in decoded dict {self._alias_dict}"
+        return self._alias_dict[alias].get("name")
 
     def read(self, pos: Union[List[List[int]], np.ndarray]) -> Dict[str, float]:
         """
@@ -291,10 +322,11 @@ class ReadableSparseIndex(SparseIndex):
         return result
 
     def get_boundingbox_extrema(self, regionname: str, **kwargs) -> List[int]:
-        for line in self._readable_meta.splitlines()[1:]:
-            parsed_line = json.loads(line)
-            if regionname == parsed_line.get("regionname"):
-                return parsed_line.get("bbox")
+        assert (
+            regionname in self._name_bbox_dict
+        ), f"regionname={regionname} not found in self._alias_name_dict={self._alias_dict}"
+
+        return self._name_bbox_dict[regionname]
 
 
 @dataclass(repr=False, eq=False)
