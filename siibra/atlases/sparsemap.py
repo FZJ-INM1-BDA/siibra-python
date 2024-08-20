@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
-from typing import List, Dict, Tuple, Union, TYPE_CHECKING, Union
+from dataclasses import dataclass, replace
+from typing import List, Dict, Tuple, Union, TYPE_CHECKING
 import json
 from pathlib import Path
 import requests
@@ -35,9 +35,12 @@ from .region import Region
 from ..retrieval.volume_fetcher import FetchKwargs, SIIBRA_MAX_FETCH_SIZE_GIB
 from ..retrieval.file_fetcher.io.base import PartialReader
 from ..attributes.locations import Point, PointCloud
-
+from ..commons.logger import siibra_tqdm, logger
 if TYPE_CHECKING:
     from ..attributes.locations import BoundingBox
+
+
+SPARSEINDEX_BASEURL = "https://data-proxy.ebrains.eu/api/v1/buckets/reference-atlas-data/sparse-indices/"
 
 
 class SparseIndex:
@@ -219,7 +222,7 @@ class WritableSparseIndex(SparseIndex):
     def affine(self):
         if self._affine is None:
             raise RuntimeError(
-                "You must call .add_img first, before the affine is populated."
+                f"You must call `{self.__class__.__name__}.add_img` first, before the affine is populated."
             )
         return self._affine
 
@@ -332,9 +335,18 @@ class ReadableSparseIndex(SparseIndex):
 @dataclass(repr=False, eq=False)
 class SparseMap(Map):
 
-    @property
-    def _readable_sparseindex(self) -> ReadableSparseIndex:
-        pass
+    def _get_readable_sparseindex(self, filepath) -> ReadableSparseIndex:
+        try:
+            return SparseIndex(filepath, mode="r")
+        except Exception:
+            logger.debug("Could not get readable sparse index:", exc_info=-1)
+            return None
+
+    def _save_sparseindex(self, filepath):
+        wspind = SparseIndex(filepath, mode="w")
+        for region in siibra_tqdm(self.regions, unit='region'):
+            wspind.add_img(nii=self.fetch(region=region), regionname=region)
+        wspind.save()
 
     def fetch(
         self,
@@ -369,21 +381,26 @@ class SparseMap(Map):
         )
         return super().fetch(region=matched, frmt=frmt, **fetch_kwargs)
 
-    def designate_points(
+    def lookup_points(
         self,
         points: Union[Point, PointCloud],
         **fetch_kwargs: FetchKwargs,
     ) -> DataFrame:
-        if self._readable_sparseindex is None:
-            return super().designate_points(points, **fetch_kwargs)
+        # TODO: implement the logic to find correct sparseindex
+        filepath = SPARSEINDEX_BASEURL + self.name
+        spind = self._get_readable_sparseindex(filepath)
+        if spind is None:
+            return super().lookup_points(points, **fetch_kwargs)
 
         points_ = (
             PointCloud.from_points([points]) if isinstance(points, Point) else points
         )
         if any(s not in {0.0} for s in points_.sigma):
-            raise ValueError(
-                f"Cannot designate uncertain points. Please use '{self.get_intersection_score.__name__}' instead."
+            logger.warning(
+                f"To get the full asignment score of uncertain points please use `{self.assign.__name__}`."
+                "`lookup_points()` only considers the voxels the coordinates correspond to."
             )
+            points_ = replace(points_, sigma=np.zeros(len(points_)).tolist())
 
         points_wrpd = points_.warp(self.space_id)
 
@@ -393,7 +410,7 @@ class SparseMap(Map):
 
         assignments: List[Map.RegionAssignment] = []
         for pointindex, region, map_value in enumerate(
-            zip(*self._readable_sparseindex.read(np.stack(vx, vy, vz)))
+            zip(*spind.read(np.stack([vx, vy, vz]).T))
         ):
             if map_value == 0:
                 continue
@@ -405,4 +422,4 @@ class SparseMap(Map):
                     region=region,
                 )
             )
-        return Map._convert_point_samples_to_dataframe(assignments)
+        return Map._convert_assignments_to_dataframe(assignments)

@@ -70,5 +70,5 @@ plotting.view_img(
 # space defined.
 volume = siibra.volumes.volume.from_nifti(img, difumo_maps.space, "fusiform posterior")
 with siibra.QUIET:  # suppress progress output
-    assignments = julich_pmaps.get_intersection_score(volume)
+    assignments = julich_pmaps.assign(volume)
 assignments.query('correlation >= 0.35')

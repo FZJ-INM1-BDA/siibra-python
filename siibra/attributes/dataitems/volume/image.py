@@ -119,9 +119,9 @@ class Image(Volume):
         x, y, z = np.round(voxels.coordinates).astype('int').T
         return x, y, z
 
-    def get_values_at_points(
+    def lookup_points(
         self,
-        ptcloud: Union["point.Point", "pointcloud.PointCloud"],
+        points: Union["point.Point", "pointcloud.PointCloud"],
         **fetch_kwargs: FetchKwargs,
     ):
         """
@@ -140,10 +140,10 @@ class Image(Volume):
             Any additional arguments are passed to the `fetch()` call for
             retrieving the image data.
         """
-        x, y, z = self._points_to_voxels_coords(ptcloud, **fetch_kwargs)
-        return self.read_voxels(x=x, y=y, z=z, **fetch_kwargs)
+        x, y, z = self._points_to_voxels_coords(points, **fetch_kwargs)
+        return self._read_voxels(x=x, y=y, z=z, **fetch_kwargs)
 
-    def read_voxels(
+    def _read_voxels(
         self,
         x: Union[int, np.ndarray, List],
         y: Union[int, np.ndarray, List],
@@ -197,7 +197,7 @@ class Image(Volume):
         **fetch_kwargs: FetchKwargs,
     ):
         from pandas import DataFrame
-        from .ops.intersection_score import get_intersection_scores
+        from .ops.assignment import get_intersection_scores
 
         assignments = get_intersection_scores(
             queryitem=item,
@@ -290,7 +290,7 @@ def intersect_ptcld_image(
     ptcloud: pointcloud.PointCloud, image: Image
 ) -> pointcloud.PointCloud:
     value_outside = 0
-    values = image.get_values_at_points(ptcloud)
+    values = image.lookup_points(ptcloud)
     inside = list(np.where(values != value_outside)[0])
     return replace(
         ptcloud,

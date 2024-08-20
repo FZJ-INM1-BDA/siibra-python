@@ -291,25 +291,62 @@ def get_pointcloud_intersection_score(
         image.space_id
     )  # returns the same points if in the same space
 
-    for pointindex, pt in enumerate(points_wrpd):
-        # build an Image of the Gaussian kernel, then recurse this into assign_image
-        gaussian_kernel = pt.create_gaussian_kernel(
-            image.get_affine(**fetch_kwargs), voxel_sigma_threshold
-        )
-        kernel_assignments = get_image_intersection_score(
-            query_image=from_nifti(gaussian_kernel, image.space_id),
-            target_image=image,
-            split_components=False,
-            iou_lower_threshold=iou_lower_threshold,
-            target_masking_lower_threshold=target_masking_lower_threshold,
-            **fetch_kwargs,
-        )
-        for score in kernel_assignments:
-            if score.intersection_over_union <= iou_lower_threshold:
+    if all(s < voxel_sigma_threshold for s in points.sigma):
+        for pointindex, map_value in zip(
+            *image.lookup_points(points=points_wrpd, **fetch_kwargs)
+        ):
+            if map_value == 0:
                 continue
-            score.input_structure_index = pointindex
-            score.centroid = points[pointindex].coordinate
-            assignments.append(score)
+            assignments.append(
+                ImageAssignment(
+                    input_structure_index=pointindex,
+                    centroid=points[pointindex].coordinate,
+                    map_value=map_value,
+                )
+            )
+        return assignments
+
+    for pointindex, pt in enumerate(points_wrpd):
+        if pt.sigma < voxel_sigma_threshold:
+            for pointindex, map_value in zip(
+                *image.lookup_points(points=points_wrpd, **fetch_kwargs)
+            ):
+                if map_value == 0:
+                    continue
+                assignments.append(
+                    ScoredImageAssignment(
+                        input_structure_index=pointindex,
+                        centroid=points[pointindex].coordinate,
+                        map_value=map_value,
+                        intersection_over_union=None,
+                        intersection_over_first=None,
+                        intersection_over_second=None,
+                        correlation=None,
+                        weighted_mean_of_first=None,
+                        weighted_mean_of_second=None,
+                        map_value_mean=None,
+                        map_value_std=None,
+                    )
+                )
+        else:
+            # build an Image of the Gaussian kernel, then recurse this into assign_image
+            gaussian_kernel = pt.create_gaussian_kernel(
+                image.get_affine(**fetch_kwargs), voxel_sigma_threshold
+            )
+            kernel_assignments = get_image_intersection_score(
+                query_image=from_nifti(gaussian_kernel, image.space_id),
+                target_image=image,
+                split_components=False,
+                iou_lower_threshold=iou_lower_threshold,
+                target_masking_lower_threshold=target_masking_lower_threshold,
+                **fetch_kwargs,
+            )
+            for score in kernel_assignments:
+                if score.intersection_over_union <= iou_lower_threshold:
+                    continue
+                score.input_structure_index = pointindex
+                score.centroid = points[pointindex].coordinate
+                assignments.append(score)
 
     return assignments
 

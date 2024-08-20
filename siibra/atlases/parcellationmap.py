@@ -386,7 +386,7 @@ class Map(AtlasElement):
     class ScoredRegionAssignment(ScoredImageAssignment):
         region: str
 
-    def get_intersection_score(
+    def assign(
         self,
         queryitem: Union[Point, PointCloud, Image],
         split_components: bool = True,
@@ -395,7 +395,7 @@ class Map(AtlasElement):
         statistical_map_lower_threshold: float = 0.0,
         **fetch_kwargs: FetchKwargs,
     ) -> DataFrame:
-        assignments: List[Map.ScoredRegionAssignment] = []
+        assignments: List[Union[Map.RegionAssignment, Map.ScoredRegionAssignment]] = []
         for region in siibra_tqdm(self.regions, unit="region"):
             region_image = self.find_volumes(
                 region=region, frmt="image", **fetch_kwargs
@@ -410,13 +410,22 @@ class Map(AtlasElement):
                     target_masking_lower_threshold=statistical_map_lower_threshold,
                     **fetch_kwargs,
                 ):
-                    assignments.append({**asdict(assgnmt), "region": region})
+                    if isinstance(assgnmt, ScoredImageAssignment):
+                        assignments.append(
+                            Map.ScoredRegionAssignment(
+                                **{**asdict(assgnmt), "region": region}
+                            )
+                        )
+                    else:
+                        assignments.append(
+                            Map.RegionAssignment(**{**asdict(assgnmt), "region": region})
+                        )
 
         return Map._convert_assignments_to_dataframe(assignments)
 
     @staticmethod
     def _convert_assignments_to_dataframe(assignments: List["Map.RegionAssignment"]):
-        if any(Map.ScoredRegionAssignment in {type(a) for a in assignments}):
+        if any(isinstance(a, Map.ScoredRegionAssignment) for a in assignments):
             return DataFrame(
                 assignments,
                 columns=[
@@ -440,39 +449,39 @@ class Map(AtlasElement):
                 columns=["input_structure_index", "centroid", "map_value", "region"],
             )
 
-    def designate_points(
+    def lookup_points(
         self,
         points: Union[Point, PointCloud],
         **fetch_kwargs: FetchKwargs,
     ) -> DataFrame:
-        assignments: List[Map.RegionAssignment] = []
-
         points_ = (
             PointCloud.from_points([points]) if isinstance(points, Point) else points
         )
         if any(s not in {0.0} for s in points_.sigma):
-            raise ValueError(
-                f"Cannot designate uncertain points. Please use '{self.get_intersection_score.__name__}' instead."
+            logger.warning(
+                f"To get the full asignment score of uncertain points please use `{self.assign.__name__}`."
+                "`lookup_points()` only considers the voxels the coordinates correspond to."
             )
+            points_ = replace(points_, sigma=np.zeros(len(points_)).tolist())
 
         points_wrpd = points_.warp(self.space_id)
 
+        assignments: List[Map.RegionAssignment] = []
         for region in siibra_tqdm(self.regions, unit="region"):
             region_image = self.find_volumes(
                 region=region, frmt="image", **fetch_kwargs
             )[0]
-            with QUIET:
-                for pointindex, map_value in zip(
-                    *region_image.lookup_points(points=points_wrpd, **fetch_kwargs)
-                ):
-                    if map_value == 0:
-                        continue
-                    assignments.append(
-                        Map.RegionAssignment(
-                            input_structure_index=pointindex,
-                            centroid=points_[pointindex].coordinate,
-                            map_value=map_value,
-                            region=region,
-                        )
+            for pointindex, map_value in zip(
+                *region_image.lookup_points(points=points_wrpd, **fetch_kwargs)
+            ):
+                if map_value == 0:
+                    continue
+                assignments.append(
+                    Map.RegionAssignment(
+                        input_structure_index=pointindex,
+                        centroid=points_[pointindex].coordinate,
+                        map_value=map_value,
+                        region=region,
                     )
+                )
         return Map._convert_assignments_to_dataframe(assignments)
