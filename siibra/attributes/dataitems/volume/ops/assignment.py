@@ -148,7 +148,7 @@ def calculate_nifti_intersection_score(
     # Compute the nonzero voxels in map2 and their correspondences in map1
     nz_voxels_nii2 = np.c_[np.nonzero(arr2 > 0)]
     warp2on1 = np.dot(np.linalg.inv(nii1.affine), nii2.affine)
-    nz_voxels_nii2_warped_to_nii1 = (
+    nz_voxels_nii2_warped_to_nii1 = np.round(
         np.dot(warp2on1, homog(nz_voxels_nii2).T).T[:, :3]
     ).astype("int")
 
@@ -191,7 +191,7 @@ def calculate_nifti_intersection_score(
     XYZa1 = np.unique(
         np.concatenate((nz_voxels_nii1, nz_voxels_nii2_warped_to_nii1)), axis=0
     )
-    XYZa2 = (np.dot(warp1on2, homog(XYZa1).T).T[:, :3]).astype("int")
+    XYZa2 = np.round(np.dot(warp1on2, homog(XYZa1).T).T[:, :3]).astype("int")
     valid = np.all(
         np.logical_and.reduce(
             [XYZa1 >= 0, XYZa1 < arr1.shape[:3], XYZa2 >= 0, XYZa2 < arr2.shape[:3]]

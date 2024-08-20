@@ -39,7 +39,7 @@ from ..atlases import ParcellationScheme, Space, Region
 from ..attributes.dataitems import Image, Mesh, FORMAT_LOOKUP
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
 from ..attributes.locations import BoundingBox, Point, PointCloud
-from ..attributes.dataitems.volume.ops.intersection_score import (
+from ..attributes.dataitems.volume.ops.assignment import (
     ImageAssignment,
     ScoredImageAssignment,
     get_intersection_scores,
@@ -412,13 +412,33 @@ class Map(AtlasElement):
                 ):
                     assignments.append({**asdict(assgnmt), "region": region})
 
-        return DataFrame(assignments).dropna(axis="columns", how="all")
+        return Map._convert_assignments_to_dataframe(assignments)
 
-    def _convert_point_samples_to_dataframe(assignments: List["Map.RegionAssignment"]):
-        return DataFrame(
-            assignments,
-            columns=["input_structure_index", "centroid", "map_value", "region"],
-        )
+    @staticmethod
+    def _convert_assignments_to_dataframe(assignments: List["Map.RegionAssignment"]):
+        if any(Map.ScoredRegionAssignment in {type(a) for a in assignments}):
+            return DataFrame(
+                assignments,
+                columns=[
+                    "intersection_over_union",
+                    "intersection_over_first",
+                    "intersection_over_second",
+                    "correlation",
+                    "weighted_mean_of_first",
+                    "weighted_mean_of_second",
+                    "map_value_mean",
+                    "map_value_std",
+                    "input_structure_index",
+                    "centroid",
+                    "map_value",
+                    "region",
+                ],
+            ).dropna(axis="columns", how="all")
+        else:
+            return DataFrame(
+                assignments,
+                columns=["input_structure_index", "centroid", "map_value", "region"],
+            )
 
     def designate_points(
         self,
@@ -443,9 +463,7 @@ class Map(AtlasElement):
             )[0]
             with QUIET:
                 for pointindex, map_value in zip(
-                    *region_image.get_values_at_points(
-                        ptcloud=points_wrpd, **fetch_kwargs
-                    )
+                    *region_image.lookup_points(points=points_wrpd, **fetch_kwargs)
                 ):
                     if map_value == 0:
                         continue
@@ -457,4 +475,4 @@ class Map(AtlasElement):
                             region=region,
                         )
                     )
-        return Map._convert_point_samples_to_dataframe(assignments)
+        return Map._convert_assignments_to_dataframe(assignments)
