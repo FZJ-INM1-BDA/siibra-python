@@ -176,9 +176,9 @@ class Point(Location):
         kernel /= kernel.sum()
 
         effective_r = int(kernel.shape[0] / 2)
-        voxel_coords = np.asanyarray(
-            Point.transform(self, voxel_transformation_affine).coordinate, dtype="int"
-        )
+        voxel_coords = np.round(
+            Point.transform(self, voxel_transformation_affine).coordinate
+        ).astype("int")
         shift = np.identity(4)
         shift[:3, -1] = voxel_coords[:3] - effective_r
         kernel_affine = np.dot(target_affine, shift)
