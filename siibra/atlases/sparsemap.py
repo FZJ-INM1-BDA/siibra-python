@@ -14,12 +14,13 @@
 # limitations under the License.
 
 from dataclasses import dataclass, replace
-from typing import List, Dict, Tuple, Union, TYPE_CHECKING
+from typing import List, Dict, Tuple, Union, TYPE_CHECKING, Iterable
 import json
 from pathlib import Path
 import requests
 import gzip
 import hashlib
+from io import BytesIO
 
 try:
     from typing import Literal
@@ -36,11 +37,15 @@ from ..retrieval.volume_fetcher import FetchKwargs, SIIBRA_MAX_FETCH_SIZE_GIB
 from ..retrieval.file_fetcher.io.base import PartialReader
 from ..attributes.locations import Point, PointCloud
 from ..commons.logger import siibra_tqdm, logger
+from ..cache import CACHE
+
 if TYPE_CHECKING:
     from ..attributes.locations import BoundingBox
 
 
-SPARSEINDEX_BASEURL = "https://data-proxy.ebrains.eu/api/v1/buckets/reference-atlas-data/sparse-indices/"
+SPARSEINDEX_BASEURL = (
+    "https://data-proxy.ebrains.eu/api/v1/buckets/reference-atlas-data/sparse-indices/"
+)
 
 
 class SparseIndex:
@@ -236,7 +241,8 @@ class ReadableSparseIndex(SparseIndex):
     def __init__(self, filepath: Union[str, Path], **kwargs):
         super().__init__(filepath)
 
-        self._readable_nii = None
+        self._header = None
+        self._readable_nii: nib.Nifti1Image = None
         self._affine = None
         self._alias_dict: Union[None, Dict[str, Dict]] = None
         self._name_bbox_dict: Dict[str, Tuple[int, ...]] = {}
@@ -244,10 +250,7 @@ class ReadableSparseIndex(SparseIndex):
         if self.url:
             session = requests.Session()
             resp = session.get(self.url)
-            header = resp.text
-            assert header.startswith(
-                self.HEADER
-            ), f"header file does not start with {self.HEADER}, it was {header}."
+            self._header = resp.text
 
             resp = session.get(self.url + self.VOXEL_SUFFIX)
             resp.raise_for_status()
@@ -263,10 +266,14 @@ class ReadableSparseIndex(SparseIndex):
             self._alias_dict = resp.json()
 
         if self.filepath:
+            self._header = Path(self.filepath).read_text()
             self._readable_nii = nib.load(self.filepath.with_suffix(self.VOXEL_SUFFIX))
             with open(self.filepath.with_suffix(self.ALIAS_BBOX_SUFFIX), "r") as fp:
                 self._alias_dict = json.load(fp=fp)
 
+        assert self._header.startswith(
+            self.HEADER
+        ), f"header file does not start with {self.HEADER}, it was {self._header}."
         assert self._alias_dict, "self._alias_dict not populated"
         for obj in self._alias_dict.values():
             name, bbox = obj.get("name"), obj.get("bbox")
@@ -284,7 +291,7 @@ class ReadableSparseIndex(SparseIndex):
         ), f"alias={alias} not found in decoded dict {self._alias_dict}"
         return self._alias_dict[alias].get("name")
 
-    def read(self, pos: Union[List[List[int]], np.ndarray]) -> Dict[str, float]:
+    def read(self, pos: Union[List[List[int]], np.ndarray]) -> List[Dict[str, float]]:
         """
         For a given list of voxel coordinates, get the name and value mapped
         at each voxel.
@@ -295,8 +302,8 @@ class ReadableSparseIndex(SparseIndex):
 
         Returns
         -------
-        Dict[str, float]
-            regionname: value
+        List[Dict[str, float]]
+            list of regionname: value
         """
         probreader = PartialReader(str(self.url or self.filepath) + self.PROBS_SUFFIX)
         probreader.open()
@@ -331,20 +338,69 @@ class ReadableSparseIndex(SparseIndex):
 
         return self._name_bbox_dict[regionname]
 
+    def _iter_file(self) -> Iterable[Tuple[str, BytesIO]]:
+        yield "", BytesIO(self._header.encode("utf-8"))
+        yield self.ALIAS_BBOX_SUFFIX, BytesIO(
+            json.dumps(self._alias_dict).encode("utf-8")
+        )
+        yield self.VOXEL_SUFFIX, gzip.compress(self._readable_nii.to_bytes())
+        yield self.PROBS_SUFFIX, PartialReader(
+            str(self.url or self.filepath) + self.PROBS_SUFFIX
+        )
+
+    def save_as(self, filepath: str):
+        basename = Path(filepath)
+        CHUNK_SIZE = 1024 * 1024 * 4  # 4mb chunk size
+        for suffix, bio in self._iter_file():
+
+            with open(basename.with_suffix(suffix), "wb") as fp:
+                if isinstance(bio, bytes):
+                    fp.write(bio)
+                    continue
+
+                offset = 0
+                while True:
+                    bio.seek(offset)
+                    _bytes = bio.read(CHUNK_SIZE)
+                    fp.write(_bytes)
+                    if len(_bytes) < CHUNK_SIZE:
+                        break
+                    offset += CHUNK_SIZE
+
 
 @dataclass(repr=False, eq=False)
 class SparseMap(Map):
 
-    def _get_readable_sparseindex(self, filepath) -> ReadableSparseIndex:
-        try:
-            return SparseIndex(filepath, mode="r")
-        except Exception:
-            logger.debug("Could not get readable sparse index:", exc_info=-1)
+    def _get_readable_sparseindex(self, warmup=False) -> ReadableSparseIndex:
+        sparseindicies = [
+            attr for attr in self.attributes if attr.schema == "x-siibra/sparseindex"
+        ]
+        if len(sparseindicies) != 1:
+            logger.debug(
+                f"Expected one and only one sparse index volume, but got {len(sparseindicies)}"
+            )
             return None
+        spidx = sparseindicies[0]
+        url = spidx.extra.get("url")
+
+        localcache = CACHE.build_filename(url)
+        if not url:
+            logger.warning(f"SparseIndex volume deformed. {spidx.__dict__}")
+            return None
+
+        if Path(localcache).is_file():
+            return SparseIndex(localcache, mode="r")
+
+        if warmup:
+            spidx = SparseIndex(url, mode="r")
+            spidx.save_as(localcache)
+            return SparseIndex(localcache, mode="r")
+
+        return SparseIndex(url, mode="r")
 
     def _save_sparseindex(self, filepath):
         wspind = SparseIndex(filepath, mode="w")
-        for region in siibra_tqdm(self.regions, unit='region'):
+        for region in siibra_tqdm(self.regions, unit="region"):
             wspind.add_img(nii=self.fetch(region=region), regionname=region)
         wspind.save()
 
@@ -386,9 +442,7 @@ class SparseMap(Map):
         points: Union[Point, PointCloud],
         **fetch_kwargs: FetchKwargs,
     ) -> DataFrame:
-        # TODO: implement the logic to find correct sparseindex
-        filepath = SPARSEINDEX_BASEURL + self.name
-        spind = self._get_readable_sparseindex(filepath)
+        spind = self._get_readable_sparseindex()
         if spind is None:
             return super().lookup_points(points, **fetch_kwargs)
 
@@ -408,6 +462,9 @@ class SparseMap(Map):
         # TODO: consider just using affine to transform the points
         vx, vy, vz = first_volume._points_to_voxels_coords(points_wrpd)
 
+        val = spind.read(np.stack([vx, vy, vz]).T)
+        print("val", val)
+
         assignments: List[Map.RegionAssignment] = []
         for pointindex, region, map_value in enumerate(
             zip(*spind.read(np.stack([vx, vy, vz]).T))
@@ -423,3 +480,6 @@ class SparseMap(Map):
                 )
             )
         return Map._convert_assignments_to_dataframe(assignments)
+
+    def warmup(self):
+        self._get_readable_sparseindex(warmup=True)

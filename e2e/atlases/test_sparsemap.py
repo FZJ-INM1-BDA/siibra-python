@@ -4,6 +4,8 @@ from tqdm import tqdm
 from siibra.attributes.locations import Point
 from siibra.atlases.sparsemap import SparseIndex
 import pytest
+from tempfile import TemporaryDirectory
+from pathlib import Path
 
 
 sparse_map_retrieval = [
@@ -36,32 +38,37 @@ def freshlocal_jba29_icbm152():
     yield SparseIndex("icbm152_julich2_9", mode="r")
 
 
-# TODO fix remote sparse map then reenable
-# ping XG
-#
-# @pytest.fixture(scope="session")
-# def remote_jba29_icbm152():
-#     remote_spi = SparseIndex("https://data-proxy.ebrains.eu/api/v1/buckets/test-sept-22/icbm152_julich2_9", mode="r")
-#     yield remote_spi
+@pytest.fixture(scope="session")
+def remote_jba29_icbm152():
+    remote_spi = SparseIndex(
+        "https://data-proxy.ebrains.eu/api/v1/buckets/reference-atlas-data/sparse-indices/mni152-jba29",
+        mode="r",
+    )
+    yield remote_spi
 
 
-# @pytest.mark.parametrize("pt_phys, expected_value", sparse_map_retrieval)
-# def test_remote_sparsemap_jba29_icbm152(pt_phys, expected_value, remote_jba29_icbm152):
-#     space = siibra.get_space("icbm 152")
-#     pt = Point(coordinate=pt_phys, space_id=space.ID)
-#     affine = np.linalg.inv(remote_jba29_icbm152.affine)
-#     pt_voxel = pt.transform(affine)
-#     voxelcoord = np.array(pt_voxel.coordinate).astype("int")
-#     assert remote_jba29_icbm152.read([voxelcoord]) == expected_value
+@pytest.fixture(scope="session")
+def savedlocal_jba29_icbm152(remote_jba29_icbm152):
+    with TemporaryDirectory() as dir:
+        local_file = Path(dir) / "foo"
+        remote_jba29_icbm152.save_as(str(local_file))
+        yield SparseIndex(str(local_file), mode="r")
 
 
+spix_fxt_names = [
+    pytest.param("savedlocal_jba29_icbm152", id="savedlocal"),
+    pytest.param("remote_jba29_icbm152", id="remote"),
+    pytest.param("freshlocal_jba29_icbm152", id="freshlocal"),
+]
+
+
+@pytest.mark.parametrize("spix_fxt_name", spix_fxt_names)
 @pytest.mark.parametrize("pt_phys, expected_value", sparse_map_retrieval)
-def test_freshlocal_sparsemap_jba29_icbm152(
-    pt_phys, expected_value, freshlocal_jba29_icbm152
-):
+def test_spidx(pt_phys, expected_value, spix_fxt_name, request):
+    spidx: SparseIndex = request.getfixturevalue(spix_fxt_name)
     space = siibra.get_space("icbm 152")
     pt = Point(coordinate=pt_phys, space_id=space.ID)
-    affine = np.linalg.inv(freshlocal_jba29_icbm152.affine)
+    affine = np.linalg.inv(spidx.affine)
     pt_voxel = pt.transform(affine)
     voxelcoord = np.array(pt_voxel.coordinate).astype("int")
-    assert freshlocal_jba29_icbm152.read([voxelcoord]) == expected_value
+    assert spidx.read([voxelcoord]) == expected_value

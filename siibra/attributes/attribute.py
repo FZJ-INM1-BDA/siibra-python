@@ -52,7 +52,9 @@ class Attribute:
 
         att_type: str = json_dict.pop("@type")
         if att_type.startswith("x-"):
-            return []
+            attr = Attribute(extra=json_dict)
+            attr.schema = att_type
+            return [attr]
         Cls = SCHEMAS.get(att_type)
         if Cls is None:
             logger.warning(f"Cannot parse type {att_type}")
