@@ -179,13 +179,14 @@ class Map(AtlasElement):
         return replace(self, attributes=attributes)
 
     def find_volumes(
-        self, region: Union[str, Region] = None, frmt: str = None
+        self, region: Union[str, Region, None] = None, frmt: str = None
     ) -> List[Union["Image", "Mesh"]]:
-        if frmt in ["image", "mesh"]:
-            frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
-
         def filter_format(vol: Union["Image", "Mesh"]):
-            return True if frmt is None else vol.format == frmt
+            if frmt is None:
+                return True
+            if frmt in ["image", "mesh"]:
+                vol.format in self.formats and vol.format in FORMAT_LOOKUP[frmt]
+            return vol.format == frmt
 
         if region is None:
             return list(filter(filter_format, self.volumes))
