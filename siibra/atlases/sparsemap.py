@@ -298,7 +298,8 @@ class ReadableSparseIndex(SparseIndex):
 
         Parameters
         ----------
-        pos : Union[List[List[int]], np.ndarray]
+        pos: Union[List[List[int]], np.ndarray]
+            expects an NX3 array
 
         Returns
         -------
@@ -462,23 +463,21 @@ class SparseMap(Map):
         # TODO: consider just using affine to transform the points
         vx, vy, vz = first_volume._points_to_voxels_coords(points_wrpd)
 
-        val = spind.read(np.stack([vx, vy, vz]).T)
-        print("val", val)
-
         assignments: List[Map.RegionAssignment] = []
-        for pointindex, region, map_value in enumerate(
-            zip(*spind.read(np.stack([vx, vy, vz]).T))
+        for pointindex, readout in enumerate(
+            spind.read(np.stack([vx, vy, vz]).T)
         ):
-            if map_value == 0:
-                continue
-            assignments.append(
-                Map.RegionAssignment(
-                    input_structure_index=pointindex,
-                    centroid=points_[pointindex].coordinate,
-                    map_value=map_value,
-                    region=region,
+            for region, map_value in readout.items():
+                if map_value == 0:
+                    continue
+                assignments.append(
+                    Map.RegionAssignment(
+                        input_structure_index=pointindex,
+                        centroid=points_[pointindex].coordinate,
+                        map_value=map_value,
+                        region=region,
+                    )
                 )
-            )
         return Map._convert_assignments_to_dataframe(assignments)
 
     def warmup(self):
