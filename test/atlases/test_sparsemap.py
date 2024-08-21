@@ -1,10 +1,15 @@
-from siibra.atlases.sparsemap import SparseIndex, ReadableSparseIndex, WritableSparseIndex
+from siibra.atlases.sparsemap import (
+    SparseIndex,
+    ReadableSparseIndex,
+    WritableSparseIndex,
+)
 import pytest
 from unittest.mock import patch, PropertyMock, MagicMock, mock_open, call
 import requests
 import nibabel as nib
 import gzip
 from pathlib import Path
+import json
 
 
 @pytest.fixture
@@ -32,21 +37,75 @@ def open_mock():
 
 
 @pytest.fixture
-def gzip_decompress():
+def gzip_decompress_mock():
     with patch.object(gzip, "decompress") as mock:
         yield mock
 
 
+@pytest.fixture
+def json_load_mock():
+    with patch.object(json, "load") as mock:
+        yield mock
+
+
+mock_alias_data = {"foo": {"name": "bar"}}
+
+
+@pytest.fixture
+def local_readable(
+    session_get_mock,
+    nib_frombytes_mock,
+    nib_load_mock,
+    open_mock,
+    gzip_decompress_mock,
+    json_load_mock,
+):
+    yield
+    session_get_mock.assert_not_called()
+    nib_frombytes_mock.assert_not_called()
+    nib_load_mock.assert_called_once()
+    open_mock.assert_called_once()
+    gzip_decompress_mock.assert_not_called()
+    json_load_mock.assert_called_once()
+
+
+@pytest.fixture
+def remote_readable(
+    session_get_mock,
+    nib_frombytes_mock,
+    nib_load_mock,
+    open_mock,
+    gzip_decompress_mock,
+    json_load_mock,
+):
+    yield
+    session_get_mock.assert_called()
+    assert session_get_mock.call_count == 3
+    nib_frombytes_mock.assert_called_once()
+
+    nib_load_mock.assert_not_called()
+    open_mock.assert_not_called()
+    gzip_decompress_mock.assert_called_once()
+    json_load_mock.assert_not_called()
+
+
+@pytest.fixture
+def local_writable():
+    yield
+
+
 sparse_idx_args = [
-    ("https://example.org/foo", "r", ReadableSparseIndex, None),
-    ("https://example.org/foo", "w", None, RuntimeError),
-    ("foo", "r", ReadableSparseIndex, None),
-    ("foo", "w", WritableSparseIndex, None)
+    ("https://example.org/foo", "r", ReadableSparseIndex, None, "remote_readable"),
+    ("https://example.org/foo", "w", None, RuntimeError, None),
+    ("foo", "r", ReadableSparseIndex, None, "local_readable"),
+    ("foo", "w", WritableSparseIndex, None, "local_writable"),
 ]
 
 
-@pytest.mark.parametrize("patharg, mode, Cls, Err", sparse_idx_args)
-def test_sparseindex_init(patharg, mode, Cls, Err, session_get_mock, nib_frombytes_mock, nib_load_mock, open_mock, gzip_decompress):
+@pytest.mark.parametrize("patharg, mode, Cls, Err, fixturename", sparse_idx_args)
+def test_sparseindex_init(patharg, mode, Cls, Err, fixturename, request):
+    if fixturename is not None:
+        fixture = request.getfixturevalue(fixturename)
     if Err:
         with pytest.raises(Err):
             SparseIndex(patharg, mode=mode)
@@ -55,39 +114,52 @@ def test_sparseindex_init(patharg, mode, Cls, Err, session_get_mock, nib_frombyt
     assert type(instance) is Cls
 
 
-def test_remote_readable(session_get_mock, gzip_decompress, nib_frombytes_mock, nib_load_mock, open_mock):
+def test_remote_readable(
+    remote_readable,
+    gzip_decompress_mock,
+    session_get_mock,
+    nib_frombytes_mock,
+    nib_load_mock,
+    open_mock,
+):
     url = "https://example.org/foo"
-    gzip_decompress.return_value = "gzipreturn"
+    gzip_decompress_mock.return_value = "gzipreturn"
     mm0 = MagicMock()
     mm1 = MagicMock()
-    session_get_mock.side_effect = [mm0, mm1, mm0, mm1]
+    mm2 = MagicMock()
+    session_get_mock.side_effect = [mm0, mm1, mm2]
     mm0.content = b"foo0"
     mm1.content = b"foo1"
+    mm2.json.return_value = mock_alias_data
 
     index = SparseIndex(url, mode="r")
 
-    session_get_mock.assert_has_calls([
-        call(url + SparseIndex.VOXEL_SUFFIX,),
-        call(url + SparseIndex.META_SUFFIX,),
-    ])
+    session_get_mock.assert_has_calls(
+        [
+            call(
+                url,
+            ),
+            call(
+                url + SparseIndex.VOXEL_SUFFIX,
+            ),
+            call(
+                url + SparseIndex.ALIAS_BBOX_SUFFIX,
+            ),
+        ]
+    )
 
-    gzip_decompress.assert_called_once_with(mm0.content)
-    nib_frombytes_mock.assert_called_once_with(gzip_decompress.return_value)
-
-    nib_load_mock.assert_not_called()
-    open_mock.assert_not_called()
+    gzip_decompress_mock.assert_called_once_with(mm1.content)
+    nib_frombytes_mock.assert_called_once_with(gzip_decompress_mock.return_value)
 
 
-def test_local_readable(session_get_mock, gzip_decompress, nib_frombytes_mock, nib_load_mock, open_mock):
+def test_local_readable(
+    json_load_mock,
+    nib_load_mock,
+    open_mock,
+):
     url = "foo"
-
+    json_load_mock.return_value = mock_alias_data
     index = SparseIndex(url, mode="r")
-
-    session_get_mock.assert_not_called()
-
-    gzip_decompress.assert_not_called()
-    nib_frombytes_mock.assert_not_called()
 
     nib_load_mock.assert_called_once_with(Path(url + SparseIndex.VOXEL_SUFFIX))
-    open_mock.assert_called_once_with(Path(url + SparseIndex.META_SUFFIX), "r")
-
+    open_mock.assert_called_once_with(Path(url + SparseIndex.ALIAS_BBOX_SUFFIX), "r")
