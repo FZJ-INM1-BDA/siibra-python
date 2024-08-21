@@ -1,7 +1,7 @@
 import pytest
 from itertools import product
 
-from siibra.attributes.locations.point import Point
+from siibra.attributes.locations.point import Point, parse_coordinate
 
 
 point_tuple_coord_foo = Point(coordinate=(1, 2, 3), space_id="foo")
@@ -79,3 +79,17 @@ def test_sub(sub1, sub2, expected, error):
             _ = sub1 - sub2
         return
     assert sub1 - sub2 == expected
+
+
+parse_coordinate_args = [
+    ("-57mm,-58mm,32mm", (-57.0, -58.0, 32.0), None),
+]
+
+
+@pytest.mark.parametrize("input, expected, Err", parse_coordinate_args)
+def test_parse(input, expected, Err):
+    if Err:
+        with pytest.raises(Err):
+            parse_coordinate(input)
+        return
+    assert parse_coordinate(input) == expected

@@ -340,7 +340,6 @@ class ReadableSparseIndex(SparseIndex):
         return self._name_bbox_dict[regionname]
 
     def _iter_file(self) -> Iterable[Tuple[str, BytesIO]]:
-        yield "", BytesIO(self._header.encode("utf-8"))
         yield self.ALIAS_BBOX_SUFFIX, BytesIO(
             json.dumps(self._alias_dict).encode("utf-8")
         )
@@ -348,6 +347,9 @@ class ReadableSparseIndex(SparseIndex):
         yield self.PROBS_SUFFIX, PartialReader(
             str(self.url or self.filepath) + self.PROBS_SUFFIX
         )
+
+        # save the meta file at the very end. The presence of this file indicates that the rest of the file saved correctly
+        yield "", BytesIO(self._header.encode("utf-8"))
 
     def save_as(self, filepath: str):
         basename = Path(filepath)
@@ -394,6 +396,7 @@ class SparseMap(Map):
 
         if warmup:
             spidx = SparseIndex(url, mode="r")
+            logger.info(f"Caching sparseindex at {url}")
             spidx.save_as(localcache)
             return SparseIndex(localcache, mode="r")
 
@@ -464,9 +467,7 @@ class SparseMap(Map):
         vx, vy, vz = first_volume._points_to_voxels_coords(points_wrpd)
 
         assignments: List[Map.RegionAssignment] = []
-        for pointindex, readout in enumerate(
-            spind.read(np.stack([vx, vy, vz]).T)
-        ):
+        for pointindex, readout in enumerate(spind.read(np.stack([vx, vy, vz]).T)):
             for region, map_value in readout.items():
                 if map_value == 0:
                     continue
