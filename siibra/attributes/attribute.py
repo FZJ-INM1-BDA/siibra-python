@@ -32,6 +32,10 @@ class Attribute:
     schema: str = field(default="siibra/attr", init=False, repr=False)
     name: str = field(default=None, repr=False)
 
+    # TODO to be deprecated
+    id: str = field(default=None, repr=False)
+    annotates: str = field(default=None, repr=False)
+
     # TODO performance implications? may have to set hash=False
     extra: Dict[str, Any] = field(default_factory=dict, repr=False, hash=False)
 
