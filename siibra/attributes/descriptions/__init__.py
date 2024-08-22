@@ -29,3 +29,4 @@ from .description import TextDescription
 from .facet import Facet
 from .spacespec import SpaceSpec
 from .parcspec import ParcSpec
+from .attribute_mapping import AttributeMapping
