@@ -31,38 +31,15 @@ from ...dataops.file_fetcher import (
     ZipRepository,
     TarRepository,
     LocalDirectoryRepository,
+    TarDataOp,
+    ZipDataOp,
+    RemoteLocalDataOp,
 )
 
 
 class Archive(TypedDict):
     file: str = None
     format: str = None
-
-
-@fn_call_cache
-def get_bytesio_from_url(url: str, archive_options: Archive = None) -> bytes:
-    if Path(url).is_file():
-        pth = Path(url)
-        return LocalDirectoryRepository(pth.parent).get(pth.name)
-    # TODO: stream bytesio instead
-    if not archive_options:
-        resp = requests.get(url)
-        resp.raise_for_status()
-        return resp.content
-
-    if archive_options["format"] == "zip":
-        ArchiveRepoType = ZipRepository
-    elif archive_options["format"] == "tar":
-        ArchiveRepoType = TarRepository
-    else:
-        raise NotImplementedError(
-            f"{archive_options['format']} is not a supported archive format yet."
-        )
-
-    filename = archive_options["file"]
-    assert filename, "Data attribute 'file' field not populated!"
-    repo = ArchiveRepoType(url)
-    return repo.get(filename)
 
 
 @dataclass
@@ -81,24 +58,11 @@ class DataProvider(Attribute):
         assert self.url, "url must be defined"
 
         if not self.archive_options:
-            return [{"type": "src/file", "url": self.url}]
-
+            return [RemoteLocalDataOp.from_url(self.url)]
         if self.archive_options["format"] == "tar":
-            return [
-                {
-                    "type": "src/remotetar",
-                    "tar": self.url,
-                    "filename": self.archive_options["file"],
-                }
-            ]
+            return [TarDataOp.from_url(self.url, self.archive_options["file"])]
         if self.archive_options["format"] == "zip":
-            return [
-                {
-                    "type": "src/remotezip",
-                    "tar": self.url,
-                    "filename": self.archive_options["file"],
-                }
-            ]
+            return [ZipDataOp.from_url(self.url, self.archive_options["file"])]
         raise NotImplementedError
 
     # TODO cache this step
@@ -108,6 +72,7 @@ class DataProvider(Attribute):
             *self.retrieval_ops,
             *self.transformation_ops,
         ]:
-            runner = DataOp.get_runner(step)
+            Runner = DataOp.get_runner(step)
+            runner = Runner()
             result = runner.run(result, **kwargs)
         return result

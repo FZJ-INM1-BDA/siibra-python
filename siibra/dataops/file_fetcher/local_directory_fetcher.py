@@ -16,8 +16,10 @@
 from pathlib import Path
 from typing import Iterable
 import os
+import requests
 
 from .base import Repository
+from ..base import DataOp
 
 
 class LocalDirectoryRepository(Repository):
@@ -45,3 +47,27 @@ class LocalDirectoryRepository(Repository):
 
     def get(self, filepath: str) -> bytes:
         return (Path(self.path) / filepath).read_bytes()
+
+
+class RemoteLocalDataOp(DataOp, type="read/remote-local"):
+    input: None
+    output: bytes
+
+    def run(self, _, *, filename, **kwargs):
+        print("what?", _, filename)
+        assert isinstance(
+            filename, str
+        ), f"remote local data op only takes string as filename kwarg"
+        if filename.startswith("https"):
+            resp = requests.get(filename)
+            resp.raise_for_status()
+            return resp.content
+        with open(filename, "rb") as fp:
+            return fp.read()
+
+    @staticmethod
+    def from_url(filename: str):
+        assert isinstance(
+            filename, str
+        ), f"remote local data op only takes string as filename kwarg"
+        return {"type": "read/remote-local", "filename": filename}

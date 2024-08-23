@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .tar_fetcher import TarRepository
+from .tar_fetcher import TarRepository, TarDataOp
 from .git_fetcher import GitHttpRepository
-from .zip_fetcher import ZipRepository
+from .zip_fetcher import ZipRepository, ZipDataOp
 from .github_fetcher import GithubRepository
 from .gitlab_fetcher import GitlabRepository
-from .local_directory_fetcher import LocalDirectoryRepository
+from .local_directory_fetcher import LocalDirectoryRepository, RemoteLocalDataOp

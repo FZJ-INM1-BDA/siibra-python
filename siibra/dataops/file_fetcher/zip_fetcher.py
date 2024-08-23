@@ -21,6 +21,7 @@ import os
 from .base import ArchivalRepository
 from .io import PartialReader
 from ...cache import CACHE
+from ..base import DataOp
 
 
 class ZipRepository(ArchivalRepository):
@@ -95,3 +96,18 @@ class ZipRepository(ArchivalRepository):
             if filename.startswith(prefix):
                 yield filename
                 continue
+
+
+class ZipDataOp(DataOp, type="read/zip"):
+    input: None
+    output: bytes
+    desc = (
+        "returns bytes as the result of reading accessing zip file at {url} {filename}"
+    )
+
+    def run(self, _, *, url, filename, **kwargs):
+        return ZipRepository(url).get(filename)
+
+    @staticmethod
+    def from_url(url: str, filename: str):
+        return {"type": "read/zip", "url": url, "filename": filename}
