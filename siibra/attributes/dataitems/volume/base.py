@@ -16,7 +16,7 @@
 from dataclasses import dataclass, field
 from typing import Dict
 
-from ..base import Data
+from ..base import DataProvider
 from ....dataops.volume_fetcher import IMAGE_FORMATS, MESH_FORMATS, Mapping
 from ....commons.iterable import assert_ooo
 
@@ -28,7 +28,7 @@ FORMAT_LOOKUP = {
 
 
 @dataclass
-class Volume(Data):
+class Volume(DataProvider):
     schema: str = "siibra/attr/data/volume"
     space_id: str = None
     format: str = None

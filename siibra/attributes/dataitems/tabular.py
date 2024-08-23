@@ -23,13 +23,13 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
-from .base import Data
+from .base import DataProvider
 
 X_DATA = "x-siibra/data/dataframe"
 
 
 @dataclass
-class Tabular(Data):
+class Tabular(DataProvider):
     schema: str = "siibra/attr/data/tabular/v0.1"
     format: Literal["csv"] = None
     plot_options: dict = field(default_factory=dict)
