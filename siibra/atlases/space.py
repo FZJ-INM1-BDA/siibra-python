@@ -15,7 +15,7 @@
 
 from typing import TYPE_CHECKING, Set, Union, List
 from ..concepts import AtlasElement
-from ..retrieval.volume_fetcher import (
+from ..dataops.volume_fetcher import (
     FetchKwargs,
     IMAGE_FORMATS,
     MESH_FORMATS,

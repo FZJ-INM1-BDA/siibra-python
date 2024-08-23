@@ -1,4 +1,4 @@
-from siibra.retrieval.requests import EbrainsRequest, HttpRequest
+from siibra.dataops.requests import EbrainsRequest, HttpRequest
 from siibra.cache import CACHE
 
 import pytest

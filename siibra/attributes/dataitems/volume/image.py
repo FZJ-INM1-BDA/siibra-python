@@ -27,7 +27,7 @@ import gzip
 from .base import Volume
 from ...locations import point, pointcloud, BoundingBox
 from ...locations.ops.intersection import _loc_intersection
-from ....retrieval.volume_fetcher.volume_fetcher import (
+from ....dataops.volume_fetcher.volume_fetcher import (
     get_volume_fetcher,
     get_bbox_getter,
     FetchKwargs,

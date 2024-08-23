@@ -25,7 +25,7 @@ import numpy as np
 from pandas import DataFrame
 
 from ..concepts import AtlasElement
-from ..retrieval.volume_fetcher import (
+from ..dataops.volume_fetcher import (
     FetchKwargs,
     IMAGE_FORMATS,
     MESH_FORMATS,
@@ -46,7 +46,7 @@ from ..attributes.dataitems.volume.ops.assignment import (
 )
 
 if TYPE_CHECKING:
-    from ..retrieval.volume_fetcher import Mapping
+    from ..dataops.volume_fetcher import Mapping
 
 
 VALID_MAPTYPES = ("statistical", "labelled")

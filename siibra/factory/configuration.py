@@ -24,8 +24,8 @@ from .livequery import LiveQuery
 from ..atlases import Space, ParcellationScheme, Region, parcellationmap
 from ..attributes.descriptions import register_modalities, Modality, RegionSpec
 from ..concepts import Feature
-from ..retrieval.file_fetcher.base import Repository
-from ..retrieval.file_fetcher import (
+from ..dataops.file_fetcher.base import Repository
+from ..dataops.file_fetcher import (
     GithubRepository,
 )
 from ..commons.logger import logger

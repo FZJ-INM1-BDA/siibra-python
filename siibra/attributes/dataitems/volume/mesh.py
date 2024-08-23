@@ -19,7 +19,7 @@ from nibabel import GiftiImage
 
 from .base import Volume
 from ...locations import BoundingBox
-from ....retrieval.volume_fetcher.volume_fetcher import (
+from ....dataops.volume_fetcher.volume_fetcher import (
     get_volume_fetcher,
     get_bbox_getter,
     FetchKwargs,

@@ -37,7 +37,7 @@ from ...attributes import Attribute
 from ...attributes.descriptions import Name, ID, Url, SpeciesSpec
 from ...attributes.dataitems import Image
 from ...atlases import Space, ParcellationScheme, Map
-from ...retrieval.file_fetcher import GitHttpRepository, TarRepository
+from ...dataops.file_fetcher import GitHttpRepository, TarRepository
 
 
 def tiff_to_nii(tiff_bytes: bytes, affine: np.ndarray) -> str:

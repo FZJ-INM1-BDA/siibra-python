@@ -37,7 +37,7 @@ from nilearn import plotting
 # to create a custom parcellation map inside siibra.
 
 # connect to the online zip file
-conn = siibra.retrieval.ZipfileConnector(
+conn = siibra.dataops.ZipfileConnector(
     "http://www.gin.cnrs.fr/wp-content/uploads/aicha_v1.zip"
 )
 
@@ -50,7 +50,7 @@ volume = siibra.volumes.from_nifti(nifti, 'mni152', "AICHA")
 # The text file with label mappings has a custom format. We provide a tsv
 # decoder to extract the list of region/label pairs since the txt file is tab
 # seperated.
-volume_info = conn.get("AICHA/AICHA_vol1.txt", decode_func=siibra.retrieval.requests.DECODERS['.tsv'])
+volume_info = conn.get("AICHA/AICHA_vol1.txt", decode_func=siibra.dataops.requests.DECODERS['.tsv'])
 volume_info
 
 # %%

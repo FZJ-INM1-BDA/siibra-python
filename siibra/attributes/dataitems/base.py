@@ -26,7 +26,7 @@ except ImportError:
 
 from ...attributes import Attribute
 from ...cache import fn_call_cache
-from ...retrieval.file_fetcher import (
+from ...dataops.file_fetcher import (
     ZipRepository,
     TarRepository,
     LocalDirectoryRepository,
@@ -149,7 +149,6 @@ from typing import Dict, Type
 
 # TODO rename data operation
 # TODO neuroglancer is different to nifti
-# TODO rename retrieval/ -> dataops/
 # TODO add transformops to dataops/
 class DataOp:
     input: None

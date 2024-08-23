@@ -22,7 +22,7 @@ from nibabel import Nifti1Image
 from ..image import Image, from_nifti
 from ....locations import Point, BoundingBox, PointCloud
 from .....commons.maps import resample_img_to_img, compute_centroid
-from .....retrieval.volume_fetcher import FetchKwargs
+from .....dataops.volume_fetcher import FetchKwargs
 
 
 @dataclass

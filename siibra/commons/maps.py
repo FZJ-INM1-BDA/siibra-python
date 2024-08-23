@@ -25,7 +25,7 @@ try:
 except ImportError:
     from typing_extensions import Literal, TypedDict
 
-from ..retrieval.volume_fetcher.image.nifti import create_mask as create_mask_from_nifti
+from ..dataops.volume_fetcher.image.nifti import create_mask as create_mask_from_nifti
 
 if TYPE_CHECKING:
     from ..attributes.locations import Point
