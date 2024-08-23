@@ -15,8 +15,6 @@
 
 from typing import List, Union, Dict, TYPE_CHECKING
 import numpy as np
-from nilearn.image import resample_to_img, resample_img
-from tqdm import tqdm
 from nibabel.nifti1 import Nifti1Image
 from nibabel.gifti import GiftiImage, GiftiDataArray
 
@@ -25,37 +23,8 @@ try:
 except ImportError:
     from typing_extensions import Literal, TypedDict
 
-from ..dataops.volume_fetcher.image.nifti import create_mask as create_mask_from_nifti
-
-if TYPE_CHECKING:
-    from ..attributes.locations import Point
-
-
-def resample_img_to_img(
-    source_img: "Nifti1Image", target_img: "Nifti1Image", interpolation: str = ""
-) -> "Nifti1Image":
-    """
-    Resamples to source image to match the target image according to target's
-    affine. (A wrapper of `nilearn.image.resample_to_img`.)
-
-    Parameters
-    ----------
-    source_img : Nifti1Image
-    target_img : Nifti1Image
-    interpolation : str, Default: "nearest" if the source image is a mask otherwise "linear".
-        Can be 'continuous', 'linear', or 'nearest'. Indicates the resample method.
-
-    Returns
-    -------
-    Nifti1Image
-    """
-    interpolation = (
-        "nearest" if np.array_equal(np.unique(source_img.dataobj), [0, 1]) else "linear"
-    )
-    resampled_img = resample_to_img(
-        source_img=source_img, target_img=target_img, interpolation=interpolation
-    )
-    return resampled_img
+from ..dataops import DataOp
+from ..attributes.locations import Point
 
 
 def affine_scaling(affine):
@@ -154,49 +123,6 @@ def _merge_giftis(
         return arrs_to_gii({"verts": verts, "faces": faces})
 
 
-def _resample_and_merge_niftis(
-    niftis: List[Nifti1Image],
-    template_img: Nifti1Image = None,
-    labels: List[int] = [],
-) -> Nifti1Image:
-    # TODO: get header for affine and shape instead of the whole template
-    assert len(niftis) > 1, "Need to supply at least two volumes to merge."
-    if labels:
-        assert len(niftis) == len(labels), "Need to supply as many labels as niftis."
-
-    if template_img is None:
-        shapes = set(nii.shape for nii in niftis)
-        assert len(shapes) == 1
-        shape = next(iter(shapes))
-        merged_array = np.zeros(shape, dtype="int16")
-        affine = niftis[0].affine
-    else:
-        merged_array = np.zeros(template_img.shape, dtype="uint8")
-        affine = template_img.affine
-
-    for i, img in tqdm(
-        enumerate(niftis),
-        unit="nifti",
-        desc="Merging (and resmapling if necessary)",
-        total=len(niftis),
-        disable=len(niftis) < 3,
-    ):
-        if template_img is not None:
-            resampled_arr = np.asanyarray(
-                resample_img_to_img(img, template_img).dataobj
-            )
-        else:
-            resampled = resample_img(img, affine, shape)
-            resampled_arr = np.asanyarray(resampled.dataobj)
-        nonzero_voxels = resampled_arr > 0
-        if labels:
-            merged_array[nonzero_voxels] = labels[i]
-        else:
-            merged_array[nonzero_voxels] = resampled_arr[nonzero_voxels]
-
-    return Nifti1Image(dataobj=merged_array, affine=affine)
-
-
 class SpatialProp(TypedDict):
     centroid: "Point"
     volume: int
@@ -231,21 +157,25 @@ def spatial_props(
     for label in range(1, C.max() + 1):
         nonzero = np.c_[np.nonzero(C == label)]
         spatialprops[label] = {
-            "centroid": compute_centroid(
-                img=Nifti1Image(nonzero, img.affine),
-                background=background,
+            "centroid": ComputeCentroid.run(
+                input=Nifti1Image(nonzero, img.affine),
+                background_value=background,
             ),
             "volume": nonzero.shape[0] * scale,
         }
     return spatialprops
 
 
-def compute_centroid(img: Nifti1Image, background: float = 0.0):
-    from ..attributes.locations import Point
+class ComputeCentroid(DataOp):
+    input: Nifti1Image
+    output: Point
+    desc = "Transforms nifti to nifti"
 
-    maparr = np.asanyarray(img.dataobj)
-    centroid_vox = np.mean(np.where(maparr != background), axis=1)
-    return Point(coordinate=np.dot(img.affine, np.r_[centroid_vox, 1])[:3])
+    def run(self, input, *, cfg: dict, **kwargs):
+        background_value = cfg.get("background_value", 0)
+        maparr = np.asanyarray(input.dataobj)
+        centroid_vox = np.mean(np.where(maparr != background_value), axis=1)
+        return Point(coordinate=np.dot(input.affine, np.r_[centroid_vox, 1])[:3])
 
 
 def create_mask(

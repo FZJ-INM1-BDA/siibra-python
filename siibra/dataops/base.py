@@ -41,7 +41,7 @@ codec_gzip = {
 
 codec_slice = {"type": "codec/slice", "offset": 200, "bytes": 24}
 
-read_nib = {"type": "read/nibabel"}
+read_nib = {"type": "read/nifti"}
 
 read_csv = {"type": "read/csv"}
 
@@ -128,38 +128,3 @@ class DataOp:
             runner = cls.get_runner(step)
             descs.append(f"{idx} - {runner.desc.format(step)}")
         return "\n".join(descs)
-
-
-class ReadAsNifti(DataOp, type="read/nibabel"):
-    input: bytes
-    output: nib.nifti1.Nifti1Image
-    desc = "Reads bytes into nifti"
-
-    def run(self, input, *, cfg, **kwargs):
-        assert isinstance(input, bytes)
-        import nibabel as nib
-
-        return nib.nifti1.Nifti1Image.from_bytes(input)
-
-
-class NiftiCodec(DataOp):
-    input: nib.nifti1.Nifti1Image
-    output: nib.nifti1.Nifti1Image
-    desc = "Transforms nifti to nifti"
-
-
-class NiftiMask(NiftiCodec, type="codec/vol/mask"):
-    desc = "Mask nifti according according to spec {cfg}"
-
-    def run(self, input, *, cfg, **kwargs):
-        import nibabel as nib
-
-        threshold = cfg.get("threshold")
-        assert isinstance(input, nib.nifti1.Nifti1Image)
-        dataobj = input.dataobj
-        dataobj = dataobj[dataobj > threshold]
-        return nib.nifti1.Nifti1Image(dataobj, affine=input.affine, header=input.header)
-
-    @classmethod
-    def from_threshold(cls, threshold=0):
-        return {"type": "codec/vol/mask", "threshold": threshold}
