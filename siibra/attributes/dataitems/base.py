@@ -65,7 +65,6 @@ def get_bytesio_from_url(url: str, archive_options: Archive = None) -> bytes:
     return repo.get(filename)
 
 
-# TODO should be renamed DataProvider
 @dataclass
 class DataProvider(Attribute):
     schema: str = "siibra/attr/data"
