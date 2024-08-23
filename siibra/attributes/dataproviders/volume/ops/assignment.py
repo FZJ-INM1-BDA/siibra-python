@@ -19,7 +19,7 @@ from typing import Union, Tuple, Generator, List
 import numpy as np
 from nibabel import Nifti1Image
 
-from ..image import Image, from_nifti
+from ..image import ImageProvider, from_nifti
 from ....locations import Point, BoundingBox, PointCloud
 from .....commons.maps import resample_img_to_img, compute_centroid
 from .....dataops.volume_fetcher import FetchKwargs
@@ -221,8 +221,8 @@ def calculate_nifti_intersection_score(
 
 
 def get_image_intersection_score(
-    query_image: Image,
-    target_image: Image,
+    query_image: ImageProvider,
+    target_image: ImageProvider,
     split_components: bool = False,
     iou_lower_threshold: float = 0.0,
     target_masking_lower_threshold: float = 0.0,
@@ -265,7 +265,7 @@ def get_image_intersection_score(
 
 def get_bounding_intersection_score(
     bbox: BoundingBox,
-    image: Image,
+    image: ImageProvider,
     **fetch_kwargs: FetchKwargs,
 ):
     # quick check
@@ -279,7 +279,7 @@ def get_bounding_intersection_score(
 
 def get_pointcloud_intersection_score(
     points: PointCloud,
-    image: Image,
+    image: ImageProvider,
     voxel_sigma_threshold: int = 3,
     iou_lower_threshold: float = 0.0,
     target_masking_lower_threshold: float = 0.0,
@@ -352,8 +352,8 @@ def get_pointcloud_intersection_score(
 
 
 def get_intersection_scores(
-    queryitem: Union[Point, PointCloud, BoundingBox, Image],
-    target_image: Image,
+    queryitem: Union[Point, PointCloud, BoundingBox, ImageProvider],
+    target_image: ImageProvider,
     iou_lower_threshold: Union[int, float] = 0.0,
     target_masking_lower_threshold: float = 0.0,
     split_components: bool = False,
@@ -382,7 +382,7 @@ def get_intersection_scores(
             **fetch_kwargs,
         )
 
-    if isinstance(queryitem, Image):
+    if isinstance(queryitem, ImageProvider):
         return get_image_intersection_score(
             query_image=queryitem,
             target_image=target_image,

@@ -18,7 +18,7 @@ import math
 import numpy as np
 from nilearn import image
 
-from ..attributes.dataitems.volume.image import Image, from_nifti
+from ..attributes.dataproviders.volume.image import ImageProvider, from_nifti
 from ..attributes.locations import pointcloud, boundingbox
 
 
@@ -57,7 +57,7 @@ class Patch:
         """Flips the patch."""
         self.corners._coordinates = self.corners.coordinates[[2, 3, 0, 1]]
 
-    def extract_volume(self, image_volume: Image, resolution_mm: float):
+    def extract_volume(self, image_volume: ImageProvider, resolution_mm: float):
         """
         fetches image data in a planar patch.
         TODO The current implementation only covers patches which are strictly

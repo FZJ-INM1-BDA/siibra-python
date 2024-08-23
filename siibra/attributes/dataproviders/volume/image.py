@@ -24,7 +24,7 @@ from hashlib import md5
 from io import BytesIO
 import gzip
 
-from .base import Volume
+from .base import VolumeProvider
 from ...locations import point, pointcloud, BoundingBox
 from ...locations.ops.intersection import _loc_intersection
 from ....dataops.volume_fetcher.volume_fetcher import (
@@ -37,7 +37,7 @@ from ....dataops.volume_fetcher.volume_fetcher import (
 
 
 @dataclass
-class Image(Volume):
+class ImageProvider(VolumeProvider):
     schema: str = "siibra/attr/data/image/v0.1"
 
     def __post_init__(self):
@@ -189,7 +189,7 @@ class Image(Volume):
 
     def get_intersection_scores(
         self,
-        item: Union[point.Point, pointcloud.PointCloud, BoundingBox, "Image"],
+        item: Union[point.Point, pointcloud.PointCloud, BoundingBox, "ImageProvider"],
         iou_lower_threshold: Union[int, float] = 0.0,
         voxel_sigma_threshold: int = 3,
         statistical_map_lower_threshold: float = 0.0,
@@ -218,7 +218,7 @@ class Image(Volume):
         )
 
 
-def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "Image":
+def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "ImageProvider":
     """Builds an `Image` `Attribute` from a Nifti image or path to a nifti file."""
     from ....cache import CACHE
 
@@ -236,11 +236,11 @@ def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "
         raise RuntimeError(
             f"nifti must be either str or NIftiImage, but you provided {type(nifti)}"
         )
-    return Image(format="nii", url=filename, space_id=space_id, **kwargs)
+    return ImageProvider(format="nii", url=filename, space_id=space_id, **kwargs)
 
 
 def colorize(
-    image: Image, value_mapping: dict, **fetch_kwargs: FetchKwargs
+    image: ImageProvider, value_mapping: dict, **fetch_kwargs: FetchKwargs
 ) -> nib.Nifti1Image:
     # TODO: rethink naming
     """
@@ -273,21 +273,21 @@ def colorize(
     return result
 
 
-@_loc_intersection.register(point.Point, Image)
-def compare_pt_to_image(pt: point.Point, image: Image):
+@_loc_intersection.register(point.Point, ImageProvider)
+def compare_pt_to_image(pt: point.Point, image: ImageProvider):
     ptcloud = pointcloud.PointCloud(space_id=pt.space_id, coordinates=[pt.coordinate])
     intersection = compare_ptcloud_to_image(ptcloud=ptcloud, image=image)
     if intersection:
         return pt
 
 
-@_loc_intersection.register(pointcloud.PointCloud, Image)
-def compare_ptcloud_to_image(ptcloud: pointcloud.PointCloud, image: Image):
+@_loc_intersection.register(pointcloud.PointCloud, ImageProvider)
+def compare_ptcloud_to_image(ptcloud: pointcloud.PointCloud, image: ImageProvider):
     return intersect_ptcld_image(ptcloud=ptcloud, image=image)
 
 
 def intersect_ptcld_image(
-    ptcloud: pointcloud.PointCloud, image: Image
+    ptcloud: pointcloud.PointCloud, image: ImageProvider
 ) -> pointcloud.PointCloud:
     value_outside = 0
     values = image.lookup_points(ptcloud)
@@ -299,8 +299,8 @@ def intersect_ptcld_image(
     )
 
 
-@_loc_intersection.register(Image, Image)
-def intersect_image_to_image(image0: Image, image1: Image):
+@_loc_intersection.register(ImageProvider, ImageProvider)
+def intersect_image_to_image(image0: ImageProvider, image1: ImageProvider):
     nii0 = image0.fetch()
     nii1 = image1.fetch()
     if np.issubdtype(nii0.dataobj, np.floating) or np.issubdtype(

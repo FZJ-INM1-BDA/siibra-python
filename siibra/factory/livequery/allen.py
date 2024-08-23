@@ -28,9 +28,9 @@ from ...commons.logger import logger
 from ...concepts import Feature
 from ...attributes.descriptions import register_modalities, Modality, Gene
 from ...attributes.locations import PointCloud
-from ...attributes.dataitems import Tabular
-from ...attributes.dataitems.volume.image import intersect_ptcld_image
-from ...attributes.dataitems.tabular import X_DATA
+from ...attributes.dataproviders import TabularDataProvider
+from ...attributes.dataproviders.volume.image import intersect_ptcld_image
+from ...attributes.dataproviders.tabular import X_DATA
 from ...exceptions import ExternalApiException
 
 modality_of_interest = Modality(value="Gene Expressions")
@@ -147,7 +147,7 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
                 if tuple(measurement["mni_xyz"]) in inside_coord_set
             ]
         )
-        tabular_data_attr = Tabular(extra={X_DATA: dataframe})
+        tabular_data_attr = TabularDataProvider(extra={X_DATA: dataframe})
         attributes.append(tabular_data_attr)
 
         ptcld = PointCloud(space_id=MNI152_SPACE_ID, coordinates=list(inside_coord_set))

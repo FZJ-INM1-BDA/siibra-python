@@ -35,7 +35,7 @@ from ....cache import fn_call_cache
 from ....commons.logger import logger
 
 if TYPE_CHECKING:
-    from ....attributes.dataitems import Image
+    from ....attributes.dataproviders import ImageProvider
     from ....attributes.locations import BoundingBox
 
 
@@ -275,7 +275,7 @@ def select_scale(
 
 
 @register_volume_fetcher("neuroglancer/precomputed", "image")
-def fetch_neuroglancer(image: "Image", fetchkwargs: FetchKwargs) -> "nib.Nifti1Image":
+def fetch_neuroglancer(image: "ImageProvider", fetchkwargs: FetchKwargs) -> "nib.Nifti1Image":
     scales = get_scales(image.url)
     scale = select_scale(
         scales,
@@ -295,7 +295,7 @@ def fetch_neuroglancer(image: "Image", fetchkwargs: FetchKwargs) -> "nib.Nifti1I
 @register_bbox_getter("neuroglancer/precompmesh")
 @fn_call_cache
 def fetch_ng_bbox(
-    image: "Image", fetchkwargs: Union[FetchKwargs, None] = None
+    image: "ImageProvider", fetchkwargs: Union[FetchKwargs, None] = None
 ) -> "BoundingBox":
     from ....attributes.locations import BoundingBox
 

@@ -25,7 +25,7 @@ from ...cache import fn_call_cache, Warmup, WarmupLevel
 from ...commons.logger import logger
 from ...concepts import Feature
 from ...attributes.descriptions import Modality, register_modalities
-from ...attributes.dataitems.tabular import Tabular, X_DATA
+from ...attributes.dataproviders.tabular import TabularDataProvider, X_DATA
 from ...attributes.locations.layerboundary import (
     LayerBoundary,
     X_PRECALCULATED_BOUNDARY_KEY,
@@ -116,7 +116,7 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                     columns=["mean", "std"],
                     index=LAYERS[1:-1],
                 )
-                attr = Tabular(
+                attr = TabularDataProvider(
                     extra={X_DATA: dataframe, X_BIGBRAIN_LAYERWISE_INTENSITY: True}
                 )
                 attributes.append(attr)
@@ -125,7 +125,7 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                     _profile = profile[index]
                     depth = np.arange(0.0, 1.0, 1.0 / (profile[index].shape[0]))
 
-                    tabular_attr = Tabular(
+                    tabular_attr = TabularDataProvider(
                         extra={
                             X_DATA: pd.DataFrame(_profile, index=depth),
                             X_BIGBRAIN_PROFILE_VERTEX_IDX: index,

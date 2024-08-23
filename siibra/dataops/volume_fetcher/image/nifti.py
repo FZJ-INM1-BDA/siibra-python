@@ -22,7 +22,7 @@ import numpy as np
 from ..volume_fetcher import register_volume_fetcher, FetchKwargs
 
 if TYPE_CHECKING:
-    from ....attributes.dataitems import Image
+    from ....attributes.dataproviders import ImageProvider
     from ....attributes.locations import BoundingBox
 
 
@@ -83,7 +83,7 @@ def resample(nifti: Nifti1Image, resolution_mm: float = None, affine=None):
 
 
 @register_volume_fetcher("nii", "image")
-def fetch_nifti(image: "Image", fetchkwargs: FetchKwargs) -> "Nifti1Image":
+def fetch_nifti(image: "ImageProvider", fetchkwargs: FetchKwargs) -> "Nifti1Image":
     if fetchkwargs["color_channel"] is not None:
         raise NotImplementedError
 

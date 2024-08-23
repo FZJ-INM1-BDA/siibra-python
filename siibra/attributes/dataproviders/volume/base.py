@@ -28,7 +28,7 @@ FORMAT_LOOKUP = {
 
 
 @dataclass
-class Volume(DataProvider):
+class VolumeProvider(DataProvider):
     schema: str = "siibra/attr/data/volume"
     space_id: str = None
     format: str = None

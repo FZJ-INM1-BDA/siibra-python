@@ -27,7 +27,7 @@ SIIBRA_MAX_FETCH_SIZE_GIB = getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2)
 
 if TYPE_CHECKING:
     from ...attributes.locations import BoundingBox
-    from ...attributes.dataitems import Image, Mesh
+    from ...attributes.dataproviders import ImageProvider, MeshProvider
     from nibabel import Nifti1Image, GiftiImage
 
 
@@ -62,9 +62,9 @@ class FetchKwargs(TypedDict):
 FRAGMENT_KEY = "x-siibra/volume-fragment"
 
 FETCHER_REGISTRY: Dict[
-    str, Callable[["Image", FetchKwargs], Union["Nifti1Image", "GiftiImage"]]
+    str, Callable[["ImageProvider", FetchKwargs], Union["Nifti1Image", "GiftiImage"]]
 ] = {}
-BBOX_GETTER_REGISTRY: Dict[str, Callable[["Image", FetchKwargs], "BoundingBox"]] = {}
+BBOX_GETTER_REGISTRY: Dict[str, Callable[["ImageProvider", FetchKwargs], "BoundingBox"]] = {}
 IMAGE_FORMATS = []
 MESH_FORMATS = []
 
@@ -72,11 +72,11 @@ MESH_FORMATS = []
 def register_volume_fetcher(format: str, volume_type: Literal["image", "mesh"]):
     def outer(
         fn: Callable[
-            [Union["Image", "Mesh"], FetchKwargs], Union["Nifti1Image", "GiftiImage"]
+            [Union["ImageProvider", "MeshProvider"], FetchKwargs], Union["Nifti1Image", "GiftiImage"]
         ]
     ):
         @wraps(fn)
-        def inner(volume: Union["Image", "Mesh"], fetchkwargs: FetchKwargs):
+        def inner(volume: Union["ImageProvider", "MeshProvider"], fetchkwargs: FetchKwargs):
             assert (
                 volume.format == format
             ), f"Expected {format}, but got {volume.format}"
@@ -101,7 +101,7 @@ def get_volume_fetcher(format: str):
 
 
 def register_bbox_getter(format: str):
-    def outer(fn: Callable[["Image", Union[FetchKwargs, None]], "BoundingBox"]):
+    def outer(fn: Callable[["ImageProvider", Union[FetchKwargs, None]], "BoundingBox"]):
         assert (
             format not in BBOX_GETTER_REGISTRY
         ), f"format={format!r} already registered bbox getter"

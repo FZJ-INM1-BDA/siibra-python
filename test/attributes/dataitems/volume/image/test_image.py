@@ -1,4 +1,4 @@
-from siibra.attributes.dataitems.volume.image import intersect_ptcld_image, Image
+from siibra.attributes.dataproviders.volume.image import intersect_ptcld_image, ImageProvider
 from siibra.attributes.locations import PointCloud
 import numpy as np
 import nibabel as nib
@@ -8,8 +8,8 @@ import pytest
 
 @pytest.fixture
 def mocked_image_foo():
-    with patch.object(Image, "fetch") as fetch_mock:
-        image = Image(format="neuroglancer/precomputed", space_id="foo")
+    with patch.object(ImageProvider, "fetch") as fetch_mock:
+        image = ImageProvider(format="neuroglancer/precomputed", space_id="foo")
         yield image, fetch_mock
 
 def test_insersect_ptcld_img(mocked_image_foo):

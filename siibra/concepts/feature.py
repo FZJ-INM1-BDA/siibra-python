@@ -53,11 +53,11 @@ class Feature(AttributeCollection):
 
     @property
     def data(self):
-        from ..attributes.dataitems import Tabular
+        from ..attributes.dataproviders import TabularDataProvider
 
         matrix_entity_key = self.filter(attr_of_general_interest)
 
-        dfs: List[pd.DataFrame] = [d.get_data() for d in self._find(Tabular)]
+        dfs: List[pd.DataFrame] = [d.get_data() for d in self._find(TabularDataProvider)]
         if len(matrix_entity_key.attributes) > 0:
             mapping_idx = {
                 attr.extra[MATRIX_INDEX_ENTITY_KEY]: attr
@@ -73,6 +73,6 @@ class Feature(AttributeCollection):
         return dfs
 
     def plot(self, *args, **kwargs):
-        from ..attributes.dataitems import Tabular
+        from ..attributes.dataproviders import TabularDataProvider
 
-        return [d.plot(*args, **kwargs) for d in self._find(Tabular)]
+        return [d.plot(*args, **kwargs) for d in self._find(TabularDataProvider)]

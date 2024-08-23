@@ -13,6 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .volume import Image, Mesh, FORMAT_LOOKUP
-from .tabular import Tabular
+from .volume import ImageProvider, MeshProvider, FORMAT_LOOKUP
+from .tabular import TabularDataProvider
 from .base import Archive

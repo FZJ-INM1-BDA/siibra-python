@@ -13,6 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .image import Image
-from .mesh import Mesh
+from .image import ImageProvider
+from .mesh import MeshProvider
 from .base import FORMAT_LOOKUP

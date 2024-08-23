@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 from nibabel import GiftiImage
 
-from .base import Volume
+from .base import VolumeProvider
 from ...locations import BoundingBox
 from ....dataops.volume_fetcher.volume_fetcher import (
     get_volume_fetcher,
@@ -33,7 +33,7 @@ def extract_label_mask(gii: GiftiImage, label: int):
 
 
 @dataclass
-class Mesh(Volume):
+class MeshProvider(VolumeProvider):
     schema: str = "siibra/attr/data/mesh/v0.1"
 
     def __post_init__(self):

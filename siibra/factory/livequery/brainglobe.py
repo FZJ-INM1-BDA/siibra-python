@@ -35,7 +35,7 @@ from ...commons.logger import logger
 from ...commons.string import to_hex
 from ...attributes import Attribute
 from ...attributes.descriptions import Name, ID, Url, SpeciesSpec
-from ...attributes.dataitems import Image
+from ...attributes.dataproviders import ImageProvider
 from ...atlases import Space, ParcellationScheme, Map
 from ...dataops.file_fetcher import GitHttpRepository, TarRepository
 
@@ -166,7 +166,7 @@ class SpaceLiveQuery(LiveQuery[Space], generates=Space):
                 Name(value=metadata["name"] + " bg space"),
                 Url(value=metadata["atlas_link"]),
                 speciesspec,
-                Image(format="nii", url=ref_img_filename, space_id=space_id),
+                ImageProvider(format="nii", url=ref_img_filename, space_id=space_id),
             ]
         )
 
@@ -304,7 +304,7 @@ class MapLiveQuery(LiveQuery[Map], generates=Map):
             }
             for structure in structures
         }
-        labelled_map_image = Image(
+        labelled_map_image = ImageProvider(
             format="nii",
             url=annot_img_filename,
             space_id=space_id,

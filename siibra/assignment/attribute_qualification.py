@@ -22,7 +22,7 @@ from ..commons.binary_op import BinaryOp
 from ..commons.string import fuzzy_match, clear_name
 from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 from ..attributes import Attribute
-from ..attributes.dataitems import Image
+from ..attributes.dataproviders import ImageProvider
 from ..attributes.descriptions import Modality, RegionSpec, Name, ID, Facet
 from ..attributes.locations import Point, PointCloud, BoundingBox, intersect
 from ..cache import fn_call_cache
@@ -244,8 +244,8 @@ def qualify_bbox_bbox(bboxa: BoundingBox, bboxb: BoundingBox):
     return Qualification.OVERLAPS
 
 
-@register_attr_qualifier(PointCloud, Image)
-def qualify_ptcld_image(ptcld: PointCloud, image: Image):
+@register_attr_qualifier(PointCloud, ImageProvider)
+def qualify_ptcld_image(ptcld: PointCloud, image: ImageProvider):
     intersected = intersect(ptcld, image)
     if isinstance(intersected, PointCloud):
         if len(intersected.coordinates) == len(ptcld.coordinates):
@@ -255,8 +255,8 @@ def qualify_ptcld_image(ptcld: PointCloud, image: Image):
         return Qualification.OVERLAPS
 
 
-@register_attr_qualifier(RegionSpec, Image)
-def qualify_regionspec_image(regionspec: RegionSpec, image: Image):
+@register_attr_qualifier(RegionSpec, ImageProvider)
+def qualify_regionspec_image(regionspec: RegionSpec, image: ImageProvider):
     logger.debug(
         "RegionSpec and Image comparison is disabled on purpose. This comparison turns out to be "
         "quite expensive even when caching the intermediate steps. Developers should implement their"

@@ -36,10 +36,10 @@ from ..commons.maps import merge_volumes, compute_centroid, create_mask
 from ..commons.string import convert_hexcolor_to_rgbtuple
 from ..commons.logger import logger, siibra_tqdm, QUIET
 from ..atlases import ParcellationScheme, Space, Region
-from ..attributes.dataitems import Image, Mesh, FORMAT_LOOKUP
+from ..attributes.dataproviders import ImageProvider, MeshProvider, FORMAT_LOOKUP
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
 from ..attributes.locations import BoundingBox, Point, PointCloud
-from ..attributes.dataitems.volume.ops.assignment import (
+from ..attributes.dataproviders.volume.ops.assignment import (
     ImageAssignment,
     ScoredImageAssignment,
     get_intersection_scores,
@@ -128,8 +128,8 @@ class Map(AtlasElement):
         }
 
     @property
-    def volumes(self) -> List[Union["Image", "Mesh"]]:
-        return [attr for attr in self.attributes if isinstance(attr, (Image, Mesh))]
+    def volumes(self) -> List[Union["ImageProvider", "MeshProvider"]]:
+        return [attr for attr in self.attributes if isinstance(attr, (ImageProvider, MeshProvider))]
 
     @property
     def formats(self) -> Set[str]:
@@ -180,8 +180,8 @@ class Map(AtlasElement):
 
     def find_volumes(
         self, region: Union[str, Region, None] = None, frmt: str = None
-    ) -> List[Union["Image", "Mesh"]]:
-        def filter_format(vol: Union["Image", "Mesh"]):
+    ) -> List[Union["ImageProvider", "MeshProvider"]]:
+        def filter_format(vol: Union["ImageProvider", "MeshProvider"]):
             if frmt is None:
                 return True
             if frmt in ["image", "mesh"]:
@@ -389,7 +389,7 @@ class Map(AtlasElement):
 
     def assign(
         self,
-        queryitem: Union[Point, PointCloud, Image],
+        queryitem: Union[Point, PointCloud, ImageProvider],
         split_components: bool = True,
         voxel_sigma_threshold: int = 3,
         iou_lower_threshold=0.0,

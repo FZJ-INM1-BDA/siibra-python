@@ -216,7 +216,7 @@ class AttributeCollection:
         """
         from .descriptions.base import Description
         from .locations.base import Location
-        from .dataitems.base import DataProvider
+        from .dataproviders.base import DataProvider
         from .._version import __version__
 
         with ZipFile(filelike, "w") as fp:

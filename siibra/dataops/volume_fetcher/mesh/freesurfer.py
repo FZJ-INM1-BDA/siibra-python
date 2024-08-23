@@ -24,7 +24,7 @@ from ....cache import CACHE
 from ....commons.maps import arrs_to_gii
 
 if TYPE_CHECKING:
-    from ....attributes.dataitems import Mesh
+    from ....attributes.dataproviders import MeshProvider
 
 
 def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
@@ -55,7 +55,7 @@ def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
 
 
 @register_volume_fetcher("freesurfer-annot", "mesh")
-def fetch_freesurfer_annot(mesh: "Mesh", fetchkwargs: FetchKwargs) -> gifti.GiftiImage:
+def fetch_freesurfer_annot(mesh: "MeshProvider", fetchkwargs: FetchKwargs) -> gifti.GiftiImage:
     if fetchkwargs["bbox"] is not None:
         raise NotImplementedError
     if fetchkwargs["resolution_mm"] is not None:

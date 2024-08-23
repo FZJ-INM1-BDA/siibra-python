@@ -22,10 +22,10 @@ from ..dataops.volume_fetcher import (
 )
 from ..commons.iterable import assert_ooo
 from ..commons.maps import merge_volumes
-from ..attributes.dataitems import FORMAT_LOOKUP
+from ..attributes.dataproviders import FORMAT_LOOKUP
 
 if TYPE_CHECKING:
-    from ..attributes.dataitems import Image, Mesh
+    from ..attributes.dataproviders import ImageProvider, MeshProvider
 
 
 class Space(AtlasElement):
@@ -48,9 +48,9 @@ class Space(AtlasElement):
 
     @property
     def volumes(self):
-        from ..attributes.dataitems import Image, Mesh
+        from ..attributes.dataproviders import ImageProvider, MeshProvider
 
-        return [attr for attr in self.attributes if isinstance(attr, (Mesh, Image))]
+        return [attr for attr in self.attributes if isinstance(attr, (MeshProvider, ImageProvider))]
 
     @property
     def provides_mesh(self):
@@ -62,7 +62,7 @@ class Space(AtlasElement):
 
     def find_templates(
         self, variant: str = None, frmt: str = None
-    ) -> List[Union["Image", "Mesh"]]:
+    ) -> List[Union["ImageProvider", "MeshProvider"]]:
         if frmt is None or frmt not in self.formats:
             frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
         else:
@@ -78,7 +78,7 @@ class Space(AtlasElement):
             else:
                 raise ValueError("This space has no variants.")
 
-        def filter_templates(vol: Union["Image", "Mesh"]):
+        def filter_templates(vol: Union["ImageProvider", "MeshProvider"]):
             if vol.mapping is None:
                 return vol.format == frmt
             return vol.format == frmt and (
