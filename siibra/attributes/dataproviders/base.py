@@ -14,9 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
-from pathlib import Path
-import requests
-from typing import List
+from typing import List, Dict
 
 try:
     from typing import TypedDict
@@ -28,9 +26,6 @@ from ...attributes import Attribute
 from ...cache import fn_call_cache
 from ...dataops.base import DataOp
 from ...dataops.file_fetcher import (
-    ZipRepository,
-    TarRepository,
-    LocalDirectoryRepository,
     TarDataOp,
     ZipDataOp,
     RemoteLocalDataOp,
@@ -42,6 +37,16 @@ class Archive(TypedDict):
     format: str = None
 
 
+@fn_call_cache
+def get_result(steps: List[Dict], **kwargs):
+    result = None
+    for step in steps:
+        Runner = DataOp.get_runner(step)
+        runner = Runner()
+        result = runner.run(result, **kwargs)
+    return result
+
+
 @dataclass
 class DataProvider(Attribute):
     schema: str = "siibra/attr/data"
@@ -51,7 +56,7 @@ class DataProvider(Attribute):
     url: str = None
     archive_options: Archive = None
 
-    transformation_ops: List = field(default_factory=list)
+    transformation_ops: List[Dict] = field(default_factory=list)
 
     @property
     def retrieval_ops(self):
@@ -65,14 +70,11 @@ class DataProvider(Attribute):
             return [ZipDataOp.from_url(self.url, self.archive_options["file"])]
         raise NotImplementedError
 
-    # TODO cache this step
     def get_data(self, **kwargs):
-        result = None
-        for step in [
-            *self.retrieval_ops,
-            *self.transformation_ops,
-        ]:
-            Runner = DataOp.get_runner(step)
-            runner = Runner()
-            result = runner.run(result, **kwargs)
-        return result
+        return get_result(
+            [
+                *self.retrieval_ops,
+                *self.transformation_ops,
+            ],
+            **kwargs
+        )
