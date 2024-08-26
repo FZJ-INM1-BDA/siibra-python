@@ -19,9 +19,12 @@ from typing import Iterator
 import requests
 from io import BytesIO
 from nibabel import GiftiImage
+from dataclasses import asdict
+import json
+from hashlib import md5
 
 from .base import LiveQuery
-from ...cache import fn_call_cache, Warmup, WarmupLevel
+from ...cache import fn_call_cache, Warmup, WarmupLevel, CACHE
 from ...commons.logger import logger
 from ...concepts import Feature
 from ...attributes.descriptions import Modality, register_modalities
@@ -78,6 +81,9 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                     space_id=matched.space_id, coordinates=[matched.coordinate]
                 )
             if isinstance(matched, PointCloud):
+
+                attributes.append(matched)
+
                 matched_coord = np.array(matched.coordinates)
                 matched_coord = matched_coord.view(dtype)
                 coordidx_in_matched = np.in1d(root_coords, matched_coord)
@@ -116,8 +122,17 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                     columns=["mean", "std"],
                     index=LAYERS[1:-1],
                 )
+
+                hashed_io = md5(
+                    (json.dumps(asdict(attr)) + json.dumps(asdict(matched))).encode(
+                        "utf-8"
+                    )
+                ).hexdigest()
+
+                filename = CACHE.build_filename(hashed_io, suffix=".csv")
+                dataframe.to_csv(filename)
                 attr = TabularDataProvider(
-                    extra={X_DATA: dataframe, X_BIGBRAIN_LAYERWISE_INTENSITY: True}
+                    url=filename, extra={X_BIGBRAIN_LAYERWISE_INTENSITY: True}
                 )
                 attributes.append(attr)
 
@@ -125,12 +140,20 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                     _profile = profile[index]
                     depth = np.arange(0.0, 1.0, 1.0 / (profile[index].shape[0]))
 
+                    df = pd.DataFrame(_profile, index=depth)
+                    filename = f"{hashed_io}-pr-{index}"
+                    filename = CACHE.build_filename(hashed_io, suffix=".csv")
+                    df.to_csv(filename)
+
                     tabular_attr = TabularDataProvider(
+                        url=filename,
                         extra={
-                            X_DATA: pd.DataFrame(_profile, index=depth),
                             X_BIGBRAIN_PROFILE_VERTEX_IDX: index,
-                        }
+                        },
                     )
+
+                    # TODO fix to port/leverage the ops mechanism, rather than
+                    # this adhoc mess
                     layer_boundary = LayerBoundary(
                         extra={
                             X_PRECALCULATED_BOUNDARY_KEY: [

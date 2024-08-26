@@ -25,8 +25,6 @@ except ImportError:
 
 from .base import DataProvider
 
-X_DATA = "x-siibra/data/dataframe"
-
 
 @dataclass
 class TabularDataProvider(DataProvider):
@@ -36,12 +34,10 @@ class TabularDataProvider(DataProvider):
     parse_options: dict = field(default_factory=dict)
 
     def get_data(self) -> pd.DataFrame:
-        if X_DATA in self.extra:
-            return self.extra[X_DATA]
         _bytes = super().get_data()
         if _bytes:
-            return pd.read_csv(BytesIO(_bytes), **self.parse_options)
-        return pd.read_csv(self.url, **self.parse_options)
+            raise NotImplementedError(f"Malformed tabular data. {self.url}")
+        return pd.read_csv(BytesIO(_bytes), **self.parse_options)
 
     def plot(self, *args, **kwargs):
         if "matrix" in self.plot_options:

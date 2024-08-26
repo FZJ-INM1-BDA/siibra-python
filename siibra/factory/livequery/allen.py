@@ -20,10 +20,12 @@ import numpy as np
 from time import sleep
 from xml.etree import ElementTree
 import requests
+import json
+from hashlib import md5
 
 from .base import LiveQuery
 from ...atlases import Region
-from ...cache import fn_call_cache
+from ...cache import fn_call_cache, CACHE
 from ...commons.logger import logger
 from ...concepts import Feature
 from ...attributes.descriptions import register_modalities, Modality, Gene
@@ -140,14 +142,18 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
         intersection = intersect_ptcld_image(ptcloud=ptcld, image=image)
         inside_coord_set = set(tuple(coord) for coord in intersection.coordinates)
 
-        dataframe = pd.DataFrame.from_dict(
-            [
-                measurement
-                for measurement in retrieved_measurements
-                if tuple(measurement["mni_xyz"]) in inside_coord_set
-            ]
-        )
-        tabular_data_attr = TabularDataProvider(extra={X_DATA: dataframe})
+        data_dict = [
+            measurement
+            for measurement in retrieved_measurements
+            if tuple(measurement["mni_xyz"]) in inside_coord_set
+        ]
+        dataframe = pd.DataFrame.from_dict(data_dict)
+
+        output_hash = md5(json.dumps(data_dict)).hexdigest()
+
+        filename = CACHE.build_filename(output_hash, suffix=".csv")
+        dataframe.to_csv(filename)
+        tabular_data_attr = TabularDataProvider(url=filename)
         attributes.append(tabular_data_attr)
 
         ptcld = PointCloud(space_id=MNI152_SPACE_ID, coordinates=list(inside_coord_set))
