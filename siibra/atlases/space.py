@@ -15,14 +15,14 @@
 
 from typing import TYPE_CHECKING, Set, Union, List
 from ..concepts import AtlasElement
-from ..dataops.volume_fetcher import (
-    FetchKwargs,
+from ..attributes.dataproviders.volume import (
+    VolumeOpsKwargs,
     IMAGE_FORMATS,
     MESH_FORMATS,
+    FORMAT_LOOKUP,
 )
 from ..commons.iterable import assert_ooo
 from ..commons.maps import merge_volumes
-from ..attributes.dataproviders import FORMAT_LOOKUP
 
 if TYPE_CHECKING:
     from ..attributes.dataproviders import ImageProvider, MeshProvider
@@ -33,24 +33,21 @@ class Space(AtlasElement):
 
     @property
     def formats(self) -> Set[str]:
-        return {vol.format for vol in self.volumes}
+        return {vol.format for vol in self.volume_providers}
 
     @property
     def variants(self) -> List[str]:
-        return list(
-            dict.fromkeys(
-                key
-                for vol in self.volumes
-                if vol.mapping is not None
-                for key in vol.mapping.keys()
-            )
-        )
+        return list(self._attribute_mapping.keys())
 
     @property
-    def volumes(self):
+    def volume_providers(self):
         from ..attributes.dataproviders import ImageProvider, MeshProvider
 
-        return [attr for attr in self.attributes if isinstance(attr, (MeshProvider, ImageProvider))]
+        return [
+            attr
+            for attr in self.attributes
+            if isinstance(attr, (MeshProvider, ImageProvider))
+        ]
 
     @property
     def provides_mesh(self):
@@ -85,13 +82,13 @@ class Space(AtlasElement):
                 (variant is None) or (variant in vol.mapping.keys())
             )
 
-        return list(filter(filter_templates, self.volumes))
+        return list(filter(filter_templates, self.volume_providers))
 
     def fetch_template(
         self,
         variant: str = None,
         frmt: str = None,
-        **fetch_kwargs: FetchKwargs,
+        **fetch_kwargs: VolumeOpsKwargs,
     ):
         if len(self.variants) > 1 and variant is None:
             _variant = self.variants[0]

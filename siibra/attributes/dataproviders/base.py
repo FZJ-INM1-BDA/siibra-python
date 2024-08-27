@@ -50,31 +50,34 @@ def get_result(steps: List[Dict], **kwargs):
 @dataclass
 class DataProvider(Attribute):
     schema: str = "siibra/attr/data"
-    key: str = None
-
-    # url can be from remote (http) or localfile
-    url: str = None
+    key: str = None  # TODO: remove
+    url: str = None  # url can be from remote (http) or localfile
+    format: str = None
     archive_options: Archive = None
-
     transformation_ops: List[Dict] = field(default_factory=list)
+    retrieval_ops: List[Dict] = field(default_factory=list)
 
-    @property
-    def retrieval_ops(self):
-        assert self.url, "url must be defined"
+    def __post_init__(self):
+        if len(self.retrieval_ops) == 0:
+            assert self.url, "url must be defined"
+            if self.archive_options is None:
+                self.retrieval_ops.append(RemoteLocalDataOp.from_url(self.url))
+            else:
+                if "neuroglancer" in self.format:
+                    return
+                if self.archive_options["format"] == "tar":
+                    self.retrieval_ops.append(
+                        TarDataOp.from_url(self.url, self.archive_options["file"])
+                    )
+                if self.archive_options["format"] == "zip":
+                    self.retrieval_ops.append(
+                        ZipDataOp.from_url(self.url, self.archive_options["file"])
+                    )
 
-        if not self.archive_options:
-            return [RemoteLocalDataOp.from_url(self.url)]
-        if self.archive_options["format"] == "tar":
-            return [TarDataOp.from_url(self.url, self.archive_options["file"])]
-        if self.archive_options["format"] == "zip":
-            return [ZipDataOp.from_url(self.url, self.archive_options["file"])]
-        raise NotImplementedError
-
-    def get_data(self, **kwargs):
+    def get_data(self):
         return get_result(
             [
                 *self.retrieval_ops,
                 *self.transformation_ops,
-            ],
-            **kwargs
+            ]
         )

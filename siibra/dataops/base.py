@@ -15,8 +15,6 @@
 
 from typing import List, Dict, Type
 
-import nibabel as nib
-
 src_remote_tar = {
     "type": "src/remotetar",
     "tar": "http://foo/bar.tar",
@@ -97,8 +95,6 @@ potentially, we can do things like forking/merging etc (need to be a bit careful
 """
 
 
-# TODO neuroglancer is different to nifti
-# TODO add transformops to dataops/
 class DataOp:
     input: None
     output: None
@@ -106,7 +102,7 @@ class DataOp:
 
     step_register: Dict[str, Type["DataOp"]] = {}
 
-    def run(self, input, *, cfg, **kwargs):
+    def run(self, input, **kwargs):
         return input
 
     def __init_subclass__(cls, type: str = None) -> None:
@@ -117,9 +113,9 @@ class DataOp:
 
     @classmethod
     def get_runner(cls, step: Dict):
-        type = step.get("type")
-        assert type in cls.step_register, f"{type} not found in step register"
-        return cls.step_register[type]
+        _type = step.get("type")
+        assert _type in cls.step_register, f"{_type} not found in step register"
+        return cls.step_register[_type]
 
     @classmethod
     def describe(cls, steps: List[Dict]):

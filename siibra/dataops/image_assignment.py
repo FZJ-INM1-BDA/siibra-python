@@ -19,11 +19,8 @@ from typing import Union, Tuple, Generator, List
 import numpy as np
 from nibabel import Nifti1Image
 
-from ..image import ImageProvider, from_nifti
-from ....locations import Point, BoundingBox, PointCloud
-from .....commons.maps import resample_img_to_img, compute_centroid
-from .....dataops.volume_fetcher import FetchKwargs
-
+from ..attributes.locations import Point, BoundingBox, PointCloud
+from ..attributes.dataproviders.volume import image as _image, VolumeOpsKwargs
 
 @dataclass
 class ImageAssignment:
@@ -221,12 +218,12 @@ def calculate_nifti_intersection_score(
 
 
 def get_image_intersection_score(
-    query_image: ImageProvider,
-    target_image: ImageProvider,
+    query_image: _image.ImageProvider,
+    target_image: _image.ImageProvider,
     split_components: bool = False,
     iou_lower_threshold: float = 0.0,
     target_masking_lower_threshold: float = 0.0,
-    **fetch_kwargs: FetchKwargs,
+    **fetch_kwargs: VolumeOpsKwargs,
 ) -> List[ScoredImageAssignment]:
     # TODO: well-define thresholds and ensure where to use a mask or not
     assert query_image.space == target_image.space, ValueError(
@@ -265,8 +262,8 @@ def get_image_intersection_score(
 
 def get_bounding_intersection_score(
     bbox: BoundingBox,
-    image: ImageProvider,
-    **fetch_kwargs: FetchKwargs,
+    image: _image.ImageProvider,
+    **fetch_kwargs: VolumeOpsKwargs,
 ):
     # quick check
     if image.boundingbox.intersect(bbox) is None:
@@ -279,11 +276,11 @@ def get_bounding_intersection_score(
 
 def get_pointcloud_intersection_score(
     points: PointCloud,
-    image: ImageProvider,
+    image: _image.ImageProvider,
     voxel_sigma_threshold: int = 3,
     iou_lower_threshold: float = 0.0,
     target_masking_lower_threshold: float = 0.0,
-    **fetch_kwargs: FetchKwargs,
+    **fetch_kwargs: VolumeOpsKwargs,
 ):
     assignments: List[Union[ImageAssignment, ScoredImageAssignment]] = []
 
@@ -334,7 +331,7 @@ def get_pointcloud_intersection_score(
                 image.get_affine(**fetch_kwargs), voxel_sigma_threshold
             )
             kernel_assignments = get_image_intersection_score(
-                query_image=from_nifti(gaussian_kernel, image.space_id),
+                query_image=_image.from_nifti(gaussian_kernel, image.space_id),
                 target_image=image,
                 split_components=False,
                 iou_lower_threshold=iou_lower_threshold,
@@ -352,12 +349,12 @@ def get_pointcloud_intersection_score(
 
 
 def get_intersection_scores(
-    queryitem: Union[Point, PointCloud, BoundingBox, ImageProvider],
-    target_image: ImageProvider,
+    queryitem: Union[Point, PointCloud, BoundingBox, _image.ImageProvider],
+    target_image: _image.ImageProvider,
     iou_lower_threshold: Union[int, float] = 0.0,
     target_masking_lower_threshold: float = 0.0,
     split_components: bool = False,
-    **fetch_kwargs: FetchKwargs,
+    **fetch_kwargs: VolumeOpsKwargs,
 ) -> List[Union[ImageAssignment, ScoredImageAssignment]]:
     if isinstance(queryitem, (Point, PointCloud)):
         pointcld = (
@@ -382,7 +379,7 @@ def get_intersection_scores(
             **fetch_kwargs,
         )
 
-    if isinstance(queryitem, ImageProvider):
+    if isinstance(queryitem, _image.ImageProvider):
         return get_image_intersection_score(
             query_image=queryitem,
             target_image=target_image,

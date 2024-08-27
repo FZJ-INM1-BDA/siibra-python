@@ -16,15 +16,15 @@
 from typing import TYPE_CHECKING, Tuple, List, Union
 import gzip
 
-from tqdm import tqdm
 from nibabel import Nifti1Image
 import numpy as np
 from nilearn.image import resample_to_img, resample_img
 
-from ....dataops import DataOp
+from ...dataops import DataOp
+from ...commons.logger import siibra_tqdm
 
 if TYPE_CHECKING:
-    from ....attributes.locations import BoundingBox
+    from ...attributes.locations import BoundingBox
 
 
 class NiftiCodec(DataOp):
@@ -33,12 +33,12 @@ class NiftiCodec(DataOp):
     desc = "Transforms nifti to nifti"
 
 
-class ReadAsNifti(DataOp, type="read/nifti"):
+class ReadNiftiFromBytes(DataOp, type="read/nifti"):
     input: bytes
     output: Nifti1Image
     desc = "Reads bytes into nifti"
 
-    def run(self, input, *, cfg: dict, **kwargs):
+    def run(self, input, **kwargs):
         assert isinstance(input, bytes)
         try:
             return Nifti1Image.from_bytes(gzip.decompress(input))
@@ -47,11 +47,11 @@ class ReadAsNifti(DataOp, type="read/nifti"):
 
 
 class NiftiMask(NiftiCodec, type="codec/vol/mask"):
-    desc = "Mask nifti according to spec {cfg}"
+    desc = "Mask nifti according to spec {kwargs."
 
-    def run(self, input, *, cfg: dict, **kwargs):
-        lower_threshold = cfg.get("lower_threshold", 0.0)
-        background_value = cfg.get("background_value", 0)
+    def run(self, input, **kwargs):
+        lower_threshold = kwargs.get("lower_threshold", 0.0)
+        background_value = kwargs.get("background_value", 0)
         assert isinstance(input, Nifti1Image)
         arr = np.asanyarray(input.dataobj)
         if lower_threshold is not None:
@@ -77,10 +77,10 @@ class NiftiMask(NiftiCodec, type="codec/vol/mask"):
 
 
 class NiftiExtractLabels(NiftiCodec, type="codec/vol/extractlabels"):
-    desc = "Extract a nifti with only selected labels according to {cfg}"
+    desc = "Extract a nifti with only selected labels according to {kwargs."
 
-    def run(self, input, *, cfg: dict, **kwargs):
-        labels = cfg.get("labels")
+    def run(self, input, **kwargs):
+        labels = kwargs.get("labels")
         assert isinstance(input, Nifti1Image)
         arr = np.asanyarray(input.dataobj)
         mapping = np.zeros(arr.max() + 1)
@@ -94,10 +94,10 @@ class NiftiExtractLabels(NiftiCodec, type="codec/vol/extractlabels"):
 
 
 class NiftiExtractRange(NiftiCodec, type="codec/vol/extractrange"):
-    desc = "Extract a nifti with values only from selected range according to {cfg}"
+    desc = "Extract a nifti with values only from selected range according to {kwargs."
 
-    def run(self, input, *, cfg: dict, **kwargs):
-        range = cfg.get("range")
+    def run(self, input, **kwargs):
+        range = kwargs.get("range")
         assert isinstance(input, Nifti1Image)
         if not range:
             return input
@@ -114,10 +114,10 @@ class NiftiExtractRange(NiftiCodec, type="codec/vol/extractrange"):
 
 
 class NiftiExtractSubspace(NiftiCodec, type="codec/vol/extractsubspace"):
-    desc = "Extract a nifti with values only from selected slice according to {cfg}"
+    desc = "Extract a nifti with values only from selected slice according to {kwargs."
 
-    def run(self, input, *, cfg: dict, **kwargs):
-        subspace = cfg.get("subspace")
+    def run(self, input, **kwargs):
+        subspace = kwargs.get("subspace")
         assert isinstance(input, Nifti1Image)
         s_ = tuple(slice(None) if isinstance(s, str) else s for s in subspace)
         return input.slicer[s_]
@@ -128,10 +128,10 @@ class NiftiExtractSubspace(NiftiCodec, type="codec/vol/extractsubspace"):
 
 
 class NiftiExtractVOI(NiftiCodec, type="codec/vol/extractVOI"):
-    desc = "Extract a nifti with values only from selected volume of interest according to {cfg}"
+    desc = "Extract a nifti with values only from selected volume of interest according to {kwargs."
 
-    def run(self, input, *, cfg: dict, **kwargs):
-        voi = cfg.get("voi")
+    def run(self, input, **kwargs):
+        voi = kwargs.get("voi")
         assert isinstance(input, Nifti1Image)
         bb_vox = voi.transform(np.linalg.inv(input.affine))
         (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
@@ -145,14 +145,14 @@ class NiftiExtractVOI(NiftiCodec, type="codec/vol/extractVOI"):
 
     @classmethod
     def from_bbox(cls, voi: "BoundingBox"):
-        return {"type": "codec/vol/extractsubspace", "voi": voi}
+        return {"type": "codec/vol/extractVOI", "voi": voi}
 
 
 # TODO: Morph into run + classmethod
 class ResampleNifti(NiftiCodec, type="codec/vol/resample"):
-    desc = "Resample a nifti according to {cfg}"
+    desc = "Resample a nifti according to {kwargs."
 
-    def run(self, input, *, cfg: dict, **kwargs):
+    def run(self, input, **kwargs):
         raise NotImplementedError
 
     def resample_img_to_img(
@@ -174,7 +174,9 @@ class ResampleNifti(NiftiCodec, type="codec/vol/resample"):
         Nifti1Image
         """
         interpolation = (
-            "nearest" if np.array_equal(np.unique(source_img.dataobj), [0, 1]) else "linear"
+            "nearest"
+            if np.array_equal(np.unique(source_img.dataobj), [0, 1])
+            else "linear"
         )
         resampled_img = resample_to_img(
             source_img=source_img, target_img=target_img, interpolation=interpolation
@@ -184,10 +186,10 @@ class ResampleNifti(NiftiCodec, type="codec/vol/resample"):
 
 # TODO: Morph into run + classmethod
 # TODO: take resampling out. The inputs should be provided resampled
-class MergeLabelledNiftis(DataOp):
+class MergeLabelledNiftis(DataOp, type="codec/vol/merge"):
     input: List[Nifti1Image]
     output: Nifti1Image
-    desc = "Merge a list of niftis according to {cfg}"
+    desc = "Merge a list of niftis according to kwargs."
 
     def _resample_and_merge_niftis(
         niftis: List[Nifti1Image],
@@ -197,7 +199,9 @@ class MergeLabelledNiftis(DataOp):
         # TODO: get header for affine and shape instead of the whole template
         assert len(niftis) > 1, "Need to supply at least two volumes to merge."
         if labels:
-            assert len(niftis) == len(labels), "Need to supply as many labels as niftis."
+            assert len(niftis) == len(
+                labels
+            ), "Need to supply as many labels as niftis."
 
         if template_affine is None:
             shapes = set(nii.shape for nii in niftis)
@@ -208,7 +212,7 @@ class MergeLabelledNiftis(DataOp):
         else:
             affine = template_affine
 
-        for i, img in tqdm(
+        for i, img in siibra_tqdm(
             enumerate(niftis),
             unit="nifti",
             desc="Merging (and resmapling if necessary)",
@@ -216,9 +220,7 @@ class MergeLabelledNiftis(DataOp):
             disable=len(niftis) < 3,
         ):
             if template_affine is not None:
-                resampled_arr = np.asanyarray(
-                    resample_img(img, affine).dataobj
-                )
+                resampled_arr = np.asanyarray(resample_img(img, affine).dataobj)
             else:
                 resampled = resample_img(img, affine, shape)
                 resampled_arr = np.asanyarray(resampled.dataobj)
@@ -229,3 +231,39 @@ class MergeLabelledNiftis(DataOp):
                 merged_array[nonzero_voxels] = resampled_arr[nonzero_voxels]
 
         return Nifti1Image(dataobj=merged_array, affine=affine)
+
+
+class IntersectNiftiWithNifti(DataOp, type="codec/vol/intersectNifti"):
+    input: Tuple[Nifti1Image, Nifti1Image]
+    output: Nifti1Image
+    desc = """
+    Get the intersection of the images' masks.
+
+    Note
+    ----
+    Assumes the background is 0 for both nifti.
+
+    Parameters
+    ----------
+    nii0 : Nifti1Image
+    nii1 : Nifti1Image
+
+    Returns
+    -------
+    Nifti1Image
+        returns a mask (i.e. dtype('uint8'))
+    """
+
+    def run(self, input, **kwargs):
+        assert all(isinstance(inpt, Nifti1Image) for inpt in input)
+        nii0, nii1 = input
+
+        arr0 = np.asanyarray(nii0.dataobj).astype("uint8")
+        interpolation = kwargs.get(
+            "interpolation",
+            "nearest" if np.array_equal(np.unique(nii0.dataobj), [0, 1]) else "linear",
+        )
+        nii1_on_nii0 = resample_to_img(nii1, nii0, interpolation=interpolation)
+        arr1 = np.asanyarray(nii1_on_nii0.dataobj).astype("uint8")
+        elementwise_min = np.minimum(arr0, arr1)
+        return Nifti1Image(dataobj=elementwise_min, affine=nii0.affine)

@@ -4,7 +4,7 @@ import siibra
 
 @pytest.mark.parametrize("space", siibra.spaces)
 def test_space(space: siibra.Space):
-    assert len(space.volumes) > 0
+    assert len(space.volume_providers) > 0
 
 
 should_have_desc = ["bigbrain"]

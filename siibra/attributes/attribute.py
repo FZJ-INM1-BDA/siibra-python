@@ -63,9 +63,14 @@ class Attribute:
             logger.warning(f"Cannot parse type {att_type}")
             return []
 
-        return_attr: "Attribute" = Cls(
-            **{key: json_dict[key] for key in json_dict if not key_is_extra(key)}
-        )
+        _ = json_dict.pop("mapping", None)
+        try:
+            return_attr: "Attribute" = Cls(
+                **{key: json_dict[key] for key in json_dict if not key_is_extra(key)}
+            )
+        except TypeError as e:
+            print(json_dict)
+            raise e
         for key in json_dict:
             if key_is_extra(key):
                 return_attr.extra[key] = json_dict[key]

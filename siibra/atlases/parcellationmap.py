@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass, replace, asdict
-from typing import TYPE_CHECKING, List, Set, Union, Dict
+from dataclasses import dataclass, replace, asdict, field
+from typing import List, Set, Union, Dict
 
 try:
     from typing import Literal
@@ -25,29 +25,27 @@ import numpy as np
 from pandas import DataFrame
 
 from ..concepts import AtlasElement
-from ..dataops.volume_fetcher import (
-    FetchKwargs,
+from ..commons.iterable import assert_ooo
+from ..commons.string import convert_hexcolor_to_rgbtuple
+from ..commons.logger import logger, siibra_tqdm, QUIET
+from ..atlases import ParcellationScheme, Space, Region
+from ..attributes.dataproviders.volume import (
+    ImageProvider,
+    MeshProvider,
+    VolumeOpsKwargs,
+    Mapping,
+    FORMAT_LOOKUP,
     IMAGE_FORMATS,
     MESH_FORMATS,
     SIIBRA_MAX_FETCH_SIZE_GIB,
 )
-from ..commons.iterable import assert_ooo
-from ..commons.maps import merge_volumes, compute_centroid, create_mask
-from ..commons.string import convert_hexcolor_to_rgbtuple
-from ..commons.logger import logger, siibra_tqdm, QUIET
-from ..atlases import ParcellationScheme, Space, Region
-from ..attributes.dataproviders import ImageProvider, MeshProvider, FORMAT_LOOKUP
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
 from ..attributes.locations import BoundingBox, Point, PointCloud
-from ..attributes.dataproviders.volume.ops.assignment import (
+from ..dataops.image_assignment import (
     ImageAssignment,
     ScoredImageAssignment,
     get_intersection_scores,
 )
-
-if TYPE_CHECKING:
-    from ..dataops.volume_fetcher import Mapping
-
 
 VALID_MAPTYPES = ("statistical", "labelled")
 
@@ -58,12 +56,10 @@ class Map(AtlasElement):
     parcellation_id: str = None
     space_id: str = None
     maptype: Literal["labelled", "statistical"] = None
+    region_mapping: Dict[str, Mapping] = field(repr=False, default=None)
 
     def __post_init__(self):
-        essential_specs = {
-            "space_id",
-            "maptype",
-        }
+        essential_specs = {"space_id", "maptype", "region_mapping"}
         assert all(
             self.__getattribute__(spec) is not None for spec in essential_specs
         ), f"Cannot create a parcellation `Map` without {essential_specs}"
@@ -91,49 +87,19 @@ class Map(AtlasElement):
 
     @property
     def regions(self) -> List[str]:
-        return list(
-            dict.fromkeys(
-                key
-                for vol in self.volumes
-                for key in vol.mapping.keys()
-                if vol.mapping is not None
-            )
-        )
-
-    def get_label_mapping(
-        self, regions: List[str] = None, frmt=None
-    ) -> Dict[str, "Mapping"]:
-        if regions is None:
-            regions = self.regions
-        else:
-            assert all(
-                r in self.regions for r in regions
-            ), f"Please provide a subset of {self.regions}"
-
-        if frmt in {None, "image", "mesh"}:
-            frmt_ = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
-            logger.debug(f"Selected format: {frmt!r}")
-        elif frmt in self.formats:
-            frmt_ = frmt
-        else:
-            raise RuntimeError(
-                f"Requested format '{frmt}' is not available for this map: {self.formats}."
-            )
-
-        return {
-            key: val
-            for vol in self.volumes
-            for key, val in vol.mapping.items()
-            if vol.format == frmt_ and vol.mapping is not None and key in regions
-        }
+        return list(self.region_mapping.keys())
 
     @property
-    def volumes(self) -> List[Union["ImageProvider", "MeshProvider"]]:
-        return [attr for attr in self.attributes if isinstance(attr, (ImageProvider, MeshProvider))]
+    def volume_providers(self) -> List[Union["ImageProvider", "MeshProvider"]]:
+        return [
+            attr
+            for attr in self.attributes
+            if isinstance(attr, (ImageProvider, MeshProvider))
+        ]
 
     @property
     def formats(self) -> Set[str]:
-        return {vol.format for vol in self.volumes}
+        return {vol.format for vol in self.volume_providers}
 
     @property
     def provides_mesh(self):
@@ -162,79 +128,16 @@ class Map(AtlasElement):
                 "Regions that are not mapped in this ParcellationMap are requested!"
             )
 
-        filtered_volumes = [
-            replace(
-                vol,
-                mapping={r: vol.mapping[r] for r in regionnames if r in vol.mapping},
-            )
-            for vol in self.volumes
-            if vol.mapping is not None and any(r in vol.mapping for r in regionnames)
-        ]
+        sub_mapping = {r: m for r, m in self.region_mapping.items() if r in regionnames}
         attributes = [
             Name(value=f"{regionnames} filtered from {self.name}"),
             _ID(value=None),
             self._get(SpeciesSpec),
-            *filtered_volumes,
+            self.volume_providers,
         ]
-        return replace(self, attributes=attributes)
+        return replace(self, attributes=attributes, region_mapping=sub_mapping)
 
-    def find_volumes(
-        self, region: Union[str, Region, None] = None, frmt: str = None
-    ) -> List[Union["ImageProvider", "MeshProvider"]]:
-        def filter_format(vol: Union["ImageProvider", "MeshProvider"]):
-            if frmt is None:
-                return True
-            if frmt in ["image", "mesh"]:
-                vol.format in self.formats and vol.format in FORMAT_LOOKUP[frmt]
-            return vol.format == frmt
-
-        if region is None:
-            return list(filter(filter_format, self.volumes))
-
-        _regionname = region.name if isinstance(region, Region) else region
-
-        if _regionname in self.regions:
-            return [
-                replace(vol, mapping={_regionname: vol.mapping[_regionname]})
-                for vol in self.volumes
-                if filter_format(vol) and _regionname in vol.mapping
-            ]
-
-        candidate = self.parcellation.get_region(_regionname)
-        if candidate.name in self.regions:
-            return [
-                replace(vol, mapping={candidate.name: vol.mapping[candidate.name]})
-                for vol in self.volumes
-                if filter_format(vol) and candidate.name in vol.mapping
-            ]
-
-        # check if a parent region is requested
-        mapped_descendants: Set[str] = {
-            descendant.name
-            for descendant in candidate.descendants
-            if descendant.name in self.regions
-        }
-        if mapped_descendants:
-            return [
-                replace(
-                    vol,
-                    mapping={
-                        desc: vol.mapping[desc]
-                        for desc in mapped_descendants
-                        if desc in vol.mapping
-                    },
-                )
-                for vol in filter(
-                    filter_format,
-                    self.volumes,
-                )
-            ]
-
-        raise ValueError(
-            f"Could not find any leaf or parent regions matching '{_regionname}' in this map."
-        )
-
-    def fetch(
+    def _extract_regional_map_volume_provider(
         self,
         region: Union[str, Region] = None,
         frmt: str = None,
@@ -242,7 +145,6 @@ class Map(AtlasElement):
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
-        allow_relabeling: bool = False,
     ):
         if frmt is None or frmt not in self.formats:
             frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
@@ -256,60 +158,50 @@ class Map(AtlasElement):
         else:
             regionspec = region
 
-        volumes = self.find_volumes(region=regionspec, frmt=frmt)
-        if len(volumes) == 0:
-            raise RuntimeError("No images or meshes found matching parameters.")
+        # TODO: filtering mappings should be smarter. ie what if there are two "volume/ref"?
+        mappings = [
+            m
+            for m in self.region_mapping[regionspec]
+            if m.get("@type", "volume/ref") == "volume/ref"
+        ]
+        if len(mappings) == 0:
+            raise ValueError
+        assert len(mappings) == 1
+        mapping = mappings[0]
+        providers = [
+            v
+            for v in self.volume_providers
+            if v.format == frmt and v.name == mapping["target"]
+        ]
+        if len(providers) == 0:
+            raise RuntimeError
 
-        fetch_kwargs = FetchKwargs(
+        if len(providers) == 1:
+            provider = providers[0]
+        else:
+            logger.info("Found several providers matching criteria. Choosing the first.")
+            provider = providers[0]
+
+        new_ops = dict(
             bbox=bbox,
             resolution_mm=resolution_mm,
-            color_channel=color_channel,
             max_download_GB=max_download_GB,
+            color_channel=color_channel,
+            labels=[mapping.get("label", None)],
+            subspace=[mapping.get("subspace", None)],
         )
+        return replace(provider, transformation_ops=new_ops)
 
-        if len(volumes) == 1:
-            return volumes[0].fetch(**fetch_kwargs)
-
-        labels = []
-        if allow_relabeling:
-            labels = [mp["label"] for vol in volumes for mp in vol.mapping.values()]
-            if set(labels) == {1}:
-                labels = list(range(1, len(labels) + 1))
-
-        if frmt in MESH_FORMATS:
-            logger.debug("Merging mesh labels.")
-            return merge_volumes(
-                [vol.fetch(**fetch_kwargs) for vol in volumes],
-                labels=labels,
-            )
-
-        niftis = [vol.fetch(**fetch_kwargs) for vol in volumes]
-        shapes = set(v.shape for v in niftis)
-        try:
-            assert len(shapes) == 1
-            return merge_volumes(
-                niftis,
-                labels=labels,
-            )
-        except AssertionError:
-            return merge_volumes(
-                niftis,
-                labels=labels,
-                template_vol=self.space.fetch_template(**fetch_kwargs),
-            )
-
-    def fetch_mask(
+    def extract_regional_map(
         self,
         region: Union[str, Region] = None,
-        background_value: Union[int, float] = 0,
-        lower_threshold: float = None,
         frmt: str = None,
         bbox: "BoundingBox" = None,
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
     ):
-        volume = self.fetch(
+        provider = self._extract_regional_map_volume_provider(
             region=region,
             frmt=frmt,
             bbox=bbox,
@@ -317,9 +209,32 @@ class Map(AtlasElement):
             max_download_GB=max_download_GB,
             color_channel=color_channel,
         )
-        return create_mask(
-            volume, background_value=background_value, lower_threshold=lower_threshold
-        )
+        return provider.get_data()
+
+    def extract_mask(self, regions: List[Union[str, Region]]):
+        if len(regions) == 1:
+            provider = self._extract_regional_map_volume_provider(regions[0])
+            return provider.get_data()
+        assert self.maptype == "labelled"
+        providers = [self.extract_regional_map(region) for region in regions]
+        # use provider.search_and_add_ops to add:
+        # # masking
+        # # merging
+        # return
+
+    def extract_full_map(
+        self,
+        frmt: str = None,
+        allow_relabeling: bool = False,
+        as_binary_mask: bool = False,
+    ):
+        assert self.maptype == "labelled", ValueError
+        # Assert and select format
+        # filter volumes
+        # Merge volumes
+        # mask if true
+        # # relabel the volumes if need be (julich 2.9 bigbrain)
+        pass
 
     def get_colormap(self, regions: List[str] = None, frmt=None) -> List[str]:
         from matplotlib.colors import ListedColormap
@@ -339,12 +254,12 @@ class Map(AtlasElement):
         ), f"Please provide a subset of {self.regions}"
 
         label_color_table = {
-            vol.mapping[region]["label"]: convert_hexcolor_to_rgbtuple(
-                vol.mapping[region]["color"]
+            self.region_mapping[region]["label"]: convert_hexcolor_to_rgbtuple(
+                self.region_mapping[region]["color"]
             )
             for region in regions
-            for vol in self.volumes
-            if vol.format == frmt and region in vol.mapping
+            for vol in self.volume_providers
+            if vol.format == frmt and region in self.region_mapping
         }
         pallette = np.array(
             [
@@ -358,7 +273,7 @@ class Map(AtlasElement):
         ) / [255, 255, 255, 1]
         return ListedColormap(pallette)
 
-    def get_centroids(self, **fetch_kwargs: FetchKwargs) -> Dict[str, "Point"]:
+    def get_centroids(self, **volume_ops_kwargs: VolumeOpsKwargs) -> Dict[str, "Point"]:
         """
         Compute a dictionary of the centroids of all regions in this map.
 
@@ -371,13 +286,44 @@ class Map(AtlasElement):
         for regionname in siibra_tqdm(
             self.regions, unit="regions", desc="Computing centroids"
         ):
-            img = self.fetch(
-                region=regionname, **fetch_kwargs
+            img = self.extract_mask(
+                region=regionname, **volume_ops_kwargs
             )  # returns a mask of the region
             centroid = compute_centroid(img)
             centroid.space_id = self.space_id
             centroids[regionname] = centroid
         return centroids
+
+    # TODO: should be a dataop
+    # def colorize(
+    #     self, value_mapping: dict, **volume_ops_kwargs: VolumeOpsKwargs
+    # ) -> "Nifti1Image":
+    #     # TODO: rethink naming
+    #     """
+    #     Create
+
+    #     Parameters
+    #     ----------
+    #     value_mapping : dict
+    #         Dictionary mapping keys to values
+
+    #     Return
+    #     ------
+    #     Nifti1Image
+    #     """
+
+    #     result = None
+    #     nii = image.get_data(**volume_ops_kwargs)
+    #     arr = np.asanyarray(nii.dataobj)
+    #     resultarr = np.zeros_like(arr)
+    #     result = nib.Nifti1Image(resultarr, nii.affine)
+    #     for key, value in value_mapping.items():
+    #         assert key in image.mapping, ValueError(
+    #             f"key={key!r} is not in the mapping of the image."
+    #         )
+    #         resultarr[nii == image.mapping[key]["label"]] = value
+
+    #     return result
 
     @dataclass
     class RegionAssignment(ImageAssignment):
@@ -394,12 +340,12 @@ class Map(AtlasElement):
         voxel_sigma_threshold: int = 3,
         iou_lower_threshold=0.0,
         statistical_map_lower_threshold: float = 0.0,
-        **fetch_kwargs: FetchKwargs,
+        **volume_ops_kwargs: VolumeOpsKwargs,
     ) -> DataFrame:
         assignments: List[Union[Map.RegionAssignment, Map.ScoredRegionAssignment]] = []
         for region in siibra_tqdm(self.regions, unit="region"):
             region_image = self.find_volumes(
-                region=region, frmt="image", **fetch_kwargs
+                region=region, frmt="image", **volume_ops_kwargs
             )[0]
             with QUIET:
                 for assgnmt in get_intersection_scores(
@@ -409,7 +355,7 @@ class Map(AtlasElement):
                     voxel_sigma_threshold=voxel_sigma_threshold,
                     iou_lower_threshold=iou_lower_threshold,
                     target_masking_lower_threshold=statistical_map_lower_threshold,
-                    **fetch_kwargs,
+                    **volume_ops_kwargs,
                 ):
                     if isinstance(assgnmt, ScoredImageAssignment):
                         assignments.append(
@@ -419,7 +365,9 @@ class Map(AtlasElement):
                         )
                     else:
                         assignments.append(
-                            Map.RegionAssignment(**{**asdict(assgnmt), "region": region})
+                            Map.RegionAssignment(
+                                **{**asdict(assgnmt), "region": region}
+                            )
                         )
 
         return Map._convert_assignments_to_dataframe(assignments)
@@ -453,7 +401,7 @@ class Map(AtlasElement):
     def lookup_points(
         self,
         points: Union[Point, PointCloud],
-        **fetch_kwargs: FetchKwargs,
+        **volume_ops_kwargs: VolumeOpsKwargs,
     ) -> DataFrame:
         points_ = (
             PointCloud.from_points([points]) if isinstance(points, Point) else points
@@ -470,10 +418,10 @@ class Map(AtlasElement):
         assignments: List[Map.RegionAssignment] = []
         for region in siibra_tqdm(self.regions, unit="region"):
             region_image = self.find_volumes(
-                region=region, frmt="image", **fetch_kwargs
+                region=region, frmt="image", **volume_ops_kwargs
             )[0]
             for pointindex, map_value in zip(
-                *region_image.lookup_points(points=points_wrpd, **fetch_kwargs)
+                *region_image.lookup_points(points=points_wrpd, **volume_ops_kwargs)
             ):
                 if map_value == 0:
                     continue

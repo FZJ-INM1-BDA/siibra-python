@@ -19,12 +19,12 @@ import os
 
 from nibabel import freesurfer, gifti
 
-from ..volume_fetcher import FetchKwargs, register_volume_fetcher
-from ....cache import CACHE
-from ....commons.maps import arrs_to_gii
+from ...attributes.dataproviders.volume import VolumeOpsKwargs
+from ...cache import CACHE
+from ...commons.maps import arrs_to_gii
 
 if TYPE_CHECKING:
-    from ....attributes.dataproviders import MeshProvider
+    from ...attributes.dataproviders import MeshProvider
 
 
 def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
@@ -54,8 +54,10 @@ def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
     return result
 
 
-@register_volume_fetcher("freesurfer-annot", "mesh")
-def fetch_freesurfer_annot(mesh: "MeshProvider", fetchkwargs: FetchKwargs) -> gifti.GiftiImage:
+# @register_volume_fetcher("freesurfer-annot", "mesh")
+def fetch_freesurfer_annot(
+    mesh: "MeshProvider", fetchkwargs: VolumeOpsKwargs
+) -> gifti.GiftiImage:
     if fetchkwargs["bbox"] is not None:
         raise NotImplementedError
     if fetchkwargs["resolution_mm"] is not None:

@@ -13,15 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .image.nifti import fetch_nifti
-from .image.neuroglancer import fetch_neuroglancer
-from .mesh.gifti import fetch_gii_mesh, fetch_gii_label
-from .mesh.neuroglancer import fetch_neuroglancer_mesh
-from .mesh.freesurfer import fetch_freesurfer_annot
-from .volume_fetcher import (
-    FetchKwargs,
-    Mapping,
-    MESH_FORMATS,
-    IMAGE_FORMATS,
-    SIIBRA_MAX_FETCH_SIZE_GIB,
-)
+from . import nifti
+from .neuroglancer_precomputed import fetch_neuroglancer
+from .gifti import fetch_gii_mesh, fetch_gii_label
+from .neuroglancer_precompmesh import fetch_neuroglancer_mesh
+from .freesurfer import fetch_freesurfer_annot

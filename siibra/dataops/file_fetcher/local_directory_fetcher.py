@@ -54,10 +54,9 @@ class RemoteLocalDataOp(DataOp, type="read/remote-local"):
     output: bytes
 
     def run(self, _, *, filename, **kwargs):
-        print("what?", _, filename)
         assert isinstance(
             filename, str
-        ), f"remote local data op only takes string as filename kwarg"
+        ), "remote local data op only takes string as filename kwarg"
         if filename.startswith("https"):
             resp = requests.get(filename)
             resp.raise_for_status()
@@ -69,5 +68,5 @@ class RemoteLocalDataOp(DataOp, type="read/remote-local"):
     def from_url(filename: str):
         assert isinstance(
             filename, str
-        ), f"remote local data op only takes string as filename kwarg"
+        ), "remote local data op only takes string as filename kwarg"
         return {"type": "read/remote-local", "filename": filename}

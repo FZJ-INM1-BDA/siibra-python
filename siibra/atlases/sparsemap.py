@@ -33,9 +33,9 @@ import nibabel as nib
 
 from .parcellationmap import Map
 from .region import Region
-from ..dataops.volume_fetcher import FetchKwargs, SIIBRA_MAX_FETCH_SIZE_GIB
-from ..dataops.file_fetcher.io.base import PartialReader
+from ..attributes.dataproviders.volume import VolumeOpsKwargs, SIIBRA_MAX_FETCH_SIZE_GIB
 from ..attributes.locations import Point, PointCloud
+from ..dataops.file_fetcher.io.base import PartialReader
 from ..commons.logger import siibra_tqdm, logger
 from ..cache import CACHE
 
@@ -433,7 +433,7 @@ class SparseMap(Map):
             matched in self.regions
         ), f"Statistical map of region '{matched}' is not available in '{self.name}'."
 
-        fetch_kwargs = FetchKwargs(
+        fetch_kwargs = VolumeOpsKwargs(
             bbox=bbox,
             resolution_mm=resolution_mm,
             color_channel=color_channel,
@@ -444,7 +444,7 @@ class SparseMap(Map):
     def lookup_points(
         self,
         points: Union[Point, PointCloud],
-        **fetch_kwargs: FetchKwargs,
+        **fetch_kwargs: VolumeOpsKwargs,
     ) -> DataFrame:
         spind = self._get_readable_sparseindex()
         if spind is None:

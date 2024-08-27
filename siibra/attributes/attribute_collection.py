@@ -23,28 +23,25 @@ from typing import (
     List,
     Union,
     BinaryIO,
-    TYPE_CHECKING,
 )
 import pandas as pd
 from zipfile import ZipFile
 
 from .attribute import Attribute
-from ..attributes.locations import Location
-from ..attributes.descriptions import Url, Doi, TextDescription, Facet, EbrainsRef
-from ..commons.iterable import assert_ooo
-from ..commons.logger import siibra_tqdm
-from ..attributes.descriptions import (
+from .locations import Location
+from .descriptions import (
+    Name,
+    ID as _ID,
+    Modality,
     Url,
     Doi,
     TextDescription,
     Facet,
     EbrainsRef,
-    ID,
-    Name,
-    Modality,
+    AttributeMapping,
 )
-from .._version import __version__
-
+from ..commons.iterable import assert_ooo
+from ..commons.logger import siibra_tqdm
 
 T = TypeVar("T")
 
@@ -82,6 +79,10 @@ class AttributeCollection:
         )
 
     @property
+    def _attribute_mapping(self):
+        return self._find(AttributeMapping)
+
+    @property
     def name(self):
         try:
             return self._get(Name).value
@@ -91,7 +92,7 @@ class AttributeCollection:
     @property
     def ID(self):
         try:
-            return self._get(ID).value
+            return self._get(_ID).value
         except AssertionError:
             pass
 

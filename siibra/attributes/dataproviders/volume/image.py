@@ -18,22 +18,14 @@ from typing import Union, Tuple, List
 
 import numpy as np
 import nibabel as nib
-from nilearn.image import resample_to_img
 from pathlib import Path
 from hashlib import md5
 from io import BytesIO
 import gzip
 
-from .base import VolumeProvider
+from .base import VolumeProvider, VolumeOpsKwargs, IMAGE_FORMATS
 from ...locations import point, pointcloud, BoundingBox
 from ...locations.ops.intersection import _loc_intersection
-from ....dataops.volume_fetcher.volume_fetcher import (
-    get_volume_fetcher,
-    get_bbox_getter,
-    FetchKwargs,
-    IMAGE_FORMATS,
-    SIIBRA_MAX_FETCH_SIZE_GIB,
-)
 
 
 @dataclass
@@ -41,38 +33,18 @@ class ImageProvider(VolumeProvider):
     schema: str = "siibra/attr/data/image/v0.1"
 
     def __post_init__(self):
+        super().__post_init__()
         assert (
             self.format in IMAGE_FORMATS
         ), f"Expected image format {self.format} to be in {IMAGE_FORMATS}, but was not."
 
     @property
     def boundingbox(self) -> "BoundingBox":
-        bbox_getter = get_bbox_getter(self.format)
-        return bbox_getter(self)
+        raise NotImplementedError
 
-    def get_affine(self, **fetch_kwargs: FetchKwargs):
+    def get_affine(self, **volume_ops_kwargs: VolumeOpsKwargs):
         # TODO: pull from source without fetching the whole image
-        return self.fetch(**fetch_kwargs).affine
-
-    def fetch(
-        self,
-        bbox: "BoundingBox" = None,
-        resolution_mm: float = None,
-        max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
-        color_channel: int = None,
-    ):
-        fetch_kwargs = FetchKwargs(
-            bbox=bbox,
-            resolution_mm=resolution_mm,
-            color_channel=color_channel,
-            max_download_GB=max_download_GB,
-            mapping=self.mapping,
-        )
-        if color_channel is not None:
-            assert self.format == "neuroglancer/precomputed"
-
-        fetcher_fn = get_volume_fetcher(self.format)
-        return fetcher_fn(self, fetch_kwargs)
+        return self.get_data(**volume_ops_kwargs).affine
 
     def plot(self, *args, **kwargs):
         raise NotImplementedError
@@ -80,14 +52,16 @@ class ImageProvider(VolumeProvider):
     def _iter_zippable(self):
         yield from super()._iter_zippable()
         try:
-            nii = self.fetch()
+            nii = self.get_data()
             suffix = None
             if isinstance(nii, (nib.Nifti1Image, nib.Nifti2Image)):
                 suffix = ".nii.gz"
             if isinstance(nii, nib.GiftiImage):
                 suffix = ".gii.gz"
             if not suffix:
-                raise RuntimeError("Image.fetch returning a non nifti, non gifti image")
+                raise RuntimeError(
+                    "Image.get_data returning a non nifti, non gifti image"
+                )
 
             # TODO not ideal, since loads everything in memory. Ideally we can stream it as IO
             gzipped = gzip.compress(nii.to_bytes())
@@ -98,7 +72,9 @@ class ImageProvider(VolumeProvider):
             )
 
     def _points_to_voxels_coords(
-        self, ptcloud: Union["point.Point", "pointcloud.PointCloud"], **fetch_kwargs
+        self,
+        ptcloud: Union["point.Point", "pointcloud.PointCloud"],
+        **volume_ops_kwargs,
     ) -> Tuple[int, int, int]:
         if ptcloud.space_id != self.space_id:
             raise ValueError(
@@ -111,18 +87,18 @@ class ImageProvider(VolumeProvider):
         else:
             ptcloud_ = ptcloud
 
-        nii = self.fetch(**fetch_kwargs)
+        nii = self.get_data(**volume_ops_kwargs)
 
         # transform the points to the voxel space of the volume for extracting values
         phys2vox = np.linalg.inv(nii.affine)
         voxels = pointcloud.PointCloud.transform(ptcloud_, phys2vox)
-        x, y, z = np.round(voxels.coordinates).astype('int').T
+        x, y, z = np.round(voxels.coordinates).astype("int").T
         return x, y, z
 
     def lookup_points(
         self,
         points: Union["point.Point", "pointcloud.PointCloud"],
-        **fetch_kwargs: FetchKwargs,
+        **volume_ops_kwargs: VolumeOpsKwargs,
     ):
         """
         Evaluate the image at the positions of the given points.
@@ -136,26 +112,26 @@ class ImageProvider(VolumeProvider):
         ----------
         ptcloud: PointSet
         outside_value: int, float. Default: 0
-        fetch_kwargs: dict
+        volume_ops_kwargs: dict
             Any additional arguments are passed to the `fetch()` call for
             retrieving the image data.
         """
-        x, y, z = self._points_to_voxels_coords(points, **fetch_kwargs)
-        return self._read_voxels(x=x, y=y, z=z, **fetch_kwargs)
+        x, y, z = self._points_to_voxels_coords(points, **volume_ops_kwargs)
+        return self._read_voxels(x=x, y=y, z=z, **volume_ops_kwargs)
 
     def _read_voxels(
         self,
         x: Union[int, np.ndarray, List],
         y: Union[int, np.ndarray, List],
         z: Union[int, np.ndarray, List],
-        **fetch_kwargs,
+        **volume_ops_kwargs,
     ) -> Tuple[List[int], np.ndarray]:
         """
         Read out the values of this Image for a given set of voxel coordinates.
 
         Note
         ----
-        The fetch_kwargs are passed on to the `image.fetch()`.
+        The volume_ops_kwargs are passed on to the `image.get_data()`.
 
         Parameters
         ----------
@@ -173,7 +149,7 @@ class ImageProvider(VolumeProvider):
             [np.array([_]) if isinstance(_, int) else np.array(_) for _ in (x, y, z)],
             axis=1,
         )
-        nii = self.fetch(**fetch_kwargs)
+        nii = self.get_data(**volume_ops_kwargs)
         valid_points_mask = np.all(
             [
                 (0 <= dim_val) & (dim_val < dim_len)
@@ -194,10 +170,10 @@ class ImageProvider(VolumeProvider):
         voxel_sigma_threshold: int = 3,
         statistical_map_lower_threshold: float = 0.0,
         split_components: bool = False,
-        **fetch_kwargs: FetchKwargs,
+        **volume_ops_kwargs: VolumeOpsKwargs,
     ):
         from pandas import DataFrame
-        from .ops.assignment import get_intersection_scores
+        from ....dataops.image_assignment import get_intersection_scores
 
         assignments = get_intersection_scores(
             queryitem=item,
@@ -206,7 +182,7 @@ class ImageProvider(VolumeProvider):
             voxel_sigma_threshold=voxel_sigma_threshold,
             iou_lower_threshold=iou_lower_threshold,
             target_masking_lower_threshold=statistical_map_lower_threshold,
-            **fetch_kwargs,
+            **volume_ops_kwargs,
         )
 
         assignments_unpacked = [asdict(a) for a in assignments]
@@ -218,7 +194,9 @@ class ImageProvider(VolumeProvider):
         )
 
 
-def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "ImageProvider":
+def from_nifti(
+    nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs
+) -> "ImageProvider":
     """Builds an `Image` `Attribute` from a Nifti image or path to a nifti file."""
     from ....cache import CACHE
 
@@ -237,40 +215,6 @@ def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs) -> "
             f"nifti must be either str or NIftiImage, but you provided {type(nifti)}"
         )
     return ImageProvider(format="nii", url=filename, space_id=space_id, **kwargs)
-
-
-def colorize(
-    image: ImageProvider, value_mapping: dict, **fetch_kwargs: FetchKwargs
-) -> nib.Nifti1Image:
-    # TODO: rethink naming
-    """
-    Create
-
-    Parameters
-    ----------
-    value_mapping : dict
-        Dictionary mapping keys to values
-
-    Return
-    ------
-    Nifti1Image
-    """
-    assert image.mapping is not None, ValueError(
-        "Provided image must have a mapping defined."
-    )
-
-    result = None
-    nii = image.fetch(**fetch_kwargs)
-    arr = np.asanyarray(nii.dataobj)
-    resultarr = np.zeros_like(arr)
-    result = nib.Nifti1Image(resultarr, nii.affine)
-    for key, value in value_mapping.items():
-        assert key in image.mapping, ValueError(
-            f"key={key!r} is not in the mapping of the image."
-        )
-        resultarr[nii == image.mapping[key]["label"]] = value
-
-    return result
 
 
 @_loc_intersection.register(point.Point, ImageProvider)
@@ -301,8 +245,8 @@ def intersect_ptcld_image(
 
 @_loc_intersection.register(ImageProvider, ImageProvider)
 def intersect_image_to_image(image0: ImageProvider, image1: ImageProvider):
-    nii0 = image0.fetch()
-    nii1 = image1.fetch()
+    nii0 = image0.get_data()
+    nii1 = image1.get_data()
     if np.issubdtype(nii0.dataobj, np.floating) or np.issubdtype(
         nii1.dataobj, np.floating
     ):
@@ -313,55 +257,3 @@ def intersect_image_to_image(image0: ImageProvider, image1: ImageProvider):
             elementwise_mask_intersection,
             space_id=image0.space_id,
         )
-
-
-def resample_img_to_img(
-    source_img: nib.Nifti1Image, target_img: nib.Nifti1Image, interpolation: str = ""
-) -> nib.Nifti1Image:
-    """
-    Resamples to source image to match the target image according to target's
-    affine. (A wrapper of `nilearn.image.resample_to_img`.)
-
-    Parameters
-    ----------
-    source_img : Nifti1Image
-    target_img : Nifti1Image
-    interpolation : str, Default: "nearest" if the source image is a mask otherwise "linear".
-        Can be 'continuous', 'linear', or 'nearest'. Indicates the resample method.
-
-    Returns
-    -------
-    Nifti1Image
-    """
-    interpolation = (
-        "nearest" if np.array_equal(np.unique(source_img.dataobj), [0, 1]) else "linear"
-    )
-    resampled_img = resample_to_img(
-        source_img=source_img, target_img=target_img, interpolation=interpolation
-    )
-    return resampled_img
-
-
-def intersect_nii_to_nii(nii0: nib.Nifti1Image, nii1: nib.Nifti1Image):
-    """
-    Get the intersection of the images' masks.
-
-    Note
-    ----
-    Assumes the background is 0 for both nifti.
-
-    Parameters
-    ----------
-    nii0 : nib.Nifti1Image
-    nii1 : nib.Nifti1Image
-
-    Returns
-    -------
-    nib.Nifti1Image
-        returns a mask (i.e. dtype('uint8'))
-    """
-    arr0 = np.asanyarray(nii0.dataobj).astype("uint8")
-    nii1_on_nii0 = resample_img_to_img(nii1, nii0)
-    arr1 = np.asanyarray(nii1_on_nii0.dataobj).astype("uint8")
-    elementwise_min = np.minimum(arr0, arr1)
-    return nib.Nifti1Image(dataobj=elementwise_min, affine=nii0.affine)

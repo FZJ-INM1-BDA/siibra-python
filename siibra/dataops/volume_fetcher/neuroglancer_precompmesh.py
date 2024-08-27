@@ -20,12 +20,11 @@ import numpy as np
 from nibabel import GiftiImage
 from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
 
-from ...volume_fetcher.volume_fetcher import register_volume_fetcher
-from ....cache import fn_call_cache
-from ....commons.maps import arrs_to_gii
+from ...cache import fn_call_cache
+from ...commons.maps import arrs_to_gii
 
 if TYPE_CHECKING:
-    from ....attributes.dataproviders import MeshProvider
+    from ...attributes.dataproviders import MeshProvider
 
 
 @fn_call_cache
@@ -86,7 +85,7 @@ def get_meshindex_info(self, base_url: str, meshindex: int) -> Dict[str, Tuple[s
             )
 
 
-@register_volume_fetcher("neuroglancer/precompmesh", "mesh")
+# @register_volume_fetcher("neuroglancer/precompmesh", "mesh")
 def fetch_neuroglancer_mesh(mesh: "MeshProvider") -> "GiftiImage":
     vertices_vox, triangles_vox = fetch_mesh_voxels(mesh.url)
     transform_nm = get_transform_nm(mesh.url)

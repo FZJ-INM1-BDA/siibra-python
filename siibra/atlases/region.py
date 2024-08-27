@@ -22,13 +22,13 @@ from dataclasses import replace
 from ..concepts import atlas_elements
 from ..attributes.descriptions import Name
 from ..attributes.locations import boundingbox, PointCloud
+from ..attributes.dataproviders.volume import IMAGE_FORMATS
 from ..commons.string import get_spec, SPEC_TYPE, extract_uuid
 from ..commons.iterable import assert_ooo
 from ..commons.maps import spatial_props, create_mask
 from ..commons.logger import logger
 from ..commons.register_recall import RegisterRecall
 from ..dataops.file_fetcher.dataproxy_fetcher import DataproxyRepository
-from ..dataops.volume_fetcher import IMAGE_FORMATS
 from ..cache import fn_call_cache
 
 if TYPE_CHECKING:

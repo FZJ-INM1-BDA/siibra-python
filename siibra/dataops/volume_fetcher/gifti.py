@@ -18,14 +18,14 @@ import gzip
 
 from nibabel.gifti import gifti
 
-from ...volume_fetcher.volume_fetcher import FetchKwargs, register_volume_fetcher
+from ...attributes.dataproviders.volume import VolumeOpsKwargs
 
 if TYPE_CHECKING:
-    from ....attributes.dataproviders import MeshProvider
+    from ...attributes.dataproviders import MeshProvider
 
 
-@register_volume_fetcher("gii-mesh", "mesh")
-def fetch_gii_mesh(mesh: "MeshProvider", fetchkwargs: FetchKwargs) -> "gifti.GiftiImage":
+# @register_volume_fetcher("gii-mesh", "mesh")
+def fetch_gii_mesh(mesh: "MeshProvider", fetchkwargs: VolumeOpsKwargs) -> "gifti.GiftiImage":
     if fetchkwargs["bbox"] is not None:
         raise NotImplementedError
     if fetchkwargs["resolution_mm"] is not None:
@@ -40,8 +40,8 @@ def fetch_gii_mesh(mesh: "MeshProvider", fetchkwargs: FetchKwargs) -> "gifti.Gif
         return gifti.GiftiImage.from_bytes(_bytes)
 
 
-@register_volume_fetcher("gii-label", "mesh")
-def fetch_gii_label(mesh: "MeshProvider", fetchkwargs: FetchKwargs) -> "gifti.GiftiImage":
+# @register_volume_fetcher("gii-label", "mesh")
+def fetch_gii_label(mesh: "MeshProvider", fetchkwargs: VolumeOpsKwargs) -> "gifti.GiftiImage":
     if fetchkwargs["bbox"] is not None:
         raise NotImplementedError
     if fetchkwargs["resolution_mm"] is not None:

@@ -25,18 +25,16 @@ from neuroglancer_scripts.precomputed_io import (
     PrecomputedIO,
 )
 
-from ...volume_fetcher.volume_fetcher import (
-    register_volume_fetcher,
-    FetchKwargs,
-    register_bbox_getter,
+from ...attributes.dataproviders.volume import (
+    VolumeOpsKwargs,
     SIIBRA_MAX_FETCH_SIZE_GIB,
 )
-from ....cache import fn_call_cache
-from ....commons.logger import logger
+from ...cache import fn_call_cache
+from ...commons.logger import logger
 
 if TYPE_CHECKING:
-    from ....attributes.dataproviders import ImageProvider
-    from ....attributes.locations import BoundingBox
+    from ...attributes.dataproviders import ImageProvider
+    from ...attributes.locations import BoundingBox
 
 
 def extract_label_mask(arr: np.ndarray, label: int):
@@ -139,7 +137,7 @@ class Scale:
 
     def _estimate_nbytes(self, bbox: Union["BoundingBox", None] = None):
         """Estimate the size image array to be fetched in bytes, given a bounding box."""
-        from ....attributes.locations import BoundingBox
+        from ...attributes.locations import BoundingBox
 
         if bbox is None:
             bbox_ = BoundingBox(minpoint=[0, 0, 0], maxpoint=self.size, space_id=None)
@@ -167,7 +165,7 @@ class Scale:
         label: int = None,
     ):
         # define the bounding box in this scale's voxel space
-        from ....attributes.locations import BoundingBox
+        from ...attributes.locations import BoundingBox
 
         if bbox is None:
             bbox_ = BoundingBox(minpoint=[0, 0, 0], maxpoint=self.size, space_id=None)
@@ -274,9 +272,9 @@ def select_scale(
     return selected_scale
 
 
-@register_volume_fetcher("neuroglancer/precomputed", "image")
-def fetch_neuroglancer(image: "ImageProvider", fetchkwargs: FetchKwargs) -> "nib.Nifti1Image":
-    scales = get_scales(image.url)
+# @register_volume_fetcher("neuroglancer/precomputed", "image")
+def fetch_neuroglancer(url: str, fetchkwargs: VolumeOpsKwargs) -> "nib.Nifti1Image":
+    scales = get_scales(url)
     scale = select_scale(
         scales,
         resolution_mm=fetchkwargs["resolution_mm"],
@@ -291,13 +289,13 @@ def fetch_neuroglancer(image: "ImageProvider", fetchkwargs: FetchKwargs) -> "nib
         return scale.fetch(bbox=fetchkwargs["bbox"])
 
 
-@register_bbox_getter("neuroglancer/precomputed")
-@register_bbox_getter("neuroglancer/precompmesh")
+# @register_bbox_getter("neuroglancer/precomputed")
+# @register_bbox_getter("neuroglancer/precompmesh")
 @fn_call_cache
 def fetch_ng_bbox(
-    image: "ImageProvider", fetchkwargs: Union[FetchKwargs, None] = None
+    image: "ImageProvider", fetchkwargs: Union[VolumeOpsKwargs, None] = None
 ) -> "BoundingBox":
-    from ....attributes.locations import BoundingBox
+    from ...attributes.locations import BoundingBox
 
     provided_bbox = fetchkwargs["bbox"] if fetchkwargs else None
     if provided_bbox and provided_bbox.space_id != image.space_id:
@@ -328,6 +326,6 @@ def fetch_ng_bbox(
     if not provided_bbox:
         return bbox
 
-    from ....attributes.locations.ops.intersection import bbox_bbox
+    from ...attributes.locations.ops.intersection import bbox_bbox
 
     return bbox_bbox(bbox, provided_bbox)

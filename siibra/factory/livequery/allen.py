@@ -32,7 +32,6 @@ from ...attributes.descriptions import register_modalities, Modality, Gene
 from ...attributes.locations import PointCloud
 from ...attributes.dataproviders import TabularDataProvider
 from ...attributes.dataproviders.volume.image import intersect_ptcld_image
-from ...attributes.dataproviders.tabular import X_DATA
 from ...exceptions import ExternalApiException
 
 modality_of_interest = Modality(value="Gene Expressions")
