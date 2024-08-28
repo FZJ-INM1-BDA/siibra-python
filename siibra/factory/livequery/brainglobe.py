@@ -34,13 +34,13 @@ from .base import LiveQuery
 from ...commons.logger import logger
 from ...commons.string import to_hex
 from ...attributes import Attribute
-from ...attributes.descriptions import Name, ID, Url, SpeciesSpec
+from ...attributes.descriptions import Name, ID, Url, SpeciesSpec, ParcSpec, SpaceSpec
 from ...attributes.dataproviders import ImageProvider
 from ...atlases import Space, ParcellationScheme, Map
 from ...dataops.file_fetcher import GitHttpRepository, TarRepository
 
 
-def tiff_to_nii(tiff_bytes: bytes, affine: np.ndarray) -> str:
+def tiff_to_nii(tiff_bytes: bytes, affine: np.ndarray, cast_to_int=False) -> str:
     from ...cache import CACHE
 
     filename = CACHE.build_filename(md5(tiff_bytes).hexdigest(), ".nii")
@@ -54,6 +54,8 @@ def tiff_to_nii(tiff_bytes: bytes, affine: np.ndarray) -> str:
         tiff_img.seek(i)
         stack.append(np.array(tiff_img))
     stacked_array = np.stack(stack, axis=-1)
+    if cast_to_int:
+        stacked_array = stacked_array.astype("int32")
     nii = nib.Nifti1Image(stacked_array, affine)
     nib.save(nii, filename)
     return filename
@@ -260,23 +262,38 @@ class ParcellationLiveQuery(
 
 class MapLiveQuery(LiveQuery[Map], generates=Map):
     def generate(self) -> Iterator[Map]:
+        atlas_names = None
+
+        parc_spec = [
+            get_name(id.value)
+            for ids in self.find_attributes(ParcSpec)
+            for id in ids
+            if id.value.startswith(PREFIX)
+        ]
+        space_spec = [
+            get_name(id.value)
+            for ids in self.find_attributes(ParcSpec)
+            for id in ids
+            if id.value.startswith(PREFIX)
+        ]
         ids = [
-            id
+            get_name(id.value)
             for ids in self.find_attributes(ID)
             for id in ids
             if id.value.startswith(PREFIX)
         ]
-        if len(ids) == 0:
+
+        atlas_names = {value for value in [*parc_spec, *space_spec, *ids]}
+
+        if len(atlas_names) == 0:
             logger.debug(f"no ID attribute start with {PREFIX}, skip.")
             return
-        if len(ids) > 1:
+        if len(atlas_names) > 1:
             logger.warning(
                 f"Expected one and only one ID attribute starting with {PREFIX}, but got {len(ids)}. Skipping"
             )
             return
-        id_value = ids[0].value
-        atlas_name = get_name(id_value)
-
+        atlas_name = list(atlas_names)[0]
         repo = TarRepository(fileurl.format(filename=atlas_name), gzip=True)
 
         metadata: Metadata = json.loads(repo.get(f"{atlas_name}/metadata.json"))
@@ -294,21 +311,23 @@ class MapLiveQuery(LiveQuery[Map], generates=Map):
             metadata.get("transform_to_bg") or metadata.get("trasform_to_bg")
         )
         annot_img_filename = tiff_to_nii(
-            repo.get(f"{atlas_name}/annotation.tiff"), affine
+            repo.get(f"{atlas_name}/annotation.tiff"), affine, True
         )
 
         _region_attributes = {
-            structure["name"]: {
-                "label": structure["id"],
-                "color": to_hex(structure["rgb_triplet"]),
-            }
+            structure["name"]: [
+                {
+                    "@type": "volume/ref",
+                    "label": structure["id"],
+                    "color": to_hex(structure["rgb_triplet"]),
+                }
+            ]
             for structure in structures
         }
         labelled_map_image = ImageProvider(
             format="nii",
             url=annot_img_filename,
             space_id=space_id,
-            mapping=_region_attributes,
         )
 
         yield Map(
@@ -321,4 +340,5 @@ class MapLiveQuery(LiveQuery[Map], generates=Map):
                 labelled_map_image,
                 speciesspec,
             ),
+            region_mapping=_region_attributes,
         )

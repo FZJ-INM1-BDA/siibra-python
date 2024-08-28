@@ -24,6 +24,7 @@ brain parcellations.
 # %%
 # We start by loading the library
 import siibra
+
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 # %%
 # The instance table can list the keys of all parcellations predefined in `siibra`.
@@ -32,7 +33,7 @@ siibra.parcellations.keys
 
 # %%
 # Fetching an object works in the same way as for `siibra.atlases` (see :ref:`atlases`)
-julich_brain = siibra.parcellations.get('julich')
+julich_brain = siibra.parcellations.get("julich")
 
 # %%
 # Parcellations typically refer to entities in the EBRAINS knowledge graph,
@@ -61,3 +62,5 @@ print("Modality:", julich_brain.modalities)
 print()
 for p in julich_brain.publications:
     print(f"[{p.value}]({p.text})")
+
+# %%

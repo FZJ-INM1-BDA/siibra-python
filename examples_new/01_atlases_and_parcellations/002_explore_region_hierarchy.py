@@ -28,7 +28,8 @@ parent region.
 # %%
 # We start by selecting an atlas and a parcellation
 import siibra
-julich_brain = siibra.parcellations.get('julich 2.9')
+
+julich_brain = siibra.parcellations.get("julich 2.9")
 julich_brain
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/01-002.png'
 

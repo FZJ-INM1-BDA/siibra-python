@@ -31,7 +31,9 @@ class MeshProvider(VolumeProvider):
 
     def __post_init__(self):
         super().__post_init__()
-        assert self.format in MESH_FORMATS, f"{self.format} is not a supportes mesh format."
+        assert (
+            self.format in MESH_FORMATS
+        ), f"{self.format} is not a supportes mesh format."
 
     @property
     def boundingbox(self) -> "BoundingBox":
@@ -73,3 +75,6 @@ class MeshProvider(VolumeProvider):
 
     def plot(self, *args, **kwargs):
         raise NotImplementedError
+
+    def get_data(self) -> GiftiImage:
+        return super().get_data()

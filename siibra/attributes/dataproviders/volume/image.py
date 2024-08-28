@@ -193,6 +193,9 @@ class ImageProvider(VolumeProvider):
             .dropna(axis="columns", how="all")
         )
 
+    def get_data(self) -> nib.Nifti1Image:
+        return super().get_data()
+
 
 def from_nifti(
     nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs

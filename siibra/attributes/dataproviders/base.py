@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
-from typing import List, Dict
+from typing import List, Dict, Any
 
 try:
     from typing import TypedDict
@@ -38,12 +38,12 @@ class Archive(TypedDict):
 
 
 @fn_call_cache
-def get_result(steps: List[Dict], **kwargs):
-    result = None
+def get_result(steps: List[Dict]):
+    result: Any = None
     for step in steps:
         Runner = DataOp.get_runner(step)
         runner = Runner()
-        result = runner.run(result, **kwargs)
+        result = runner.run(result, **step)
     return result
 
 
@@ -54,25 +54,35 @@ class DataProvider(Attribute):
     url: str = None  # url can be from remote (http) or localfile
     format: str = None
     archive_options: Archive = None
-    transformation_ops: List[Dict] = field(default_factory=list)
+
     retrieval_ops: List[Dict] = field(default_factory=list)
+    transformation_ops: List[Dict] = field(default_factory=list)
 
     def __post_init__(self):
-        if len(self.retrieval_ops) == 0:
-            assert self.url, "url must be defined"
-            if self.archive_options is None:
-                self.retrieval_ops.append(RemoteLocalDataOp.from_url(self.url))
-            else:
-                if "neuroglancer" in self.format:
-                    return
-                if self.archive_options["format"] == "tar":
-                    self.retrieval_ops.append(
-                        TarDataOp.from_url(self.url, self.archive_options["file"])
-                    )
-                if self.archive_options["format"] == "zip":
-                    self.retrieval_ops.append(
-                        ZipDataOp.from_url(self.url, self.archive_options["file"])
-                    )
+        if "neuroglancer" in self.format:
+            return
+
+        if len(self.retrieval_ops) > 0:
+            return
+
+        assert self.url, "url must be defined"
+
+        if self.archive_options is None:
+            self.retrieval_ops.append(RemoteLocalDataOp.from_url(self.url))
+            return
+
+        if self.archive_options["format"] == "tar":
+            self.retrieval_ops.append(
+                TarDataOp.from_url(self.url, self.archive_options["file"])
+            )
+            return
+        if self.archive_options["format"] == "zip":
+            self.retrieval_ops.append(
+                ZipDataOp.from_url(self.url, self.archive_options["file"])
+            )
+            return
+
+        raise RuntimeError(f"Cannot understand {self.archive_options['format']}")
 
     def get_data(self):
         return get_result(
