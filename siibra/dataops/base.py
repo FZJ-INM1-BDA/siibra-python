@@ -13,7 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Dict, Type
+from typing import List, Dict, Type, Any
+
+from ..commons.logger import logger
 
 src_remote_tar = {
     "type": "src/remotetar",
@@ -114,13 +116,33 @@ class DataOp:
     @classmethod
     def get_runner(cls, step: Dict):
         _type = step.get("type")
-        assert _type in cls.step_register, f"{_type} not found in step register"
-        return cls.step_register[_type]
+        if _type not in cls.step_register:
+            logger.warning(f"{_type} not found in register. Noop rather than hard fail")
+            return DataOp()
+        return cls.step_register[_type]()
 
     @classmethod
     def describe(cls, steps: List[Dict]):
         descs = []
         for idx, step in enumerate(steps, start=1):
             runner = cls.get_runner(step)
-            descs.append(f"{idx} - {runner.desc.format(step)}")
+            descs.append(f"{idx} - {runner.desc.format(**step)}")
         return "\n".join(descs)
+
+    @staticmethod
+    def get_noop():
+        return {"type": "noop"}
+
+
+class Merge(DataOp, type="baseop/merge"):
+    input: None
+    Output: List[Any]
+
+    def run(self, input, srcs: List[List[Dict]], **kwargs) -> List[Any]:
+        from ..attributes.dataproviders.base import get_result
+
+        return [get_result(src) for src in srcs]
+
+    @staticmethod
+    def from_inputs(*srcs: List[List[Dict]]):
+        return {"type": "baseop/merge", "srcs": srcs}

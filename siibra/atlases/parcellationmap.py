@@ -29,6 +29,7 @@ from ..commons.iterable import assert_ooo
 from ..commons.string import convert_hexcolor_to_rgbtuple
 from ..commons.logger import logger, siibra_tqdm, QUIET
 from ..atlases import ParcellationScheme, Space, Region
+from ..attributes.dataproviders import DataProvider
 from ..attributes.dataproviders.volume import (
     ImageProvider,
     MeshProvider,
@@ -46,6 +47,8 @@ from ..dataops.image_assignment import (
     ScoredImageAssignment,
     get_intersection_scores,
 )
+from ..dataops.volume_fetcher.nifti import NiftiExtractVOI, MergeLabelledNiftis
+from ..dataops.base import Merge
 
 VALID_MAPTYPES = ("statistical", "labelled")
 
@@ -56,7 +59,7 @@ class Map(AtlasElement):
     parcellation_id: str = None
     space_id: str = None
     maptype: Literal["labelled", "statistical"] = None
-    region_mapping: Dict[str, Mapping] = field(repr=False, default=None)
+    region_mapping: Dict[str, List[Mapping]] = field(repr=False, default=None)
 
     def __post_init__(self):
         essential_specs = {"space_id", "maptype", "region_mapping"}
@@ -213,10 +216,19 @@ class Map(AtlasElement):
 
     def extract_mask(self, regions: List[Union[str, Region]]):
         if len(regions) == 1:
-            provider = self._extract_regional_map_volume_provider(regions[0])
-            return provider.get_data()
+            return self._extract_regional_map_volume_provider(regions[0])
         assert self.maptype == "labelled"
-        providers = [self.extract_regional_map(region) for region in regions]
+
+        providers = [
+            self._extract_regional_map_volume_provider(region) for region in regions
+        ]
+        return DataProvider(
+            retrieval_ops=[
+                Merge.from_inputs(*[provider.retrieval_ops for provider in providers])
+            ],
+            transformation_ops=[MergeLabelledNiftis.to_spec()],
+        )
+
         # use provider.search_and_add_ops to add:
         # # masking
         # # merging
