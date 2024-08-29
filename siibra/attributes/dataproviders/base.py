@@ -42,7 +42,7 @@ def get_result(steps: List[Dict]):
     result: Any = None
     for step in steps:
         Runner = DataOp.get_runner(step)
-        runner = Runner()
+        runner = Runner
         result = runner.run(result, **step)
     return result
 

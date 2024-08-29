@@ -22,6 +22,7 @@ from ....commons.iterable import assert_ooo
 
 if TYPE_CHECKING:
     from ...locations import BoundingBox
+    from ....dataops import DataOp
 
 
 SIIBRA_MAX_FETCH_SIZE_GIB = getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2)
@@ -32,6 +33,8 @@ FORMAT_LOOKUP = {
     "mesh": MESH_FORMATS,
     "image": IMAGE_FORMATS,
 }
+READER_LOOKUP: Dict[str, Dict[str, str]] = {"nii": {"type": "read/nifti"}}
+# TODO: create the remaining readers and add to the dictionary
 
 
 class Mapping(TypedDict):
@@ -65,6 +68,13 @@ class VolumeProvider(DataProvider):
     schema: str = "siibra/attr/data/volume"
     space_id: str = None
     colormap: str = None  # TODO: remove from config and here
+
+    def __post_init__(self):
+        super().__post_init__()
+        try:
+            self.transformation_ops.append(READER_LOOKUP[self.format])
+        except KeyError:
+            pass
 
     @property
     def space(self):
