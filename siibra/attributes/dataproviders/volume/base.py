@@ -22,7 +22,6 @@ from ....commons.iterable import assert_ooo
 
 if TYPE_CHECKING:
     from ...locations import BoundingBox
-    from ....dataops import DataOp
 
 
 SIIBRA_MAX_FETCH_SIZE_GIB = getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2)
@@ -33,7 +32,9 @@ FORMAT_LOOKUP = {
     "mesh": MESH_FORMATS,
     "image": IMAGE_FORMATS,
 }
-READER_LOOKUP: Dict[str, Dict[str, str]] = {"nii": {"type": "read/nifti"}}
+READER_LOOKUP: Dict[str, Dict[str, str]] = {
+    "nii": {"type": "read/nifti"},
+}
 # TODO: create the remaining readers and add to the dictionary
 
 
@@ -71,10 +72,20 @@ class VolumeProvider(DataProvider):
 
     def __post_init__(self):
         super().__post_init__()
-        try:
-            self.transformation_ops.append(READER_LOOKUP[self.format])
-        except KeyError:
-            pass
+        if self.format == "neuroglancer/precomputed":
+            self.retrieval_ops.append(
+                {"type": "read/neuroglancer_precomputed", "url": self.url}
+            )
+        elif self.format == "neuroglancer/precompmesh":
+            self.retrieval_ops.append(
+                {"type": "read/neuroglancer_precompmesh", "url": self.url}
+            )
+        elif self.format == "nii":
+            self.transformation_ops.append({"type": "read/nifti"})
+        elif self.format in {"gii-label", "gii-mesh"}:
+            self.transformation_ops.append({"type": "read/gifti"})
+        elif self.format in "freesurfer-annot":
+            self.transformation_ops.append({"type": "read/freesurfer_annot"})
 
     @property
     def space(self):
@@ -89,25 +100,50 @@ class VolumeProvider(DataProvider):
             ]
         )
 
-        # bbox = kwargs.pop("bbox", None)
-        # resolution_mm = kwargs.pop("resolution_mm", None)
-        # subpace = kwargs.pop("subpace", None)
-        # labels = kwargs.pop("labels", None)
-        # if self.format == "neuroglancer/precomputed":
-        #     dataopsdict = neuroglancer.resolve_ops(
-        #         bbox=bbox,
-        #         resolution_mm=resolution_mm,
-        #         subpace=subpace,
-        #         labels=labels,
-        #     )
-        #     return super().get_data(**kwargs)
 
-        # if subpace:
-        #     self.transformation_ops.append(nifti.NiftiExtractSubspace(subpace))
-        # if labels:
-        #     self.transformation_ops.append(nifti.NiftiExtractLabels(labels))
-        # # if resolution_mm:
-        # #     self.transformation_ops.append(nifti.ResampleNifti(resolution_mm))
-        # if bbox:
-        #     self.transformation_ops.append(nifti.NiftiExtractVOI(bbox))
-        # return super().get_data(**kwargs)
+def resolve_fetch_ops(vol_ops_kwargs: VolumeOpsKwargs):
+    # if provider.format == "neuroglancer/precomputed":
+    #     return [
+    #         {
+    #             "type": "read/neuroglancer_precomputed",
+    #             "url": provider.url,
+    #             "bbox": vol_ops_kwargs.get("bbox", None),
+    #             "resolution_mm": vol_ops_kwargs.get("resolution_mm", None),
+    #             "max_download_GB": vol_ops_kwargs.get(
+    #                 "max_download_GB", SIIBRA_MAX_FETCH_SIZE_GIB
+    #             ),
+    #         }
+    #     ]
+
+    # if provider.format == "neuroglancer/precompmesh":
+    #     return [{
+    #         "type": "read/neuroglancer_precompmesh",
+    #         "url": provider.url,
+    #     }]
+
+    ops = []
+    bbox = vol_ops_kwargs.get("bbox")
+    if bbox is not None:
+        ops.append()
+
+    resolution_mm = vol_ops_kwargs.get("resolution_mm")
+    if resolution_mm is not None:
+        # resolution_mm max_download_GB
+        ops.append()
+
+    color_channel = vol_ops_kwargs.get("color_channel")
+    if color_channel is not None:
+        ops.append()
+
+    mapping = vol_ops_kwargs.get("mapping", None)
+    if mapping is None:
+        return ops
+
+    subspace = mapping.get("subspace", None)
+    if subspace is not None:
+        ops.append({"tpye": "codec/vol/extractsubspace"})
+
+    label = mapping.get("label", None)
+    if label is not None:
+        ops.append({"type": "codec/vol/extractlabels"})
+    return ops

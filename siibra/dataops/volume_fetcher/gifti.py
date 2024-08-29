@@ -13,46 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING
 import gzip
 
 from nibabel.gifti import gifti
 
-from ...attributes.dataproviders.volume import VolumeOpsKwargs
-
-if TYPE_CHECKING:
-    from ...attributes.dataproviders import MeshProvider
+from ...dataops import DataOp
 
 
-# @register_volume_fetcher("gii-mesh", "mesh")
-def fetch_gii_mesh(mesh: "MeshProvider", fetchkwargs: VolumeOpsKwargs) -> "gifti.GiftiImage":
-    if fetchkwargs["bbox"] is not None:
-        raise NotImplementedError
-    if fetchkwargs["resolution_mm"] is not None:
-        raise NotImplementedError
-    if fetchkwargs["color_channel"] is not None:
-        raise NotImplementedError
+class ReadGiftiFromBytes(DataOp, type="read/gifti"):
+    input: bytes
+    output: gifti.GiftiImage
+    desc = "Reads bytes into gifti"
 
-    _bytes = mesh.get_data()
-    try:
-        return gifti.GiftiImage.from_bytes(gzip.decompress(_bytes))
-    except gzip.BadGzipFile:
-        return gifti.GiftiImage.from_bytes(_bytes)
-
-
-# @register_volume_fetcher("gii-label", "mesh")
-def fetch_gii_label(mesh: "MeshProvider", fetchkwargs: VolumeOpsKwargs) -> "gifti.GiftiImage":
-    if fetchkwargs["bbox"] is not None:
-        raise NotImplementedError
-    if fetchkwargs["resolution_mm"] is not None:
-        raise NotImplementedError
-    if fetchkwargs["color_channel"] is not None:
-        raise NotImplementedError
-
-    _bytes = mesh.get_data()
-    try:
-        gii = gifti.GiftiImage.from_bytes(gzip.decompress(_bytes))
-    except gzip.BadGzipFile:
-        gii = gifti.GiftiImage.from_bytes(_bytes)
-
-    return gii
+    def run(self, input, **kwargs):
+        assert isinstance(input, bytes)
+        try:
+            return gifti.GiftiImage.from_bytes(gzip.decompress(input))
+        except gzip.BadGzipFile:
+            return gifti.GiftiImage.from_bytes(input)

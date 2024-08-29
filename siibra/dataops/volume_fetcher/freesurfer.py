@@ -13,18 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 from io import BytesIO
 import os
 
 from nibabel import freesurfer, gifti
 
-from ...attributes.dataproviders.volume import VolumeOpsKwargs
+from ...dataops import DataOp
 from ...cache import CACHE
 from ...commons.maps import arrs_to_gii
-
-if TYPE_CHECKING:
-    from ...attributes.dataproviders import MeshProvider
 
 
 def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
@@ -54,15 +51,12 @@ def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
     return result
 
 
-# @register_volume_fetcher("freesurfer-annot", "mesh")
-def fetch_freesurfer_annot(
-    mesh: "MeshProvider", fetchkwargs: VolumeOpsKwargs
-) -> gifti.GiftiImage:
-    if fetchkwargs["bbox"] is not None:
-        raise NotImplementedError
-    if fetchkwargs["resolution_mm"] is not None:
-        raise NotImplementedError
-    if fetchkwargs["color_channel"] is not None:
-        raise NotImplementedError
-    labels, *_ = freesurfer.read_annot(read_as_bytesio(mesh.get_data()))
-    return arrs_to_gii(labels)
+class ReadGiftiFromBytes(DataOp, type="read/freesurfer_annot"):
+    input: bytes
+    output: gifti.GiftiImage
+    desc = "Reads bytes into gifti"
+
+    def run(self, input, **kwargs):
+        assert isinstance(input, bytes)
+        labels, *_ = freesurfer.read_annot(read_as_bytesio(input))
+        return arrs_to_gii(labels)

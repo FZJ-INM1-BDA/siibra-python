@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, Tuple
+from typing import Dict, Tuple
 import requests
 
 import numpy as np
@@ -22,9 +22,7 @@ from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_me
 
 from ...cache import fn_call_cache
 from ...commons.maps import arrs_to_gii
-
-if TYPE_CHECKING:
-    from ...attributes.dataproviders import MeshProvider
+from ...dataops import DataOp
 
 
 @fn_call_cache
@@ -85,8 +83,20 @@ def get_meshindex_info(self, base_url: str, meshindex: int) -> Dict[str, Tuple[s
             )
 
 
-# @register_volume_fetcher("neuroglancer/precompmesh", "mesh")
-def fetch_neuroglancer_mesh(mesh: "MeshProvider") -> "GiftiImage":
-    vertices_vox, triangles_vox = fetch_mesh_voxels(mesh.url)
-    transform_nm = get_transform_nm(mesh.url)
-    return ngvoxelmesh_to_gii(vertices_vox, triangles_vox, transform_nm)
+class ReadNeuroglancerPrecomputed(DataOp, type="read/neuroglancer_precompmesh"):
+    input: str
+    output: GiftiImage
+    desc = "Reads neuroglancer_precompmesh url into gifti"
+
+    def run(self, input, **kwargs):
+        url = kwargs.pop("url")
+        vertices_vox, triangles_vox = fetch_mesh_voxels(url)
+        transform_nm = get_transform_nm(url)
+        return ngvoxelmesh_to_gii(vertices_vox, triangles_vox, transform_nm)
+
+    @classmethod
+    def from_url(cls, url: str, **fetchkwargs):
+        return {
+            "type": "read/neuroglancer_precomputed",
+            "url": url,
+        }

@@ -29,7 +29,6 @@ from ..commons.iterable import assert_ooo
 from ..commons.string import convert_hexcolor_to_rgbtuple
 from ..commons.logger import logger, siibra_tqdm, QUIET
 from ..atlases import ParcellationScheme, Space, Region
-from ..attributes.dataproviders import DataProvider
 from ..attributes.dataproviders.volume import (
     ImageProvider,
     MeshProvider,
@@ -39,6 +38,7 @@ from ..attributes.dataproviders.volume import (
     IMAGE_FORMATS,
     MESH_FORMATS,
     SIIBRA_MAX_FETCH_SIZE_GIB,
+    resolve_fetch_ops,
 )
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
 from ..attributes.locations import BoundingBox, Point, PointCloud
@@ -47,7 +47,7 @@ from ..dataops.image_assignment import (
     ScoredImageAssignment,
     get_intersection_scores,
 )
-from ..dataops.volume_fetcher.nifti import NiftiExtractVOI, MergeLabelledNiftis
+from ..dataops.volume_fetcher.nifti import MergeLabelledNiftis, NiftiMask
 from ..dataops.base import Merge
 
 VALID_MAPTYPES = ("statistical", "labelled")
@@ -140,6 +140,15 @@ class Map(AtlasElement):
         ]
         return replace(self, attributes=attributes, region_mapping=sub_mapping)
 
+    def _select_format(self, frmt: Union[str, None] = None) -> str:
+        if frmt is None or frmt not in self.formats:
+            frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
+        else:
+            assert frmt not in self.formats, RuntimeError(
+                f"Requested format '{frmt}' is not available for this map: {self.formats}."
+            )
+        return frmt
+
     def _extract_regional_map_volume_provider(
         self,
         region: Union[str, Region] = None,
@@ -149,12 +158,7 @@ class Map(AtlasElement):
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
     ):
-        if frmt is None or frmt not in self.formats:
-            frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
-        else:
-            assert frmt not in self.formats, RuntimeError(
-                f"Requested format '{frmt}' is not available for this map: {self.formats}."
-            )
+        frmt = self._select_format(frmt)
 
         if isinstance(region, Region):
             regionspec = region.name
@@ -182,18 +186,25 @@ class Map(AtlasElement):
         if len(providers) == 1:
             provider = providers[0]
         else:
-            logger.info("Found several providers matching criteria. Choosing the first.")
+            logger.info(
+                "Found several providers matching criteria. Choosing the first."
+            )
             provider = providers[0]
 
-        new_ops = dict(
-            bbox=bbox,
-            resolution_mm=resolution_mm,
-            max_download_GB=max_download_GB,
-            color_channel=color_channel,
-            labels=[mapping.get("label", None)],
-            subspace=[mapping.get("subspace", None)],
+        extraction_ops = resolve_fetch_ops(
+            VolumeOpsKwargs(
+                bbox=bbox,
+                resolution_mm=resolution_mm,
+                max_download_GB=max_download_GB,
+                color_channel=color_channel,
+                mapping=Mapping(
+                    labels=[mapping.get("label", None)],
+                    subspace=[mapping.get("subspace", None)],
+                ),
+            )
         )
-        return replace(provider, transformation_ops=new_ops)
+
+        return replace(provider, transformation_ops=extraction_ops)
 
     def extract_regional_map(
         self,
@@ -214,25 +225,41 @@ class Map(AtlasElement):
         )
         return provider.get_data()
 
-    def extract_mask(self, regions: List[Union[str, Region]]):
-        if len(regions) == 1:
-            return self._extract_regional_map_volume_provider(regions[0])
-        assert self.maptype == "labelled"
-
+    def extract_mask(
+        self,
+        regions: List[Union[str, Region]],
+        frmt: str = None,
+        background_value: Union[int, float] = 0,
+        lower_threshold: Union[int, float, None] = None,
+    ):
         providers = [
-            self._extract_regional_map_volume_provider(region) for region in regions
+            self._extract_regional_map_volume_provider(region, frmt=frmt)
+            for region in regions
         ]
-        return DataProvider(
+        provider_types = set(type(p) for p in providers)
+        assert len(provider_types) == 1
+        provider_type = next(iter(provider_types))
+        mask_provider = provider_type(
+            space_id=self.space_id,
             retrieval_ops=[
                 Merge.from_inputs(*[provider.retrieval_ops for provider in providers])
             ],
             transformation_ops=[MergeLabelledNiftis.to_spec()],
         )
+        if isinstance(mask_provider, ImageProvider):
+            if self.maptype == "statistical":
+                mask_provider.transformation_ops.append(
+                    NiftiMask.from_threshold(lower_threshold=lower_threshold)
+                )
+            else:
+                mask_provider.transformation_ops.append(
+                    NiftiMask.from_foreground(background_value)
+                )
+        else:
+            # TODO: implement a gifti masker
+            mask_provider.transformation_ops.append()
 
-        # use provider.search_and_add_ops to add:
-        # # masking
-        # # merging
-        # return
+        return mask_provider.get_data()
 
     def extract_full_map(
         self,
@@ -240,13 +267,26 @@ class Map(AtlasElement):
         allow_relabeling: bool = False,
         as_binary_mask: bool = False,
     ):
-        assert self.maptype == "labelled", ValueError
-        # Assert and select format
-        # filter volumes
-        # Merge volumes
-        # mask if true
-        # # relabel the volumes if need be (julich 2.9 bigbrain)
-        pass
+        if as_binary_mask:
+            return self.extract_mask(regions=self.regions)
+
+        frmt = self._select_format(frmt)
+        providers = [vp for vp in self.volume_providers if vp.format == frmt]
+        assert len(set(type(p) for p in providers)) == 1
+        fullmap_provider = providers.__class__.__init__(
+            space_id=self.space_id,
+            retrieval_ops=[
+                Merge.from_inputs(*[provider.retrieval_ops for provider in providers])
+            ],
+            transformation_ops=[MergeLabelledNiftis.to_spec()],
+        )
+
+        if not allow_relabeling:
+            return fullmap_provider.get_data()
+
+        # TODO: create a relabeling dataop
+        # fullmap_provider.append()
+        # fullmap_provider.get_data()
 
     def get_colormap(self, regions: List[str] = None, frmt=None) -> List[str]:
         from matplotlib.colors import ListedColormap

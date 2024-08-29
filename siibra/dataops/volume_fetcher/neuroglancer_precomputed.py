@@ -25,6 +25,7 @@ from neuroglancer_scripts.precomputed_io import (
     PrecomputedIO,
 )
 
+from ...dataops import DataOp
 from ...attributes.dataproviders.volume import (
     VolumeOpsKwargs,
     SIIBRA_MAX_FETCH_SIZE_GIB,
@@ -272,25 +273,36 @@ def select_scale(
     return selected_scale
 
 
-# @register_volume_fetcher("neuroglancer/precomputed", "image")
-def fetch_neuroglancer(url: str, fetchkwargs: VolumeOpsKwargs) -> "nib.Nifti1Image":
+def fetch_neuroglancer(url: str, **fetchkwargs: VolumeOpsKwargs) -> "nib.Nifti1Image":
     scales = get_scales(url)
     scale = select_scale(
         scales,
-        resolution_mm=fetchkwargs["resolution_mm"],
-        bbox=fetchkwargs["bbox"],
-        max_download_GB=fetchkwargs["max_download_GB"],
+        resolution_mm=fetchkwargs.get("resolution_mm"),
+        bbox=fetchkwargs.get("bbox"),
+        max_download_GB=fetchkwargs.get("max_download_GB", SIIBRA_MAX_FETCH_SIZE_GIB),
     )
-    mapping = fetchkwargs["mapping"]
-    if mapping is not None and len(mapping) == 1:
-        details = next(iter(mapping.values()))
-        return scale.fetch(bbox=fetchkwargs["bbox"], label=details.get("label"))
-    else:
-        return scale.fetch(bbox=fetchkwargs["bbox"])
+    return scale.fetch(bbox=fetchkwargs.get("bbox"))
 
 
-# @register_bbox_getter("neuroglancer/precomputed")
-# @register_bbox_getter("neuroglancer/precompmesh")
+class ReadNeuroglancerPrecomputed(DataOp, type="read/neuroglancer_precomputed"):
+    input: str
+    output: nib.Nifti1Image
+    desc = "Reads bytes into nifti"
+
+    def run(self, input, **kwargs):
+        return fetch_neuroglancer(kwargs.pop("url"), **kwargs)
+
+    @classmethod
+    def from_url(cls, url: str, **fetchkwargs: VolumeOpsKwargs):
+        return {
+            "type": "read/neuroglancer_precomputed",
+            "url": url,
+            "bbox": fetchkwargs.get("bbox", None),
+            "resolution_mm": fetchkwargs.get("resolution_mm", None),
+            "max_download_GB": fetchkwargs.get("max_download_GB", SIIBRA_MAX_FETCH_SIZE_GIB),
+        }
+
+
 @fn_call_cache
 def fetch_ng_bbox(
     image: "ImageProvider", fetchkwargs: Union[VolumeOpsKwargs, None] = None

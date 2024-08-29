@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from . import nifti
-from .neuroglancer_precomputed import fetch_neuroglancer
-from .gifti import fetch_gii_mesh, fetch_gii_label
-from .neuroglancer_precompmesh import fetch_neuroglancer_mesh
-from .freesurfer import fetch_freesurfer_annot
+from . import neuroglancer_precomputed
+from . import gifti
+from . import neuroglancer_precompmesh
+from . import freesurfer
