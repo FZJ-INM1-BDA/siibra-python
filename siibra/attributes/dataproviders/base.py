@@ -51,15 +51,13 @@ class DataProvider(Attribute):
     schema: str = "siibra/attr/data"
     key: str = None  # TODO: remove
     url: str = None  # url can be from remote (http) or localfile
-    format: str = None
+
     archive_options: Archive = None
 
     retrieval_ops: List[Dict] = field(default_factory=list)
     transformation_ops: List[Dict] = field(default_factory=list)
 
     def __post_init__(self):
-        if "neuroglancer" in self.format:
-            return
 
         if len(self.retrieval_ops) > 0:
             return

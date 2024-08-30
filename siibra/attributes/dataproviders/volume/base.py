@@ -13,32 +13,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from os import getenv
 from typing import TYPE_CHECKING, TypedDict, Tuple, Dict, Type, List
 
 from ..base import DataProvider
 from ....commons.iterable import assert_ooo
+from ....commons.logger import logger
 
 if TYPE_CHECKING:
     from ...locations import BoundingBox
+    from ....operations.volume_fetcher.base import VolumeRetOp
 
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 SIIBRA_MAX_FETCH_SIZE_GIB = getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2)
-IMAGE_FORMATS = ["nii", "neuroglancer/precomputed"]
-MESH_FORMATS = ["gii-mesh", "gii-label", "freesurfer-annot", "neuroglancer/precompmesh"]
+IMAGE_FORMATS = []
+MESH_FORMATS = []
 FORMAT_LOOKUP = {
-    None: IMAGE_FORMATS + MESH_FORMATS,
+    None: IMAGE_FORMATS + MESH_FORMATS,  # TODO maybe buggy
     "mesh": MESH_FORMATS,
     "image": IMAGE_FORMATS,
 }
-READER_LOOKUP: Dict[str, List[Dict[str, str]]] = {
-    "nii": [{"type": "read/nifti"}],
-}
+READER_LOOKUP: Dict[str, Type["VolumeRetOp"]] = {}
 
 
-def register_format(format: str, Cls: Type):
-    pass
+def register_format_read(format: str, voltype: Literal["mesh", "image"]):
+    from ....operations.volume_fetcher.base import VolumeRetOp
+
+    def outer(Cls):
+        assert issubclass(
+            Cls, VolumeRetOp
+        ), f"register_format_read must target a subclass of volume ret op"
+        if format in READER_LOOKUP:
+            logger.warning(
+                f"{format} already registered by {READER_LOOKUP[format].__name__}, overriden by {Cls.__name__}"
+            )
+        READER_LOOKUP[format] = Cls
+        if voltype == "mesh":
+            MESH_FORMATS.append(format)
+        if voltype == "image":
+            IMAGE_FORMATS.append(format)
+        return Cls
+
+    return outer
 
 
 class Mapping(TypedDict):
@@ -72,26 +93,17 @@ class VolumeProvider(DataProvider):
     schema: str = "siibra/attr/data/volume"
     space_id: str = None
     colormap: str = None  # TODO: remove from config and here
+    format: str = None
 
     def __post_init__(self):
-        super().__post_init__()
+        if self.format in READER_LOOKUP:
+            raise RuntimeError(f"{self.format} cannot be properly parsed as volume")
+        self_dict = asdict(self)
+        Cls = READER_LOOKUP[self.format]
 
-        # TODO: see if READER_LOOKUP can be automatically populated with a wrapper
-        # self.retrieval_ops.extend(READER_LOOKUP[self.format])
-        if self.format == "neuroglancer/precomputed":
-            self.retrieval_ops.append(
-                {"type": "read/neuroglancer_precomputed", "url": self.url}
-            )
-        elif self.format == "neuroglancer/precompmesh":
-            self.retrieval_ops.append(
-                {"type": "read/neuroglancer_precompmesh", "url": self.url}
-            )
-        elif self.format == "nii":
-            self.retrieval_ops.append({"type": "read/nifti"})
-        elif self.format in {"gii-label", "gii-mesh"}:
-            self.retrieval_ops.append({"type": "read/gifti"})
-        elif self.format in "freesurfer-annot":
-            self.retrieval_ops.append({"type": "read/freesurfer_annot"})
+        self.retrieval_ops.extend(Cls.get_pre_retrieval_ops(**self_dict))
+        super().__post_init__()
+        self.retrieval_ops.extend(Cls.get_post_retrieval_ops(**self_dict))
 
     @property
     def space(self):

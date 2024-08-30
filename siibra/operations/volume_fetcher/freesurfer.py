@@ -19,9 +19,11 @@ import os
 
 from nibabel import freesurfer, gifti
 
+from .base import VolumeRetOp
 from ...operations import DataOp
 from ...cache import CACHE
 from ...commons.maps import arrs_to_gii
+from ...attributes.dataproviders.volume.base import register_format_read
 
 
 def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
@@ -51,7 +53,8 @@ def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
     return result
 
 
-class ReadGiftiFromBytes(DataOp):
+@register_format_read("freesurfer-annot", "mesh")
+class ReadGiftiFromBytes(DataOp, VolumeRetOp):
     input: bytes
     output: gifti.GiftiImage
     desc = "Reads bytes into gifti"

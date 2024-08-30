@@ -17,10 +17,14 @@ import gzip
 
 from nibabel.gifti import gifti
 
+from .base import VolumeRetOp
 from ...operations import DataOp
+from ...attributes.dataproviders.volume.base import register_format_read
 
 
-class ReadGiftiFromBytes(DataOp):
+@register_format_read("gii-mesh", "mesh")
+@register_format_read("gii-label", "mesh")
+class ReadGiftiFromBytes(DataOp, VolumeRetOp):
     input: bytes
     output: gifti.GiftiImage
     desc = "Reads bytes into gifti"

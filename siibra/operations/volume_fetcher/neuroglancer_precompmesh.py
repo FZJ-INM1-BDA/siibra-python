@@ -20,9 +20,11 @@ import numpy as np
 from nibabel import GiftiImage
 from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
 
+from .base import NgVolumeRetOp
 from ...cache import fn_call_cache
 from ...commons.maps import arrs_to_gii
 from ...operations import DataOp
+from ...attributes.dataproviders.volume.base import register_format_read
 
 
 @fn_call_cache
@@ -83,7 +85,8 @@ def get_meshindex_info(self, base_url: str, meshindex: int) -> Dict[str, Tuple[s
             )
 
 
-class ReadNeuroglancerPrecomputed(DataOp):
+@register_format_read("neuroglancer/precompmesh", "mesh")
+class ReadNeuroglancerPrecompmesh(DataOp, NgVolumeRetOp):
     input: str
     output: GiftiImage
     desc = "Reads neuroglancer_precompmesh url into gifti"

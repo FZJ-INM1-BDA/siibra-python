@@ -20,8 +20,10 @@ from nibabel import Nifti1Image
 import numpy as np
 from nilearn.image import resample_to_img, resample_img
 
+from .base import VolumeRetOp
 from ...operations import DataOp
 from ...commons.logger import siibra_tqdm
+from ...attributes.dataproviders.volume.base import register_format_read
 
 if TYPE_CHECKING:
     from ...attributes.locations import BoundingBox
@@ -33,7 +35,8 @@ class NiftiCodec(DataOp):
     desc = "Transforms nifti to nifti"
 
 
-class ReadNiftiFromBytes(DataOp):
+@register_format_read("nii", "image")
+class ReadNiftiFromBytes(DataOp, VolumeRetOp):
     input: bytes
     output: Nifti1Image
     desc = "Reads bytes into nifti"

@@ -109,6 +109,7 @@ class DataOp:
         return input
 
     def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
         if not cls.type:
             logger.debug(
                 f"{cls.__name__} does not have type defined. Cannot register it."

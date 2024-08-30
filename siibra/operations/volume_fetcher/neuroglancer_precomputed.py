@@ -25,11 +25,13 @@ from neuroglancer_scripts.precomputed_io import (
     PrecomputedIO,
 )
 
+from .base import NgVolumeRetOp
 from ...operations import DataOp
 from ...attributes.dataproviders.volume import (
     VolumeOpsKwargs,
     SIIBRA_MAX_FETCH_SIZE_GIB,
 )
+from ...attributes.dataproviders.volume.base import register_format_read
 from ...cache import fn_call_cache
 from ...commons.logger import logger
 
@@ -284,7 +286,8 @@ def fetch_neuroglancer(url: str, **fetchkwargs: VolumeOpsKwargs) -> "nib.Nifti1I
     return scale.fetch(bbox=fetchkwargs.get("bbox"))
 
 
-class ReadNeuroglancerPrecomputed(DataOp):
+@register_format_read("neuroglancer/precomputed", "image")
+class ReadNeuroglancerPrecomputed(DataOp, NgVolumeRetOp):
     input: str
     output: nib.Nifti1Image
     desc = "Reads bytes into nifti"
