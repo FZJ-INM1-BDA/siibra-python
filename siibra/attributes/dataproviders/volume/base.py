@@ -15,7 +15,7 @@
 
 from dataclasses import dataclass
 from os import getenv
-from typing import TYPE_CHECKING, TypedDict, Tuple, Dict
+from typing import TYPE_CHECKING, TypedDict, Tuple, Dict, Type, List
 
 from ..base import DataProvider
 from ....commons.iterable import assert_ooo
@@ -32,10 +32,13 @@ FORMAT_LOOKUP = {
     "mesh": MESH_FORMATS,
     "image": IMAGE_FORMATS,
 }
-READER_LOOKUP: Dict[str, Dict[str, str]] = {
-    "nii": {"type": "read/nifti"},
+READER_LOOKUP: Dict[str, List[Dict[str, str]]] = {
+    "nii": [{"type": "read/nifti"}],
 }
-# TODO: create the remaining readers and add to the dictionary
+
+
+def register_format(format: str, Cls: Type):
+    pass
 
 
 class Mapping(TypedDict):
@@ -72,6 +75,9 @@ class VolumeProvider(DataProvider):
 
     def __post_init__(self):
         super().__post_init__()
+
+        # TODO: see if READER_LOOKUP can be automatically populated with a wrapper
+        # self.retrieval_ops.extend(READER_LOOKUP[self.format])
         if self.format == "neuroglancer/precomputed":
             self.retrieval_ops.append(
                 {"type": "read/neuroglancer_precomputed", "url": self.url}
@@ -81,11 +87,11 @@ class VolumeProvider(DataProvider):
                 {"type": "read/neuroglancer_precompmesh", "url": self.url}
             )
         elif self.format == "nii":
-            self.transformation_ops.append({"type": "read/nifti"})
+            self.retrieval_ops.append({"type": "read/nifti"})
         elif self.format in {"gii-label", "gii-mesh"}:
-            self.transformation_ops.append({"type": "read/gifti"})
+            self.retrieval_ops.append({"type": "read/gifti"})
         elif self.format in "freesurfer-annot":
-            self.transformation_ops.append({"type": "read/freesurfer_annot"})
+            self.retrieval_ops.append({"type": "read/freesurfer_annot"})
 
     @property
     def space(self):
@@ -141,7 +147,7 @@ def resolve_fetch_ops(vol_ops_kwargs: VolumeOpsKwargs):
 
     subspace = mapping.get("subspace", None)
     if subspace is not None:
-        ops.append({"tpye": "codec/vol/extractsubspace"})
+        ops.append({"type": "codec/vol/extractsubspace"})
 
     label = mapping.get("label", None)
     if label is not None:

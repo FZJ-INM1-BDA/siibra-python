@@ -101,6 +101,7 @@ class DataOp:
     input: None
     output: None
     desc: str = "Noop"
+    type: str = "baseop"
 
     step_register: Dict[str, Type["DataOp"]] = {}
 
@@ -132,6 +133,10 @@ class DataOp:
     @staticmethod
     def get_noop():
         return {"type": "noop"}
+
+    @classmethod
+    def generate_specs(cls, **kwargs):
+        return {"type": cls.type, **kwargs}
 
 
 class Merge(DataOp, type="baseop/merge"):

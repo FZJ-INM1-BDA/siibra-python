@@ -204,7 +204,7 @@ class Map(AtlasElement):
             )
         )
 
-        return replace(provider, transformation_ops=extraction_ops)
+        return replace(provider, retrieval_ops=[], transformation_ops=extraction_ops)
 
     def extract_regional_map(
         self,
@@ -244,7 +244,7 @@ class Map(AtlasElement):
             retrieval_ops=[
                 Merge.from_inputs(*[provider.retrieval_ops for provider in providers])
             ],
-            transformation_ops=[MergeLabelledNiftis.to_spec()],
+            transformation_ops=[MergeLabelledNiftis.generate_specs()],
         )
         if isinstance(mask_provider, ImageProvider):
             if self.maptype == "statistical":

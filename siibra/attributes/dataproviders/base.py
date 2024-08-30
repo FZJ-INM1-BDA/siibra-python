@@ -41,8 +41,7 @@ class Archive(TypedDict):
 def get_result(steps: List[Dict]):
     result: Any = None
     for step in steps:
-        Runner = DataOp.get_runner(step)
-        runner = Runner
+        runner = DataOp.get_runner(step)
         result = runner.run(result, **step)
     return result
 
