@@ -86,7 +86,7 @@ class Space(AtlasElement):
 
         return list(filter(filter_templates, self.volume_providers))
 
-    def fetch_template(
+    def get_template(
         self,
         variant: Union[str, None] = None,
         frmt: str = None,
@@ -104,13 +104,12 @@ class Space(AtlasElement):
                 f"Could not get a template with provided parameters: (variant{variant!r}, frmt={frmt})"
             )
         try:
-            template = assert_ooo(templates)
-            return template.fetch(**fetch_kwargs)
+            return assert_ooo(templates)
         except AssertionError:
             pass
 
         # check if only one variant has been selected and merge
-        variants = dict.fromkeys(key for tmp in templates for key in tmp.mapping.keys())
+        variants = set(tmp.name for tmp in templates) - {None}
         assert (
             len(variants) == 1
         ), f"Found several variants matching {_variant!r}. Please select a variant: {self.variants}"

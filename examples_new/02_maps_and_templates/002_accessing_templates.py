@@ -57,7 +57,7 @@ icbm_tpls
 # space. By default (and if available), this gives us a 3D image in the form of
 # a Nifti1Image object as defined and supported by the commonly used
 # `nibabel <https://nipy.org/nibabel/index.html>`_ library.
-icbm_img = icbm.fetch_template()
+icbm_img = icbm.get_template()
 print(type(icbm_img))
 
 # %%
@@ -80,7 +80,7 @@ icbm.formats
 # we can pre-check wether a volume provides image or mesh data
 # explicitly using `provides_mesh` and `provides_image`
 assert icbm.provides_mesh
-icbm_mesh = icbm.fetch_template(frmt='mesh')
+icbm_mesh = icbm.get_template(frmt='mesh')
 print(type(icbm_mesh))
 
 # %%
