@@ -25,7 +25,7 @@ from ..attributes.locations import boundingbox, PointCloud
 from ..attributes.dataproviders.volume import IMAGE_FORMATS
 from ..commons.string import get_spec, SPEC_TYPE, extract_uuid
 from ..commons.iterable import assert_ooo
-from ..commons.maps import spatial_props, create_mask
+from ..commons.maps import spatial_props
 from ..commons.logger import logger
 from ..commons.register_recall import RegisterRecall
 from ..dataops.file_fetcher.dataproxy_fetcher import DataproxyRepository
@@ -34,6 +34,7 @@ from ..cache import fn_call_cache
 if TYPE_CHECKING:
     from . import Space, ParcellationScheme
     from ..assignment.qualification import Qualification
+    from .parcellationmap import Map
 
 
 def filter_newest(regions: List["Region"]) -> List["Region"]:
@@ -169,8 +170,8 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         return _spatial_props
 
     def _finditer_regional_maps(
-        self, space: Union[str, "Space", None] = None, maptype: str = "labelled"
-    ):
+        self, space: Union[str, "Space", None] = None, maptype: Union[str, None] = None
+    ) -> Iterable["Map"]:
         from .space import Space
         from .parcellationmap import Map, VALID_MAPTYPES
         from ..assignment import string_search
@@ -188,7 +189,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         ), f"space must be str, Space or None. You provided {space}"
 
         for mp in iter_preconfigured_ac(Map):
-            if maptype != mp.maptype:
+            if maptype is not None and maptype != mp.maptype:
                 continue
             if space and space.ID != mp.space_id:
                 continue
@@ -204,13 +205,12 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
     ):
         return list(self._finditer_regional_maps(space, maptype))
 
-    def fetch_regional_map(
+    def get_regional_map(
         self,
         space: Union[str, "Space", None] = None,
         maptype: str = "labelled",
         via_space: Union[str, "Space", None] = None,
-        frmt: str = None,
-    ):
+    ) -> "Map":
         if via_space is not None:
             raise NotImplementedError
         maps = self.find_regional_maps(space=space, maptype=maptype)
@@ -227,7 +227,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
                     f"Found no maps matching the specs for this region., {space}"
                 )
 
-        return selectedmap.fetch(frmt=frmt)
+        return selectedmap
 
     def fetch_regional_mask(
         self,
@@ -238,13 +238,11 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         via_space: Union[str, "Space", None] = None,
         frmt: str = None,
     ):
-        region_map = self.fetch_regional_map(
+        region_map = self.get_regional_map(
             space=space, maptype=maptype, via_space=via_space, frmt=frmt
         )
-        if region_map is None:
-            return
-        return create_mask(
-            region_map,
+        region_map.extract_mask(
+            region_map.regions,
             background_value=background_value,
             lower_threshold=lower_threshold,
         )

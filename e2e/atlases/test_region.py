@@ -119,19 +119,19 @@ def test_related_region_hemisphere():
 @pytest.fixture(scope="session")
 def jba29_fp1lh_reg_map():
     region = siibra.get_region("julich 2.9", "fp1 left")
-    yield region.fetch_regional_map("icbm 152"), [0, 212]
+    yield region.get_regional_map("icbm 152"), [0, 212]
 
 
 @pytest.fixture(scope="session")
 def jba29_fp1bh_reg_map():
     region = siibra.get_region("julich 2.9", "fp1")
-    yield region.fetch_regional_map("icbm 152"), [0, 212]
+    yield region.get_regional_map("icbm 152"), [0, 212]
 
 
 @pytest.fixture(scope="session")
 def jba29_fpf_reg_map():
     region = siibra.get_region("julich 2.9", "frontal pole")
-    yield region.fetch_regional_map("icbm 152"), [0, 211, 212]
+    yield region.get_regional_map("icbm 152"), [0, 211, 212]
 
 
 jba29_regmap_fx_name = [

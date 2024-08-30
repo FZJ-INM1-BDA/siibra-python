@@ -132,11 +132,13 @@ class Map(AtlasElement):
             )
 
         sub_mapping = {r: m for r, m in self.region_mapping.items() if r in regionnames}
+        target_attrs = {mp["target"] for mp in sub_mapping.values()}
+        vol_providers = [vp for vp in self.volume_providers if vp.name in target_attrs]
         attributes = [
             Name(value=f"{regionnames} filtered from {self.name}"),
             _ID(value=None),
             self._get(SpeciesSpec),
-            self.volume_providers,
+            vol_providers,
         ]
         return replace(self, attributes=attributes, region_mapping=sub_mapping)
 
@@ -151,7 +153,7 @@ class Map(AtlasElement):
 
     def _extract_regional_map_volume_provider(
         self,
-        region: Union[str, Region] = None,
+        region: Union[str, Region],
         frmt: str = None,
         bbox: "BoundingBox" = None,
         resolution_mm: float = None,
@@ -215,8 +217,13 @@ class Map(AtlasElement):
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
     ):
+        if region in self.regions:
+            regionname = region
+        else:
+            regionname = self.parcellation.get_region(region).name
+            assert regionname in self.regions
         provider = self._extract_regional_map_volume_provider(
-            region=region,
+            region=regionname,
             frmt=frmt,
             bbox=bbox,
             resolution_mm=resolution_mm,
@@ -396,7 +403,7 @@ class Map(AtlasElement):
     ) -> DataFrame:
         assignments: List[Union[Map.RegionAssignment, Map.ScoredRegionAssignment]] = []
         for region in siibra_tqdm(self.regions, unit="region"):
-            region_image = self.find_volumes(
+            region_image = self._extract_regional_map_volume_provider(
                 region=region, frmt="image", **volume_ops_kwargs
             )[0]
             with QUIET:
@@ -469,7 +476,7 @@ class Map(AtlasElement):
 
         assignments: List[Map.RegionAssignment] = []
         for region in siibra_tqdm(self.regions, unit="region"):
-            region_image = self.find_volumes(
+            region_image = self._extract_regional_map_volume_provider(
                 region=region, frmt="image", **volume_ops_kwargs
             )[0]
             for pointindex, map_value in zip(
