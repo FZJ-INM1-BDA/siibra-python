@@ -35,7 +35,7 @@ from .parcellationmap import Map
 from .region import Region
 from ..attributes.dataproviders.volume import VolumeOpsKwargs, SIIBRA_MAX_FETCH_SIZE_GIB
 from ..attributes.locations import Point, PointCloud
-from ..dataops.file_fetcher.io.base import PartialReader
+from ..operations.file_fetcher.io.base import PartialReader
 from ..commons.logger import siibra_tqdm, logger
 from ..cache import CACHE
 

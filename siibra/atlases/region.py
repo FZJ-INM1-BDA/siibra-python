@@ -28,7 +28,7 @@ from ..commons.iterable import assert_ooo
 from ..commons.maps import spatial_props
 from ..commons.logger import logger
 from ..commons.register_recall import RegisterRecall
-from ..dataops.file_fetcher.dataproxy_fetcher import DataproxyRepository
+from ..operations.file_fetcher.dataproxy_fetcher import DataproxyRepository
 from ..cache import fn_call_cache
 
 if TYPE_CHECKING:

@@ -1,5 +1,5 @@
-from siibra.dataops.file_fetcher.zip_fetcher import ZipDataOp
-from siibra.dataops.base import DataOp
+from siibra.operations.file_fetcher.zip_fetcher import ZipDataOp
+from siibra.operations.base import DataOp
 
 hcp_zip_url = "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000059_Atlas_based_HCP_connectomes_v1.1_pub/096-HarvardOxfordMaxProbThr0.zip"
 hcp_zip_filename = (

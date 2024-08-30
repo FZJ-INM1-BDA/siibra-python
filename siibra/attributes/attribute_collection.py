@@ -118,7 +118,7 @@ class AttributeCollection:
 
     @property
     def publications(self):
-        from ..dataops.doi_fetcher import get_citation
+        from ..operations.doi_fetcher import get_citation
 
         citations = [
             Url(value=doi.value, text=get_citation(doi)) for doi in self._find(Doi)

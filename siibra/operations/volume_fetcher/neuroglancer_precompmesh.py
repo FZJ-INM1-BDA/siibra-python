@@ -22,7 +22,7 @@ from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_me
 
 from ...cache import fn_call_cache
 from ...commons.maps import arrs_to_gii
-from ...dataops import DataOp
+from ...operations import DataOp
 
 
 @fn_call_cache

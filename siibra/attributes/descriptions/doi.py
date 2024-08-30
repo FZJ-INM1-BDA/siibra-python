@@ -33,6 +33,6 @@ class Doi(Description):
 
     @property
     def citation(self):
-        from ...dataops.doi_fetcher import get_citation
+        from ...operations.doi_fetcher import get_citation
 
         return get_citation(self)

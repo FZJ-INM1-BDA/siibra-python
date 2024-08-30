@@ -19,7 +19,7 @@ import os
 
 from nibabel import freesurfer, gifti
 
-from ...dataops import DataOp
+from ...operations import DataOp
 from ...cache import CACHE
 from ...commons.maps import arrs_to_gii
 

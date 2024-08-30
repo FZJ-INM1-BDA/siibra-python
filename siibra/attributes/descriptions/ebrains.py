@@ -19,7 +19,7 @@ import json
 
 from .base import Description
 from .doi import Doi
-from ...dataops.file_fetcher.dataproxy_fetcher import DataproxyRepository
+from ...operations.file_fetcher.dataproxy_fetcher import DataproxyRepository
 from ...commons.string import extract_uuid
 
 if TYPE_CHECKING:

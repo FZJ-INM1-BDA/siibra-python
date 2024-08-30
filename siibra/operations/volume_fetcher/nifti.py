@@ -20,7 +20,7 @@ from nibabel import Nifti1Image
 import numpy as np
 from nilearn.image import resample_to_img, resample_img
 
-from ...dataops import DataOp
+from ...operations import DataOp
 from ...commons.logger import siibra_tqdm
 
 if TYPE_CHECKING:

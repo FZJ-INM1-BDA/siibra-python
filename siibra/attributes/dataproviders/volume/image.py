@@ -173,7 +173,7 @@ class ImageProvider(VolumeProvider):
         **volume_ops_kwargs: VolumeOpsKwargs,
     ):
         from pandas import DataFrame
-        from ....dataops.image_assignment import get_intersection_scores
+        from ....operations.image_assignment import get_intersection_scores
 
         assignments = get_intersection_scores(
             queryitem=item,

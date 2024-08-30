@@ -42,13 +42,13 @@ from ..attributes.dataproviders.volume import (
 )
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
 from ..attributes.locations import BoundingBox, Point, PointCloud
-from ..dataops.image_assignment import (
+from ..operations.image_assignment import (
     ImageAssignment,
     ScoredImageAssignment,
     get_intersection_scores,
 )
-from ..dataops.volume_fetcher.nifti import MergeLabelledNiftis, NiftiMask
-from ..dataops.base import Merge
+from ..operations.volume_fetcher.nifti import MergeLabelledNiftis, NiftiMask
+from ..operations.base import Merge
 
 VALID_MAPTYPES = ("statistical", "labelled")
 

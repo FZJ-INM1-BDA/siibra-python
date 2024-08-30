@@ -26,7 +26,7 @@ from .commons.tree import collapse_nodes
 from .cache import fn_call_cache, Warmup, WarmupLevel, CACHE as cache
 
 from . import factory
-from . import dataops
+from . import operations
 from . import attributes
 from ._version import __version__
 from .atlases import Space, ParcellationScheme, Region, parcellationmap
@@ -223,7 +223,7 @@ maps = LazyBkwdCompatInstanceTable(
 
 
 def set_feasible_download_size(maxsize_gbyte):
-    from .dataops import volume_fetcher
+    from .operations import volume_fetcher
 
     volume_fetcher.SIIBRA_MAX_FETCH_SIZE_GIB = maxsize_gbyte
     logger.info(f"Set feasible download size to {maxsize_gbyte} GiB.")

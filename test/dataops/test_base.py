@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch, Mock
-from siibra.dataops.base import DataOp, Merge
+from siibra.operations.base import DataOp, Merge
 import siibra
 
 

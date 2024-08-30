@@ -25,7 +25,7 @@ from neuroglancer_scripts.precomputed_io import (
     PrecomputedIO,
 )
 
-from ...dataops import DataOp
+from ...operations import DataOp
 from ...attributes.dataproviders.volume import (
     VolumeOpsKwargs,
     SIIBRA_MAX_FETCH_SIZE_GIB,

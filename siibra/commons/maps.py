@@ -23,7 +23,7 @@ try:
 except ImportError:
     from typing_extensions import Literal, TypedDict
 
-from ..dataops import DataOp
+from ..operations import DataOp
 from ..attributes.locations import Point
 
 

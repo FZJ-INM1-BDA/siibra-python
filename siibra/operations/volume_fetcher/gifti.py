@@ -17,7 +17,7 @@ import gzip
 
 from nibabel.gifti import gifti
 
-from ...dataops import DataOp
+from ...operations import DataOp
 
 
 class ReadGiftiFromBytes(DataOp, type="read/gifti"):

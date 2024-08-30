@@ -1,5 +1,5 @@
 from unittest.mock import mock_open, patch, MagicMock
-from siibra.dataops.file_fetcher import RemoteLocalDataOp
+from siibra.operations.file_fetcher import RemoteLocalDataOp
 import pytest
 import requests
 

@@ -24,8 +24,8 @@ except ImportError:
 
 from ...attributes import Attribute
 from ...cache import fn_call_cache
-from ...dataops.base import DataOp
-from ...dataops.file_fetcher import (
+from ...operations.base import DataOp
+from ...operations.file_fetcher import (
     TarDataOp,
     ZipDataOp,
     RemoteLocalDataOp,

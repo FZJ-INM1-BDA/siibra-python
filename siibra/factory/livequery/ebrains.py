@@ -16,7 +16,7 @@ from siibra.attributes import AttributeCollection
 
 from .base import LiveQuery
 from ...concepts import Feature
-from ...dataops.file_fetcher.dataproxy_fetcher import DataproxyRepository
+from ...operations.file_fetcher.dataproxy_fetcher import DataproxyRepository
 from ...attributes.descriptions import (
     RegionSpec,
     EbrainsRef,
