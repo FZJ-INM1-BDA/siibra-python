@@ -166,16 +166,25 @@ def spatial_props(
     return spatialprops
 
 
+# TODO move to dataops/volumesops ?
 class ComputeCentroid(DataOp):
     input: Nifti1Image
     output: Point
     desc = "Transforms nifti to nifti"
+    type = "nifti/compute/centroid"
 
-    def run(self, input, *, cfg: dict, **kwargs):
-        background_value = cfg.get("background_value", 0)
+    def run(self, input, *, background_value=0, **kwargs):
+        assert isinstance(
+            input, Nifti1Image
+        ), f"Expected input to be of type nifti1image, but was {type(input)}"
         maparr = np.asanyarray(input.dataobj)
         centroid_vox = np.mean(np.where(maparr != background_value), axis=1)
         return Point(coordinate=np.dot(input.affine, np.r_[centroid_vox, 1])[:3])
+
+    @classmethod
+    def generate_specs(cls, background_value=0, **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "background_value": background_value}
 
 
 def create_mask(

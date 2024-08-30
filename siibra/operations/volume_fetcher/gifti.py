@@ -20,10 +20,11 @@ from nibabel.gifti import gifti
 from ...operations import DataOp
 
 
-class ReadGiftiFromBytes(DataOp, type="read/gifti"):
+class ReadGiftiFromBytes(DataOp):
     input: bytes
     output: gifti.GiftiImage
     desc = "Reads bytes into gifti"
+    type = "read/gifti"
 
     def run(self, input, **kwargs):
         assert isinstance(input, bytes)

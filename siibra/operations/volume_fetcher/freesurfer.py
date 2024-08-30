@@ -51,10 +51,11 @@ def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
     return result
 
 
-class ReadGiftiFromBytes(DataOp, type="read/freesurfer_annot"):
+class ReadGiftiFromBytes(DataOp):
     input: bytes
     output: gifti.GiftiImage
     desc = "Reads bytes into gifti"
+    type = "read/freesurfer_annot"
 
     def run(self, input, **kwargs):
         assert isinstance(input, bytes)

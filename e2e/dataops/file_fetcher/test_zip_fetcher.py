@@ -8,7 +8,7 @@ hcp_zip_filename = (
 
 
 def test_zipdataop():
-    dataop = ZipDataOp.from_url(hcp_zip_url, hcp_zip_filename)
+    dataop = ZipDataOp.generate_specs(url=hcp_zip_url, filename=hcp_zip_filename)
     Runner = DataOp.get_runner(dataop)
     runner = Runner()
     assert Runner is ZipDataOp

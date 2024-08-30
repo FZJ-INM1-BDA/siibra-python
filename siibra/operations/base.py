@@ -101,18 +101,21 @@ class DataOp:
     input: None
     output: None
     desc: str = "Noop"
-    type: str = "baseop"
+    type: str = "baseop/noop"
 
     step_register: Dict[str, Type["DataOp"]] = {}
 
     def run(self, input, **kwargs):
         return input
 
-    def __init_subclass__(cls, type: str = None) -> None:
-        if not type:
-            return
-        assert type not in cls.step_register, f"Already registered {type}"
-        cls.step_register[type] = cls
+    def __init_subclass__(cls) -> None:
+        if not cls.type:
+            logger.debug(
+                f"{cls.__name__} does not have type defined. Cannot register it."
+            )
+
+        assert cls.type not in cls.step_register, f"Already registered {cls.type}"
+        cls.step_register[cls.type] = cls
 
     @classmethod
     def get_runner(cls, step: Dict):
@@ -130,23 +133,25 @@ class DataOp:
             descs.append(f"{idx} - {runner.desc.format(**step)}")
         return "\n".join(descs)
 
-    @staticmethod
-    def get_noop():
-        return {"type": "noop"}
-
     @classmethod
     def generate_specs(cls, **kwargs):
         return {"type": cls.type, **kwargs}
 
 
-class Merge(DataOp, type="baseop/merge"):
+class Merge(DataOp):
     input: None
     Output: List[Any]
+    type = "baseop/merge"
 
-    def run(self, input, srcs: List[List[Dict]], **kwargs) -> List[Any]:
+    def run(self, input, *, srcs: List[List[Dict]], **kwargs) -> List[Any]:
         from ..attributes.dataproviders.base import get_result
 
         return [get_result(src) for src in srcs]
+
+    @classmethod
+    def generate_specs(cls, *, srcs: List[List[Dict]], **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "srcs": srcs}
 
     @staticmethod
     def from_inputs(*srcs: List[List[Dict]]):

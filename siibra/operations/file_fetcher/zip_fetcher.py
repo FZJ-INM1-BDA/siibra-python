@@ -98,16 +98,18 @@ class ZipRepository(ArchivalRepository):
                 continue
 
 
-class ZipDataOp(DataOp, type="read/zip"):
+class ZipDataOp(DataOp):
     input: None
     output: bytes
     desc = (
         "returns bytes as the result of reading accessing zip file at {url} {filename}"
     )
+    type = "read/zip"
 
     def run(self, _, *, url, filename, **kwargs):
         return ZipRepository(url).get(filename)
 
-    @staticmethod
-    def from_url(url: str, filename: str):
-        return {"type": "read/zip", "url": url, "filename": filename}
+    @classmethod
+    def generate_specs(cls, *, url: str, filename: str, **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "url": url, "filename": filename}

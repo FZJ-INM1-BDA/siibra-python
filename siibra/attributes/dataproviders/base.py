@@ -67,17 +67,23 @@ class DataProvider(Attribute):
         assert self.url, "url must be defined"
 
         if self.archive_options is None:
-            self.retrieval_ops.append(RemoteLocalDataOp.from_url(self.url))
+            self.retrieval_ops.append(
+                RemoteLocalDataOp.generate_specs(filename=self.url)
+            )
             return
 
         if self.archive_options["format"] == "tar":
             self.retrieval_ops.append(
-                TarDataOp.from_url(self.url, self.archive_options["file"])
+                TarDataOp.generate_specs(
+                    url=self.url, filename=self.archive_options["file"]
+                )
             )
             return
         if self.archive_options["format"] == "zip":
             self.retrieval_ops.append(
-                ZipDataOp.from_url(self.url, self.archive_options["file"])
+                ZipDataOp.generate_specs(
+                    url=self.url, filename=self.archive_options["file"]
+                )
             )
             return
 

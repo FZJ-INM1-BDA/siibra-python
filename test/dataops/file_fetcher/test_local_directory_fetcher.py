@@ -26,7 +26,7 @@ args = [
 
 @pytest.mark.parametrize("url, mopen_calls, get_calls", args)
 def test_remote_local(url, mopen_calls, get_calls, fixture_mock_open, mock_request):
-    spec = RemoteLocalDataOp.from_url(url)
+    spec = RemoteLocalDataOp.generate_specs(filename=url)
     RemoteLocalDataOp().run(None, **spec)
     if mopen_calls:
 

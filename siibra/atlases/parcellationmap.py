@@ -249,18 +249,20 @@ class Map(AtlasElement):
         mask_provider = provider_type(
             space_id=self.space_id,
             retrieval_ops=[
-                Merge.from_inputs(*[provider.retrieval_ops for provider in providers])
+                Merge.generate_specs(
+                    *[provider.retrieval_ops for provider in providers]
+                )
             ],
             transformation_ops=[MergeLabelledNiftis.generate_specs()],
         )
         if isinstance(mask_provider, ImageProvider):
             if self.maptype == "statistical":
                 mask_provider.transformation_ops.append(
-                    NiftiMask.from_threshold(lower_threshold=lower_threshold)
+                    NiftiMask.generate_specs(lower_threshold=lower_threshold)
                 )
             else:
                 mask_provider.transformation_ops.append(
-                    NiftiMask.from_foreground(background_value)
+                    NiftiMask.generate_specs(background_value=background_value)
                 )
         else:
             # TODO: implement a gifti masker
@@ -285,7 +287,7 @@ class Map(AtlasElement):
             retrieval_ops=[
                 Merge.from_inputs(*[provider.retrieval_ops for provider in providers])
             ],
-            transformation_ops=[MergeLabelledNiftis.to_spec()],
+            transformation_ops=[MergeLabelledNiftis.generate_specs()],
         )
 
         if not allow_relabeling:

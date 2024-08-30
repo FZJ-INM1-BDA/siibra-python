@@ -49,9 +49,10 @@ class LocalDirectoryRepository(Repository):
         return (Path(self.path) / filepath).read_bytes()
 
 
-class RemoteLocalDataOp(DataOp, type="read/remote-local"):
+class RemoteLocalDataOp(DataOp):
     input: None
     output: bytes
+    type = "read/remote-local"
 
     def run(self, _, *, filename, **kwargs):
         assert isinstance(
@@ -64,9 +65,7 @@ class RemoteLocalDataOp(DataOp, type="read/remote-local"):
         with open(filename, "rb") as fp:
             return fp.read()
 
-    @staticmethod
-    def from_url(filename: str):
-        assert isinstance(
-            filename, str
-        ), "remote local data op only takes string as filename kwarg"
-        return {"type": "read/remote-local", "filename": filename}
+    @classmethod
+    def generate_specs(cls, filename, **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "filename": filename}

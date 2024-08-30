@@ -127,16 +127,18 @@ class TarRepository(ArchivalRepository):
                 continue
 
 
-class TarDataOp(DataOp, type="read/tar"):
+class TarDataOp(DataOp):
     input: None
     output: bytes
     desc = (
         "returns bytes as the result of reading accessing tar file at {url} {filename}"
     )
+    type = "read/tar"
 
     def run(self, _, *, url, filename, **kwargs):
         return TarRepository(url).get(filename)
 
-    @staticmethod
-    def from_url(url: str, filename: str):
-        return {"type": "read/tar", "url": url, "filename": filename}
+    @classmethod
+    def generate_specs(cls, *, url: str, filename: str, **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "url": url, "filename": filename}

@@ -33,10 +33,11 @@ class NiftiCodec(DataOp):
     desc = "Transforms nifti to nifti"
 
 
-class ReadNiftiFromBytes(DataOp, type="read/nifti"):
+class ReadNiftiFromBytes(DataOp):
     input: bytes
     output: Nifti1Image
     desc = "Reads bytes into nifti"
+    type = "read/nifti"
 
     def run(self, input, **kwargs):
         assert isinstance(input, bytes)
@@ -46,12 +47,18 @@ class ReadNiftiFromBytes(DataOp, type="read/nifti"):
             return Nifti1Image.from_bytes(input)
 
 
-class NiftiMask(NiftiCodec, type="codec/vol/mask"):
+class NiftiMask(NiftiCodec):
     desc = "Mask nifti according to spec {kwargs."
+    type = "codec/vol/mask"
 
-    def run(self, input, **kwargs):
-        lower_threshold = kwargs.get("lower_threshold", 0.0)
-        background_value = kwargs.get("background_value", 0)
+    def run(
+        self,
+        input,
+        *,
+        lower_threshold: Union[None, float],
+        background_value: Union[None, float, int],
+        **kwargs
+    ):
         assert isinstance(input, Nifti1Image)
         arr = np.asanyarray(input.dataobj)
         if lower_threshold is not None:
@@ -68,19 +75,26 @@ class NiftiMask(NiftiCodec, type="codec/vol/mask"):
             )
 
     @classmethod
-    def from_threshold(cls, lower_threshold: float = 0.0):
-        return {"type": "codec/vol/mask", "lower_threshold": lower_threshold}
+    def generate_specs(
+        cls,
+        *,
+        lower_threshold: Union[float, None] = None,
+        background_value: Union[float, int, None] = None,
+        **kwargs
+    ):
+        base = super().generate_specs(**kwargs)
+        return {
+            **base,
+            "lower_threshold": lower_threshold,
+            "background_value": background_value,
+        }
 
-    @classmethod
-    def from_foreground(cls, background_value: Union[int, float] = 0):
-        return {"type": "codec/vol/mask", "background_value": background_value}
 
+class NiftiExtractLabels(NiftiCodec):
+    desc = "Extract a nifti with only selected labels."
+    type = "codec/vol/extractlabels"
 
-class NiftiExtractLabels(NiftiCodec, type="codec/vol/extractlabels"):
-    desc = "Extract a nifti with only selected labels according to {kwargs."
-
-    def run(self, input, **kwargs):
-        labels = kwargs.get("labels")
+    def run(self, input, *, labels: List[int], **kwargs):
         assert isinstance(input, Nifti1Image)
         arr = np.asanyarray(input.dataobj)
         mapping = np.zeros(arr.max() + 1)
@@ -89,15 +103,16 @@ class NiftiExtractLabels(NiftiCodec, type="codec/vol/extractlabels"):
         return Nifti1Image(mapping[arr], input.affine, dtype=input.get_data_dtype())
 
     @classmethod
-    def from_labels(cls, labels: List[int]):
-        return {"type": "codec/vol/extractlabels", "labels": labels}
+    def generate_specs(cls, *, labels: List[int], **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "labels": labels}
 
 
-class NiftiExtractRange(NiftiCodec, type="codec/vol/extractrange"):
-    desc = "Extract a nifti with values only from selected range according to {kwargs."
+class NiftiExtractRange(NiftiCodec):
+    desc = "Extract a nifti with values only from selected range."
+    type = "codec/vol/extractrange"
 
-    def run(self, input, **kwargs):
-        range = kwargs.get("range")
+    def run(self, input, *, range: Tuple[float, float], **kwargs):
         assert isinstance(input, Nifti1Image)
         if not range:
             return input
@@ -109,26 +124,33 @@ class NiftiExtractRange(NiftiCodec, type="codec/vol/extractrange"):
         )
 
     @classmethod
-    def from_range(cls, range: Tuple[float, float]):
-        return {"type": "codec/vol/extractrange", "range": range}
+    def generate_specs(cls, *, range: Tuple[float, float], **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "range": range}
 
 
-class NiftiExtractSubspace(NiftiCodec, type="codec/vol/extractsubspace"):
+class NiftiExtractSubspace(NiftiCodec):
     desc = "Extract a nifti with values only from selected slice according to {kwargs."
+    type = "codec/vol/extractsubspace"
 
-    def run(self, input, **kwargs):
-        subspace = kwargs.get("subspace")
+    def run(self, input, *, subspace: slice, **kwargs):
         assert isinstance(input, Nifti1Image)
         s_ = tuple(slice(None) if isinstance(s, str) else s for s in subspace)
         return input.slicer[s_]
+
+    @classmethod
+    def generate_specs(cls, *, subspace: slice, **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "subspace": subspace}
 
     @classmethod
     def from_subspace(cls, subspace: slice):
         return {"type": "codec/vol/extractsubspace", "subspace": subspace}
 
 
-class NiftiExtractVOI(NiftiCodec, type="codec/vol/extractVOI"):
+class NiftiExtractVOI(NiftiCodec):
     desc = "Extract a nifti with values only from selected volume of interest according to {kwargs."
+    type = "codec/vol/extractVOI"
 
     def run(self, input, **kwargs):
         voi = kwargs.get("voi")
@@ -144,13 +166,15 @@ class NiftiExtractVOI(NiftiCodec, type="codec/vol/extractVOI"):
         return result
 
     @classmethod
-    def from_bbox(cls, voi: "BoundingBox"):
-        return {"type": "codec/vol/extractVOI", "voi": voi}
+    def generate_specs(cls, *, voi: "BoundingBox", **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "voi": voi}
 
 
 # TODO: Morph into run + classmethod
-class ResampleNifti(NiftiCodec, type="codec/vol/resample"):
+class ResampleNifti(NiftiCodec):
     desc = "Resample a nifti according to {kwargs."
+    type = "codec/vol/resample"
 
     def run(self, input, **kwargs):
         raise NotImplementedError
@@ -186,10 +210,14 @@ class ResampleNifti(NiftiCodec, type="codec/vol/resample"):
 
 # TODO: Morph into run + classmethod
 # TODO: take resampling out. The inputs should be provided resampled
-class MergeLabelledNiftis(DataOp, type="codec/vol/merge"):
+class MergeLabelledNiftis(DataOp):
     input: List[Nifti1Image]
     output: Nifti1Image
     desc = "Merge a list of niftis according to kwargs."
+    type = "codec/vol/merge"
+
+    def run(self, input: List[Nifti1Image]):
+        raise NotImplementedError
 
     def _resample_and_merge_niftis(
         niftis: List[Nifti1Image],
@@ -233,7 +261,7 @@ class MergeLabelledNiftis(DataOp, type="codec/vol/merge"):
         return Nifti1Image(dataobj=merged_array, affine=affine)
 
 
-class IntersectNiftiWithNifti(DataOp, type="codec/vol/intersectNifti"):
+class IntersectNiftiWithNifti(DataOp):
     input: Tuple[Nifti1Image, Nifti1Image]
     output: Nifti1Image
     desc = """
@@ -253,6 +281,7 @@ class IntersectNiftiWithNifti(DataOp, type="codec/vol/intersectNifti"):
     Nifti1Image
         returns a mask (i.e. dtype('uint8'))
     """
+    type = "codec/vol/intersectNifti"
 
     def run(self, input, **kwargs):
         assert all(isinstance(inpt, Nifti1Image) for inpt in input)

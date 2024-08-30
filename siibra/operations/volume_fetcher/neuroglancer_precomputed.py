@@ -284,23 +284,19 @@ def fetch_neuroglancer(url: str, **fetchkwargs: VolumeOpsKwargs) -> "nib.Nifti1I
     return scale.fetch(bbox=fetchkwargs.get("bbox"))
 
 
-class ReadNeuroglancerPrecomputed(DataOp, type="read/neuroglancer_precomputed"):
+class ReadNeuroglancerPrecomputed(DataOp):
     input: str
     output: nib.Nifti1Image
     desc = "Reads bytes into nifti"
+    type = "read/neuroglancer_precomputed"
 
     def run(self, input, **kwargs):
         return fetch_neuroglancer(kwargs.pop("url"), **kwargs)
 
     @classmethod
-    def from_url(cls, url: str, **fetchkwargs: VolumeOpsKwargs):
-        return {
-            "type": "read/neuroglancer_precomputed",
-            "url": url,
-            "bbox": fetchkwargs.get("bbox", None),
-            "resolution_mm": fetchkwargs.get("resolution_mm", None),
-            "max_download_GB": fetchkwargs.get("max_download_GB", SIIBRA_MAX_FETCH_SIZE_GIB),
-        }
+    def generate_specs(cls, *, url: str, **kwargs: VolumeOpsKwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "url": url}
 
 
 @fn_call_cache

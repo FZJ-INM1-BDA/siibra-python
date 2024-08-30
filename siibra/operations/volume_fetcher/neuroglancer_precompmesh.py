@@ -83,10 +83,11 @@ def get_meshindex_info(self, base_url: str, meshindex: int) -> Dict[str, Tuple[s
             )
 
 
-class ReadNeuroglancerPrecomputed(DataOp, type="read/neuroglancer_precompmesh"):
+class ReadNeuroglancerPrecomputed(DataOp):
     input: str
     output: GiftiImage
     desc = "Reads neuroglancer_precompmesh url into gifti"
+    type = "read/neuroglancer_precompmesh"
 
     def run(self, input, **kwargs):
         url = kwargs.pop("url")
@@ -95,8 +96,6 @@ class ReadNeuroglancerPrecomputed(DataOp, type="read/neuroglancer_precompmesh"):
         return ngvoxelmesh_to_gii(vertices_vox, triangles_vox, transform_nm)
 
     @classmethod
-    def from_url(cls, url: str, **fetchkwargs):
-        return {
-            "type": "read/neuroglancer_precomputed",
-            "url": url,
-        }
+    def generate_specs(cls, *, url: str, **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "url": url}

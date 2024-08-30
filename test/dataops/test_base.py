@@ -6,7 +6,8 @@ import siibra
 
 @pytest.fixture(scope="session")
 def MockDataOp1():
-    class MockDataOp1(DataOp, type="test/op1"):
+    class MockDataOp1(DataOp):
+        type = "test/op1"
 
         @staticmethod
         def to_json():
@@ -17,7 +18,9 @@ def MockDataOp1():
 
 @pytest.fixture(scope="session")
 def MockDataOp2():
-    class MockDataOp1(DataOp, type="test/op2"):
+    class MockDataOp1(DataOp):
+        type = "test/op2"
+
         @staticmethod
         def to_json():
             return {"type": "test/op2"}
@@ -30,9 +33,11 @@ def test_merge(get_result_mock: Mock, MockDataOp1, MockDataOp2):
     get_result_mock.side_effect = [1, 2]
     input1 = [MockDataOp1.to_json()]
     input2 = [MockDataOp2.to_json()]
-    spec = Merge.from_inputs(
-        input1,
-        input2,
+    spec = Merge.generate_specs(
+        srcs=[
+            input1,
+            input2,
+        ]
     )
     assert Merge().run(None, **spec) == [1, 2]
     assert len(get_result_mock.call_args_list) == 2
