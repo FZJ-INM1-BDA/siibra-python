@@ -147,9 +147,9 @@ def resolve_fetch_ops(vol_ops_kwargs: VolumeOpsKwargs):
 
     subspace = mapping.get("subspace", None)
     if subspace is not None:
-        ops.append({"type": "codec/vol/extractsubspace"})
+        ops.append({"type": "codec/vol/extractsubspace", "subspace": subspace})
 
     label = mapping.get("label", None)
     if label is not None:
-        ops.append({"type": "codec/vol/extractlabels"})
+        ops.append({"type": "codec/vol/extractlabels", "labels": [label]})
     return ops

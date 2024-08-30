@@ -198,8 +198,8 @@ class Map(AtlasElement):
                 max_download_GB=max_download_GB,
                 color_channel=color_channel,
                 mapping=Mapping(
-                    labels=[mapping.get("label", None)],
-                    subspace=[mapping.get("subspace", None)],
+                    labels=mapping.get("label", None),
+                    subspace=mapping.get("subspace", None),
                 ),
             )
         )
