@@ -37,6 +37,8 @@ class Space(AtlasElement):
 
     @property
     def variants(self) -> List[str]:
+        if self._attribute_mapping is None:
+            return []
         return list(self._attribute_mapping.keys())
 
     @property
@@ -76,17 +78,17 @@ class Space(AtlasElement):
                 raise ValueError("This space has no variants.")
 
         def filter_templates(vol: Union["ImageProvider", "MeshProvider"]):
-            if vol.mapping is None:
+            if len(self.variants) == 0:
                 return vol.format == frmt
             return vol.format == frmt and (
-                (variant is None) or (variant in vol.mapping.keys())
+                (variant is None) or (variant in self.variants)
             )
 
         return list(filter(filter_templates, self.volume_providers))
 
     def fetch_template(
         self,
-        variant: str = None,
+        variant: Union[str, None] = None,
         frmt: str = None,
         **fetch_kwargs: VolumeOpsKwargs,
     ):
