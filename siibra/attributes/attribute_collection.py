@@ -42,6 +42,7 @@ from .descriptions import (
 )
 from ..commons.iterable import assert_ooo
 from ..commons.logger import siibra_tqdm
+from ..attributes.dataproviders import DataProvider
 
 T = TypeVar("T")
 
@@ -68,6 +69,21 @@ class AttributeCollection:
         for attr in self.attributes:
             if isinstance(attr, attr_type):
                 yield attr
+
+    @property
+    def data_providers(self) -> pd.DataFrame:
+        dataproviders = self._find(DataProvider)
+        return pd.DataFrame(
+            [
+                {
+                    "type": type(d).__name__,
+                    "source_format": d.format,
+                    "name": d.name,
+                    "source_url": d.url,
+                }
+                for d in dataproviders
+            ]
+        )
 
     def filter(self, filter_fn: Callable[[Attribute], bool]):
         """
