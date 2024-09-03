@@ -23,7 +23,14 @@ from ..commons.string import fuzzy_match, clear_name
 from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 from ..attributes import Attribute
 from ..attributes.dataproviders import ImageProvider
-from ..attributes.descriptions import Modality, RegionSpec, Name, ID, Facet
+from ..attributes.descriptions import (
+    Modality,
+    RegionSpec,
+    Name,
+    ID,
+    Facet,
+    AttributeMapping,
+)
 from ..attributes.locations import Point, PointCloud, BoundingBox, intersect
 from ..cache import fn_call_cache
 
@@ -141,6 +148,29 @@ def qualify_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
     cleaned_name2 = clear_name(regspec2.value)
     if fuzzy_match(cleaned_name1, cleaned_name2):
         return Qualification.APPROXIMATE
+
+
+@register_attr_qualifier(RegionSpec, AttributeMapping)
+def qualify_regionspec_attributemapping(
+    regionspec: RegionSpec, attribute_mapping: AttributeMapping
+):
+    if attribute_mapping.region_mapping is None:
+        return
+
+    if regionspec.parcellation_id != attribute_mapping.parcellation_id:
+        return
+
+    mapped_regions = {region for region in attribute_mapping.region_mapping}
+    if regionspec.value in mapped_regions:
+        return Qualification.EXACT
+
+    # if query is a branch node, also check children
+    for regionname in mapped_regions:
+        qualification = qualify_regionspec(
+            regionspec, RegionSpec(attribute_mapping.parcellation_id, value=regionname)
+        )
+        if qualification:
+            return qualification
 
 
 @register_attr_qualifier(Point, Point)
