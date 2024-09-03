@@ -32,7 +32,9 @@ def nib_load_mock():
 
 @pytest.fixture
 def open_mock():
-    with patch("builtins.open", mock_open(read_data="foobar")) as mock:
+    with patch(
+        "builtins.open", mock_open(read_data=ReadableSparseIndex.HEADER)
+    ) as mock:
         yield mock
 
 
@@ -64,7 +66,7 @@ def local_readable(
     session_get_mock.assert_not_called()
     nib_frombytes_mock.assert_not_called()
     nib_load_mock.assert_called_once()
-    open_mock.assert_called_once()
+    assert open_mock.call_count == 2
     gzip_decompress_mock.assert_not_called()
     json_load_mock.assert_called_once()
 
@@ -162,4 +164,7 @@ def test_local_readable(
     index = SparseIndex(url, mode="r")
 
     nib_load_mock.assert_called_once_with(Path(url + SparseIndex.VOXEL_SUFFIX))
-    open_mock.assert_called_once_with(Path(url + SparseIndex.ALIAS_BBOX_SUFFIX), "r")
+    assert call(Path(url), "r") in open_mock.call_args_list
+    assert (
+        call(Path(url + SparseIndex.ALIAS_BBOX_SUFFIX), "r") in open_mock.call_args_list
+    )

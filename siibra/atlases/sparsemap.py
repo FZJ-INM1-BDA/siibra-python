@@ -266,7 +266,8 @@ class ReadableSparseIndex(SparseIndex):
             self._alias_dict = resp.json()
 
         if self.filepath:
-            self._header = Path(self.filepath).read_text()
+            with open(self.filepath, "r") as fp:
+                self._header = fp.read()
             self._readable_nii = nib.load(self.filepath.with_suffix(self.VOXEL_SUFFIX))
             with open(self.filepath.with_suffix(self.ALIAS_BBOX_SUFFIX), "r") as fp:
                 self._alias_dict = json.load(fp=fp)
