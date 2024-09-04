@@ -13,37 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TypeVar, Iterable, Callable
+from typing import TypeVar, Iterable, Callable, List
 from ..exceptions import NonUniqueError
 
 T = TypeVar("T")
 
 
-def get_ooo(input: Iterable[T], filter_fn: Callable[[T], bool]) -> T:
-    """Get One and Only One from an iterable
-
-    Parameters
-    ----------
-    input: Iterable[T]
-
-    Returns
-    -------
-    T
-
-    Raises
-    ------
-    NonUniqueError
-
-    """
-    result = list(filter(filter_fn, input))
-    try:
-        assert len(result) == 1
-    except AssertionError as e:
-        raise NonUniqueError from e
-    return result[0]
-
-
-def assert_ooo(input: Iterable[T]) -> T:
+def assert_ooo(input: Iterable[T], error_msg_cb: Callable[[List[T]], str] = None) -> T:
     """Assert One and Only One from an iterable, and return the only element.
 
     Parameters
@@ -59,5 +35,13 @@ def assert_ooo(input: Iterable[T]) -> T:
     NonUniqueError
     """
     listed_input = list(input)
-    assert len(listed_input) == 1, f"Expected one item, but got {len(input)}"
+    try:
+        assert len(listed_input) == 1
+    except AssertionError as e:
+        msg = (
+            error_msg_cb(listed_input)
+            if error_msg_cb
+            else f"Expected one item, but got {len(input)}"
+        )
+        raise NonUniqueError(msg) from e
     return listed_input[0]

@@ -83,12 +83,11 @@ def find_parcellations(parc_spec: str):
     return list(string_search(parc_spec, ParcellationScheme))
 
 
-@fn_call_cache
 def find_maps(
     parcellation: Union[str, None] = None,
     space: Union[str, None] = None,
     maptype: str = "labelled",
-    extra_spec: str = "",
+    name: str = "",
 ):
     """Convenient access to parcellation maps."""
 
@@ -105,16 +104,21 @@ def find_maps(
     return [
         mp
         for mp in find(queries, parcellationmap.Map)
-        if mp.maptype == maptype and extra_spec in mp.name
+        if mp.maptype == maptype and name in mp.name
     ]
 
 
-def get_map(
-    parcellation: str, space: str, maptype: str = "labelled", extra_spec: str = ""
-):
+def get_map(parcellation: str, space: str, maptype: str = "labelled", name: str = ""):
     """Convenient access to parcellation maps."""
-    searched_maps = find_maps(parcellation, space, maptype, extra_spec)
-    return assert_ooo(searched_maps)
+    searched_maps = find_maps(parcellation, space, maptype, name)
+    return assert_ooo(
+        searched_maps,
+        lambda maps: f"""
+The specification matched multiple maps. Specify one of their names as the `name` keyword argument.
+"""
+        + "\n"
+        + "\n".join(f"- {m.name}" for m in maps),
+    )
 
 
 def find_features(
