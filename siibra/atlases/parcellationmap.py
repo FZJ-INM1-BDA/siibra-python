@@ -407,7 +407,7 @@ class Map(AtlasElement):
         for region in siibra_tqdm(self.regions, unit="region"):
             region_image = self._extract_regional_map_volume_provider(
                 region=region, frmt="image", **volume_ops_kwargs
-            )[0]
+            )
             with QUIET:
                 for assgnmt in get_intersection_scores(
                     queryitem=queryitem,
@@ -480,7 +480,7 @@ class Map(AtlasElement):
         for region in siibra_tqdm(self.regions, unit="region"):
             region_image = self._extract_regional_map_volume_provider(
                 region=region, frmt="image", **volume_ops_kwargs
-            )[0]
+            )
             for pointindex, map_value in zip(
                 *region_image.lookup_points(points=points_wrpd, **volume_ops_kwargs)
             ):

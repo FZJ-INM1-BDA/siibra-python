@@ -25,6 +25,7 @@ from . import point, boundingbox as _boundingbox
 from ...commons.logger import logger
 
 import numpy as np
+from skimage import feature as skimage_feature
 try:
     from sklearn.cluster import HDBSCAN
     _HAS_HDBSCAN = True
@@ -169,7 +170,7 @@ class PointCloud(Location):
         return PointCloud(coordinates=coords, space_id=next(iter(spaces)).ID, sigma=sigmas)
 
 
-def from_image(provider: "ImageProvider", num_points: int, sample_size: int = 100, e: float = 1, sigma_mm=None, invert=False, **kwargs):
+def sample_from_image(provider: "ImageProvider", num_points: int, sample_size: int = 100, e: float = 1, sigma=None, invert=False, **kwargs):
     """
     Draw samples from the volume, by interpreting its values as an
     unnormalized empirical probability distribtution.
@@ -196,7 +197,23 @@ def from_image(provider: "ImageProvider", num_points: int, sample_size: int = 10
         space_id=None
     )
     result = voxels.transform(image.affine, space_id=provider.space_id)
-    result.sigma_mm = [sigma_mm for _ in result]
+    result.sigma = [sigma for _ in result]
+    return result
+
+
+def peaks_from_image(provider: "ImageProvider", mindist=5, sigma=0, **kwargs):
+    """
+    Find local peaks in the volume.
+    Additional keyword arguments are passed over to fetch()
+    """
+    img = provider.get_data(**kwargs)
+    array = np.asanyarray(img.dataobj)
+    voxels = PointCloud(
+        coordinates=skimage_feature.peak_local_max(array, min_distance=mindist),
+        space_id=None
+    )
+    result = voxels.transform(img.affine, space_id=provider.space_id)
+    result.sigma = [sigma for _ in result]
     return result
 
 
