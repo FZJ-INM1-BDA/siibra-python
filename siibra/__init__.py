@@ -113,11 +113,13 @@ def get_map(parcellation: str, space: str, maptype: str = "labelled", name: str 
     searched_maps = find_maps(parcellation, space, maptype, name)
     return assert_ooo(
         searched_maps,
-        lambda maps: f"""
+        lambda maps: (f"""
 The specification matched multiple maps. Specify one of their names as the `name` keyword argument.
 """
         + "\n"
-        + "\n".join(f"- {m.name}" for m in maps),
+        + "\n".join(f"- {m.name}" for m in maps)) 
+        if len(maps) > 1 
+        else """The specification matched no maps."""
     )
 
 

@@ -78,6 +78,7 @@ class Point(Location):
     schema = "siibra/attr/loc/point/v0.1"
     coordinate: Tuple[Union[float, int]] = field(default_factory=tuple)
     sigma: float = 0.0
+    label: Union[int, float, str] = None
 
     def __post_init__(self):
         self.coordinate = parse_coordinate(self.coordinate)
@@ -114,10 +115,12 @@ class Point(Location):
             )
         if isinstance(other, Point):
             assert self.space_id == other.space_id
+            assert self.label == other.label
         return Point(
             coordinate=[self.coordinate[i] + other.coordinate[i] for i in range(3)],
             space_id=self.space_id,
             sigma=self.sigma + other.sigma,
+            label=self.label
         )
 
     def __getitem__(self, index: int):
@@ -133,16 +136,22 @@ class Point(Location):
             )
         if isinstance(other, Point):
             assert self.space_id == other.space_id
+            assert self.label == other.label
         return Point(
             coordinate=[self.coordinate[i] - other.coordinate[i] for i in range(3)],
             space_id=self.space_id,
             sigma=self.sigma - other.sigma,
+            label=self.label,
         )
 
     def __eq__(self, other: "Point"):
         if self.space_id != other.space_id:
             return False
-
+        try:
+            if self.label != other.label:
+                return False
+        except TypeError:
+            return False
         from . import pointcloud
 
         if isinstance(other, pointcloud.PointCloud):

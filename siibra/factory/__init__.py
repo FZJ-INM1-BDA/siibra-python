@@ -19,3 +19,6 @@ from . import configuration
 from .factory import build_feature, build_object
 from .iterator import iter_preconfigured_ac
 from .livequery import iter_livequery_clss
+
+from ..attributes.dataproviders.volume.image import from_nifti as imageprovider_from_nifti
+from ..attributes.locations.pointcloud import from_image as pointcloud_from_image

@@ -57,6 +57,7 @@ def register_format_read(format: str, voltype: Literal["mesh", "image"]):
             MESH_FORMATS.append(format)
         if voltype == "image":
             IMAGE_FORMATS.append(format)
+        FORMAT_LOOKUP[None] = IMAGE_FORMATS + MESH_FORMATS
         return Cls
 
     return outer
