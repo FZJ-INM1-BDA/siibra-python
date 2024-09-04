@@ -38,7 +38,6 @@ from ..attributes.dataproviders.volume import (
     IMAGE_FORMATS,
     MESH_FORMATS,
     SIIBRA_MAX_FETCH_SIZE_GIB,
-    resolve_fetch_ops,
 )
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
 from ..attributes.locations import BoundingBox, Point, PointCloud
@@ -47,8 +46,14 @@ from ..operations.image_assignment import (
     ScoredImageAssignment,
     get_intersection_scores,
 )
-from ..operations.volume_fetcher.nifti import MergeLabelledNiftis, NiftiMask
-from ..operations.base import Merge
+from ..operations.volume_fetcher.nifti import (
+    MergeLabelledNiftis,
+    NiftiMask,
+    NiftiExtractLabels,
+    NiftiExtractSubspace,
+    NiftiExtractVOI,
+)
+from ..operations.base import Merge, DataOp
 
 VALID_MAPTYPES = ("statistical", "labelled")
 
@@ -121,24 +126,22 @@ class Map(AtlasElement):
         ValueError
             If any region not mapped in this map is requested.
         """
-        regionnames = (
-            [r.name for r in regions] if isinstance(regions[0], Region) else regions
-        )
+        regionnames = [r.name if isinstance(r, Region) else r for r in regions]
         try:
             assert all(rn in self.regions for rn in regionnames)
-        except AssertionError:
+        except AssertionError as e:
             raise ValueError(
                 "Regions that are not mapped in this ParcellationMap are requested!"
-            )
+            ) from e
 
         sub_mapping = {r: m for r, m in self.region_mapping.items() if r in regionnames}
-        target_attrs = {mp["target"] for mp in sub_mapping.values()}
+        target_attrs = {mp["target"] for mps in sub_mapping.values() for mp in mps}
         vol_providers = [vp for vp in self.volume_providers if vp.name in target_attrs]
         attributes = [
             Name(value=f"{regionnames} filtered from {self.name}"),
             _ID(value=None),
             self._get(SpeciesSpec),
-            vol_providers,
+            *vol_providers,
         ]
         return replace(self, attributes=attributes, region_mapping=sub_mapping)
 
@@ -153,60 +156,59 @@ class Map(AtlasElement):
 
     def _extract_regional_map_volume_provider(
         self,
-        region: Union[str, Region],
+        regionname: str,
         frmt: str = None,
-        bbox: "BoundingBox" = None,
-        resolution_mm: float = None,
-        max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
-        color_channel: int = None,
     ):
+        # N.B. region *must* be a leaf node (i.e. directly mapped, cannot be a parent)
+        # TODO fix to allow parents?
         frmt = self._select_format(frmt)
-
-        if isinstance(region, Region):
-            regionspec = region.name
-        else:
-            regionspec = region
 
         # TODO: filtering mappings should be smarter. ie what if there are two "volume/ref"?
         mappings = [
             m
-            for m in self.region_mapping[regionspec]
+            for m in self.region_mapping[regionname]
             if m.get("@type", "volume/ref") == "volume/ref"
         ]
-        if len(mappings) == 0:
-            raise ValueError
-        assert len(mappings) == 1
+        assert (
+            len(mappings) == 1
+        ), f"Expect one and only one mapping for {regionname}, but got {len(mappings)}"
         mapping = mappings[0]
         providers = [
             v
             for v in self.volume_providers
-            if v.format == frmt and v.name == mapping["target"]
+            if (
+                v.format == frmt
+                and (mapping.get("target") is None or v.name == mapping["target"])
+            )
         ]
         if len(providers) == 0:
-            raise RuntimeError
+            raise RuntimeError(
+                f"Expected at least one provider for {regionname}, but got 0."
+            )
 
         if len(providers) == 1:
             provider = providers[0]
         else:
             logger.info(
-                "Found several providers matching criteria. Choosing the first."
+                "Found several providers matching criteria. "
+                + "\n".join([f" - {provider.format}" for provider in providers])
+                + "Choosing the first."
             )
             provider = providers[0]
 
-        extraction_ops = resolve_fetch_ops(
-            VolumeOpsKwargs(
-                bbox=bbox,
-                resolution_mm=resolution_mm,
-                max_download_GB=max_download_GB,
-                color_channel=color_channel,
-                mapping=Mapping(
-                    labels=mapping.get("label", None),
-                    subspace=mapping.get("subspace", None),
-                ),
+        transformpation_ops: List[DataOp] = []
+        if mapping.get("label"):
+            transformpation_ops.append(
+                NiftiExtractLabels.generate_specs(labels=[mapping.get("label")])
             )
-        )
+        if mapping.get("subspace"):
+            transformpation_ops.append(
+                NiftiExtractSubspace.generate_specs(subspace=mapping.get("subspace"))
+            )
 
-        return replace(provider, retrieval_ops=[], transformation_ops=extraction_ops)
+        return replace(
+            provider, retrieval_ops=[], transformation_ops=transformpation_ops
+        )
 
     def extract_regional_map(
         self,
@@ -223,14 +225,19 @@ class Map(AtlasElement):
             regionname = self.parcellation.get_region(region).name
             assert regionname in self.regions
         provider = self._extract_regional_map_volume_provider(
-            region=regionname,
+            regionname=regionname,
             frmt=frmt,
-            bbox=bbox,
-            resolution_mm=resolution_mm,
-            max_download_GB=max_download_GB,
-            color_channel=color_channel,
         )
-        return provider.get_data()
+        additional_transform_ops = []
+        if bbox:
+            additional_transform_ops.append(NiftiExtractVOI.generate_specs(voi=bbox))
+        return replace(
+            provider,
+            transformation_ops=[
+                *provider.transformation_ops,
+                *additional_transform_ops,
+            ],
+        )
 
     def extract_mask(
         self,
@@ -284,9 +291,7 @@ class Map(AtlasElement):
         assert len(set(type(p) for p in providers)) == 1
         fullmap_provider = providers.__class__.__init__(
             space_id=self.space_id,
-            retrieval_ops=[
-                Merge.from_inputs(*[provider.retrieval_ops for provider in providers])
-            ],
+            retrieval_ops=[Merge.spec_from_dataproviders(providers)],
             transformation_ops=[MergeLabelledNiftis.generate_specs()],
         )
 
@@ -406,7 +411,7 @@ class Map(AtlasElement):
         assignments: List[Union[Map.RegionAssignment, Map.ScoredRegionAssignment]] = []
         for region in siibra_tqdm(self.regions, unit="region"):
             region_image = self._extract_regional_map_volume_provider(
-                region=region, frmt="image", **volume_ops_kwargs
+                regionname=region, frmt="image", **volume_ops_kwargs
             )
             with QUIET:
                 for assgnmt in get_intersection_scores(
@@ -479,7 +484,7 @@ class Map(AtlasElement):
         assignments: List[Map.RegionAssignment] = []
         for region in siibra_tqdm(self.regions, unit="region"):
             region_image = self._extract_regional_map_volume_provider(
-                region=region, frmt="image", **volume_ops_kwargs
+                regionname=region, frmt="image", **volume_ops_kwargs
             )
             for pointindex, map_value in zip(
                 *region_image.lookup_points(points=points_wrpd, **volume_ops_kwargs)

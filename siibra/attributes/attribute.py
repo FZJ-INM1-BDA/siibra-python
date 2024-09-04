@@ -69,7 +69,7 @@ class Attribute:
                 **{key: json_dict[key] for key in json_dict if not key_is_extra(key)}
             )
         except TypeError as e:
-            print(json_dict)
+            print("Error Attribute.from_dict:", json_dict, e)
             raise e
         for key in json_dict:
             if key_is_extra(key):

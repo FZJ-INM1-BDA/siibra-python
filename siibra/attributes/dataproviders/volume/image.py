@@ -194,6 +194,8 @@ class ImageProvider(VolumeProvider):
         )
 
     def get_data(self) -> nib.Nifti1Image:
+        if self.format == "neuroglancer/precomputed":
+            raise NotImplementedError
         return super().get_data()
 
 

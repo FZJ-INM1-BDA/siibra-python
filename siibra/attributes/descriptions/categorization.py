@@ -13,9 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dataclasses import dataclass
+
 from .base import Description
 
 
+@dataclass
 class Categorization(Description):
     schema = "siibra/attr/desc/categorization/v0.1"
     key: str = None

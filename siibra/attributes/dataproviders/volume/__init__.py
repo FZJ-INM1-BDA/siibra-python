@@ -22,5 +22,4 @@ from .base import (
     SIIBRA_MAX_FETCH_SIZE_GIB,
     VolumeOpsKwargs,
     Mapping,
-    resolve_fetch_ops,
 )
