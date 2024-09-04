@@ -200,15 +200,27 @@ class ImageProvider(VolumeProvider):
 
 
 def from_nifti(
-    nifti: Union[str, nib.Nifti1Image], space_id: str, **kwargs
+    nifti: Union[str, nib.Nifti1Image],
+    space: str = None,
+    space_id: str = None,
+    **kwargs,
 ) -> "ImageProvider":
-    """Builds an `Image` `Attribute` from a Nifti image or path to a nifti file."""
+    """
+    Builds an `Image` `Attribute` from a Nifti image or path to a nifti file.
+    Use space_id kwargs if you want to directly set the space_id. Otherwise, use the space kwarg to specify a space to look up.
+    space_id is ignored if space is provided
+    """
     from ....cache import CACHE
+    from .... import get_space
+
+    if space:
+        space_id = get_space(space).ID
 
     filename = None
     if isinstance(nifti, str):
         filename = nifti
-        assert Path(filename).is_file(), f"Provided file {nifti!r} does not exist"
+        if not nifti.startswith("http"):
+            assert Path(filename).is_file(), f"Provided file {nifti!r} does not exist"
     if isinstance(nifti, (nib.Nifti1Image, nib.Nifti2Image)):
         filename = CACHE.build_filename(
             md5(nifti.to_bytes()).hexdigest(), suffix=".nii"
