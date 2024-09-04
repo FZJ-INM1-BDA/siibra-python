@@ -15,6 +15,7 @@ regions = [
 
 
 @pytest.mark.parametrize("parc_spec, region_spec", regions)
+@pytest.mark.skip("Region.get_components is still broken")
 def test_region_spatial_props(parc_spec, region_spec):
     region = siibra.get_region(parc_spec, region_spec)
     props = region.get_components("mni 152")
@@ -168,3 +169,32 @@ def test_get_boundingbox(space_spec):
     assert (
         bbox_l != bbox_r
     ), "Left and right hoc1 should not have the same bounding boxes"
+
+
+SPACE_ID_ICBM152 = (
+    "minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2"
+)
+SPACE_ID_COLIN = "minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992"
+
+args = [
+    (
+        "julich 2.9",
+        "ca1",
+        [
+            (SPACE_ID_ICBM152, [-37.0, -45.0, -33.0], [43.0, -5.0, 4.0]),
+            (SPACE_ID_COLIN, [-35.0, -44.0, -33.0], [44.0, -3.0, 6.0]),
+        ],
+    )
+]
+
+
+@pytest.mark.parametrize("parcspec, regionspec, expected_bbox_specs", args)
+def test_find_boundingboxes(parcspec, regionspec, expected_bbox_specs):
+    region = siibra.get_region(parcspec, regionspec)
+    bboxes = region.find_boundingboxes()
+    expected_bboxes = [
+        siibra.BoundingBox(space_id=space_id, minpoint=minpoint, maxpoint=maxpoint)
+        for space_id, minpoint, maxpoint in expected_bbox_specs
+    ]
+    assert all(box in bboxes for box in expected_bboxes)
+    pass

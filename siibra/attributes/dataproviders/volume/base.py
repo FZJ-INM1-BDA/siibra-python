@@ -71,6 +71,7 @@ class Mapping(TypedDict):
     label: int = None
     range: Tuple[float, float]
     subspace: Tuple[slice, ...]
+    target: str = None
 
 
 class VolumeOpsKwargs(TypedDict):
@@ -96,7 +97,11 @@ class VolumeProvider(DataProvider):
     format: str = None
 
     def __post_init__(self):
-        if self.format in READER_LOOKUP:
+
+        if len(self.retrieval_ops) > 0:
+            return
+
+        if self.format not in READER_LOOKUP:
             raise RuntimeError(f"{self.format} cannot be properly parsed as volume")
         self_dict = asdict(self)
         Cls = READER_LOOKUP[self.format]

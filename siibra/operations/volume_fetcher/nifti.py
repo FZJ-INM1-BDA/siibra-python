@@ -43,7 +43,9 @@ class ReadNiftiFromBytes(DataOp, VolumeRetOp):
     type = "read/nifti"
 
     def run(self, input, **kwargs):
-        assert isinstance(input, bytes)
+        assert isinstance(
+            input, bytes
+        ), f"Expected input to be bytes, but was {type(input)}"
         try:
             return Nifti1Image.from_bytes(gzip.decompress(input))
         except gzip.BadGzipFile:
@@ -60,7 +62,7 @@ class NiftiMask(NiftiCodec):
         *,
         lower_threshold: Union[None, float],
         background_value: Union[None, float, int],
-        **kwargs
+        **kwargs,
     ):
         assert isinstance(input, Nifti1Image)
         arr = np.asanyarray(input.dataobj)
@@ -83,7 +85,7 @@ class NiftiMask(NiftiCodec):
         *,
         lower_threshold: Union[float, None] = None,
         background_value: Union[float, int, None] = None,
-        **kwargs
+        **kwargs,
     ):
         base = super().generate_specs(**kwargs)
         return {

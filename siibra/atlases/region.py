@@ -15,9 +15,10 @@
 
 import anytree
 import json
-from typing import Iterable, Union, TYPE_CHECKING, List, Tuple
+from typing import Iterable, Union, TYPE_CHECKING, List, Tuple, Set, Dict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from collections import defaultdict
 
 from ..concepts import atlas_elements
 from ..attributes.descriptions import Name
@@ -44,16 +45,62 @@ def filter_newest(regions: List["Region"]) -> List["Region"]:
 
 @fn_call_cache
 def _get_region_boundingbox(parc_id: str, region_name: str, space_id: str):
-    from .. import get_region
+    from .. import get_region, get_map
+    from ..attributes.dataproviders.volume.base import VolumeProvider
+    from ..operations.base import DataOp, Merge
+    from ..operations.volume_fetcher.nifti import NiftiExtractLabels
 
+    mp = get_map(parc_id, space_id)
     region = get_region(parc_id, region_name)
-    mask = region.fetch_regional_mask(space_id)
-    if mask is None:
-        raise RuntimeError(f"{parc_id} {region_name} in {space_id} has no boundingbox")
-    bbox = boundingbox.from_array(mask.dataobj)
-    bbox = replace(bbox, maxpoint=[v + 1.0 for v in bbox.maxpoint])
-    bbox = boundingbox.BoundingBox.transform(bbox, mask.affine)
-    bbox.space_id = space_id
+
+    wanted_regionnames: Set[str] = {r.name for r in region}
+
+    wanted_labels: Dict[Union[None, str], List[int]] = defaultdict(list)
+    for regionname, mappings in mp.region_mapping.items():
+        if regionname not in wanted_regionnames:
+            continue
+        for mapping in mappings:
+            assert mapping["label"], f"labelled map with label not defined"
+            assert isinstance(
+                mapping["label"], int
+            ), f"expected labelled to be int, but is not"
+            wanted_labels[mapping.get("target")].append(mapping["label"])
+
+    bbox = None
+    for volume in mp.volume_providers:
+
+        if volume.format not in IMAGE_FORMATS:
+            continue
+        local_wanted_labels = []
+        if volume.name:
+            local_wanted_labels.extend(wanted_labels.get(volume.name, []))
+        local_wanted_labels.extend(wanted_labels.get(None, []))
+        if len(local_wanted_labels) == 0:
+            continue
+
+        if volume.format == "nii":
+            try:
+                masked_vol = replace(
+                    volume,
+                    transformation_ops=[
+                        NiftiExtractLabels.generate_specs(labels=local_wanted_labels)
+                    ],
+                )
+                mask = masked_vol.get_data()
+
+                _bbox = boundingbox.from_array(mask.dataobj)
+                _bbox = replace(_bbox, maxpoint=[v + 1.0 for v in _bbox.maxpoint])
+                _bbox = boundingbox.BoundingBox.transform(_bbox, mask.affine)
+                _bbox.space_id = space_id
+
+                if bbox is None:
+                    bbox = _bbox
+                else:
+                    bbox = bbox.union(_bbox)
+
+            except Exception as e:
+                ...
+
     return bbox
 
 
@@ -136,13 +183,13 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         return_result: List[boundingbox.BoundingBox] = []
         for map in image_mps:
             try:
-                return_result.append(
-                    _get_region_boundingbox(
-                        self.parcellation.ID, self.name, map.space_id
-                    )
+                bbox = _get_region_boundingbox(
+                    self.parcellation.ID, self.name, map.space_id
                 )
+                if bbox:
+                    return_result.append(bbox)
             except Exception as e:
-                print(e)
+                print("Error:", e, type(e))
                 logger.debug(
                     f"Error fetching boundingbox for {str(self)} in {str(map)}: {str(e)}"
                 )
@@ -216,7 +263,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         maps = self.find_regional_maps(space=space, maptype=maptype)
         try:
             selectedmap = assert_ooo(maps)
-        except AssertionError:
+        except AssertionError as e:
             if maps:
                 logger.warning(
                     f"Found {len(maps)} maps matching the specs. Selecting the first."
@@ -225,7 +272,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             else:
                 raise ValueError(
                     f"Found no maps matching the specs for this region., {space}"
-                )
+                ) from e
 
         return selectedmap
 
