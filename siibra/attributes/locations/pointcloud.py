@@ -208,8 +208,12 @@ def peaks_from_image(provider: "ImageProvider", mindist=5, sigma=0, **kwargs):
     """
     img = provider.get_data(**kwargs)
     array = np.asanyarray(img.dataobj)
+    peak_coords = skimage_feature.peak_local_max(array, min_distance=mindist)
+    X, Y, Z = peak_coords.T
+    peak_vals = array[X, Y, Z].tolist()
     voxels = PointCloud(
-        coordinates=skimage_feature.peak_local_max(array, min_distance=mindist),
+        coordinates=peak_coords,
+        labels=peak_vals,
         space_id=None
     )
     result = voxels.transform(img.affine, space_id=provider.space_id)

@@ -234,6 +234,21 @@ def from_nifti(
     return ImageProvider(format="nii", url=filename, space_id=space_id, **kwargs)
 
 
+def from_array(
+    data: np.array,
+    affine: np.array,
+    space: str = None,
+    space_id: str = None,
+    **kwargs,
+) -> "ImageProvider":
+    """
+    Builds an `Image` `Attribute` from a volumetric array and affine matrix.
+    Use space_id kwargs if you want to directly set the space_id. Otherwise, use the space kwarg to specify a space to look up.
+    space_id is ignored if space is provided
+    """
+    return from_nifti(nib.Nifti1Image(data, affine), space=space, space_id = space_id, **kwargs)
+
+
 @_loc_intersection.register(point.Point, ImageProvider)
 def compare_pt_to_image(pt: point.Point, image: ImageProvider):
     ptcloud = pointcloud.PointCloud(space_id=pt.space_id, coordinates=[pt.coordinate])
@@ -269,6 +284,7 @@ def intersect_image_to_image(image0: ImageProvider, image1: ImageProvider):
     ):
         pass
     else:
+        # TODO implement this
         elementwise_mask_intersection = intersect_nii_to_nii(nii0, nii1)
         return from_nifti(
             elementwise_mask_intersection,
