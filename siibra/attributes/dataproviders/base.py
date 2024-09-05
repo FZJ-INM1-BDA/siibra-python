@@ -87,7 +87,7 @@ class DataProvider(Attribute):
 
         raise RuntimeError(f"Cannot understand {self.archive_options['format']}")
 
-    def get_data(self):
+    def get_data(self, **kwargs):
         return get_result(
             [
                 *self.retrieval_ops,

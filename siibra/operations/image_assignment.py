@@ -14,13 +14,15 @@
 # limitations under the License.
 
 from dataclasses import dataclass, asdict
-from typing import Union, Tuple, Generator, List
+from typing import Union, Tuple, List
 
 import numpy as np
 from nibabel import Nifti1Image
 
+from ..commons.maps import ComputeCentroid
 from ..attributes.locations import Point, BoundingBox, PointCloud
 from ..attributes.dataproviders.volume import image as _image, VolumeOpsKwargs
+
 
 @dataclass
 class ImageAssignment:
@@ -51,7 +53,7 @@ def get_connected_components(
     background: int = 0,
     connectivity: int = 2,
     threshold: float = 0.0,
-) -> Generator[Tuple[int, np.ndarray], None, None]:
+):
     """
     Provide an iterator over connected components in the array. If the image
     data is float (such as probability maps), it will convert to a mask and
@@ -225,22 +227,25 @@ def get_image_intersection_score(
     target_masking_lower_threshold: float = 0.0,
     **fetch_kwargs: VolumeOpsKwargs,
 ) -> List[ScoredImageAssignment]:
+    from .volume_fetcher.nifti import ResampleNifti
+
     # TODO: well-define thresholds and ensure where to use a mask or not
-    assert query_image.space == target_image.space, ValueError(
+    assert query_image.space_id == target_image.space_id, ValueError(
         "Assigned volume must be in the same space as the map."
     )
 
-    if split_components:
-        iter_components = lambda arr: get_connected_components(arr)
-    else:
-        iter_components = lambda arr: [(0, arr)]
+    querynii = query_image.get_data(**fetch_kwargs)
+    target_nii = target_image.get_data(**fetch_kwargs)
+    querynii_resamp = ResampleNifti.resample_img_to_img(querynii, target_nii)
 
-    querynii = query_image.fetch(**fetch_kwargs)
-    target_nii = target_image.fetch(**fetch_kwargs)
-    querynii_resamp = resample_img_to_img(querynii, target_nii)
+    iter_components = (
+        get_connected_components(querynii_resamp)
+        if split_components
+        else [(0, querynii_resamp)]
+    )
 
     assignments: List[ScoredImageAssignment] = []
-    for component_index, querynii_component in iter_components(querynii_resamp):
+    for component_index, querynii_component in iter_components:
         score = calculate_nifti_intersection_score(
             querynii_component,
             target_nii,
@@ -248,10 +253,15 @@ def get_image_intersection_score(
         )
         if score.intersection_over_union <= iou_lower_threshold:
             continue
+
+        compute_centroid = ComputeCentroid()
         assignments.append(
             ScoredImageAssignment(
                 input_structure_index=component_index,
-                centroid=compute_centroid(querynii_component).coordinate,
+                centroid=compute_centroid.run(
+                    querynii_component,
+                    background_value=0,
+                ).coordinate,
                 map_value=None,
                 **asdict(score),
             )

@@ -34,7 +34,10 @@ from ...attributes.dataproviders import TabularDataProvider
 from ...attributes.dataproviders.volume.image import intersect_ptcld_image
 from ...exceptions import ExternalApiException
 
-modality_of_interest = Modality(value="Gene Expressions")
+modality_of_interest = Modality(
+    value="Gene Expressions",
+    category="molecular",
+)
 
 MNI152_SPACE_ID = (
     "minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2"

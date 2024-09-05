@@ -41,6 +41,7 @@ from ..cache import CACHE
 
 if TYPE_CHECKING:
     from ..attributes.locations import BoundingBox
+    from ..attributes.dataproviders.volume.image import ImageProvider
 
 
 SPARSEINDEX_BASEURL = (
@@ -405,8 +406,9 @@ class SparseMap(Map):
 
     def _save_sparseindex(self, filepath):
         wspind = SparseIndex(filepath, mode="w")
-        for region in siibra_tqdm(self.regions, unit="region"):
-            wspind.add_img(nii=self.fetch(region=region), regionname=region)
+        for regionname in siibra_tqdm(self.regionnames, unit="region"):
+            extracted = self.extract_regional_map(regionname)
+            wspind.add_img(nii=extracted.get_data(), regionname=regionname)
         wspind.save()
 
     def fetch(
@@ -419,11 +421,11 @@ class SparseMap(Map):
         color_channel: int = None,
     ):
         if region is None:
-            assert len(self.regions) == 1, ValueError(
+            assert len(self.regionnames) == 1, ValueError(
                 "To fetch a volume from a SparseMap, please provide a region "
                 "name mapped in this SparseMap."
             )
-            matched = self.regions[0]
+            matched = self.regionnames[0]
         else:
             if isinstance(region, Region):
                 matched = region.name
@@ -431,7 +433,7 @@ class SparseMap(Map):
                 matched = self.parcellation.get_region(region).name
 
         assert (
-            matched in self.regions
+            matched in self.regionnames
         ), f"Statistical map of region '{matched}' is not available in '{self.name}'."
 
         fetch_kwargs = VolumeOpsKwargs(
@@ -463,7 +465,7 @@ class SparseMap(Map):
 
         points_wrpd = points_.warp(self.space_id)
 
-        first_volume = self.find_volumes(self.regions[0])[0]
+        first_volume = self.find_volumes(self.regionnames[0])[0]
         # TODO: consider just using affine to transform the points
         vx, vy, vz = first_volume._points_to_voxels_coords(points_wrpd)
 
@@ -477,10 +479,30 @@ class SparseMap(Map):
                         input_structure_index=pointindex,
                         centroid=points_[pointindex].coordinate,
                         map_value=map_value,
-                        region=region,
+                        regionname=region,
                     )
                 )
         return Map._convert_assignments_to_dataframe(assignments)
 
     def warmup(self):
         self._get_readable_sparseindex(warmup=True)
+
+    def assign(
+        self,
+        queryitem: Union[Point, PointCloud, "ImageProvider"],
+        split_components: bool = True,
+        voxel_sigma_threshold: int = 3,
+        iou_lower_threshold=0,
+        statistical_map_lower_threshold: float = 0,
+        **volume_ops_kwargs: VolumeOpsKwargs,
+    ) -> DataFrame:
+        # TODO implement properly, allow for map_value population
+        logger.warning(f"SparseMap.assign has not yet been implemented correctly")
+        return super().assign(
+            queryitem,
+            split_components,
+            voxel_sigma_threshold,
+            iou_lower_threshold,
+            statistical_map_lower_threshold,
+            **volume_ops_kwargs,
+        )

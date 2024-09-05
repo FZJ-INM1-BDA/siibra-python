@@ -13,7 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Dict, Type, Any
+from typing import List, Dict, Type, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..attributes.dataproviders.base import DataProvider
 
 from ..commons.logger import logger
 
@@ -154,6 +157,9 @@ class Merge(DataOp):
         base = super().generate_specs(**kwargs)
         return {**base, "srcs": srcs}
 
-    @staticmethod
-    def from_inputs(*srcs: List[List[Dict]]):
-        return {"type": "baseop/merge", "srcs": srcs}
+    @classmethod
+    def spec_from_dataproviders(cls, dataproviders: List["DataProvider"]):
+        assert all(
+            len(dp.transformation_ops) == 0 for dp in dataproviders
+        ), f"Expected no transformops to be in data providers"
+        return cls.generate_specs(srcs=[dv.retrieval_ops for dv in dataproviders])

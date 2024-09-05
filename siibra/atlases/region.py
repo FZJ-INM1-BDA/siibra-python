@@ -242,7 +242,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
                 continue
             if self.parcellation.ID != mp.parcellation_id:
                 continue
-            mapped_regions = [r for r in self if r.name in mp.regions]
+            mapped_regions = [r for r in self if r.name in mp.regionnames]
             if len(mapped_regions) == 0:
                 continue
             yield mp.get_filtered_map(mapped_regions)
@@ -289,7 +289,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             space=space, maptype=maptype, via_space=via_space, frmt=frmt
         )
         region_map.extract_mask(
-            region_map.regions,
+            region_map.regionnames,
             background_value=background_value,
             lower_threshold=lower_threshold,
         )

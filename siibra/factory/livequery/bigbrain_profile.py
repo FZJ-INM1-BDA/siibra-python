@@ -37,7 +37,10 @@ from ...attributes.locations.layerboundary import (
 from ...attributes.locations import intersect, PointCloud, Point, Polyline
 from ...exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 
-modality_of_interest = Modality(value="Modified silver staining")
+modalities_of_interest = [
+    Modality(value="Modified silver staining"),
+    Modality(value="Layerwise cell density"),
+]
 
 
 X_BIGBRAIN_PROFILE_VERTEX_IDX = "x-siibra/bigbrainprofile/vertex-idx"
@@ -46,13 +49,15 @@ X_BIGBRAIN_LAYERWISE_INTENSITY = "x-siibra/bigbrainprofile/layerwiseintensity"
 
 @register_modalities()
 def add_modified_silver_staining():
-    yield modality_of_interest
+    yield from modalities_of_interest
 
 
 class BigBrainProfile(LiveQuery[Feature], generates=Feature):
     def generate(self) -> Iterator[Feature]:
-        mods = [mod for mods in self.find_attributes(Modality) for mod in mods]
-        if modality_of_interest not in mods:
+        requested_mods = [
+            mod for mods in self.find_attributes(Modality) for mod in mods
+        ]
+        if all(mod not in requested_mods for mod in modalities_of_interest):
             return
         valid, boundary_depths, profile, vertices = get_all()
         ptcld = PointCloud(
@@ -63,7 +68,7 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
         dtype = {"names": ["x", "y", "z"], "formats": [root_coords.dtype] * 3}
         root_coords = root_coords.view(dtype)
 
-        attributes = []
+        attributes = [*modalities_of_interest]
 
         input_attrs = [attr for attr_col in self.input for attr in attr_col.attributes]
 

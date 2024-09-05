@@ -26,8 +26,8 @@ def freshlocal_jba29_icbm152():
     mp = siibra.get_map("2.9", "icbm 152", "statistical")
     spi = SparseIndex("icbm152_julich2_9", mode="w")
 
-    progress = tqdm(total=len(mp.regions), leave=True)
-    for regionname in mp.regions:
+    progress = tqdm(total=len(mp.regionnames), leave=True)
+    for regionname in mp.regionnames:
         volumes = mp.find_volumes(regionname)
         assert len(volumes) == 1
         volume = volumes[0]

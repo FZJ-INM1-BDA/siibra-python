@@ -94,7 +94,7 @@ class Map(AtlasElement):
         )
 
     @property
-    def regions(self) -> List[str]:
+    def regionnames(self) -> List[str]:
         return list(self.region_mapping.keys())
 
     @property
@@ -104,6 +104,9 @@ class Map(AtlasElement):
             for attr in self.attributes
             if isinstance(attr, (ImageProvider, MeshProvider))
         ]
+
+    def decode_region(self, regionname: str):
+        return self.parcellation.get_region(regionname)
 
     @property
     def formats(self) -> Set[str]:
@@ -128,7 +131,7 @@ class Map(AtlasElement):
         """
         regionnames = [r.name if isinstance(r, Region) else r for r in regions]
         try:
-            assert all(rn in self.regions for rn in regionnames)
+            assert all(rn in self.regionnames for rn in regionnames)
         except AssertionError as e:
             raise ValueError(
                 "Regions that are not mapped in this ParcellationMap are requested!"
@@ -219,11 +222,11 @@ class Map(AtlasElement):
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
     ):
-        if region in self.regions:
+        if region in self.regionnames:
             regionname = region
         else:
             regionname = self.parcellation.get_region(region).name
-            assert regionname in self.regions
+            assert regionname in self.regionnames
         provider = self._extract_regional_map_volume_provider(
             regionname=regionname,
             frmt=frmt,
@@ -284,7 +287,7 @@ class Map(AtlasElement):
         as_binary_mask: bool = False,
     ):
         if as_binary_mask:
-            return self.extract_mask(regions=self.regions)
+            return self.extract_mask(regions=self.regionnames)
 
         frmt = self._select_format(frmt)
         providers = [vp for vp in self.volume_providers if vp.format == frmt]
@@ -313,11 +316,11 @@ class Map(AtlasElement):
             )
 
         if regions is None:
-            regions = self.regions
+            regions = self.regionnames
 
         assert all(
-            r in self.regions for r in regions
-        ), f"Please provide a subset of {self.regions}"
+            r in self.regionnames for r in regions
+        ), f"Please provide a subset of {self.regionnames}"
 
         label_color_table = {
             self.region_mapping[region]["label"]: convert_hexcolor_to_rgbtuple(
@@ -350,7 +353,7 @@ class Map(AtlasElement):
         """
         centroids = {}
         for regionname in siibra_tqdm(
-            self.regions, unit="regions", desc="Computing centroids"
+            self.regionnames, unit="regions", desc="Computing centroids"
         ):
             img = self.extract_mask(
                 region=regionname, **volume_ops_kwargs
@@ -393,11 +396,11 @@ class Map(AtlasElement):
 
     @dataclass
     class RegionAssignment(ImageAssignment):
-        region: str
+        regionname: str
 
     @dataclass
     class ScoredRegionAssignment(ScoredImageAssignment):
-        region: str
+        regionname: str
 
     def assign(
         self,
@@ -409,9 +412,9 @@ class Map(AtlasElement):
         **volume_ops_kwargs: VolumeOpsKwargs,
     ) -> DataFrame:
         assignments: List[Union[Map.RegionAssignment, Map.ScoredRegionAssignment]] = []
-        for region in siibra_tqdm(self.regions, unit="region"):
+        for regionname in siibra_tqdm(self.regionnames, unit="region"):
             region_image = self._extract_regional_map_volume_provider(
-                regionname=region, frmt="image", **volume_ops_kwargs
+                regionname=regionname, frmt="image", **volume_ops_kwargs
             )
             with QUIET:
                 for assgnmt in get_intersection_scores(
@@ -426,13 +429,15 @@ class Map(AtlasElement):
                     if isinstance(assgnmt, ScoredImageAssignment):
                         assignments.append(
                             Map.ScoredRegionAssignment(
-                                **{**asdict(assgnmt), "region": region}
+                                **asdict(assgnmt),
+                                regionname=regionname,
                             )
                         )
                     else:
                         assignments.append(
                             Map.RegionAssignment(
-                                **{**asdict(assgnmt), "region": region}
+                                **asdict(assgnmt),
+                                regionname=regionname,
                             )
                         )
 
@@ -455,7 +460,7 @@ class Map(AtlasElement):
                     "input_structure_index",
                     "centroid",
                     "map_value",
-                    "region",
+                    "regionname",
                 ],
             ).dropna(axis="columns", how="all")
         else:
@@ -482,7 +487,7 @@ class Map(AtlasElement):
         points_wrpd = points_.warp(self.space_id)
 
         assignments: List[Map.RegionAssignment] = []
-        for region in siibra_tqdm(self.regions, unit="region"):
+        for region in siibra_tqdm(self.regionnames, unit="region"):
             region_image = self._extract_regional_map_volume_provider(
                 regionname=region, frmt="image", **volume_ops_kwargs
             )
@@ -496,7 +501,7 @@ class Map(AtlasElement):
                         input_structure_index=pointindex,
                         centroid=points_[pointindex].coordinate,
                         map_value=map_value,
-                        region=region,
+                        regionname=region,
                     )
                 )
         return Map._convert_assignments_to_dataframe(assignments)

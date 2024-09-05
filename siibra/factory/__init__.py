@@ -23,11 +23,13 @@ from .livequery import iter_livequery_clss
 # import convenient image builders
 from ..attributes.dataproviders.volume.image import (
     from_nifti as imageprovider_from_nifti,
-    from_array as imageprovider_from_array
+    from_pointcloud as imageprovider_from_pointcloud,
+    from_array as imageprovider_from_array,
 )
 
 # import convenient location builders
+
 from ..attributes.locations.pointcloud import (
     sample_from_image as pointcloud_sampled_from_image,
-    peaks_from_image as pointcloud_from_image_peaks
+    peaks_from_image as pointcloud_from_image_peaks,
 )

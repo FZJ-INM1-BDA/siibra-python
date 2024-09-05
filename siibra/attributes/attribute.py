@@ -40,7 +40,10 @@ class Attribute:
     extra: Dict[str, Any] = field(default_factory=dict, repr=False, hash=False)
 
     # derived classes set their schema as class parameter
+    # to skip automatic json decoding (e.g. adhoc dataclasses & extended class) set schema to None
     def __init_subclass__(cls):
+        if cls.schema is None:
+            return
         assert (
             cls.schema != Attribute.schema
         ), "Subclassed attributes must have unique schemas"

@@ -37,6 +37,8 @@ class Space(AtlasElement):
 
     @property
     def variants(self) -> List[str]:
+        # TODO fix
+        return []
         if self._attribute_mapping is None:
             return []
         return list(self._attribute_mapping.keys())
@@ -114,4 +116,4 @@ class Space(AtlasElement):
             len(variants) == 1
         ), f"Found several variants matching {_variant!r}. Please select a variant: {self.variants}"
         print("Found several volumes. Merging...")
-        return merge_volumes([tmp.fetch(**fetch_kwargs) for tmp in templates])
+        return merge_volumes([tmp.get_data(**fetch_kwargs) for tmp in templates])

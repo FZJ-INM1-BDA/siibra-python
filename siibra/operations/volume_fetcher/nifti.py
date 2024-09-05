@@ -184,6 +184,7 @@ class ResampleNifti(NiftiCodec):
     def run(self, input, **kwargs):
         raise NotImplementedError
 
+    @staticmethod
     def resample_img_to_img(
         source_img: "Nifti1Image", target_img: "Nifti1Image", interpolation: str = ""
     ) -> "Nifti1Image":
