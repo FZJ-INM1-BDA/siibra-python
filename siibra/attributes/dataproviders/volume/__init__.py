@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .base import VolumeProvider
 from .image import ImageProvider
 from .mesh import MeshProvider
 from .base import (

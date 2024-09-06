@@ -248,7 +248,9 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             yield mp.get_filtered_map(mapped_regions)
 
     def find_regional_maps(
-        self, space: Union[str, "Space", None] = None, maptype: str = "labelled"
+        self,
+        space: Union[str, "Space", None] = None,
+        maptype: str = "labelled",
     ):
         return list(self._finditer_regional_maps(space, maptype))
 
@@ -256,25 +258,27 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         self,
         space: Union[str, "Space", None] = None,
         maptype: str = "labelled",
-        via_space: Union[str, "Space", None] = None,
+        name: str = ""
     ) -> "Map":
-        if via_space is not None:
-            raise NotImplementedError
-        maps = self.find_regional_maps(space=space, maptype=maptype)
-        try:
-            selectedmap = assert_ooo(maps)
-        except AssertionError as e:
-            if maps:
-                logger.warning(
-                    f"Found {len(maps)} maps matching the specs. Selecting the first."
+        searched_maps = [
+            m for m
+            in self.find_regional_maps(space=space, maptype=maptype)
+            if name in m.name
+        ]
+        return assert_ooo(
+            searched_maps,
+            lambda maps: (
+                (
+                    f"""
+    The specification matched multiple maps. Specify one of their names as the `name` keyword argument.
+    """
+                    + "\n"
+                    + "\n".join(f"- {m.name}" for m in maps)
                 )
-                selectedmap = maps[0]
-            else:
-                raise ValueError(
-                    f"Found no maps matching the specs for this region., {space}"
-                ) from e
-
-        return selectedmap
+                if len(maps) > 1
+                else """The specification matched no maps."""
+            ),
+        )
 
     def fetch_regional_mask(
         self,
@@ -282,11 +286,10 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         maptype: str = "labelled",
         background_value: Union[int, float] = 0,
         lower_threshold: float = None,
-        via_space: Union[str, "Space", None] = None,
         frmt: str = None,
     ):
         region_map = self.get_regional_map(
-            space=space, maptype=maptype, via_space=via_space, frmt=frmt
+            space=space, maptype=maptype, frmt=frmt
         )
         region_map.extract_mask(
             region_map.regionnames,

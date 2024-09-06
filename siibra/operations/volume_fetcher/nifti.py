@@ -222,9 +222,19 @@ class MergeLabelledNiftis(DataOp):
     desc = "Merge a list of niftis according to kwargs."
     type = "codec/vol/merge"
 
-    def run(self, input: List[Nifti1Image]):
-        raise NotImplementedError
+    def run(self, input: List[Nifti1Image], **kwargs):
+        if len(input)==1:
+            return input[0]
+        elif len(input)==0:
+            raise ValueError(f"{self.__class__}.run() requires at least one NIfTI image.")
+        else:
+            return self._resample_and_merge_niftis(
+                niftis=input,
+                template_affine=kwargs.get('template_affine', None),
+                labels=kwargs.get('labels', [])
+            )
 
+    @staticmethod
     def _resample_and_merge_niftis(
         niftis: List[Nifti1Image],
         template_affine: Union[np.ndarray, None] = None,

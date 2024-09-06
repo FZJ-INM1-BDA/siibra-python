@@ -30,6 +30,7 @@ from ..commons.string import convert_hexcolor_to_rgbtuple
 from ..commons.logger import logger, siibra_tqdm, QUIET
 from ..atlases import ParcellationScheme, Space, Region
 from ..attributes.dataproviders.volume import (
+    VolumeProvider,
     ImageProvider,
     MeshProvider,
     VolumeOpsKwargs,
@@ -284,26 +285,32 @@ class Map(AtlasElement):
         self,
         frmt: str = None,
         allow_relabeling: bool = False,
-        as_binary_mask: bool = False,
-    ):
+        as_binary_mask: bool = False
+    ) -> VolumeProvider:
+        """
+        Extracts a single volume with all (sub)regions imcluded.
+        """
         if as_binary_mask:
             return self.extract_mask(regions=self.regionnames)
 
         frmt = self._select_format(frmt)
         providers = [vp for vp in self.volume_providers if vp.format == frmt]
         assert len(set(type(p) for p in providers)) == 1
-        fullmap_provider = providers.__class__.__init__(
+        fullmap_provider = providers[0].__class__(
             space_id=self.space_id,
+            format=providers[0].format,
             retrieval_ops=[Merge.spec_from_dataproviders(providers)],
             transformation_ops=[MergeLabelledNiftis.generate_specs()],
         )
 
-        if not allow_relabeling:
-            return fullmap_provider.get_data()
+        if allow_relabeling:
+            # TODO: create a relabeling dataop
+            # fullmap_provider.append()
+            # fullmap_provider.get_data()
+            raise NotImplementedError("Re-labeling of maps is not yet implemented.")
+        else:
+            return fullmap_provider
 
-        # TODO: create a relabeling dataop
-        # fullmap_provider.append()
-        # fullmap_provider.get_data()
 
     def get_colormap(self, regions: List[str] = None, frmt=None) -> List[str]:
         from matplotlib.colors import ListedColormap
