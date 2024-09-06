@@ -114,12 +114,10 @@ class Point(Location):
             )
         if isinstance(other, Point):
             assert self.space_id == other.space_id
-            assert self.label == other.label
         return Point(
             coordinate=[self.coordinate[i] + other.coordinate[i] for i in range(3)],
             space_id=self.space_id,
             sigma=self.sigma + other.sigma,
-            label=self.label,
         )
 
     def __getitem__(self, index: int):
@@ -135,12 +133,10 @@ class Point(Location):
             )
         if isinstance(other, Point):
             assert self.space_id == other.space_id
-            assert self.label == other.label
         return Point(
             coordinate=[self.coordinate[i] - other.coordinate[i] for i in range(3)],
             space_id=self.space_id,
             sigma=self.sigma - other.sigma,
-            label=self.label,
         )
 
     def __eq__(self, other: "Point"):
