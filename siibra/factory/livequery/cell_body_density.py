@@ -26,7 +26,10 @@ from ...attributes.descriptions import (
     ID,
     Name,
 )
+from ...attributes.dataproviders.tabular import TabularDataProvider
+from ...operations.base import Merge
 from ...concepts import Feature
+from ...operations.tabular import ConcatTabulars, GroupByTabular
 
 cell_body_density_modality = Modality(category="cellular", value="Cell body density")
 
@@ -41,34 +44,82 @@ def register_cell_body_density():
 class CellbodyDensityAggregator(LiveQuery, generates=Feature):
     def generate(self) -> Iterator:
         from ...factory.configuration import iter_preconfigured_ac
+        from ...atlases import Region
+        from ...assignment.assignment import match as ac_match
+        from ...attributes.attribute_collection import AttributeCollection
 
         mods = [mod for mods in self.find_attributes(Modality) for mod in mods]
 
         if cell_body_density_modality not in mods:
             return
 
-        name_to_regionspec: Dict[str, RegionSpec] = {}
-        returned_features: Dict[str, List[Feature]] = defaultdict(list)
+        regions = self.find_attribute_collections(Region)
+        if len(regions) == 0:
+            return
 
+        requested_region_specs = [
+            RegionSpec(parcellation_id=r.parcellation.ID, value=r.name) for r in regions
+        ]
+
+        wanted_features: List[Feature] = []
         for feature in iter_preconfigured_ac(Feature):
-            if source_feature_modality not in feature._find(Modality):
+            if all(
+                mod.value != source_feature_modality.value
+                for mod in feature._find(Modality)
+            ):
                 continue
-            try:
-                regionspec = feature._get(RegionSpec)
-                returned_features[regionspec.value].append(feature)
-                name_to_regionspec[regionspec.value] = regionspec
-            except Exception as e:
-                logger.warn(f"Processing {feature} resulted in exception {str(e)}")
+            if not ac_match(
+                AttributeCollection(attributes=requested_region_specs),
+                AttributeCollection(attributes=feature._find(RegionSpec)),
+            ):
+                continue
 
-        for regionname, features in returned_features.items():
-            yield Feature(
-                attributes=[
-                    *[
-                        attr
-                        for feature in features
-                        for attr in feature.attributes
-                        if not isinstance(attr, (RegionSpec, Name, ID))
-                    ],
-                    name_to_regionspec[regionname],
-                ]
-            )
+            # TODO need to merge *all* subfeatures's layerinfo and calc mean/std
+            # N.B. use merge, maybe tabular ops
+            wanted_features.append(feature)
+
+        if len(wanted_features) == 0:
+            return
+
+        summed_table = TabularDataProvider(
+            retrieval_ops=[
+                Merge.spec_from_dataproviders(
+                    [
+                        tab
+                        for feat in wanted_features
+                        for tab in feat._find(TabularDataProvider)
+                        # TODO this is somewhat messy, see if this can be fixed in future
+                        if "layerinfo.txt" in tab.url
+                    ]
+                ),
+                ConcatTabulars.generate_specs(),
+                GroupByTabular.generate_specs(by="Name"),
+            ],
+            plot_options={
+                "sub_dataframe": ["Area(micron**2)"],
+                "kind": "bar",
+                "y": "mean",
+                "yerr": "std",
+                "legend": False,
+            },
+        )
+
+        yield Feature(
+            attributes=[
+                cell_body_density_modality,
+                source_feature_modality,
+                *[
+                    RegionSpec(parcellation_id=r.parcellation.ID, value=r.name)
+                    for r in regions
+                ],
+                *[
+                    attr
+                    for feature in wanted_features
+                    for attr in feature.attributes
+                    if not isinstance(
+                        attr, (RegionSpec, Name, ID, Modality, TabularDataProvider)
+                    )
+                ],
+                summed_table,
+            ]
+        )

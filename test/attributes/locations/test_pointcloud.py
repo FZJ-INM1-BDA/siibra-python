@@ -1,7 +1,10 @@
 import numpy as np
 import pytest
+from unittest.mock import MagicMock
+import nibabel as nib
 
-from siibra.attributes.locations import PointCloud
+from siibra.attributes.locations.pointcloud import PointCloud, unifrom_from_image
+from siibra.attributes.dataproviders.volume import ImageProvider
 
 ptcloud = PointCloud(
     coordinates=[
@@ -23,6 +26,7 @@ ptcld_args = [
     ([[0, 0, 0], [1, 1, 1]], [0], AssertionError),
 ]
 
+
 @pytest.mark.parametrize("coordinates, sigma, Error", ptcld_args)
 def test_ptcloud_postinit(coordinates, sigma, Error):
     if Error:
@@ -33,9 +37,7 @@ def test_ptcloud_postinit(coordinates, sigma, Error):
 
     assert isinstance(ptcld.coordinates, list)
     assert all(isinstance(pos, tuple) for pos in ptcld.coordinates)
-    assert all(isinstance(v, (float, int))
-               for pos in ptcld.coordinates
-               for v in pos)
+    assert all(isinstance(v, (float, int)) for pos in ptcld.coordinates for v in pos)
 
 
 def test_ptcloud_homogenous():
@@ -96,3 +98,35 @@ def test_ptcloud_transform_affine_works():
         (11, 10, 12),
         (11, 10, 12),
     ]
+
+
+@pytest.fixture
+def mock_image_provider():
+    array = np.array(
+        [
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+            ],
+            [
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1],
+            ],
+        ],
+        dtype=np.int8,
+    )
+    mock = MagicMock()
+    mock.get_data.return_value = nib.Nifti1Image(array, affine=np.eye(4))
+    yield mock
+
+
+def test_uniform_from_image(mock_image_provider):
+    result = unifrom_from_image(mock_image_provider)
+    assert result.coordinates == [
+        (1, 0, 0),
+        (1, 1, 1),
+        (1, 2, 2),
+    ]
+    assert result.sigma == [0.5, 0.5, 0.5]

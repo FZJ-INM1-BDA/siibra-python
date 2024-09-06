@@ -84,8 +84,8 @@ def find_parcellations(parc_spec: str):
 
 
 def find_maps(
-    parcellation: Union[str, None] = None,
-    space: Union[str, None] = None,
+    parcellation: Union[ParcellationScheme, str, None] = None,
+    space: Union[Space, str, None] = None,
     maptype: Union[None, str] = None,
     name: str = "",
 ):
@@ -96,9 +96,13 @@ def find_maps(
 
     queries = []
     if space:
+        if isinstance(space, Space):
+            space = space.ID
         space_query = QueryParam(attributes=[SpaceSpec(value=space)])
         queries.append(space_query)
     if parcellation:
+        if isinstance(parcellation, ParcellationScheme):
+            parcellation = parcellation.ID
         parc_query = QueryParam(attributes=[ParcSpec(value=parcellation)])
         queries.append(parc_query)
     return [

@@ -17,6 +17,7 @@
 
 from typing import List, Union, Iterator, Tuple, TYPE_CHECKING
 from dataclasses import dataclass, field, replace, asdict
+import nibabel as nib
 
 if TYPE_CHECKING:
     from ..dataproviders.volume.image import ImageProvider
@@ -213,6 +214,25 @@ class LabelledPointCloud(PointCloud):
             sigma=included_sigmas,
             labels=included_labels,
         )
+
+
+def unifrom_from_image(provider: "ImageProvider"):
+    """
+    Create a pointcloud that mimick the provided image.
+    """
+    # TODO how to correctly get voxel_size. Should be inferably from provider.space_id
+    voxel_size_mm = 1
+    nii = provider.get_data()
+    assert isinstance(
+        nii, nib.Nifti1Image
+    ), f"Expected provider to produce nifti image, but was {type(nii)}"
+    array = np.array(nii.dataobj)
+    coords = np.array(np.where(array != 0)).T.tolist()
+    return PointCloud(
+        coordinates=coords,
+        sigma=[voxel_size_mm / 2 for _ in coords],
+        space_id=provider.space_id,
+    )
 
 
 def sample_from_image(

@@ -202,67 +202,45 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
     def _get_spatialprops(
         self,
         space: Union[str, "Space", None] = None,
-        maptype: str = "labelled",
+        maptype: Union[str, None] = None,
         threshold: float = 0.0,
     ):
-        mask = self.fetch_regional_mask(
-            space=space, maptype=maptype, lower_threshold=threshold
-        )
+        regional_map = self.get_regional_map(space, maptype)
+        mask = regional_map.extract_mask([self], lower_threshold=threshold)
         _spatial_props = spatial_props(
             mask, maptype=maptype, threshold_statistical=threshold
         )
-        _map = next(self._finditer_regional_maps(space, maptype=maptype))
         for prop in _spatial_props.values():
-            prop["centroid"].space_id = _map.space_id
+            prop["centroid"].space_id = regional_map.space_id
         return _spatial_props
-
-    def _finditer_regional_maps(
-        self, space: Union[str, "Space", None] = None, maptype: Union[str, None] = None
-    ) -> Iterable["Map"]:
-        from .space import Space
-        from .parcellationmap import Map, VALID_MAPTYPES
-        from ..assignment import string_search
-        from ..factory import iter_preconfigured_ac
-
-        assert (
-            maptype in VALID_MAPTYPES
-        ), f"maptypes can be in {VALID_MAPTYPES}, but you provided {maptype}"
-
-        if isinstance(space, str):
-            space = assert_ooo(list(string_search(space, Space)))
-
-        assert space is None or isinstance(
-            space, Space
-        ), f"space must be str, Space or None. You provided {space}"
-
-        for mp in iter_preconfigured_ac(Map):
-            if maptype is not None and maptype != mp.maptype:
-                continue
-            if space and space.ID != mp.space_id:
-                continue
-            if self.parcellation.ID != mp.parcellation_id:
-                continue
-            mapped_regions = [r for r in self if r.name in mp.regionnames]
-            if len(mapped_regions) == 0:
-                continue
-            yield mp.get_filtered_map(mapped_regions)
 
     def find_regional_maps(
         self,
         space: Union[str, "Space", None] = None,
-        maptype: str = "labelled",
+        maptype: Union[str, None] = None,
     ):
-        return list(self._finditer_regional_maps(space, maptype))
+        from .. import find_maps
+
+        return_maps: List["Map"] = []
+        for mp in find_maps(self.parcellation.ID, space, maptype):
+            mapped_regions = [r for r in self if r.name in mp.regionnames]
+            try:
+                return_maps.append(mp.get_filtered_map(mapped_regions))
+            except RuntimeError as e:
+                logger.warning(
+                    f"Error filtering {mp.name} with {mapped_regions}: {str(e)}. Skipping."
+                )
+        return return_maps
 
     def get_regional_map(
         self,
         space: Union[str, "Space", None] = None,
-        maptype: str = "labelled",
-        name: str = ""
+        maptype: Union[str, None] = None,
+        name: str = "",
     ) -> "Map":
         searched_maps = [
-            m for m
-            in self.find_regional_maps(space=space, maptype=maptype)
+            m
+            for m in self.find_regional_maps(space=space, maptype=maptype)
             if name in m.name
         ]
         return assert_ooo(
@@ -288,9 +266,14 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         lower_threshold: float = None,
         frmt: str = None,
     ):
-        region_map = self.get_regional_map(
-            space=space, maptype=maptype, frmt=frmt
-        )
+        from .. import find_maps, Space
+        from .parcellationmap import Map
+
+        space_spec = space.ID if isinstance(space, Space) else space
+        for mp in find_maps(self.parcellation.ID, space_spec):
+            mp.regionnames
+            pass
+        region_map = self.get_regional_map(space=space, maptype=maptype)
         region_map.extract_mask(
             region_map.regionnames,
             background_value=background_value,
