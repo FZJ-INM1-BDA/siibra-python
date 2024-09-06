@@ -86,7 +86,7 @@ def find_parcellations(parc_spec: str):
 def find_maps(
     parcellation: Union[str, None] = None,
     space: Union[str, None] = None,
-    maptype: str = "labelled",
+    maptype: Union[None, str] = None,
     name: str = "",
 ):
     """Convenient access to parcellation maps."""
@@ -104,7 +104,7 @@ def find_maps(
     return [
         mp
         for mp in find(queries, parcellationmap.Map)
-        if mp.maptype == maptype and name in mp.name
+        if (maptype is None or mp.maptype == maptype) and name in mp.name
     ]
 
 
@@ -113,13 +113,17 @@ def get_map(parcellation: str, space: str, maptype: str = "labelled", name: str 
     searched_maps = find_maps(parcellation, space, maptype, name)
     return assert_ooo(
         searched_maps,
-        lambda maps: (f"""
+        lambda maps: (
+            (
+                f"""
 The specification matched multiple maps. Specify one of their names as the `name` keyword argument.
 """
-        + "\n"
-        + "\n".join(f"- {m.name}" for m in maps)) 
-        if len(maps) > 1 
-        else """The specification matched no maps."""
+                + "\n"
+                + "\n".join(f"- {m.name}" for m in maps)
+            )
+            if len(maps) > 1
+            else """The specification matched no maps."""
+        ),
     )
 
 
@@ -146,8 +150,13 @@ def find_features(
     if "genes" in kwargs:
         assert isinstance(kwargs["genes"], list)
         gene_ac = AttributeCollection(
-            attributes=[Gene(value=gene) for gene in kwargs["genes"]]
+            attributes=[Gene(value=gene.upper()) for gene in kwargs["genes"]]
         )
+        query_ac.append(gene_ac)
+
+    if "gene" in kwargs:
+        assert isinstance(kwargs["gene"], str)
+        gene_ac = AttributeCollection(attributes=[Gene(value=kwargs["gene"].upper())])
         query_ac.append(gene_ac)
 
     # place modality_query_param first, since it shortcircuits alot quicker
