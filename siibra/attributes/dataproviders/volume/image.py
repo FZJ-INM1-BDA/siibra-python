@@ -203,36 +203,20 @@ class ImageProvider(VolumeProvider):
         return super().get_data(**kwargs)
 
 
-def from_pointcloud(pointcloud: pointcloud.PointCloud, normalize=True) -> ImageProvider:
-    template_imageprovider = pointcloud.space.get_template()
-    targetimg = template_imageprovider.get_data()
+def from_pointcloud(
+    pointcloud: pointcloud.PointCloud, normalize=True, cached=False
+) -> ImageProvider:
+    from ....operations.base import Of
+    from ....operations.volume_fetcher.nifti import NiftiFromPointCloud
 
-    voxels = pointcloud.transform(np.linalg.inv(targetimg.affine), space_id=None)
-
-    voxelcount_img = np.zeros_like(targetimg.get_fdata())
-    unique_coords, counts = np.unique(
-        np.array(voxels.coordinates, dtype="int"), axis=0, return_counts=True
+    return ImageProvider(
+        retrieval_ops=[
+            Of.generate_specs(instance=pointcloud, force=(not cached)),
+            NiftiFromPointCloud.generate_specs(normalize=normalize, force=(not cached)),
+        ],
+        format="nii",
+        space_id=pointcloud.space_id,
     )
-    voxelcount_img[tuple(unique_coords.T)] = counts
-
-    # TODO: consider how to handle pointsets with varied sigma_mm
-    sigmas = np.array(pointcloud.sigma)
-    bandwidth = np.mean(sigmas)
-    if len(np.unique(sigmas)) > 1:
-        logger.warning(
-            f"KDE of pointset uses average bandwith {bandwidth} instead of the points' individual sigmas."
-        )
-
-    filtered_arr = filters.gaussian(voxelcount_img, bandwidth)
-    if normalize:
-        filtered_arr /= filtered_arr.sum()
-
-    nii = nib.Nifti1Image(filtered_arr, affine=targetimg.affine)
-
-    filename = CACHE.build_filename(md5(nii.to_bytes()).hexdigest(), suffix=".nii.gz")
-    if not Path(filename).exists():
-        nii.to_filename(filename)
-    return ImageProvider(format="nii", url=str(filename), space_id=pointcloud.space_id)
 
 
 def from_nifti(

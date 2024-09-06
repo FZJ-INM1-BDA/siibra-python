@@ -53,6 +53,7 @@ class RemoteLocalDataOp(DataOp):
     input: None
     output: bytes
     type = "read/remote-local"
+    desc = "Read local/remote to bytes"
 
     def run(self, _, *, filename, **kwargs):
         assert isinstance(

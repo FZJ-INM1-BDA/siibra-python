@@ -68,6 +68,7 @@ class Patch:
 
         # Extend the 2D patch into a 3D structure
         # this is only valid if the patch plane lies within the image canvas.
+        bbox = boundingbox.from_imageprovider(image_volume)
         canvas = image_volume.get_boundingbox()
         assert canvas.minpoint[1] <= self.corners.coordinates[0, 1]
         assert canvas.maxpoint[1] >= self.corners.coordinates[0, 1]

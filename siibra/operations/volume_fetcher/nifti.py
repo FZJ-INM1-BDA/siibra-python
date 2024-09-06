@@ -19,14 +19,16 @@ import gzip
 from nibabel import Nifti1Image
 import numpy as np
 from nilearn.image import resample_to_img, resample_img
+from dataclasses import asdict
+from skimage import filters
 
 from .base import VolumeRetOp
 from ...operations import DataOp
-from ...commons.logger import siibra_tqdm
+from ...commons.logger import siibra_tqdm, logger
 from ...attributes.dataproviders.volume.base import register_format_read
 
 if TYPE_CHECKING:
-    from ...attributes.locations import BoundingBox
+    from ...attributes.locations import BoundingBox, PointCloud
 
 
 class NiftiCodec(DataOp):
@@ -223,15 +225,17 @@ class MergeLabelledNiftis(DataOp):
     type = "codec/vol/merge"
 
     def run(self, input: List[Nifti1Image], **kwargs):
-        if len(input)==1:
+        if len(input) == 1:
             return input[0]
-        elif len(input)==0:
-            raise ValueError(f"{self.__class__}.run() requires at least one NIfTI image.")
+        elif len(input) == 0:
+            raise ValueError(
+                f"{self.__class__}.run() requires at least one NIfTI image."
+            )
         else:
             return self._resample_and_merge_niftis(
                 niftis=input,
-                template_affine=kwargs.get('template_affine', None),
-                labels=kwargs.get('labels', [])
+                template_affine=kwargs.get("template_affine", None),
+                labels=kwargs.get("labels", []),
             )
 
     @staticmethod
@@ -312,3 +316,50 @@ class IntersectNiftiWithNifti(DataOp):
         arr1 = np.asanyarray(nii1_on_nii0.dataobj).astype("uint8")
         elementwise_min = np.minimum(arr0, arr1)
         return Nifti1Image(dataobj=elementwise_min, affine=nii0.affine)
+
+
+class NiftiFromPointCloud(DataOp):
+    """This operation transforms PointCloud to Nifti1Image"""
+
+    input: "PointCloud"
+    output: Nifti1Image
+    type = "transform/poincloud-to-nifti"
+    desc = "Transform pointcloud to a nifti"
+
+    def run(self, input, normalize, **kwargs):
+        from ...attributes.locations import PointCloud
+
+        assert isinstance(
+            input, PointCloud
+        ), f"Expected input to be of type PointCloud, but was {type(input)}"
+
+        template_imageprovider = input.space.get_template()
+        targetimg = template_imageprovider.get_data()
+
+        voxels = input.transform(np.linalg.inv(targetimg.affine), space_id=None)
+
+        voxelcount_img = np.zeros_like(targetimg.get_fdata())
+        unique_coords, counts = np.unique(
+            np.array(voxels.coordinates, dtype="int"), axis=0, return_counts=True
+        )
+        voxelcount_img[tuple(unique_coords.T)] = counts
+
+        # TODO: consider how to handle pointsets with varied sigma_mm
+        sigmas = np.array(input.sigma)
+        bandwidth = np.mean(sigmas)
+        if len(np.unique(sigmas)) > 1:
+            logger.warning(
+                f"KDE of pointset uses average bandwith {bandwidth} instead of the points' individual sigmas."
+            )
+
+        filtered_arr = filters.gaussian(voxelcount_img, bandwidth)
+        if normalize:
+            filtered_arr /= filtered_arr.sum()
+
+        nii = Nifti1Image(filtered_arr, affine=targetimg.affine)
+        return nii
+
+    @classmethod
+    def generate_specs(cls, normalize=True, **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "normalize": normalize}

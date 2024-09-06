@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import replace
-from typing import List
+from typing import List, Union
 import pandas as pd
 import numpy as np
 from time import sleep
@@ -27,10 +27,12 @@ from .base import LiveQuery
 from ...atlases import Region
 from ...cache import fn_call_cache, CACHE
 from ...commons.logger import logger
+from ...commons.iterable import flatmap
 from ...concepts import Feature
 from ...attributes.descriptions import register_modalities, Modality, Gene
-from ...attributes.locations import PointCloud
-from ...attributes.dataproviders import TabularDataProvider
+from ...attributes.locations import PointCloud, Point
+from ...attributes.dataproviders import TabularDataProvider, ImageProvider
+from ...attributes.locations.ops.intersection import ptcld_ptcld
 from ...attributes.dataproviders.volume.image import intersect_ptcld_image
 from ...exceptions import ExternalApiException
 
@@ -99,7 +101,8 @@ def add_allen_modality():
 # generates=Feature -> the declaration here is to indicate to the baseclass that this class generates Feature
 class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
     def generate(self):
-        # If none of the
+        from ... import get_map
+
         all_mods = [mod for li in self.find_attributes(Modality) for mod in li]
         if modality_of_interest not in all_mods:
             return
@@ -110,38 +113,46 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
             )
             return
 
+        use_query_concept: Union[ImageProvider, None] = None
         regions = self.find_attribute_collections(Region)
-        if len(regions) != 1:
+        if len(regions) == 1:
             logger.warning(
                 f"AllenLiveQueryError: expecting one and only one Region, but got {len(regions)}."
             )
+
+            region = regions[0]
+
+            map = get_map(region.parcellation.ID, "icbm 152")
+            use_query_concept = map.extract_regional_map(region)
+
+        queried_image_providers = flatmap(self.find_attributes(ImageProvider))
+        if len(queried_image_providers) > 0:
+            if use_query_concept is not None:
+                logger.warning(
+                    f"Both region {region.name} and image_provider {queried_image_providers} are supplied. Ignoring supplied region"
+                )
+            if len(queried_image_providers) > 1:
+                logger.warning(
+                    f"Expected exactly one image_provider, but provided {len(queried_image_providers)}. Using the first one."
+                )
+            use_query_concept = queried_image_providers[0]
+
+        if use_query_concept is None:
             return
 
-        region = regions[0]
-
-        # since we are only interested in map in mni152 space
-        images = [
-            image
-            for map in region.find_regional_maps("icbm 152")
-            for image in map.find_volumes(region)
-        ]
-
-        if len(images) != 1:
-            logger.warning(
-                f"AllenLiveQueryError: expecting one and only one Image, but got {len(regions)}."
-            )
-
-        image = images[0]
         print(ALLEN_ATLAS_NOTIFICATION)
 
         attributes = [replace(modality_of_interest)]
 
-        retrieved_measurements = _retrieve_measurements([g.value for g in all_genes])
+        genes = [g.value for g in all_genes]
+        retrieved_measurements = _retrieve_measurements(genes)
         ptcld = PointCloud(
             space_id=MNI152_SPACE_ID,
             coordinates=[measure["mni_xyz"] for measure in retrieved_measurements],
         )
-        intersection = intersect_ptcld_image(ptcloud=ptcld, image=image)
+        if isinstance(use_query_concept, ImageProvider):
+            intersection = intersect_ptcld_image(ptcld, use_query_concept)
+
         inside_coord_set = set(tuple(coord) for coord in intersection.coordinates)
 
         data_dict = [
@@ -151,11 +162,23 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
         ]
         dataframe = pd.DataFrame.from_dict(data_dict)
 
-        output_hash = md5(json.dumps(data_dict)).hexdigest()
+        output_hash = md5(json.dumps(data_dict).encode("utf-8")).hexdigest()
 
         filename = CACHE.build_filename(output_hash, suffix=".csv")
         dataframe.to_csv(filename)
-        tabular_data_attr = TabularDataProvider(url=filename)
+        tabular_data_attr = TabularDataProvider(
+            url=filename,
+            plot_options={
+                "kind": "box",
+                "grid": True,
+                "legend": False,
+                "by": "gene",
+                "column": ["expression_level"],
+                "showfliers": False,
+                "ax": None,
+                "ylabel": "expression level",
+            },
+        )
         attributes.append(tabular_data_attr)
 
         ptcld = PointCloud(space_id=MNI152_SPACE_ID, coordinates=list(inside_coord_set))

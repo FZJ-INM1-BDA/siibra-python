@@ -25,6 +25,7 @@ from .attribute_qualification import (
 from ..commons.logger import logger
 from ..attributes import AttributeCollection
 from ..attributes.locations import Location, BoundingBox
+from ..attributes.dataproviders import DataProvider
 from ..concepts import AtlasElement, QueryParam
 from ..atlases import Region, Space
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
@@ -81,7 +82,7 @@ def qualify(col_a: AttributeCollection, col_b: AttributeCollection):
     raise UnregisteredAttrCompException
 
 
-def preprocess_concept(concept: Union[AtlasElement, Location]):
+def preprocess_concept(concept: Union[AtlasElement, Location, DataProvider]):
     """
     User provided concepts may need preprocessed. e.g.
 
@@ -92,7 +93,7 @@ def preprocess_concept(concept: Union[AtlasElement, Location]):
 
     - When user provides Space, this function adds an infinite boundingbox
     """
-    if isinstance(concept, Location):
+    if isinstance(concept, (Location, DataProvider)):
         concept = QueryParam(attributes=[concept])
     assert isinstance(
         concept, AttributeCollection

@@ -37,13 +37,23 @@ class Archive(TypedDict):
     format: str = None
 
 
-@fn_call_cache
-def get_result(steps: List[Dict]):
-    result: Any = None
-    for step in steps:
-        runner = DataOp.get_runner(step)
-        result = runner.run(result, **step)
-    return result
+def cache_validation_callback(metadata):
+    args = metadata["input_args"]
+    # args are always as a dict
+    # it is serialized as str (thus checking 'force': False) is sufficient
+    # it seems joblib is quite smart at serialization. even though in the metadata,
+    # it only retains the __repr__, it caches non repr fields too.
+    return "'force': False" not in args["steps"]
+
+
+@fn_call_cache(cache_validation_callback=cache_validation_callback)
+def run_steps(steps: List[Dict]):
+    if len(steps) == 0:
+        return None
+    *prev_steps, step = steps
+    result = run_steps(prev_steps)
+    runner = DataOp.get_runner(step)
+    return runner.run(result, **step)
 
 
 @dataclass
@@ -88,9 +98,12 @@ class DataProvider(Attribute):
         raise RuntimeError(f"Cannot understand {self.archive_options['format']}")
 
     def get_data(self, **kwargs):
-        return get_result(
+        return run_steps(
             [
                 *self.retrieval_ops,
                 *self.transformation_ops,
             ]
         )
+
+    def describe_data(self):
+        return DataOp.describe([*self.retrieval_ops, *self.transformation_ops])

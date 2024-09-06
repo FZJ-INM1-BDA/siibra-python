@@ -101,10 +101,16 @@ potentially, we can do things like forking/merging etc (need to be a bit careful
 
 
 class DataOp:
+    """
+    Base Data Operation class. type *must* be overriden (or set to None). desc *should* be overriden, or will trigger warning messages.
+    Set force=True to disable cache. User could also pass "force": True in generate_specs to manually bypass the cache.
+    """
+
     input: None
     output: None
     desc: str = "Noop"
     type: str = "baseop/noop"
+    force = False
 
     step_register: Dict[str, Type["DataOp"]] = {}
 
@@ -116,6 +122,11 @@ class DataOp:
         if not cls.type:
             logger.debug(
                 f"{cls.__name__} does not have type defined. Cannot register it."
+            )
+            return
+        if cls.desc == DataOp.desc:
+            logger.warning(
+                f"DataOp {cls} does not have unique description for its step."
             )
 
         assert cls.type not in cls.step_register, f"Already registered {cls.type}"
@@ -139,13 +150,14 @@ class DataOp:
 
     @classmethod
     def generate_specs(cls, **kwargs):
-        return {"type": cls.type, **kwargs}
+        return {"type": cls.type, "force": cls.force, **kwargs}
 
 
 class Merge(DataOp):
     input: None
     Output: List[Any]
     type = "baseop/merge"
+    desc = "Merge multiple srcs into a single src, output a list"
 
     def run(self, input, *, srcs: List[List[Dict]], **kwargs) -> List[Any]:
         from ..attributes.dataproviders.base import get_result
@@ -163,3 +175,20 @@ class Merge(DataOp):
             len(dp.transformation_ops) == 0 for dp in dataproviders
         ), f"Expected no transformops to be in data providers"
         return cls.generate_specs(srcs=[dv.retrieval_ops for dv in dataproviders])
+
+
+class Of(DataOp):
+    """Utility Source Operation. This operation returns the instance provided, to be used by the next operation."""
+
+    input: None
+    Output: Any
+    type = "baseop/of"
+    desc = "Output an {instance}"
+
+    def run(self, _, instance, **kwargs):
+        return instance
+
+    @classmethod
+    def generate_specs(cls, instance, **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "instance": instance}
