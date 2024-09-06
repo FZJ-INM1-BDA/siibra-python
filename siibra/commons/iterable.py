@@ -45,3 +45,7 @@ def assert_ooo(input: Iterable[T], error_msg_cb: Callable[[List[T]], str] = None
         )
         raise NonUniqueError(msg) from e
     return listed_input[0]
+
+
+def flatmap(list_of_list: List[List[T]]):
+    return [item for _list in list_of_list for item in _list]

@@ -249,7 +249,7 @@ def from_nifti(
     from ....cache import CACHE
     from .... import get_space
 
-    if space:
+    if space is not None:
         space_id = get_space(space).ID
 
     filename = None
@@ -282,7 +282,9 @@ def from_array(
     Use space_id kwargs if you want to directly set the space_id. Otherwise, use the space kwarg to specify a space to look up.
     space_id is ignored if space is provided
     """
-    return from_nifti(nib.Nifti1Image(data, affine), space=space, space_id = space_id, **kwargs)
+    return from_nifti(
+        nib.Nifti1Image(data, affine), space=space, space_id=space_id, **kwargs
+    )
 
 
 @_loc_intersection.register(point.Point, ImageProvider)
@@ -303,7 +305,7 @@ def intersect_ptcld_image(
 ) -> pointcloud.PointCloud:
     value_outside = 0
     values = image.lookup_points(ptcloud)
-    inside = list(np.where(values != value_outside)[0])
+    inside = np.array(values[0])[np.where(values[1] != value_outside)[0]].tolist()
     return replace(
         ptcloud,
         coordinates=[ptcloud.coordinates[i] for i in inside],

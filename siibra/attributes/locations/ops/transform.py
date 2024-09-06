@@ -111,4 +111,9 @@ def transform_boundingbox(
 
 
 def transform(loc: T, affine: np.ndarray, space_id: str = None) -> T:
-    return _tranformers[type(loc)](loc, affine, space_id or loc.space_id)
+    for Cls in type(loc).__mro__:
+        if Cls in _tranformers:
+            return _tranformers[Cls](loc, affine, space_id or loc.space_id)
+    raise TypeError(
+        f"Transforming {loc} error. Noe of {type(loc)}.__mro__ has been registered to transform"
+    )

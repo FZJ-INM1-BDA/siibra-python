@@ -78,7 +78,6 @@ class Point(Location):
     schema = "siibra/attr/loc/point/v0.1"
     coordinate: Tuple[Union[float, int]] = field(default_factory=tuple)
     sigma: float = 0.0
-    label: Union[int, float, str] = None
 
     def __post_init__(self):
         self.coordinate = parse_coordinate(self.coordinate)
@@ -120,7 +119,7 @@ class Point(Location):
             coordinate=[self.coordinate[i] + other.coordinate[i] for i in range(3)],
             space_id=self.space_id,
             sigma=self.sigma + other.sigma,
-            label=self.label
+            label=self.label,
         )
 
     def __getitem__(self, index: int):
@@ -146,11 +145,6 @@ class Point(Location):
 
     def __eq__(self, other: "Point"):
         if self.space_id != other.space_id:
-            return False
-        try:
-            if self.label != other.label:
-                return False
-        except TypeError:
             return False
         from . import pointcloud
 
@@ -193,3 +187,20 @@ class Point(Location):
         kernel_affine = np.dot(target_affine, shift)
 
         return Nifti1Image(dataobj=kernel, affine=kernel_affine)
+
+
+@dataclass
+class LabelledPoint(Point):
+    schema: str = None
+    label: Union[int, float, str] = None
+
+    def __eq__(self, other):
+        from .pointcloud import LabelledPointCloud
+
+        if not super().__eq__(other):
+            return False
+        if isinstance(other, LabelledPointCloud):
+            return other == self
+        if isinstance(other, LabelledPoint):
+            return self.label == other.label
+        return False

@@ -72,6 +72,8 @@ class Map(AtlasElement):
         assert all(
             self.__getattribute__(spec) is not None for spec in essential_specs
         ), f"Cannot create a parcellation `Map` without {essential_specs}"
+        if len(self.regionnames) == 0:
+            raise RuntimeError(f"Map does not contain any regions")
         super().__post_init__()
 
     @property
@@ -216,18 +218,33 @@ class Map(AtlasElement):
 
     def extract_regional_map(
         self,
-        region: Union[str, Region] = None,
+        region: Union[str, Region, None] = None,
         frmt: str = None,
         bbox: "BoundingBox" = None,
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
     ):
-        if region in self.regionnames:
-            regionname = region
-        else:
-            regionname = self.parcellation.get_region(region).name
-            assert regionname in self.regionnames
+        regionname = None
+        if isinstance(region, Region):
+            regionname = region.name
+        if isinstance(region, str):
+            if region in self.regionnames:
+                regionname = region
+            else:
+                regionname = self.parcellation.get_region(region).name
+        if region is None:
+            if len(self.regionnames) != 1:
+                raise RuntimeError(
+                    """Map contains multiple regions. Please provide one of the following as region:
+                                   """
+                    + "\n".join(self.regionnames)
+                )
+            regionname = self.regionnames[0]
+
+        assert (
+            regionname in self.regionnames
+        ), f"{region} parsed to {regionname}, which was not found in regionnames"
         provider = self._extract_regional_map_volume_provider(
             regionname=regionname,
             frmt=frmt,
@@ -473,7 +490,12 @@ class Map(AtlasElement):
         else:
             return DataFrame(
                 assignments,
-                columns=["input_structure_index", "centroid", "map_value", "region"],
+                columns=[
+                    "input_structure_index",
+                    "centroid",
+                    "map_value",
+                    "regionname",
+                ],
             )
 
     def lookup_points(

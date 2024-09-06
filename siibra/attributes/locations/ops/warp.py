@@ -147,4 +147,7 @@ def warp_boundingbox(bbox: BoundingBox, space_id: str) -> BoundingBox:
 
 
 def warp(loc: T, space_id: str) -> T:
-    return _warpers[type(loc)](loc, space_id)
+    for Cls in type(loc).__mro__:
+        if Cls in _warpers:
+            return _warpers[Cls](loc, space_id)
+    raise TypeError

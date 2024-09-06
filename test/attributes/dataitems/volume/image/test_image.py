@@ -15,12 +15,11 @@ import pytest
 # TODO fix fixture
 @pytest.fixture
 def mocked_image_foo():
-    with patch.object(ImageProvider, "fetch") as fetch_mock:
+    with patch.object(ImageProvider, "get_data") as fetch_mock:
         image = ImageProvider(format="neuroglancer/precomputed", space_id="foo")
         yield image, fetch_mock
 
 
-@pytest.mark.xfail
 def test_insersect_ptcld_img(mocked_image_foo):
     dataobj = np.array(
         [
@@ -60,9 +59,9 @@ def test_insersect_ptcld_img(mocked_image_foo):
     assert new_ptcld.space_id == ptcld.space_id
 
     assert new_ptcld.coordinates == [
-        [0, 1, 0],
-        [0, 1, 1],
-        [0, 1, 2],
+        (0, 1, 0),
+        (0, 1, 1),
+        (0, 1, 2),
     ]
 
 
@@ -83,7 +82,7 @@ from_nifti_args = [
 
 @pytest.mark.parametrize("space_id, space, get_space_called", from_nifti_args)
 def test_from_nifti(space_id, space, get_space_called, get_space_mock):
-    result = from_nifti("http", space_id, space)
+    result = from_nifti("http", space=space, space_id=space_id)
     assert isinstance(result, ImageProvider)
     if get_space_called:
         get_space_mock.assert_called()

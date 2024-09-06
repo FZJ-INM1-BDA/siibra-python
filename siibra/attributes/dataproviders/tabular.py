@@ -24,6 +24,7 @@ except ImportError:
     from typing_extensions import Literal
 
 from .base import DataProvider
+from ...operations.tabular import ParseAsTabular
 
 
 @dataclass
@@ -33,14 +34,31 @@ class TabularDataProvider(DataProvider):
     plot_options: dict = field(default_factory=dict)
     parse_options: dict = field(default_factory=dict)
 
-    def get_data(self) -> pd.DataFrame:
-        _bytes = super().get_data()
-        if _bytes:
-            raise NotImplementedError(f"Malformed tabular data. {self.url}")
-        return pd.read_csv(BytesIO(_bytes), **self.parse_options)
+    def __post_init__(self):
+        if len(self.retrieval_ops) > 0:
+            return
+        super().__post_init__()
+        self.retrieval_ops.append(
+            ParseAsTabular.generate_specs(parse_options=self.parse_options)
+        )
 
     def plot(self, *args, **kwargs):
-        if "matrix" in self.plot_options:
+        plot_options = self.plot_options.copy()
+        data = self.get_data()
+        if "sub_dataframe" in plot_options:
+            sub_dataframe_arg = plot_options.pop("sub_dataframe")
+            assert isinstance(
+                sub_dataframe_arg, list
+            ), f"sub_dataframe must be a list, but was {type(sub_dataframe_arg)}"
+            for arg in sub_dataframe_arg:
+                assert isinstance(
+                    arg, str
+                ), f"items in sub_dataframe must be str, but found {type(arg)}"
+                data = data[arg]
+            assert isinstance(
+                data, pd.DataFrame
+            ), f"after applying {sub_dataframe_arg}, expected result to be dataframe, but was {type(data)}"
+        if "matrix" in plot_options:
             from ...commons.logger import logger
 
             try:
@@ -48,18 +66,17 @@ class TabularDataProvider(DataProvider):
             except ImportError as e:
                 logger.error(f"Plotting matrix error: {str(e)}")
                 return
-            matrix_kwargs: Dict = self.plot_options.get("matrix").copy()
+            matrix_kwargs: Dict = plot_options.get("matrix").copy()
             matrix_kwargs.update(kwargs)
-            return plotting.plot_matrix(self.get_data(), *args, **matrix_kwargs)
-        if "scatter" in self.plot_options:
-            scatter_kwargs: Dict[str, Union[str, int, float]] = self.plot_options.get(
+            return plotting.plot_matrix(data, *args, **matrix_kwargs)
+        if "scatter" in plot_options:
+            scatter_kwargs: Dict[str, Union[str, int, float]] = plot_options.get(
                 "scatter"
             ).copy()
             scatter_kwargs.update(kwargs)
-            return self.get_data().plot.scatter(*args, **scatter_kwargs)
-        plot_kwargs = self.plot_options.copy()
-        plot_kwargs.update(kwargs)
-        return self.get_data().plot(*args, **plot_kwargs)
+            return data.plot.scatter(*args, **scatter_kwargs)
+        plot_options.update(kwargs)
+        return data.plot(*args, **plot_options)
 
     def _iter_zippable(self):
         yield from super()._iter_zippable()
