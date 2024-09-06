@@ -72,12 +72,11 @@ def ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
 
 
 @_loc_intersection.register(LabelledPointCloud, LabelledPointCloud)
-def ptcld_ptcld(ptclda: LabelledPointCloud, ptcldb: LabelledPointCloud):
+def lblptcld_lblptcld(ptclda: LabelledPointCloud, ptcldb: LabelledPointCloud):
     if ptclda.space_id != ptcldb.space_id:
         raise InvalidAttrCompException
     indices = [
-        i for i, pt in enumerate(ptclda.to_points()) 
-        if pt_ptcld(pt, ptcldb) is not None
+        i for i, pt in enumerate(ptclda.to_points()) if pt_ptcld(pt, ptcldb) is not None
     ]
     if len(indices) == 0:
         return

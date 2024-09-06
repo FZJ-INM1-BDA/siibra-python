@@ -17,14 +17,17 @@
 
 from itertools import product
 from dataclasses import dataclass, field
-from typing import List, Union
-
+from typing import List, Union, TYPE_CHECKING
 import numpy as np
+import nibabel as nib
 
 from .base import Location
 from . import point, pointcloud
 from ...commons.logger import logger
 from ...cache import fn_call_cache
+
+if TYPE_CHECKING:
+    from ..dataproviders.volume import ImageProvider
 
 
 @dataclass
@@ -96,7 +99,7 @@ class BoundingBox(Location):
         )
 
 
-def estimate_affine(bbox: BoundingBox, space):
+def estimate_affine(bbox: BoundingBox, space_id: str):
     """
     Computes an affine transform which approximates
     the nonlinear warping of the eight corner points
@@ -132,7 +135,7 @@ def estimate_affine(bbox: BoundingBox, space):
     ).squeeze()
 
     # righthand side from warped points
-    corners2 = corners1.warp(space)
+    corners2 = corners1.warp(space_id)
     b = np.hstack(corners2.as_list())
 
     # least squares solution
@@ -194,3 +197,17 @@ def from_array(array: np.ndarray, threshold=0.0) -> "BoundingBox":
         maxpoint=bounds[:3, 1].astype("float").tolist(),
         space_id=None,
     )
+
+
+def from_imageprovider(img_provider: "ImageProvider", threshold=0.0) -> BoundingBox:
+    from ..dataproviders.volume import ImageProvider
+
+    assert isinstance(
+        img_provider, ImageProvider
+    ), f"img_provider must be of type ImageProvider, but was {type(img_provider)}"
+    data = img_provider.get_data()
+    assert isinstance(
+        data, nib.Nifti1Image
+    ), f"Expected get_data to be of type Nifti1Image, but was {type(data)}"
+    bbox = from_array(np.array(data.dataobj), threshold)
+    return bbox.transform(data.affine, space_id=img_provider.space_id)

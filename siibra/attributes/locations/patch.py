@@ -15,6 +15,7 @@
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from ..dataproviders.volume import image
 
@@ -32,6 +33,7 @@ class Patch(polyline.PolyLine):
     As of now, only patches aligned in the y plane of the physical space
     are supported.
     """
+
     schema: str = None
 
     def __post_init__(self):
@@ -45,16 +47,18 @@ class Patch(polyline.PolyLine):
         define in the y plane. A future implementation should accept arbitrary
         oriented patches.
         """
-        assert imgprovider.space == self.space
+        assert imgprovider.space_id == self.space_id
 
         # Extend the 2D patch into a 3D structure
         # this is only valid if the patch plane lies within the image canvas.
-        canvas = imgprovider.get_boundingbox()
+        canvas = boundingbox.from_imageprovider(imgprovider)
         assert canvas.minpoint[1] <= self.corners.coordinates[0, 1]
         assert canvas.maxpoint[1] >= self.corners.coordinates[0, 1]
         XYZ = self.corners.coordinates
         voi = boundingbox.BoundingBox(
-            XYZ.min(0)[:3], XYZ.max(0)[:3], space=imgprovider.space
+            minpoint=XYZ.min(0)[:3],
+            maxpoint=XYZ.max(0)[:3],
+            space_id=imgprovider.space_id,
         )
         # enforce the patch to have the same y dimensions
         voi.minpoint[1] = canvas.minpoint[1]
@@ -90,9 +94,10 @@ class Patch(polyline.PolyLine):
         affine = np.dot(affine_rot, translation_matrix(xmin, 0, zmin))
 
         from ..dataproviders.volume import image
+
         return image.from_nifti(
             resample_img(patch, target_affine=affine, target_shape=[h, 1, w]),
-            space=imgprovider.space,
+            space_id=imgprovider.space_id,
             name=f"Rotated patch with corner points {self.corners} sampled from {imgprovider.name}",
         )
 

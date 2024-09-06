@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Union
+from typing import List, Union, TYPE_CHECKING
 
 from . import region
 from ..commons.logger import logger
@@ -21,6 +21,9 @@ from ..commons.string import SPEC_TYPE
 from ..commons.tree import collapse_nodes
 from ..commons.iterable import assert_ooo
 from ..attributes.descriptions import Version
+
+if TYPE_CHECKING:
+    from .space import Space
 
 
 class ParcellationScheme(region.Region):
@@ -83,7 +86,7 @@ class ParcellationScheme(region.Region):
 
     def find_maps(
         self,
-        space: Union[str, None] = None,
+        space: Union["Space", str, None] = None,
         maptype: Union[str, None] = None,
         name: str = "",
     ):
@@ -92,8 +95,10 @@ class ParcellationScheme(region.Region):
         return find_maps(self.ID, space, maptype=maptype, name=name)
 
     def get_map(
-        self, space_id: str = None, maptype: str = "labelled", extra_spec: str = ""
+        self,
+        space: Union["Space", str, None] = None,
+        maptype: Union[None, str] = None,
+        name: str = "",
     ):
-        # TODO: reconsider the placement of this method and reference them at the package level
-        searched_maps = self.find_maps(space_id, maptype, extra_spec)
+        searched_maps = self.find_maps(space, maptype, name)
         return assert_ooo(searched_maps)

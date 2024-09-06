@@ -149,7 +149,7 @@ def find_features(
 
     modality_query_param = QueryParam(attributes=[modality])
 
-    query_ac = [concept, modality_query_param]
+    query_ac = [modality_query_param, concept]
 
     if "genes" in kwargs:
         assert isinstance(kwargs["genes"], list)
