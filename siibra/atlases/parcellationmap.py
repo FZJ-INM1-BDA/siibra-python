@@ -32,7 +32,6 @@ from ..atlases import ParcellationScheme, Space, Region
 from ..attributes.dataproviders.volume import (
     VolumeProvider,
     ImageProvider,
-    MeshProvider,
     VolumeOpsKwargs,
     Mapping,
     FORMAT_LOOKUP,
@@ -99,14 +98,6 @@ class Map(AtlasElement):
     @property
     def regionnames(self) -> List[str]:
         return list(self.region_mapping.keys())
-
-    @property
-    def volume_providers(self) -> List[Union["ImageProvider", "MeshProvider"]]:
-        return [
-            attr
-            for attr in self.attributes
-            if isinstance(attr, (ImageProvider, MeshProvider))
-        ]
 
     def decode_region(self, regionname: str):
         return self.parcellation.get_region(regionname)
@@ -327,7 +318,6 @@ class Map(AtlasElement):
             raise NotImplementedError("Re-labeling of maps is not yet implemented.")
         else:
             return fullmap_provider
-
 
     def get_colormap(self, regions: List[str] = None, frmt=None) -> List[str]:
         from matplotlib.colors import ListedColormap

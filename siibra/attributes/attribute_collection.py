@@ -42,7 +42,7 @@ from .descriptions import (
 )
 from ..commons.iterable import assert_ooo
 from ..commons.logger import siibra_tqdm
-from ..attributes.dataproviders import DataProvider
+from ..attributes.dataproviders import DataProvider, volume
 
 T = TypeVar("T")
 
@@ -84,6 +84,20 @@ class AttributeCollection:
                 for d in dataproviders
             ]
         )
+
+    @property
+    def volume_providers(self) -> List[Union["volume.ImageProvider", "volume.MeshProvider"]]:
+        return [
+            attr
+            for attr in self.attributes
+            if isinstance(attr, (volume.ImageProvider, volume.MeshProvider))
+        ]
+
+    def extract_imagedata(self, **kwargs) -> "volume.ImageProvider":
+        provider = assert_ooo(
+            [_ for _ in self.volume_providers if _.format in volume.IMAGE_FORMATS],
+        )
+        return provider.get_data(**kwargs)
 
     def filter(self, filter_fn: Callable[[Attribute], bool]):
         """

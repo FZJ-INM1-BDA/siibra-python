@@ -18,7 +18,8 @@
 from .point import Point
 from .pointcloud import PointCloud
 from .boundingbox import BoundingBox
-from .polyline import Polyline
+from .polyline import PolyLine
 from .layerboundary import LayerBoundary
 from .ops import intersect, union
 from .base import Location
+from .plane import Plane

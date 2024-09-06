@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
 from .point import Point
-from .polyline import Polyline
+from .polyline import PolyLine
 from .base import Location
 from ...cache import fn_call_cache
 
@@ -33,7 +33,7 @@ class LayerBoundary(Location):
 
     @staticmethod
     @fn_call_cache
-    def _GetPolylineAttributes(url: str, space_id: str):
+    def _GetPolyLineAttributes(url: str, space_id: str):
         import requests
         import numpy as np
 
@@ -56,7 +56,7 @@ class LayerBoundary(Location):
             )
 
         return [
-            Polyline(
+            PolyLine(
                 closed=False,
                 points=[
                     Point(coord=coord, space_id=space_id)
@@ -68,7 +68,7 @@ class LayerBoundary(Location):
         ]
 
     @property
-    def layers(self) -> List[Polyline]:
+    def layers(self) -> List[PolyLine]:
         if X_PRECALCULATED_BOUNDARY_KEY in self.extra:
             return self.extra[X_PRECALCULATED_BOUNDARY_KEY]
-        return LayerBoundary._GetPolylineAttributes(self.base_url, self.space_id)
+        return LayerBoundary._GetPolyLineAttributes(self.base_url, self.space_id)

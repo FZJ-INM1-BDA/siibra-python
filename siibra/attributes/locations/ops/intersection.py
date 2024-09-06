@@ -18,7 +18,7 @@ import numpy as np
 from dataclasses import replace
 
 from ..point import Point
-from ..pointcloud import PointCloud
+from ..pointcloud import PointCloud, LabelledPointCloud
 from ..boundingbox import BoundingBox
 from ..base import Location
 from ....exceptions import InvalidAttrCompException, UnregisteredAttrCompException
@@ -68,6 +68,24 @@ def ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
         ptclda,
         coordinates=[pt.coordinate for pt in pts],
         sigma=[pt.sigma for pt in pts],
+    )
+
+
+@_loc_intersection.register(LabelledPointCloud, LabelledPointCloud)
+def ptcld_ptcld(ptclda: LabelledPointCloud, ptcldb: LabelledPointCloud):
+    if ptclda.space_id != ptcldb.space_id:
+        raise InvalidAttrCompException
+    indices = [
+        i for i, pt in enumerate(ptclda.to_points()) 
+        if pt_ptcld(pt, ptcldb) is not None
+    ]
+    if len(indices) == 0:
+        return
+    return replace(
+        ptclda,
+        coordinates=[ptclda.coordinates[i] for i in indices],
+        labels=[ptclda.labels[i] for i in indices],
+        sigma=[ptclda.sigma[i] for i in indices],
     )
 
 

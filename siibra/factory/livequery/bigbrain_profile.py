@@ -34,7 +34,7 @@ from ...attributes.locations.layerboundary import (
     X_PRECALCULATED_BOUNDARY_KEY,
     LAYERS,
 )
-from ...attributes.locations import intersect, PointCloud, Point, Polyline
+from ...attributes.locations import intersect, PointCloud, Point, PolyLine
 from ...exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 
 modalities_of_interest = [
@@ -162,7 +162,7 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                     layer_boundary = LayerBoundary(
                         extra={
                             X_PRECALCULATED_BOUNDARY_KEY: [
-                                Polyline(
+                                PolyLine(
                                     points=(
                                         Point(coordinate=[value, 0, 0], space_id=None)
                                     ),

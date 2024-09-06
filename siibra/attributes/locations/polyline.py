@@ -13,15 +13,51 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass, field
-from typing import Tuple
+from dataclasses import dataclass
+import numpy as np
 
-from .base import Location
-from .point import Point
+from . import point, pointcloud, boundingbox
 
 
 @dataclass
-class Polyline(Location):
+class PolyLine(pointcloud.PointCloud):
+    """
+    A polyline in 3D, ie. a sequence of connected straight line segments.
+    The polyline is represented as an ordered set of points and thus
+    based on a PointCloud with explicit interpretation of the coordinate lists's order.
+    """
     schema: str = "siibra/attr/loc/polyline"
     closed: bool = False
-    points: Tuple[Point] = field(default_factory=tuple)
+
+    def crop(self, voi: boundingbox.BoundingBox):
+        """
+        Crop the contour with a volume of interest.
+        Since the contour might be split from the cropping,
+        returns a set of contour segments.
+        """
+        segments = []
+
+        # set the contour point labels to a linear numbering
+        # so we can use them after the intersection to detect splits.
+        labelled = pointcloud.LabelledPointCloud(
+            coordinates=self.coordinates,
+            labels=list(range(len(self))),
+            space=self.space
+        )
+        cropped = labelled.intersection(voi)
+
+        if cropped is not None and not isinstance(cropped, point.Point):
+            assert isinstance(cropped, pointcloud.PointCloud)
+            # Identifiy contour splits are by discontinuouities ("jumps")
+            # of their labels, which denote positions in the original contour
+            jumps = np.diff([labelled.labels.index(lb) for lb in cropped.labels])
+            splits = [0] + list(np.where(jumps > 1)[0] + 1) + [len(cropped)]
+            for i, j in zip(splits[:-1], splits[1:]):
+                segments.append(
+                    PolyLine(
+                        space=cropped.space,
+                        coordinates=cropped.coordinates[i:j, :],
+                    )
+                )
+
+        return segments
