@@ -18,6 +18,7 @@ import io
 import requests
 
 from ....commons.logger import logger
+from ....commons.conf import KEEP_LOCAL_CACHE
 
 BLOCK_SIZE = 512
 
@@ -54,6 +55,13 @@ class PartialReader(io.IOBase, ABC):
 
             # If the url is already cached on disk, use file reader
             if PartialHttpReader.IsWarm(path):
+                instance = PartialFileReader.__new__(cls, http_warm_path)
+                PartialFileReader.__init__(instance, http_warm_path)
+                return instance
+
+            # Check for conf
+            if KEEP_LOCAL_CACHE > 0:
+                PartialHttpReader.Warmup(path)
                 instance = PartialFileReader.__new__(cls, http_warm_path)
                 PartialFileReader.__init__(instance, http_warm_path)
                 return instance

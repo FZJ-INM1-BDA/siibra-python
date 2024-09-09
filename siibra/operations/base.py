@@ -174,7 +174,9 @@ class Merge(DataOp):
         assert all(
             len(dp.transformation_ops) == 0 for dp in dataproviders
         ), f"Expected no transformops to be in data providers"
-        return cls.generate_specs(srcs=[dv.retrieval_ops for dv in dataproviders])
+        return cls.generate_specs(
+            srcs=[[*dv.retrieval_ops, *dv.transformation_ops] for dv in dataproviders]
+        )
 
 
 class Of(DataOp):

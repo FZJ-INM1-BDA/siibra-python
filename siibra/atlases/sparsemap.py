@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace, asdict
 from typing import List, Dict, Tuple, Union, TYPE_CHECKING, Iterable
 import json
 from pathlib import Path
@@ -30,18 +30,26 @@ except ImportError:
 import numpy as np
 from pandas import DataFrame
 import nibabel as nib
+import os
 
 from .parcellationmap import Map
 from .region import Region
+from ..attributes.dataproviders.volume.image import ImageProvider
 from ..attributes.dataproviders.volume import VolumeOpsKwargs, SIIBRA_MAX_FETCH_SIZE_GIB
-from ..attributes.locations import Point, PointCloud
+from ..attributes.locations import Point, PointCloud, BoundingBox
+from ..attributes.locations.boundingbox import (
+    from_imageprovider as bbox_from_imageprovider,
+)
 from ..operations.file_fetcher.io.base import PartialReader
-from ..commons.logger import siibra_tqdm, logger
+from ..operations.file_fetcher.io import MemoryPartialReader
+from ..commons.logger import siibra_tqdm, logger, QUIET
+from ..commons.conf import KEEP_LOCAL_CACHE, MEMORY_HUNGRY
 from ..cache import CACHE
-
-if TYPE_CHECKING:
-    from ..attributes.locations import BoundingBox
-    from ..attributes.dataproviders.volume.image import ImageProvider
+from ..operations.image_assignment import (
+    ImageAssignment,
+    ScoredImageAssignment,
+    get_intersection_scores,
+)
 
 
 SPARSEINDEX_BASEURL = (
@@ -88,6 +96,9 @@ class SparseIndex:
         raise NotImplementedError
 
     def add_img(self, nii: nib.Nifti1Image, regionname: str):
+        raise NotImplementedError
+
+    def get_img(self, regionname: str) -> nib.Nifti1Image:
         raise NotImplementedError
 
     def get_boundingbox_extrema(self, regionname: str, **kwargs) -> List[int]:
@@ -247,6 +258,7 @@ class ReadableSparseIndex(SparseIndex):
         self._affine = None
         self._alias_dict: Union[None, Dict[str, Dict]] = None
         self._name_bbox_dict: Dict[str, Tuple[int, ...]] = {}
+        self._memreader: Union[MemoryPartialReader, None] = None
 
         if self.url:
             session = requests.Session()
@@ -265,6 +277,11 @@ class ReadableSparseIndex(SparseIndex):
             resp = session.get(self.url + self.ALIAS_BBOX_SUFFIX)
             resp.raise_for_status()
             self._alias_dict = resp.json()
+
+            if MEMORY_HUNGRY > 0:
+                resp = session.get(self.url + self.PROBS_SUFFIX)
+                resp.raise_for_status()
+                self._memreader = MemoryPartialReader(resp.content)
 
         if self.filepath:
             with open(self.filepath, "r") as fp:
@@ -308,7 +325,9 @@ class ReadableSparseIndex(SparseIndex):
         List[Dict[str, float]]
             list of regionname: value
         """
-        probreader = PartialReader(str(self.url or self.filepath) + self.PROBS_SUFFIX)
+        probreader = self._memreader or PartialReader(
+            str(self.url or self.filepath) + self.PROBS_SUFFIX
+        )
         probreader.open()
 
         pos = np.array(pos)
@@ -334,7 +353,29 @@ class ReadableSparseIndex(SparseIndex):
         probreader.close()
         return result
 
+    def get_img(self, regionname: str) -> nib.Nifti1Image:
+        minx, miny, minz, maxx, maxy, maxz = self.get_boundingbox_extrema(regionname)
+        wanted_dataarray = np.zeros(self._readable_nii.dataobj.shape, dtype=np.float32)
+        # np.arange return [start, end), thus + 1 on max end
+        X, Y, Z = (
+            np.arange(minx, maxx + 1),
+            np.arange(miny, maxy + 1),
+            np.arange(minz, maxz + 1),
+        )
+        coords = np.mgrid[
+            minx : maxx + 1,
+            miny : maxy + 1,
+            minz : maxz + 1,
+        ]
+
+        wanted_dataarray[X, Y, Z] = [
+            float(v.get(regionname, 0)) for v in self.read(coords)
+        ]
+        return nib.Nifti1Image(wanted_dataarray, affine=self._readable_nii.affine)
+
     def get_boundingbox_extrema(self, regionname: str, **kwargs) -> List[int]:
+        """Returns Tuple consisting of 6 int, xmin, ymin, zmin, xmax, ymax, zmax, representing the voxel indicies
+        where the non-zero value of the statistical"""
         assert (
             regionname in self._name_bbox_dict
         ), f"regionname={regionname} not found in self._alias_name_dict={self._alias_dict}"
@@ -489,20 +530,57 @@ class SparseMap(Map):
 
     def assign(
         self,
-        queryitem: Union[Point, PointCloud, "ImageProvider"],
+        queryitem: Union[Point, PointCloud, ImageProvider],
         split_components: bool = True,
         voxel_sigma_threshold: int = 3,
         iou_lower_threshold=0,
         statistical_map_lower_threshold: float = 0,
         **volume_ops_kwargs: VolumeOpsKwargs,
     ) -> DataFrame:
+        from ..attributes.locations.ops.intersection import intersect
+
         # TODO implement properly, allow for map_value population
         logger.warning(f"SparseMap.assign has not yet been implemented correctly")
-        return super().assign(
-            queryitem,
-            split_components,
-            voxel_sigma_threshold,
-            iou_lower_threshold,
-            statistical_map_lower_threshold,
-            **volume_ops_kwargs,
+
+        spind = self._get_readable_sparseindex()
+        queryitemloc = (
+            bbox_from_imageprovider(queryitem)
+            if isinstance(queryitem, ImageProvider)
+            else queryitem
         )
+        assignments = []
+        for regionname in self.regionnames:
+            xmin, ymin, zmin, xmax, ymax, zmax = spind.get_boundingbox_extrema(
+                regionname
+            )
+            bbox = BoundingBox(minpoint=[xmin, ymin, zmin], maxpoint=[xmax, ymax, zmax])
+            bbox = bbox.transform(spind.affine, space_id=self.space_id)
+            if not intersect(bbox, queryitemloc):
+                continue
+            region_image = self._extract_regional_map_volume_provider(
+                regionname=regionname, frmt="image", **volume_ops_kwargs
+            )
+            for assgnmt in get_intersection_scores(
+                queryitem=queryitem,
+                target_image=region_image,
+                split_components=split_components,
+                voxel_sigma_threshold=voxel_sigma_threshold,
+                iou_lower_threshold=iou_lower_threshold,
+                target_masking_lower_threshold=statistical_map_lower_threshold,
+                **volume_ops_kwargs,
+            ):
+                if isinstance(assgnmt, ScoredImageAssignment):
+                    assignments.append(
+                        Map.ScoredRegionAssignment(
+                            **asdict(assgnmt),
+                            regionname=regionname,
+                        )
+                    )
+                else:
+                    assignments.append(
+                        Map.RegionAssignment(
+                            **asdict(assgnmt),
+                            regionname=regionname,
+                        )
+                    )
+        return self._convert_assignments_to_dataframe(assignments)

@@ -45,11 +45,4 @@ class PartialFileReader(PartialReader):
         return None
 
     def get_size(self):
-        close_at_end = False
-        if self.fp is None:
-            self.open()
-            close_at_end = True
-        size = os.path.getsize(self.fp)
-        if close_at_end:
-            self.close()
-        return size
+        return os.path.getsize(self.filepath)

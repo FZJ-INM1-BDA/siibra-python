@@ -288,9 +288,9 @@ def fetch_neuroglancer(url: str, **fetchkwargs: VolumeOpsKwargs) -> "nib.Nifti1I
 
 @register_format_read("neuroglancer/precomputed", "image")
 class ReadNeuroglancerPrecomputed(DataOp, NgVolumeRetOp):
-    input: str
+    input: None
     output: nib.Nifti1Image
-    desc = "Reads bytes into nifti"
+    desc = "Directly read neuroglancer volume"
     type = "read/neuroglancer_precomputed"
 
     def run(self, input, **kwargs):
@@ -300,6 +300,16 @@ class ReadNeuroglancerPrecomputed(DataOp, NgVolumeRetOp):
     def generate_specs(cls, *, url: str, **kwargs: VolumeOpsKwargs):
         base = super().generate_specs(**kwargs)
         return {**base, "url": url}
+
+
+class NgPrecomputedFetchCfg(DataOp):
+    input: Union[None, Dict]
+    output: Dict
+    desc = "Creating/Updating neuroglancer fetch config"
+    type = "volume/ngprecomp/create_update_cfg"
+
+    def run(self, input, **kwargs):
+        pass
 
 
 @fn_call_cache

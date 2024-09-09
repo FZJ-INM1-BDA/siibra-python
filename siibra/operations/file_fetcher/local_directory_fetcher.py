@@ -20,6 +20,8 @@ import requests
 
 from .base import Repository
 from ..base import DataOp
+from ...commons.conf import KEEP_LOCAL_CACHE
+from ...cache import CACHE
 
 
 class LocalDirectoryRepository(Repository):
@@ -54,14 +56,37 @@ class RemoteLocalDataOp(DataOp):
     output: bytes
     type = "read/remote-local"
     desc = "Read local/remote to bytes"
+    KEEP_LOCAL_CACHE_THRESHOLD = 0
+
+    def describe(self, *, filename: str, **kwargs):
+        desc = ""
+        if filename.startswith("https"):
+            desc += f"Reading remote file at {filename} "
+            cache_filename = CACHE.build_filename(filename)
+            if Path(cache_filename).is_file():
+                desc += f"by reading a cached version at {cache_filename}"
+                return desc
+            if KEEP_LOCAL_CACHE > self.KEEP_LOCAL_CACHE_THRESHOLD:
+                desc += f"as KEEP_LOCAL_CACHE flag is set to {KEEP_LOCAL_CACHE}, higher than the threshold {self.KEEP_LOCAL_CACHE_THRESHOLD}, a local version will be saved at {cache_filename}"
+            return desc
+        desc += f"Reading local file at {filename}"
+        return desc
 
     def run(self, _, *, filename, **kwargs):
         assert isinstance(
             filename, str
-        ), "remote local data op only takes string as filename kwarg"
+        ), "remote local da73ta op only takes string as filename kwarg"
         if filename.startswith("https"):
+            cache_filename = CACHE.build_filename(filename)
+            if Path(cache_filename).is_file():
+                with open(cache_filename, "rb") as fp:
+                    return fp.read()
+
             resp = requests.get(filename)
             resp.raise_for_status()
+            if KEEP_LOCAL_CACHE > self.KEEP_LOCAL_CACHE_THRESHOLD:
+                with open(cache_filename, "wb") as fp:
+                    fp.write(resp.content)
             return resp.content
         with open(filename, "rb") as fp:
             return fp.read()

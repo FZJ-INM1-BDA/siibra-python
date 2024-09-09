@@ -1,3 +1,8 @@
+import pytest
+from tempfile import mkstemp
+import zipfile
+import os
+
 from siibra.operations.file_fetcher.zip_fetcher import ZipDataOp
 from siibra.operations.base import DataOp
 
@@ -9,9 +14,26 @@ hcp_zip_filename = (
 
 def test_zipdataop():
     dataop = ZipDataOp.generate_specs(url=hcp_zip_url, filename=hcp_zip_filename)
-    Runner = DataOp.get_runner(dataop)
-    runner = Runner()
-    assert Runner is ZipDataOp
+    runner = DataOp.get_runner(dataop)
+    assert isinstance(runner, ZipDataOp)
     result = runner.run(None, **dataop)
     assert isinstance(result, bytes)
     text = result.decode("utf-8")
+
+
+@pytest.fixture
+def local_zipfile():
+    _, filename = mkstemp(".zip")
+    zf = zipfile.ZipFile(filename, "w")
+    zf.writestr("test.txt", "foobar")
+    zf.close()
+    yield filename
+    os.unlink(filename)
+
+
+def test_local_dataop(local_zipfile):
+    dataop = ZipDataOp.generate_specs(url=local_zipfile, filename="test.txt")
+    runner = DataOp.get_runner(dataop)
+    assert isinstance(runner, ZipDataOp)
+    result = runner.run(None, **dataop)
+    assert result == b"foobar"
