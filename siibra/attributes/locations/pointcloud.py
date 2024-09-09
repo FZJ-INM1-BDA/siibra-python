@@ -215,6 +215,14 @@ class LabelledPointCloud(PointCloud):
             labels=included_labels,
         )
 
+    def to_points(self) -> List[point.LabelledPoint]:
+        return [
+            point.LabelledPoint(
+                space_id=self.space_id, coordinate=coord, sigma=sigma, label=label
+            )
+            for coord, sigma, label in zip(self.coordinates, self.sigma, self.labels)
+        ]
+
 
 def unifrom_from_image(provider: "ImageProvider"):
     """

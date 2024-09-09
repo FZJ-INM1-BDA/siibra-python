@@ -102,6 +102,23 @@ def ptcld_bbox(ptcld: PointCloud, bbox: BoundingBox):
     )
 
 
+@_loc_intersection.register(LabelledPointCloud, BoundingBox)
+def lblptcld_bbox(ptcld: LabelledPointCloud, bbox: BoundingBox):
+    if ptcld.space_id != bbox.space_id:
+        raise InvalidAttrCompException
+    pts = [pt for pt in ptcld.to_points() if pt_bbox(pt, bbox) is not None]
+    if len(pts) == 0:
+        return
+    if len(pts) == 1:
+        return pts[0]
+    return replace(
+        ptcld,
+        coordinates=[pt.coordinate for pt in pts],
+        sigma=[pt.sigma for pt in pts],
+        labels=[pt.label for pt in pts],
+    )
+
+
 @_loc_intersection.register(BoundingBox, BoundingBox)
 def bbox_bbox(bboxa: BoundingBox, bboxb: BoundingBox):
     if bboxa.space_id != bboxb.space_id:
@@ -128,7 +145,9 @@ def intersect(loca: Location, locb: Location):
     """
     value = _loc_intersection.get(loca, locb)
     if value is None:
-        raise UnregisteredAttrCompException
+        raise UnregisteredAttrCompException(
+            f"Cannot find comparison between {type(loca)} and {type(locb)}"
+        )
     fn, switch_flag = value
     if loca.space_id != locb.space_id:
         try:

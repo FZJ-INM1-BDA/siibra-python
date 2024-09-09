@@ -36,9 +36,10 @@ class Feature(AttributeCollection):
 
     @property
     def name(self):
-        return (
-            super().name or f"Unnamed feature: {', '.join(map(str, self.modalities))}"
-        )
+        try:
+            return super().name
+        except:
+            return f"Unnamed feature: {', '.join(map(str, self.modalities))}"
 
     @property
     def locations(self):
