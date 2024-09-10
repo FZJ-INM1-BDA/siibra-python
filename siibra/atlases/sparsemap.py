@@ -452,39 +452,6 @@ class SparseMap(Map):
             wspind.add_img(nii=extracted.get_data(), regionname=regionname)
         wspind.save()
 
-    def fetch(
-        self,
-        region: Union[str, Region] = None,
-        frmt: str = None,
-        bbox: "BoundingBox" = None,
-        resolution_mm: float = None,
-        max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
-        color_channel: int = None,
-    ):
-        if region is None:
-            assert len(self.regionnames) == 1, ValueError(
-                "To fetch a volume from a SparseMap, please provide a region "
-                "name mapped in this SparseMap."
-            )
-            matched = self.regionnames[0]
-        else:
-            if isinstance(region, Region):
-                matched = region.name
-            else:
-                matched = self.parcellation.get_region(region).name
-
-        assert (
-            matched in self.regionnames
-        ), f"Statistical map of region '{matched}' is not available in '{self.name}'."
-
-        fetch_kwargs = VolumeOpsKwargs(
-            bbox=bbox,
-            resolution_mm=resolution_mm,
-            color_channel=color_channel,
-            max_download_GB=max_download_GB,
-        )
-        return super().fetch(region=matched, frmt=frmt, **fetch_kwargs)
-
     def lookup_points(
         self,
         points: Union[Point, PointCloud],
