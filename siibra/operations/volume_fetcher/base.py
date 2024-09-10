@@ -49,7 +49,7 @@ class NgVolumeRetOp(VolumeRetOp):
         url = fetch_op["filename"]
         assert url, f"filename from remote local data op must be defined"
 
-        starting_arg: Tuple[Union[None, Dict], List[Dict]] = None, []
+        starting_arg: Tuple[Union[None, Dict], List[Dict]] = (None, [])
         ng_fetch_op, transform_ops = reduce(
             cls.nifti_operations_reducer, rest_ops, starting_arg
         )
