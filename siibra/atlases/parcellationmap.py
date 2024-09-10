@@ -304,20 +304,17 @@ class Map(AtlasElement):
         frmt = self._select_format(frmt)
         providers = [vp for vp in self.volume_providers if vp.format == frmt]
         assert len(set(type(p) for p in providers)) == 1
+
+        labels = list(range(len(self.regionnames))) if allow_relabeling else []
+
         fullmap_provider = providers[0].__class__(
             space_id=self.space_id,
             format=providers[0].format,
             retrieval_ops=[Merge.spec_from_dataproviders(providers)],
-            transformation_ops=[MergeLabelledNiftis.generate_specs()],
+            transformation_ops=[MergeLabelledNiftis.generate_specs(labels=labels)],
         )
 
-        if allow_relabeling:
-            # TODO: create a relabeling dataop
-            # fullmap_provider.append()
-            # fullmap_provider.get_data()
-            raise NotImplementedError("Re-labeling of maps is not yet implemented.")
-        else:
-            return fullmap_provider
+        return fullmap_provider
 
     def get_colormap(self, regions: List[str] = None, frmt=None) -> List[str]:
         from matplotlib.colors import ListedColormap

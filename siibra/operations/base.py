@@ -160,9 +160,9 @@ class Merge(DataOp):
     desc = "Merge multiple srcs into a single src, output a list"
 
     def run(self, input, *, srcs: List[List[Dict]], **kwargs) -> List[Any]:
-        from ..attributes.dataproviders.base import get_result
+        from ..attributes.dataproviders.base import run_steps
 
-        return [get_result(src) for src in srcs]
+        return [run_steps(src) for src in srcs]
 
     @classmethod
     def generate_specs(cls, *, srcs: List[List[Dict]], **kwargs):
