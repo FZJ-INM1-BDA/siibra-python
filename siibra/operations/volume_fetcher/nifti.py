@@ -160,14 +160,19 @@ class NiftiExtractVOI(NiftiCodec):
     type = "codec/vol/extractVOI"
 
     def run(self, input, **kwargs):
+        from ...attributes.locations import BoundingBox
+
         voi = kwargs.get("voi")
         assert isinstance(input, Nifti1Image)
+        assert isinstance(voi, BoundingBox)
         bb_vox = voi.transform(np.linalg.inv(input.affine))
         (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
         shift = np.identity(4)
         shift[:3, -1] = bb_vox.minpoint
         result = Nifti1Image(
-            dataobj=input.dataobj[x0:x1, y0:y1, z0:z1],
+            dataobj=input.dataobj[
+                int(x0) : int(x1), int(y0) : int(y1), int(z0) : int(z1)
+            ],
             affine=np.dot(input.affine, shift),
         )
         return result

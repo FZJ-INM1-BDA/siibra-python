@@ -24,6 +24,8 @@ from neuroglancer_scripts.precomputed_io import (
     get_IO_for_existing_dataset,
     PrecomputedIO,
 )
+from concurrent.futures import ThreadPoolExecutor
+from itertools import product
 
 from .base import NgVolumeRetOp
 from ...operations import DataOp
@@ -193,15 +195,30 @@ class Scale:
         # create requested data volume, and fill it with the required chunk data
         shape_zyx = np.array([gz1 - gz0, gy1 - gy0, gx1 - gx0]) * self.chunk_sizes[::-1]
         data_zyx = np.zeros(shape_zyx, dtype=get_dtype(self.url))
-        for gx in range(gx0, gx1):
+
+        # Since the bottlenet is network, use a ThreadPoolExecutor
+        # cuts op from 108.29645109176636 sec -> 12.598513841629028 sec
+        # with same md5sum
+
+        def _read_chunk(gxyz):
+            gx, gy, gz = gxyz
+            chunk = self.read_chunk(gx, gy, gz, channel)
             x0 = (gx - gx0) * self.chunk_sizes[0]
-            for gy in range(gy0, gy1):
-                y0 = (gy - gy0) * self.chunk_sizes[1]
-                for gz in range(gz0, gz1):
-                    z0 = (gz - gz0) * self.chunk_sizes[2]
-                    chunk = self.read_chunk(gx, gy, gz, channel)
-                    z1, y1, x1 = np.array([z0, y0, x0]) + chunk.shape
-                    data_zyx[z0:z1, y0:y1, x0:x1] = chunk
+            y0 = (gy - gy0) * self.chunk_sizes[1]
+            z0 = (gz - gz0) * self.chunk_sizes[2]
+            return chunk, x0, y0, z0
+
+        with ThreadPoolExecutor() as ex:
+            for chunk, x0, y0, z0 in ex.map(
+                _read_chunk,
+                product(
+                    range(gx0, gx1),
+                    range(gy0, gy1),
+                    range(gz0, gz1),
+                ),
+            ):
+                z1, y1, x1 = np.array([z0, y0, x0]) + chunk.shape
+                data_zyx[z0:z1, y0:y1, x0:x1] = chunk
 
         # determine the remaining offset from the "chunk mosaic" to the
         # exact bounding box requested, to cut off undesired borders
@@ -235,12 +252,14 @@ def get_affine(url: str):
 
 def select_scale(
     scales: List[Scale],
-    resolution_mm: float = None,
+    resolution_mm: Union[None, float] = None,
     bbox=None,
     max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
 ) -> Scale:
     max_bytes = max_download_GB * 1024**3
 
+    # TODO if resolution_mm is unset, should we select the scale with the highest resolution
+    # but still below max_download_GB?
     if resolution_mm is None:  # no requirements, return lowest available resolution
         selected_scale = sorted(scales)[-1]
         assert selected_scale._estimate_nbytes(bbox) <= max_bytes
@@ -288,13 +307,16 @@ def fetch_neuroglancer(url: str, **fetchkwargs: VolumeOpsKwargs) -> "nib.Nifti1I
 
 @register_format_read("neuroglancer/precomputed", "image")
 class ReadNeuroglancerPrecomputed(DataOp, NgVolumeRetOp):
-    input: None
+    input: Union[None, VolumeOpsKwargs]
     output: nib.Nifti1Image
     desc = "Directly read neuroglancer volume"
     type = "read/neuroglancer_precomputed"
 
-    def run(self, input, **kwargs):
-        return fetch_neuroglancer(kwargs.pop("url"), **kwargs)
+    def run(self, input, url: str, **kwargs):
+        if input is None:
+            input = {}
+        assert isinstance(input, dict)
+        return fetch_neuroglancer(url, **input, **kwargs)
 
     @classmethod
     def generate_specs(cls, *, url: str, **kwargs: VolumeOpsKwargs):
@@ -303,13 +325,21 @@ class ReadNeuroglancerPrecomputed(DataOp, NgVolumeRetOp):
 
 
 class NgPrecomputedFetchCfg(DataOp):
-    input: Union[None, Dict]
-    output: Dict
+    input: Union[None, VolumeOpsKwargs]
+    output: VolumeOpsKwargs
     desc = "Creating/Updating neuroglancer fetch config"
-    type = "volume/ngprecomp/create_update_cfg"
+    type = "volume/ngprecomp/update_cfg"
 
-    def run(self, input, **kwargs):
-        pass
+    def run(self, input, fetch_config: VolumeOpsKwargs, **kwargs):
+        return {
+            **(input or {}),
+            **fetch_config,
+        }
+
+    @classmethod
+    def generate_specs(cls, fetch_config: VolumeOpsKwargs, **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "fetch_config": fetch_config}
 
 
 @fn_call_cache

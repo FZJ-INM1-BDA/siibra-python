@@ -15,7 +15,7 @@
 
 from dataclasses import dataclass, asdict
 from os import getenv
-from typing import TYPE_CHECKING, TypedDict, Tuple, Dict, Type, List
+from typing import TYPE_CHECKING, TypedDict, Tuple, Dict, Type, TypeVar
 
 from ..base import DataProvider
 from ....commons.iterable import assert_ooo
@@ -43,11 +43,16 @@ READER_LOOKUP: Dict[str, Type["VolumeRetOp"]] = {}
 
 def register_format_read(format: str, voltype: Literal["mesh", "image"]):
     from ....operations.volume_fetcher.base import VolumeRetOp
+    from ....operations.base import DataOp
 
-    def outer(Cls):
+    def outer(Cls: Type[VolumeRetOp]):
         assert issubclass(
             Cls, VolumeRetOp
         ), f"register_format_read must target a subclass of volume ret op"
+
+        assert issubclass(
+            Cls, DataOp
+        ), f"register_format_read must target a subclass of data op"
         if format in READER_LOOKUP:
             logger.warning(
                 f"{format} already registered by {READER_LOOKUP[format].__name__}, overriden by {Cls.__name__}"
@@ -98,28 +103,30 @@ class VolumeProvider(DataProvider):
     format: str = None
 
     def __post_init__(self):
-
-        if len(self.retrieval_ops) > 0:
-            return
-
         if self.format not in READER_LOOKUP:
             raise RuntimeError(f"{self.format} cannot be properly parsed as volume")
-        self_dict = asdict(self)
-        Cls = READER_LOOKUP[self.format]
-
-        self.retrieval_ops.extend(Cls.get_pre_retrieval_ops(**self_dict))
-        super().__post_init__()
-        self.retrieval_ops.extend(Cls.get_post_retrieval_ops(**self_dict))
 
     @property
     def space(self):
-        from ....factory import iter_preconfigured_ac
-        from ....atlases import Space
+        from .... import find_spaces
 
         return assert_ooo(
-            [
-                space
-                for space in iter_preconfigured_ac(Space)
-                if space.ID == self.space_id
-            ]
+            find_spaces(self.space_id),
+            lambda spaces: (
+                f"Cannot find any space with the id {self.space_id}"
+                if len(spaces) == 0
+                else f"Found multiple ({len(spaces)}) spaces with the id {self.space_id}"
+            ),
         )
+
+    def assemble_ops(self, **kwargs):
+        retrieval_ops, transformation_ops = super().assemble_ops(**kwargs)
+
+        if self.format not in READER_LOOKUP:
+            raise RuntimeError(f"{self.format} cannot be properly parsed as volume")
+        Cls = READER_LOOKUP[self.format]
+        retrieval_ops, transformation_ops = Cls.transform_ops(
+            retrieval_ops, transformation_ops, **kwargs
+        )
+        # post process retrieval
+        return retrieval_ops, transformation_ops

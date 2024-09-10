@@ -58,6 +58,7 @@ class BoundingBox(Location):
     @property
     def volume(self) -> float:
         """The volume of the boundingbox in mm^3"""
+        # TODO check voxel size based on space_id
         return np.prod(self.shape)
 
     @property

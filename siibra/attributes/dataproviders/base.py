@@ -15,6 +15,7 @@
 
 from dataclasses import dataclass, field
 from typing import List, Dict
+from copy import deepcopy
 
 try:
     from typing import TypedDict
@@ -67,41 +68,42 @@ class DataProvider(Attribute):
     retrieval_ops: List[Dict] = field(default_factory=list)
     transformation_ops: List[Dict] = field(default_factory=list)
 
-    def __post_init__(self):
-
-        if len(self.retrieval_ops) > 0:
-            return
+    def assemble_ops(self, **kwargs):
+        retrieval_ops, transformation_ops = deepcopy(self.retrieval_ops), deepcopy(
+            self.transformation_ops
+        )
+        if len(retrieval_ops) > 0:
+            return retrieval_ops, transformation_ops
 
         assert self.url, "url must be defined"
 
         if self.archive_options is None:
-            self.retrieval_ops.append(
+            return [
                 RemoteLocalDataOp.generate_specs(filename=self.url)
-            )
-            return
+            ], transformation_ops
 
         if self.archive_options["format"] == "tar":
-            self.retrieval_ops.append(
+            return [
                 TarDataOp.generate_specs(
                     url=self.url, filename=self.archive_options["file"]
                 )
-            )
-            return
+            ], transformation_ops
+
         if self.archive_options["format"] == "zip":
-            self.retrieval_ops.append(
+            return [
                 ZipDataOp.generate_specs(
                     url=self.url, filename=self.archive_options["file"]
                 )
-            )
-            return
+            ], transformation_ops
 
         raise RuntimeError(f"Cannot understand {self.archive_options['format']}")
 
     def get_data(self, **kwargs):
+        retrieval_ops, transformation_ops = self.assemble_ops(**kwargs)
         return run_steps(
             [
-                *self.retrieval_ops,
-                *self.transformation_ops,
+                *retrieval_ops,
+                *transformation_ops,
             ]
         )
 
