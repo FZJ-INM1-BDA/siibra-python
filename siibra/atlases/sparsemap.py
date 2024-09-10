@@ -507,7 +507,14 @@ class SparseMap(Map):
         from ..attributes.locations.ops.intersection import intersect
 
         # TODO implement properly, allow for map_value population
-        logger.warning(f"SparseMap.assign has not yet been implemented correctly")
+        logger.warning("SparseMap.assign has not yet been implemented correctly")
+
+        if isinstance(queryitem, Point) and queryitem.sigma == 0:
+            return self.lookup_points(queryitem, **volume_ops_kwargs)
+        if isinstance(queryitem, PointCloud):
+            sigmas = set(queryitem.sigma)
+            if len(sigmas) == 1 and 0 in sigmas:
+                return self.lookup_points(queryitem, **volume_ops_kwargs)
 
         spind = self._get_readable_sparseindex()
         queryitemloc = (

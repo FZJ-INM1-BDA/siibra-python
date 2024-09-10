@@ -425,6 +425,13 @@ class Map(AtlasElement):
         statistical_map_lower_threshold: float = 0.0,
         **volume_ops_kwargs: VolumeOpsKwargs,
     ) -> DataFrame:
+        if isinstance(queryitem, Point) and queryitem.sigma == 0:
+            return self.lookup_points(queryitem, **volume_ops_kwargs)
+        if isinstance(queryitem, PointCloud):
+            sigmas = set(queryitem.sigma)
+            if len(sigmas) == 1 and 0 in sigmas:
+                return self.lookup_points(queryitem, **volume_ops_kwargs)
+
         assignments: List[Union[Map.RegionAssignment, Map.ScoredRegionAssignment]] = []
         for regionname in siibra_tqdm(self.regionnames, unit="region"):
             region_image = self._extract_regional_map_volume_provider(
