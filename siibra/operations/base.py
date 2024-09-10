@@ -149,8 +149,8 @@ class DataOp:
         return "\n".join(descs)
 
     @classmethod
-    def generate_specs(cls, **kwargs):
-        return {"type": cls.type, "force": cls.force, **kwargs}
+    def generate_specs(cls, force=False, **kwargs):
+        return {"type": cls.type, "force": force or cls.force}
 
 
 class Merge(DataOp):
@@ -174,9 +174,7 @@ class Merge(DataOp):
         assert all(
             len(dp.transformation_ops) == 0 for dp in dataproviders
         ), f"Expected no transformops to be in data providers"
-        return cls.generate_specs(
-            srcs=[[*dv.retrieval_ops, *dv.transformation_ops] for dv in dataproviders]
-        )
+        return cls.generate_specs(srcs=[dv.assemble_ops() for dv in dataproviders])
 
 
 class Of(DataOp):
