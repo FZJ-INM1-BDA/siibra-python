@@ -473,9 +473,9 @@ class SparseMap(Map):
 
         points_wrpd = points_.warp(self.space_id)
 
-        first_volume = self.find_volumes(self.regionnames[0])[0]
+        volume_provider = self._extract_regional_map_volume_provider(self.regionnames[0])
         # TODO: consider just using affine to transform the points
-        vx, vy, vz = first_volume._points_to_voxels_coords(points_wrpd)
+        vx, vy, vz = volume_provider._points_to_voxels_coords(points_wrpd)
 
         assignments: List[Map.RegionAssignment] = []
         for pointindex, readout in enumerate(spind.read(np.stack([vx, vy, vz]).T)):
