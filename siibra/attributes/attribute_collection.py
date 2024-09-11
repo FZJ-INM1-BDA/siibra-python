@@ -86,7 +86,9 @@ class AttributeCollection:
         )
 
     @property
-    def volume_providers(self) -> List[Union["volume.ImageProvider", "volume.MeshProvider"]]:
+    def volume_providers(
+        self,
+    ) -> List[Union["volume.ImageProvider", "volume.MeshProvider"]]:
         return [
             attr
             for attr in self.attributes
@@ -110,7 +112,10 @@ class AttributeCollection:
 
     @property
     def _attribute_mapping(self):
-        return self._get(AttributeMapping)
+        try:
+            return self._get(AttributeMapping)
+        except:
+            return None
 
     @property
     def name(self):

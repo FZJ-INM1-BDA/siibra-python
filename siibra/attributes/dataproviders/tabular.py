@@ -36,6 +36,8 @@ class TabularDataProvider(DataProvider):
 
     def assemble_ops(self, **kwargs):
         retrieval_ops, transform_ops = super().assemble_ops(**kwargs)
+        if len(self.retrieval_ops) > 0:
+            return retrieval_ops, transform_ops
         return [
             *retrieval_ops,
             ParseAsTabular.generate_specs(parse_options=self.parse_options),

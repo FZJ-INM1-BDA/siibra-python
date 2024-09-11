@@ -16,6 +16,7 @@
 from dataclasses import dataclass, field
 from typing import List, Dict
 from copy import deepcopy
+import json
 
 try:
     from typing import TypedDict
@@ -58,7 +59,8 @@ def run_steps(steps: List[Dict]):
     try:
         return runner.run(result, **step)
     except Exception as e:
-        logger.warning(f"Error running steps: {str(e)}", steps)
+        logger.warning(f"Error running steps: {str(e)}")
+        logger.info(json.dumps(steps, indent=2))
         raise e from e
 
 
