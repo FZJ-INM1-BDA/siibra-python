@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from typing import List, Dict, Type, Any, TYPE_CHECKING
+import json
 
 if TYPE_CHECKING:
     from ..attributes.dataproviders.base import DataProvider
@@ -141,11 +142,13 @@ class DataOp:
         return cls.step_register[_type]()
 
     @classmethod
-    def describe(cls, steps: List[Dict]):
+    def describe(cls, steps: List[Dict], detail=False):
         descs = []
         for idx, step in enumerate(steps, start=1):
             runner = cls.get_runner(step)
-            descs.append(f"{idx} - {runner.desc.format(**step)}")
+            descs.append(
+                f"{idx} - {runner.desc(**step, detail=detail) if callable(runner.desc) else runner.desc.format(**step)}"
+            )
         return "\n".join(descs)
 
     @classmethod
@@ -169,19 +172,37 @@ class Merge(DataOp):
         base = super().generate_specs(**kwargs)
         return {**base, "srcs": srcs}
 
+    def desc(self, *, srcs: List[List[Dict]], detail=False, **kwargs):
+        if not detail:
+            return f"Merge {len(srcs)} into a single src, output a list"
+        return_desc = (
+            f"Merge the following {len(srcs)} srcs into a single src, output a list"
+        )
+        return_desc += "\n\n"
+        for src in srcs:
+            return_desc += " - " + json.dumps(src, indent=2)
+            return_desc += "\n"
+        return_desc += "\n"
+        return return_desc
+
     @classmethod
     def spec_from_dataproviders(cls, dataproviders: List["DataProvider"]):
         assert all(
             len(dp.transformation_ops) == 0 for dp in dataproviders
         ), f"Expected no transformops to be in data providers"
-        return cls.generate_specs(srcs=[dv.assemble_ops() for dv in dataproviders])
+        srcs: List[Dict] = []
+        for dv in dataproviders:
+            retrival, transformer = dv.assemble_ops()
+            src = [*retrival, *transformer]
+            srcs.append(src)
+        return cls.generate_specs(srcs=srcs)
 
 
 class Of(DataOp):
     """Utility Source Operation. This operation returns the instance provided, to be used by the next operation."""
 
     input: None
-    Output: Any
+    output: Any
     type = "baseop/of"
     desc = "Output an {instance}"
 

@@ -121,4 +121,5 @@ class DataProvider(Attribute):
         )
 
     def describe_data(self):
-        return DataOp.describe([*self.retrieval_ops, *self.transformation_ops])
+        retrieval_ops, transformation_ops = self.assemble_ops()
+        return DataOp.describe([*retrieval_ops, *transformation_ops])

@@ -1,6 +1,7 @@
 import pandas as pd
+import numpy as np
 from io import BytesIO
-from typing import List
+from typing import List, Union
 
 from .base import DataOp
 
@@ -24,42 +25,48 @@ class ParseAsTabular(DataOp):
 
 
 class ConcatTabulars(DataOp):
-    input: List[pd.DataFrame]
+    input: Union[List[pd.DataFrame], List[pd.Series]]
     output: pd.DataFrame
-    desc: str = "Concat dataframes into a single dataframe"
+    desc: str = "Concat dataframes/series into a single dataframe"
     type: str = "tabular/concat"
 
-    def run(self, input, **kwargs):
+    def run(self, input, axis=None, **kwargs):
         assert isinstance(
             input, list
         ), f"Tabular/concat expected list, but got {type(input)}"
         assert all(
-            isinstance(el, pd.DataFrame) for el in input
+            isinstance(el, (pd.DataFrame, pd.Series)) for el in input
         ), f"Expected inputs to be list of dfs, but some was not"
-        return pd.concat(input)
-
-
-class GroupByTabular(DataOp):
-    input: pd.DataFrame
-    output: pd.DataFrame
-    desc: str = "Group dataframes into mean/std"
-    type: str = "tabular/groupby"
-
-    def run(self, input, by: str, **kwargs):
-        assert isinstance(
-            input, pd.DataFrame
-        ), f"Expected groupby input to be DataFrame, but was {type(input)}"
-        return input.groupby(by).agg(["mean", "std"])
+        if axis is None:
+            return pd.concat(input)
+        return pd.concat(input, axis=axis)
 
     @classmethod
-    def generate_specs(cls, by: str, **kwargs):
-        """
-        Argument:
+    def generate_specs(cls, axis=None, force=False, **kwargs):
+        base = super().generate_specs(force, **kwargs)
+        return {**base, "axis": axis}
 
-        by: str
-            to be passed to DataFrame.groupby.
-            see https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.groupby.html#pandas-dataframe-groupby
 
-        """
-        base = super().generate_specs(**kwargs)
-        return {**base, "by": by}
+class TabularMeanStd(DataOp):
+    input: pd.DataFrame
+    output: pd.DataFrame
+    desc: str = "Get mean/std from input"
+    type: str = "tabular/mean-std"
+
+    def run(self, input, index=None, **kwargs):
+        assert isinstance(input, pd.DataFrame)
+        return pd.DataFrame(
+            np.array(
+                [
+                    input.mean(axis=1).tolist(),
+                    input.std(axis=1).tolist(),
+                ]
+            ).T,
+            columns=["mean", "std"],
+            index=index,
+        )
+
+    @classmethod
+    def generate_specs(cls, index=None, force=False, **kwargs):
+        base = super().generate_specs(force, **kwargs)
+        return {**base, "index": index}
