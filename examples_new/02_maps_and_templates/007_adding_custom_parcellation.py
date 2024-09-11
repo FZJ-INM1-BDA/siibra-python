@@ -93,7 +93,7 @@ receptor_density = siibra.features.get(
     volume,
     siibra.features.molecular.ReceptorDensityFingerprint
 )
-print(f"{len(receptor_density)} layerwise cell density found.")
+print(f"{len(receptor_density)} Layerwise modified silver staining found.")
 
 # The relation of volume to the anatomical anchor is provided in
 # `anchor.last_match_description`

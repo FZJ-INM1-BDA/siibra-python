@@ -39,7 +39,7 @@ from ...exceptions import UnregisteredAttrCompException, InvalidAttrCompExceptio
 
 modalities_of_interest = [
     Modality(value="Modified silver staining"),
-    Modality(value="Layerwise cell density"),
+    Modality(value="Layerwise modified silver staining"),
 ]
 
 
@@ -163,12 +163,12 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                         extra={
                             X_PRECALCULATED_BOUNDARY_KEY: [
                                 PolyLine(
-                                    points=(
-                                        Point(coordinate=[value, 0, 0], space_id=None)
-                                    ),
+                                    coordinates=[
+                                        (value, 0, 0)
+                                        for value in boundary_depths[index].tolist()
+                                    ],
                                     space_id=None,
                                 )
-                                for value in boundary_depths[index].tolist()
                             ],
                             X_BIGBRAIN_PROFILE_VERTEX_IDX: index,
                         }
