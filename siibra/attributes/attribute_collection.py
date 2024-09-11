@@ -110,7 +110,7 @@ class AttributeCollection:
 
     @property
     def _attribute_mapping(self):
-        return self._find(AttributeMapping)
+        return self._get(AttributeMapping)
 
     @property
     def name(self):

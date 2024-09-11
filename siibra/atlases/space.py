@@ -22,6 +22,7 @@ from ..attributes.dataproviders.volume import (
     FORMAT_LOOKUP,
 )
 from ..commons.iterable import assert_ooo
+from ..commons.string import fuzzy_match
 from ..commons.maps import merge_volumes
 
 if TYPE_CHECKING:
@@ -37,11 +38,9 @@ class Space(AtlasElement):
 
     @property
     def variants(self) -> List[str]:
-        # TODO fix
-        return []
         if self._attribute_mapping is None:
             return []
-        return list(self._attribute_mapping.keys())
+        return list(self._attribute_mapping.region_mapping.keys())
 
     @property
     def volume_providers(self):
@@ -71,19 +70,14 @@ class Space(AtlasElement):
                 f"Requested format '{frmt}' is not available for this space: {self.formats}."
             )
 
-        if variant is not None:
-            if self.variants:
-                assert (
-                    variant in self.variants
-                ), f"{variant!r} is not a valid variant for this space. Variants: {self.variants}"
-            else:
-                raise ValueError("This space has no variants.")
+        if variant is not None and not self.variants:
+            raise ValueError("This space has no variants.")
 
         def filter_templates(vol: Union["ImageProvider", "MeshProvider"]):
             if len(self.variants) == 0:
                 return vol.format == frmt
             return vol.format == frmt and (
-                (variant is None) or (variant in self.variants)
+                (variant is None) or fuzzy_match(variant, vol.name)
             )
 
         return list(filter(filter_templates, self.volume_providers))

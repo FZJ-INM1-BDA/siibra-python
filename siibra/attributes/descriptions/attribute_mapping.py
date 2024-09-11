@@ -28,6 +28,14 @@ class Target(TypedDict):
     target: str
 
 
+VolumeVariantMapping = TypedDict(
+    "VolumeVariantMapping",
+    {
+        "target": Union[str, None],
+        "@type": Literal["volume/ref"],
+    },
+)
+
 VolumeRegionMapping = TypedDict(
     "VolumeRegionMapping",
     {
