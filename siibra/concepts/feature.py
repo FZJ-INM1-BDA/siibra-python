@@ -16,6 +16,7 @@
 from typing import List
 import pandas as pd
 
+from ..commons.logger import logger
 from ..attributes.locations import Location
 from ..attributes.descriptions import Modality
 from ..attributes.attribute_collection import (
@@ -23,6 +24,8 @@ from ..attributes.attribute_collection import (
     MATRIX_INDEX_ENTITY_KEY,
     attr_of_general_interest,
 )
+
+SUMMARY_NAME = "Summary Tabular Data"
 
 
 class Feature(AttributeCollection):
@@ -58,7 +61,9 @@ class Feature(AttributeCollection):
 
         matrix_entity_key = self.filter(attr_of_general_interest)
 
-        dfs: List[pd.DataFrame] = [d.get_data() for d in self._find(TabularDataProvider)]
+        dfs: List[pd.DataFrame] = [
+            d.get_data() for d in self._find(TabularDataProvider)
+        ]
         if len(matrix_entity_key.attributes) > 0:
             mapping_idx = {
                 attr.extra[MATRIX_INDEX_ENTITY_KEY]: attr
@@ -73,7 +78,28 @@ class Feature(AttributeCollection):
 
         return dfs
 
+    def plotiter(self, *args, **kwargs):
+        from ..attributes.dataproviders import TabularDataProvider
+
+        for d in self._find(TabularDataProvider):
+            yield d.plot(*args, **kwargs)
+
     def plot(self, *args, **kwargs):
         from ..attributes.dataproviders import TabularDataProvider
 
-        return [d.plot(*args, **kwargs) for d in self._find(TabularDataProvider)]
+        summaries = [
+            tdp for tdp in self._find(TabularDataProvider) if tdp.name == SUMMARY_NAME
+        ]
+        if len(summaries) > 0:
+            return [dp.plot(*args, **kwargs) for dp in summaries]
+        counter = 0
+        return_val = []
+        for plot in self.plotiter(*args, **kwargs):
+            return_val.append(plot)
+            counter += 1
+            if counter > 5:
+                logger.warning(
+                    f"Only plotting 5 plots. Please use plotiter if you intend to plot all plots"
+                )
+                break
+        return return_val
