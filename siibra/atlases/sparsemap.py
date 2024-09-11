@@ -70,11 +70,17 @@ class SparseIndex:
     readable = False
     writable = False
 
-    def __new__(cls, *args, mode: Literal["r", "w"] = "r", **kwargs):
+    def __new__(cls, *args, mode: Literal["r", "w"] = "r", inmemory=False, **kwargs):
         if mode == "r":
-            instance = object.__new__(ReadableSparseIndex)
-            return instance
+            if inmemory:
+                instance = object.__new__(InMemoryReadableSparseIndex)
+                return instance
+            else:
+                instance = object.__new__(ReadableSparseIndex)
+                return instance
         if mode == "w":
+            if inmemory:
+                raise RuntimeError("inmemory cannot be used with write mode")
             instance = object.__new__(WritableSparseIndex)
             return instance
         return super().__new__(cls)
@@ -254,12 +260,12 @@ class ReadableSparseIndex(SparseIndex):
         super().__init__(filepath)
 
         self._header = None
-        self._readable_nii: nib.Nifti1Image = None
         self._affine = None
+        self._dataobj = None
         self._alias_dict: Union[None, Dict[str, Dict]] = None
         self._name_bbox_dict: Dict[str, Tuple[int, ...]] = {}
-        self._memreader: Union[MemoryPartialReader, None] = None
 
+        _readable_nii: Union[nib.Nifti1Image, None] = None
         if self.url:
             session = requests.Session()
             resp = session.get(self.url)
@@ -272,23 +278,23 @@ class ReadableSparseIndex(SparseIndex):
                 content = gzip.decompress(content)
             except gzip.BadGzipFile:
                 ...
-            self._readable_nii = nib.Nifti1Image.from_bytes(content)
+            _readable_nii = nib.Nifti1Image.from_bytes(content)
 
             resp = session.get(self.url + self.ALIAS_BBOX_SUFFIX)
             resp.raise_for_status()
             self._alias_dict = resp.json()
 
-            if MEMORY_HUNGRY > 0:
-                resp = session.get(self.url + self.PROBS_SUFFIX)
-                resp.raise_for_status()
-                self._memreader = MemoryPartialReader(resp.content)
-
         if self.filepath:
             with open(self.filepath, "r") as fp:
                 self._header = fp.read()
-            self._readable_nii = nib.load(self.filepath.with_suffix(self.VOXEL_SUFFIX))
+            _readable_nii = nib.load(self.filepath.with_suffix(self.VOXEL_SUFFIX))
             with open(self.filepath.with_suffix(self.ALIAS_BBOX_SUFFIX), "r") as fp:
                 self._alias_dict = json.load(fp=fp)
+
+        assert _readable_nii is not None
+        self._affine = _readable_nii.affine
+        self._dataobj = np.array(_readable_nii.dataobj)
+        assert self._dataobj.dtype == np.uint64
 
         assert self._header.startswith(
             self.HEADER
@@ -300,9 +306,11 @@ class ReadableSparseIndex(SparseIndex):
 
     @property
     def affine(self):
-        if self._affine is None:
-            self._affine = self._readable_nii.affine
         return self._affine
+
+    @property
+    def dataobj(self):
+        return self._dataobj
 
     def _decode_regionalias(self, alias: str) -> str:
         assert (
@@ -310,7 +318,32 @@ class ReadableSparseIndex(SparseIndex):
         ), f"alias={alias} not found in decoded dict {self._alias_dict}"
         return self._alias_dict[alias].get("name")
 
-    def read(self, pos: Union[List[List[int]], np.ndarray]) -> List[Dict[str, float]]:
+    def _read(
+        self, reader: PartialReader, pos: Union[List[List[int]], np.ndarray]
+    ) -> List[Dict[str, float]]:
+
+        # standardise user input into ndarray
+        pos = np.array(pos)
+        assert (
+            len(pos.shape) == 2 and pos.shape[1] == 3
+        ), f"Expecting Nx3 array, but got {pos.shape}"
+
+        x, y, z = pos.T
+
+        result = []
+        for val in self.dataobj[x, y, z].tolist():
+            offset = val >> 32
+            bytes_to_read = val & self.UINT32_MAX
+            reader.seek(int(offset))
+            decoded = reader.read(int(bytes_to_read))
+            prob = {
+                self._decode_regionalias(key): prob
+                for key, prob in json.loads(decoded).items()
+            }
+            result.append(prob)
+        return result
+
+    def read(self, pos: Union[List[List[int]], np.ndarray]):
         """
         For a given list of voxel coordinates, get the name and value mapped
         at each voxel.
@@ -325,37 +358,17 @@ class ReadableSparseIndex(SparseIndex):
         List[Dict[str, float]]
             list of regionname: value
         """
-        probreader = self._memreader or PartialReader(
-            str(self.url or self.filepath) + self.PROBS_SUFFIX
-        )
+
+        # TODO make partial readers into contextmanagers
+        probreader = PartialReader(str(self.url or self.filepath) + self.PROBS_SUFFIX)
         probreader.open()
-
-        pos = np.array(pos)
-        assert (
-            len(pos.shape) == 2 and pos.shape[1] == 3
-        ), f"Expecting Nx3 array, but got {pos.shape}"
-
-        nii = np.array(self._readable_nii.dataobj, dtype=np.uint64)
-        x, y, z = pos.T
-
-        result = []
-        for val in nii[x, y, z].tolist():
-            offset = val >> 32
-            bytes_to_read = val & self.UINT32_MAX
-            probreader.seek(int(offset))
-            decoded = probreader.read(int(bytes_to_read))
-            prob = {
-                self._decode_regionalias(key): prob
-                for key, prob in json.loads(decoded).items()
-            }
-            result.append(prob)
-
+        result = self._read(probreader, pos)
         probreader.close()
         return result
 
     def get_img(self, regionname: str) -> nib.Nifti1Image:
         minx, miny, minz, maxx, maxy, maxz = self.get_boundingbox_extrema(regionname)
-        wanted_dataarray = np.zeros(self._readable_nii.dataobj.shape, dtype=np.float32)
+        wanted_dataarray = np.zeros(self.dataobj.shape, dtype=np.float32)
         # np.arange return [start, end), thus + 1 on max end
         X, Y, Z = (
             np.arange(minx, maxx + 1),
@@ -371,7 +384,7 @@ class ReadableSparseIndex(SparseIndex):
         wanted_dataarray[X, Y, Z] = [
             float(v.get(regionname, 0)) for v in self.read(coords)
         ]
-        return nib.Nifti1Image(wanted_dataarray, affine=self._readable_nii.affine)
+        return nib.Nifti1Image(wanted_dataarray, affine=self.affine)
 
     def get_boundingbox_extrema(self, regionname: str, **kwargs) -> List[int]:
         """Returns Tuple consisting of 6 int, xmin, ymin, zmin, xmax, ymax, zmax, representing the voxel indicies
@@ -386,10 +399,14 @@ class ReadableSparseIndex(SparseIndex):
         yield self.ALIAS_BBOX_SUFFIX, BytesIO(
             json.dumps(self._alias_dict).encode("utf-8")
         )
-        yield self.VOXEL_SUFFIX, gzip.compress(self._readable_nii.to_bytes())
-        yield self.PROBS_SUFFIX, PartialReader(
-            str(self.url or self.filepath) + self.PROBS_SUFFIX
-        )
+
+        nii = nib.Nifti1Image(self.dataobj, affine=self.affine, dtype=np.uint64)
+        yield self.VOXEL_SUFFIX, gzip.compress(nii.to_bytes())
+
+        reader = PartialReader(str(self.url or self.filepath) + self.PROBS_SUFFIX)
+        reader.open()
+        yield self.PROBS_SUFFIX, reader
+        reader.close()
 
         # save the meta file at the very end. The presence of this file indicates that the rest of the file saved correctly
         yield "", BytesIO(self._header.encode("utf-8"))
@@ -414,10 +431,30 @@ class ReadableSparseIndex(SparseIndex):
                     offset += CHUNK_SIZE
 
 
+class InMemoryReadableSparseIndex(ReadableSparseIndex):
+    def __init__(self, filepath: Union[str, Path], **kwargs):
+        super().__init__(filepath, **kwargs)
+        self._memreader: MemoryPartialReader
+        if self.url:
+            resp = requests.get(self.url + self.PROBS_SUFFIX)
+            resp.raise_for_status()
+            self._memreader = MemoryPartialReader(resp.content)
+        if self.filepath:
+            path = Path(self.filepath)
+            with open(path.with_suffix(self.PROBS_SUFFIX), "rb") as fp:
+                self._memreader = MemoryPartialReader(fp.read())
+        assert self._memreader is not None
+
+    def read(self, pos: List[List[int]] | np.ndarray) -> List[Dict[str, float]]:
+        return self._read(self._memreader, pos)
+
+
 @dataclass(repr=False, eq=False)
 class SparseMap(Map):
 
-    def _get_readable_sparseindex(self, warmup=False) -> ReadableSparseIndex:
+    def _get_readable_sparseindex(
+        self, warmup=False, inmemory=False
+    ) -> ReadableSparseIndex:
         sparseindicies = [
             attr for attr in self.attributes if attr.schema == "x-siibra/sparseindex"
         ]
@@ -435,13 +472,13 @@ class SparseMap(Map):
             return None
 
         if Path(localcache).is_file():
-            return SparseIndex(localcache, mode="r")
+            return SparseIndex(localcache, mode="r", inmemory=inmemory)
 
         if warmup:
-            spidx = SparseIndex(url, mode="r")
+            spidx = SparseIndex(url, mode="r", inmemory=inmemory)
             logger.info(f"Caching sparseindex at {url}")
             spidx.save_as(localcache)
-            return SparseIndex(localcache, mode="r")
+            return SparseIndex(localcache, mode="r", inmemory=inmemory)
 
         return SparseIndex(url, mode="r")
 
@@ -457,7 +494,9 @@ class SparseMap(Map):
         points: Union[Point, PointCloud],
         **fetch_kwargs: VolumeOpsKwargs,
     ) -> DataFrame:
-        spind = self._get_readable_sparseindex()
+        spind = self._get_readable_sparseindex(
+            warmup=KEEP_LOCAL_CACHE > 0, inmemory=MEMORY_HUNGRY > 0
+        )
         if spind is None:
             return super().lookup_points(points, **fetch_kwargs)
 
@@ -473,13 +512,15 @@ class SparseMap(Map):
 
         points_wrpd = points_.warp(self.space_id)
 
-        volume_provider = self._extract_regional_map_volume_provider(self.regionnames[0])
+        volume_provider = self._extract_regional_map_volume_provider(
+            self.regionnames[0]
+        )
         # TODO: consider just using affine to transform the points
         vx, vy, vz = volume_provider._points_to_voxels_coords(points_wrpd)
 
         assignments: List[Map.RegionAssignment] = []
         for pointindex, readout in enumerate(spind.read(np.stack([vx, vy, vz]).T)):
-            for region, map_value in readout.items():
+            for regionname, map_value in readout.items():
                 if map_value == 0:
                     continue
                 assignments.append(
@@ -487,7 +528,7 @@ class SparseMap(Map):
                         input_structure_index=pointindex,
                         centroid=points_[pointindex].coordinate,
                         map_value=map_value,
-                        regionname=region,
+                        regionname=regionname,
                     )
                 )
         return Map._convert_assignments_to_dataframe(assignments)

@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from os import getenv
-from typing import TYPE_CHECKING, TypedDict, Tuple, Dict, Type, TypeVar
+from typing import TYPE_CHECKING, Tuple, Dict, Type
 
 from ..base import DataProvider
 from ....commons.iterable import assert_ooo
@@ -26,9 +26,9 @@ if TYPE_CHECKING:
     from ....operations.volume_fetcher.base import VolumeRetOp
 
 try:
-    from typing import Literal
+    from typing import Literal, TypedDict
 except ImportError:
-    from typing_extensions import Literal
+    from typing_extensions import Literal, TypedDict
 
 SIIBRA_MAX_FETCH_SIZE_GIB = getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2)
 IMAGE_FORMATS = []
