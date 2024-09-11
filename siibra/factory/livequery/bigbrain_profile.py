@@ -26,7 +26,7 @@ from hashlib import md5
 from .base import LiveQuery
 from ...cache import fn_call_cache, Warmup, WarmupLevel, CACHE
 from ...commons.logger import logger
-from ...concepts import Feature
+from ...concepts.feature import Feature, SUMMARY_NAME
 from ...attributes.descriptions import Modality, register_modalities
 from ...attributes.dataproviders.tabular import TabularDataProvider
 from ...attributes.locations.layerboundary import (
@@ -137,7 +137,9 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                 filename = CACHE.build_filename(hashed_io, suffix=".csv")
                 dataframe.to_csv(filename)
                 attr = TabularDataProvider(
-                    url=filename, extra={X_BIGBRAIN_LAYERWISE_INTENSITY: True}
+                    url=filename,
+                    name=SUMMARY_NAME,
+                    plot_options={"y": "mean", "yerr": "std", "type": "bar"},
                 )
                 attributes.append(attr)
 
@@ -146,8 +148,9 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                     depth = np.arange(0.0, 1.0, 1.0 / (profile[index].shape[0]))
 
                     df = pd.DataFrame(_profile, index=depth)
-                    filename = f"{hashed_io}-pr-{index}"
-                    filename = CACHE.build_filename(hashed_io, suffix=".csv")
+                    filename = CACHE.build_filename(
+                        hashed_io, suffix=f"-pr-{index}.csv"
+                    )
                     df.to_csv(filename)
 
                     tabular_attr = TabularDataProvider(
@@ -190,13 +193,15 @@ def get_all():
     thickness_url = f"{REPO}/{THICKNESSES_FILE_LEFT}"
     valid, boundary_depths = get_thickness(thickness_url)
     profile_url = f"{REPO}/{PROFILES_FILE_LEFT}"
-    if not get_profile.check_call_in_cache(profile_url, valid):
+    fresh_call = not get_profile.check_call_in_cache(profile_url, valid)
+    if fresh_call:
         logger.info(
             "First request to BigBrain profiles. Preprocessing the data "
             "now. This may take a little."
         )
     profile = get_profile(profile_url, valid)
-
+    if fresh_call:
+        logger.info("Data cached.")
     vertices_url = f"{REPO}/{MESH_FILE_LEFT}"
     vertices = get_vertices(vertices_url, valid)
 
