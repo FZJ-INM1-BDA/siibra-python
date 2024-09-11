@@ -26,6 +26,7 @@ except ImportError:
 from ...attributes import Attribute
 from ...cache import fn_call_cache
 from ...operations.base import DataOp
+from ...commons.logger import logger
 from ...operations.file_fetcher import (
     TarDataOp,
     ZipDataOp,
@@ -54,11 +55,20 @@ def run_steps(steps: List[Dict]):
     *prev_steps, step = steps
     result = run_steps(prev_steps)
     runner = DataOp.get_runner(step)
-    return runner.run(result, **step)
+    try:
+        return runner.run(result, **step)
+    except Exception as e:
+        logger.warning(f"Error running steps: {str(e)}", steps)
+        raise e from e
 
 
 @dataclass
 class DataProvider(Attribute):
+    """Base DataProvider Class
+
+    If retrieval_op is defined, will use the provided retrieval_ops, rather than parsing properties etc.
+    """
+
     schema: str = "siibra/attr/data"
     key: str = None  # TODO: remove
     url: str = None  # url can be from remote (http) or localfile
@@ -69,8 +79,9 @@ class DataProvider(Attribute):
     transformation_ops: List[Dict] = field(default_factory=list)
 
     def assemble_ops(self, **kwargs):
-        retrieval_ops, transformation_ops = deepcopy(self.retrieval_ops), deepcopy(
-            self.transformation_ops
+        retrieval_ops, transformation_ops = (
+            deepcopy(self.retrieval_ops),
+            deepcopy(self.transformation_ops),
         )
         if len(retrieval_ops) > 0:
             return retrieval_ops, transformation_ops

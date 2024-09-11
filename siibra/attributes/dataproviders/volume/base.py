@@ -122,6 +122,12 @@ class VolumeProvider(DataProvider):
     def assemble_ops(self, **kwargs):
         retrieval_ops, transformation_ops = super().assemble_ops(**kwargs)
 
+        # if self.retrieval_ops is set, assume the constructor knows what it is doing, and do no futher processing
+        if len(self.retrieval_ops) > 0:
+            logger.debug(
+                f"VolumeProvider.assemble_ops: self.retrieval_ops is set to {self.retrieval_ops}. Will not transform."
+            )
+            return retrieval_ops, transformation_ops
         if self.format not in READER_LOOKUP:
             raise RuntimeError(f"{self.format} cannot be properly parsed as volume")
         Cls = READER_LOOKUP[self.format]

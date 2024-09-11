@@ -538,6 +538,8 @@ class SparseMap(Map):
     def warmup(self):
         self._get_readable_sparseindex(warmup=True)
 
+    # TODO at the moment, there is a 3x decrease in performance of assigning image
+    # profile and check if performance can be improved
     def assign(
         self,
         queryitem: Union[Point, PointCloud, ImageProvider],
@@ -559,14 +561,16 @@ class SparseMap(Map):
             if len(sigmas) == 1 and 0 in sigmas:
                 return self.lookup_points(queryitem, **volume_ops_kwargs)
 
-        spind = self._get_readable_sparseindex()
+        spind = self._get_readable_sparseindex(
+            warmup=KEEP_LOCAL_CACHE > 0, inmemory=MEMORY_HUNGRY > 0
+        )
         queryitemloc = (
             bbox_from_imageprovider(queryitem)
             if isinstance(queryitem, ImageProvider)
             else queryitem
         )
         assignments = []
-        for regionname in self.regionnames:
+        for regionname in siibra_tqdm(self.regionnames, unit="Regions"):
             xmin, ymin, zmin, xmax, ymax, zmax = spind.get_boundingbox_extrema(
                 regionname
             )
