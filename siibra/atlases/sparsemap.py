@@ -445,7 +445,7 @@ class InMemoryReadableSparseIndex(ReadableSparseIndex):
                 self._memreader = MemoryPartialReader(fp.read())
         assert self._memreader is not None
 
-    def read(self, pos: List[List[int]] | np.ndarray) -> List[Dict[str, float]]:
+    def read(self, pos: Union[List[List[int]], np.ndarray]) -> List[Dict[str, float]]:
         return self._read(self._memreader, pos)
 
 
