@@ -328,7 +328,7 @@ class NiftiFromPointCloud(DataOp):
 
     input: "PointCloud"
     output: Nifti1Image
-    type = "transform/poincloud-to-nifti"
+    type = "transform/pointcloud-to-nifti"
     desc = "Transform pointcloud to a nifti"
 
     def run(self, input, normalize, **kwargs):

@@ -12,7 +12,7 @@ class MemoryPartialReader(PartialReader):
         pass
 
     def probe(self, offset: int, count: int) -> bytes:
-        return self.bytes[offset, offset + count]
+        return self.bytes[offset : offset + count]
 
     def get_size(self) -> int:
         return len(self.bytes)

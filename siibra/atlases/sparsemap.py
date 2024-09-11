@@ -336,6 +336,8 @@ class ReadableSparseIndex(SparseIndex):
             bytes_to_read = val & self.UINT32_MAX
             reader.seek(int(offset))
             decoded = reader.read(int(bytes_to_read))
+            if len(decoded) == 0:
+                continue
             prob = {
                 self._decode_regionalias(key): prob
                 for key, prob in json.loads(decoded).items()

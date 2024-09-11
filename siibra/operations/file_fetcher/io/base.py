@@ -45,6 +45,11 @@ class PartialReader(io.IOBase, ABC):
     def __new__(cls, path: str):
         from .file import PartialFileReader
         from .http import PartialHttpReader
+        from .memory import MemoryPartialReader
+
+        if cls is MemoryPartialReader:
+            instance = io.IOBase.__new__(MemoryPartialReader)
+            return instance
 
         if path is None:
             return super().__new__(cls)
