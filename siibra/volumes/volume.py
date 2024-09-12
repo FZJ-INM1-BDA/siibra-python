@@ -670,6 +670,10 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
     -------
     Volume
     """
+    if len(volumes) == 1:
+        logger.debug("Only one volume supplied returning as is (kwargs are ignored).")
+        return volumes[0]
+
     assert len(volumes) > 1, "Need to supply at least two volumes to merge."
     if labels:
         assert len(volumes) == len(labels), "Need to supply as many labels as volumes."
