@@ -189,7 +189,14 @@ class ResampleNifti(NiftiCodec):
     type = "codec/vol/resample"
 
     def run(self, input, **kwargs):
-        raise NotImplementedError
+        assert isinstance(input, Nifti1Image)
+        target_img = kwargs.get("target")
+        return self.resample_img_to_img(input, target_img, kwargs.get('interpolation', ''))
+
+    @classmethod
+    def generate_specs(cls, *, target_img: "Nifti1Image", **kwargs):
+        base = super().generate_specs(**kwargs)
+        return {**base, "target": target_img}
 
     @staticmethod
     def resample_img_to_img(

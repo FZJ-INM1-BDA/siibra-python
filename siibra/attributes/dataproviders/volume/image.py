@@ -202,16 +202,27 @@ class ImageProvider(VolumeProvider):
 
 
 def from_pointcloud(
-    pointcloud: pointcloud.PointCloud, normalize=True, cached=False
+    pointcloud: pointcloud.PointCloud, 
+    normalize=True, 
+    cached=False, 
+    target: ImageProvider = None
 ) -> ImageProvider:
     from ....operations.base import Of
     from ....operations.volume_fetcher.nifti import NiftiFromPointCloud
+    from ....operations.volume_fetcher.nifti import ResampleNifti
+
+    transformation_ops = []
+    if target is not None:
+        transformation_ops = [
+            ResampleNifti.generate_specs(target_img=target.get_data())
+        ]
 
     return ImageProvider(
         retrieval_ops=[
             Of.generate_specs(instance=pointcloud, force=(not cached)),
             NiftiFromPointCloud.generate_specs(normalize=normalize, force=(not cached)),
         ],
+        transformation_ops=transformation_ops,
         format="nii",
         space_id=pointcloud.space_id,
     )
