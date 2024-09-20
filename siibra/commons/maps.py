@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Union, Dict, TYPE_CHECKING
+from typing import List, Union, Dict
 import numpy as np
 from nibabel.nifti1 import Nifti1Image
 from nibabel.gifti import GiftiImage, GiftiDataArray

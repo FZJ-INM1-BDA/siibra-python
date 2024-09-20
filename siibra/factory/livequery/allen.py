@@ -30,9 +30,8 @@ from ...commons.logger import logger
 from ...commons.iterable import flatmap
 from ...concepts import Feature
 from ...attributes.descriptions import register_modalities, Modality, Gene
-from ...attributes.locations import PointCloud, Point
+from ...attributes.locations import PointCloud
 from ...attributes.dataproviders import TabularDataProvider, ImageProvider
-from ...attributes.locations.ops.intersection import ptcld_ptcld
 from ...attributes.dataproviders.volume.image import intersect_ptcld_image
 from ...exceptions import ExternalApiException
 

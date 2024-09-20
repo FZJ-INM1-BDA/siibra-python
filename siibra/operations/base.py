@@ -198,6 +198,7 @@ class Merge(DataOp):
         return cls.generate_specs(srcs=srcs)
 
 
+# TODO: Rename the class
 class Of(DataOp):
     """Utility Source Operation. This operation returns the instance provided, to be used by the next operation."""
 

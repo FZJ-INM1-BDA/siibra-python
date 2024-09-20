@@ -19,7 +19,6 @@ import gzip
 from nibabel import Nifti1Image
 import numpy as np
 from nilearn.image import resample_to_img, resample_img
-from dataclasses import asdict
 from skimage import filters
 
 from .base import VolumeRetOp
@@ -101,7 +100,7 @@ class NiftiExtractLabels(NiftiCodec):
     desc = "Extract a nifti with only selected labels."
     type = "codec/vol/extractlabels"
 
-    def run(self, input, *, labels: List[int], **kwargs):
+    def run(self, input, *, labels: Union[List[int], str], **kwargs):
         assert isinstance(input, Nifti1Image)
         arr = np.asanyarray(input.dataobj)
         mapping = np.zeros(arr.max() + 1)

@@ -15,21 +15,17 @@
 
 from dataclasses import dataclass, replace, asdict
 from typing import Union, Tuple, List
-
-import numpy as np
-import nibabel as nib
 from pathlib import Path
 from hashlib import md5
 from io import BytesIO
 import gzip
-from skimage import filters
-from hashlib import md5
+
+import numpy as np
+import nibabel as nib
 
 from .base import VolumeProvider, VolumeOpsKwargs, IMAGE_FORMATS
 from ...locations import point, pointcloud, BoundingBox
 from ...locations.ops.intersection import _loc_intersection
-from ....commons.logger import logger
-from ....cache import CACHE
 
 
 @dataclass
@@ -202,10 +198,10 @@ class ImageProvider(VolumeProvider):
 
 
 def from_pointcloud(
-    pointcloud: pointcloud.PointCloud, 
-    normalize=True, 
-    cached=False, 
-    target: ImageProvider = None
+    pointcloud: pointcloud.PointCloud,
+    normalize=True,
+    cached=False,
+    target: ImageProvider = None,
 ) -> ImageProvider:
     from ....operations.base import Of
     from ....operations.volume_fetcher.nifti import NiftiFromPointCloud
@@ -315,9 +311,10 @@ def intersect_image_to_image(image0: ImageProvider, image1: ImageProvider):
     ):
         pass
     else:
-        # TODO implement this
-        elementwise_mask_intersection = intersect_nii_to_nii(nii0, nii1)
-        return from_nifti(
-            elementwise_mask_intersection,
-            space_id=image0.space_id,
-        )
+        raise NotImplementedError
+        # TODO reimplement this asd a DataOp
+        # elementwise_mask_intersection = intersect_nii_to_nii(nii0, nii1)
+        # return from_nifti(
+        #     elementwise_mask_intersection,
+        #     space_id=image0.space_id,
+        # )
