@@ -41,6 +41,7 @@ from .descriptions import (
     AttributeMapping,
 )
 from ..commons.iterable import assert_ooo
+from ..commons.string import fuzzy_match
 from ..commons.logger import siibra_tqdm
 from ..attributes.dataproviders import DataProvider, volume
 
@@ -71,7 +72,7 @@ class AttributeCollection:
                 yield attr
 
     @property
-    def data_providers(self) -> pd.DataFrame:
+    def data_providers_table(self) -> pd.DataFrame:
         dataproviders = self._find(DataProvider)
         return pd.DataFrame(
             [
@@ -85,15 +86,36 @@ class AttributeCollection:
             ]
         )
 
+    def filter_data_providers(
+        self,
+        attr_type: str = "",
+        source_format: str = "",
+        name: str = "",
+        source_url: str = "",
+        fuzzy_search: bool = False,
+    ) -> Iterable[DataProvider]:
+        match_func = lambda a, b: (
+            fuzzy_match(a, b) if fuzzy_search else a.lower() == b.lower()
+        )
+        for d in self._finditer(DataProvider):
+            if attr_type and match_func(attr_type, type(d).__name__):
+                yield d
+            elif source_format and match_func(source_format, d.format):
+                yield d
+            elif name and match_func(name, d.name):
+                yield d
+            elif source_url and match_func(source_url, d.url):
+                yield d
+            else:
+                continue
+
     @property
     def volume_providers(
         self,
     ) -> List[Union["volume.ImageProvider", "volume.MeshProvider"]]:
-        return [
-            attr
-            for attr in self.attributes
-            if isinstance(attr, (volume.ImageProvider, volume.MeshProvider))
-        ]
+        return list(self.filter_data_providers(attr_type="ImageProvider")) + list(
+            self.filter_data_providers(attr_type="MeshProvider")
+        )
 
     def extract_imagedata(self, **kwargs) -> "volume.ImageProvider":
         provider = assert_ooo(

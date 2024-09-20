@@ -74,6 +74,7 @@ class DataProvider(Attribute):
     schema: str = "siibra/attr/data"
     key: str = None  # TODO: remove
     url: str = None  # url can be from remote (http) or localfile
+    format: str = None
 
     archive_options: Archive = None
 

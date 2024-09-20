@@ -59,12 +59,12 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
         ]
         if all(mod not in requested_mods for mod in modalities_of_interest):
             return
-        valid, boundary_depths, profile, vertices = get_all()
-        ptcld = PointCloud(
+        valid_depths, boundary_depths, profiles, vertices = get_all()
+        bigbrain_vertices = PointCloud(
             space_id="minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588",
             coordinates=vertices.tolist(),
         )
-        root_coords = np.array(ptcld.coordinates)
+        root_coords = np.array(bigbrain_vertices.coordinates)
         dtype = {"names": ["x", "y", "z"], "formats": [root_coords.dtype] * 3}
         root_coords = root_coords.view(dtype)
 
@@ -72,114 +72,114 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
 
         input_attrs = [attr for attr_col in self.input for attr in attr_col.attributes]
 
-        for attr in input_attrs:
+        for input_attr in input_attrs:
             try:
-                matched = intersect(attr, ptcld)
+                matched_verts = intersect(input_attr, bigbrain_vertices)
             except UnregisteredAttrCompException:
                 continue
             except InvalidAttrCompException:
                 continue
-            if matched is None:
+            if matched_verts is None:
                 continue
-            if isinstance(matched, Point):
-                matched = PointCloud(
-                    space_id=matched.space_id, coordinates=[matched.coordinate]
+            if isinstance(matched_verts, Point):
+                matched_verts = PointCloud(
+                    space_id=matched_verts.space_id, coordinates=[matched_verts.coordinate]
                 )
-            if isinstance(matched, PointCloud):
+            assert isinstance(matched_verts, PointCloud)
+            attributes.append(matched_verts)
 
-                attributes.append(matched)
+            matched_coords = np.array(matched_verts.coordinates)
+            matched_coords = matched_coords.view(dtype)
+            coordidx_in_matched = np.in1d(root_coords, matched_coords)
+            coordidx = np.argwhere(coordidx_in_matched)[:, 0]
 
-                matched_coord = np.array(matched.coordinates)
-                matched_coord = matched_coord.view(dtype)
-                coordidx_in_matched = np.in1d(root_coords, matched_coord)
-                coordidx = np.argwhere(coordidx_in_matched)[:, 0]
-
-                matched_profiles = profile[coordidx]
-                matched_boundary_depths = boundary_depths[coordidx]
-                N = matched_profiles.shape[1]
-                prange = np.arange(N)
-                layer_labels = 7 - np.array(
+            matched_profiles = profiles[coordidx]
+            matched_boundary_depths = boundary_depths[coordidx]
+            N = matched_profiles.shape[1]
+            prange = np.arange(N)
+            layer_labels = 7 - np.array(
+                [
                     [
-                        [
-                            np.array(
-                                [
-                                    [(prange < T) * 1]
-                                    for i, T in enumerate((b * N).astype("int"))
-                                ]
-                            )
-                            .squeeze()
-                            .sum(0)
-                        ]
-                        for b in matched_boundary_depths
+                        np.array(
+                            [
+                                [(prange < T) * 1]
+                                for i, T in enumerate((b * N).astype("int"))
+                            ]
+                        )
+                        .squeeze()
+                        .sum(0)
                     ]
-                ).reshape((-1, 200))
-                means = [
-                    matched_profiles[layer_labels == layer].mean()
-                    for layer in range(1, 7)
+                    for b in matched_boundary_depths
                 ]
-                std = [
-                    matched_profiles[layer_labels == layer].std()
-                    for layer in range(1, 7)
-                ]
+            ).reshape((-1, 200))
+            means = [
+                matched_profiles[layer_labels == layer].mean()
+                for layer in range(1, 7)
+            ]
+            std = [
+                matched_profiles[layer_labels == layer].std()
+                for layer in range(1, 7)
+            ]
 
-                dataframe = pd.DataFrame(
-                    np.array([means, std]).T,
-                    columns=["mean", "std"],
-                    index=LAYERS[1:-1],
+            dataframe = pd.DataFrame(
+                np.array([means, std]).T,
+                columns=["mean", "std"],
+                index=LAYERS[1:-1],
+            )
+
+            hashed_io = md5(
+                (json.dumps(asdict(input_attr)) + json.dumps(asdict(matched_verts))).encode(
+                    "utf-8"
                 )
+            ).hexdigest()
 
-                hashed_io = md5(
-                    (json.dumps(asdict(attr)) + json.dumps(asdict(matched))).encode(
-                        "utf-8"
-                    )
-                ).hexdigest()
+            filename = CACHE.build_filename(hashed_io, suffix=".csv")
+            dataframe.to_csv(filename)
+            input_attr = TabularDataProvider(
+                url=filename,
+                name=SUMMARY_NAME,
+                plot_options={"y": "mean", "yerr": "std", "type": "bar"},
+            )
+            attributes.append(input_attr)
 
-                filename = CACHE.build_filename(hashed_io, suffix=".csv")
-                dataframe.to_csv(filename)
-                attr = TabularDataProvider(
+            for index in coordidx.tolist():
+                _profile = profiles[index]
+                depth = np.arange(0.0, 1.0, 1.0 / (profiles[index].shape[0]))
+
+                df = pd.DataFrame(_profile, index=depth)
+                filename = CACHE.build_filename(
+                    hashed_io, suffix=f"-pr-{index}.csv"
+                )
+                df.to_csv(filename)
+
+                tabular_attr = TabularDataProvider(
                     url=filename,
-                    name=SUMMARY_NAME,
-                    plot_options={"y": "mean", "yerr": "std", "type": "bar"},
+                    name=f"Intensity profile for {bigbrain_vertices[index]}",
+                    extra={
+                        X_BIGBRAIN_PROFILE_VERTEX_IDX: index,
+                    },
                 )
-                attributes.append(attr)
 
-                for index in coordidx.tolist():
-                    _profile = profile[index]
-                    depth = np.arange(0.0, 1.0, 1.0 / (profile[index].shape[0]))
+                # TODO fix to port/leverage the ops mechanism, rather than
+                # this adhoc mess
+                layer_boundary = LayerBoundary(
+                    extra={
+                        X_PRECALCULATED_BOUNDARY_KEY: [
+                            PolyLine(
+                                coordinates=[
+                                    (value, 0, 0)
+                                    for value in boundary_depths[index].tolist()
+                                ],
+                                space_id=None,
+                            )
+                        ],
+                        X_BIGBRAIN_PROFILE_VERTEX_IDX: index,
+                    }
+                )
+                attributes.append(tabular_attr)
+                attributes.append(layer_boundary)
 
-                    df = pd.DataFrame(_profile, index=depth)
-                    filename = CACHE.build_filename(
-                        hashed_io, suffix=f"-pr-{index}.csv"
-                    )
-                    df.to_csv(filename)
-
-                    tabular_attr = TabularDataProvider(
-                        url=filename,
-                        extra={
-                            X_BIGBRAIN_PROFILE_VERTEX_IDX: index,
-                        },
-                    )
-
-                    # TODO fix to port/leverage the ops mechanism, rather than
-                    # this adhoc mess
-                    layer_boundary = LayerBoundary(
-                        extra={
-                            X_PRECALCULATED_BOUNDARY_KEY: [
-                                PolyLine(
-                                    coordinates=[
-                                        (value, 0, 0)
-                                        for value in boundary_depths[index].tolist()
-                                    ],
-                                    space_id=None,
-                                )
-                            ],
-                            X_BIGBRAIN_PROFILE_VERTEX_IDX: index,
-                        }
-                    )
-                    attributes.append(tabular_attr)
-                    attributes.append(layer_boundary)
-
-                yield Feature(attributes=attributes)
+            yield Feature(attributes=attributes)
 
 
 REPO = "https://github.com/kwagstyl/cortical_layers_tutorial/raw/main"
