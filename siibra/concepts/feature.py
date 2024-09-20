@@ -18,7 +18,6 @@ import pandas as pd
 
 from ..commons.logger import logger
 from ..attributes.locations import Location
-from ..attributes.descriptions import Modality
 from ..attributes.attribute_collection import (
     AttributeCollection,
     MATRIX_INDEX_ENTITY_KEY,
@@ -41,7 +40,8 @@ class Feature(AttributeCollection):
     def name(self):
         try:
             return super().name
-        except:
+        except Exception:
+            # TODO: reconsider how to name unnamed features
             return f"Unnamed feature: {', '.join(map(str, self.modalities))}"
 
     @property
@@ -99,7 +99,7 @@ class Feature(AttributeCollection):
             counter += 1
             if counter > 5:
                 logger.warning(
-                    f"Only plotting 5 plots. Please use plotiter if you intend to plot all plots"
+                    "Only plotting 5 plots. Please use plotiter if you intend to plot all plots"
                 )
                 break
         return return_val
