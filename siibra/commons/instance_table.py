@@ -299,6 +299,9 @@ class JitInstanceTable(BaseInstanceTable[T]):
         assert getitem
         self.getitem = getitem
 
+    def __repr__(self):
+        return self.__str__()
+
     @property
     def _elements(self):
         try:
