@@ -36,7 +36,7 @@ class ConcatTabulars(DataOp):
         ), f"Tabular/concat expected list, but got {type(input)}"
         assert all(
             isinstance(el, (pd.DataFrame, pd.Series)) for el in input
-        ), f"Expected inputs to be list of dfs, but some was not"
+        ), "Expected inputs to be list of dfs, but some was not"
         if axis is None:
             return pd.concat(input)
         return pd.concat(input, axis=axis)
@@ -70,3 +70,26 @@ class TabularMeanStd(DataOp):
     def generate_specs(cls, index=None, force=False, **kwargs):
         base = super().generate_specs(force, **kwargs)
         return {**base, "index": index}
+
+
+# TODO: change region_mapping to reflect this
+# TODO: region_mapping should be more generic
+class RenameColumnsAndOrRows(DataOp):
+    input: pd.DataFrame
+    output: pd.DataFrame
+    desc: str = "Rename columns with supplied mapping."
+    type: str = "tabular/rename_cols"
+
+    def run(self, input, column_mapping=None, row_mapping=None, **kwargs):
+        assert isinstance(input, pd.DataFrame)
+        if column_mapping:
+            result = input.rename(columns=column_mapping[input.columns])
+        if row_mapping:
+            result = input.rename(columns=row_mapping[input.index])
+        return result
+
+    @classmethod
+    def generate_specs(cls, column_mapping=None, row_mapping=None, force=False, **kwargs):
+        base = super().generate_specs(force, **kwargs)
+        return {**base, "column_mapping": column_mapping, "row_mapping": row_mapping}
+

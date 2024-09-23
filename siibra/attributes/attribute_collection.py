@@ -42,7 +42,7 @@ from .descriptions import (
 )
 from ..commons.iterable import assert_ooo
 from ..commons.string import fuzzy_match
-from ..commons.logger import siibra_tqdm
+from ..commons.logger import siibra_tqdm, logger
 from ..attributes.dataproviders import DataProvider, volume
 
 T = TypeVar("T")
@@ -136,7 +136,8 @@ class AttributeCollection:
     def _attribute_mapping(self):
         try:
             return self._get(AttributeMapping)
-        except:
+        except Exception:
+            logger.debug("Cannot fetch `_attribute_mapping`:", exec_info=1)
             return None
 
     @property
