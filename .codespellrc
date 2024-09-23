@@ -1,6 +1,8 @@
 [codespell]
 # Ref: https://github.com/codespell-project/codespell#using-a-config-file
-skip = .git*,*.css,.codespellrc
+# TODO: go through gene_names.json manually since might have some true positives
+skip = .git*,*.css,.codespellrc,gene_names.json,requirements*.txt
 check-hidden = true
-ignore-regex = ^\s*"image/\S+": ".*
-# ignore-words-list =
+# embedded images and otherwise too long lines
+ignore-regex = ^\s*"image/\S+": ".*|.{300,}
+# ignore-words-list = 
