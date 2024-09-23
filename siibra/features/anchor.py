@@ -88,7 +88,7 @@ class AnatomicalAnchor:
 
     @property
     def space(self) -> Space:
-        # may be overriden by derived classes, e.g. in features.VolumeOfInterest
+        # may be overridden by derived classes, e.g. in features.VolumeOfInterest
         return None if self.location is None else self.location.space
 
     @property

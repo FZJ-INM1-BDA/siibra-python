@@ -204,7 +204,7 @@ def test_parse_id_arg(id_param, expected_val, raise_flag):
     ({"id": "aabbcc-0099"}, "aabbcc-0099", False),
 
     ({"foo": "aabbcc-0099"}, None, True),
-    ("hello worl", None, True),
+    ("hello worl", None, True),  // .*codespell-ignore
     ({"id": "hello worlfoo"}, None, True),
 ])
 def test_get_uuid(long_id, expected_val, error_flag):

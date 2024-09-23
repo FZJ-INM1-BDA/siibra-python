@@ -319,12 +319,12 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
     @property
     def contributors(self):
         if self._contributers is None:
-            contributers = {}
+            contributors = {}
             for version_id in self.version_ids:
-                contributers.update(
+                contributors.update(
                     {c['@id']: c for c in EbrainsV3DatasetVersion(version_id).contributors}
                 )
-            self._contributers = list(contributers.values())
+            self._contributers = list(contributors.values())
         return self._contributers
 
     @property

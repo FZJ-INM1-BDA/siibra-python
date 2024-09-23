@@ -46,7 +46,7 @@ class Contour(pointset.PointSet):
 
         if cropped is not None and not isinstance(cropped, point.Point):
             assert isinstance(cropped, pointset.PointSet)
-            # Identifiy contour splits are by discontinuouities ("jumps")
+            # Identify contour splits are by discontinuouities ("jumps")
             # of their labels, which denote positions in the original contour
             jumps = np.diff([self.labels.index(lb) for lb in cropped.labels])
             splits = [0] + list(np.where(jumps > 1)[0] + 1) + [len(cropped)]
