@@ -148,8 +148,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         Example
         -------
         >>> region = siibra.get_region("monkey", "PG")
-        >>> for assesment in region.get_related_regions():
-        >>>    print(assesment)
+        >>> for assessment in region.get_related_regions():
+        >>>    print(assessment)
         'PG' is homologous to 'Area PGa (IPL)'
         'PG' is homologous to 'Area PGa (IPL) left'
         'PG' is homologous to 'Area PGa (IPL) right'
@@ -941,8 +941,8 @@ def get_related_regions(region: Region) -> Iterable["RegionRelationAssessments"]
     Example
     -------
     >>> region = siibra.get_region("monkey", "PG")
-    >>> for assesment in siibra.core.region.get_related_regions(region):
-    >>>    print(assesment)
+    >>> for assessment in siibra.core.region.get_related_regions(region):
+    >>>    print(assessment)
     'PG' is homologous to 'Area PGa (IPL)'
     'PG' is homologous to 'Area PGa (IPL) left'
     'PG' is homologous to 'Area PGa (IPL) right'

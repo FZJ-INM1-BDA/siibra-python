@@ -66,7 +66,7 @@ plotting.view_img(
 # assign cytoarchitectonic regions to this functional map. Since we are here
 # usually interested in correlations of the modes, we filter the result by
 # significant (positive) correlations.
-# To assigne an image, we first need to createa Volume which has to have a
+# To assigne an image, we first need to create Volume which has to have a
 # space defined.
 volume = siibra.volumes.volume.from_nifti(img, difumo_maps.space, "fusiform posterior")
 with siibra.QUIET:  # suppress progress output

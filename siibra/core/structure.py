@@ -77,7 +77,7 @@ class BrainStructure(ABC):
         # Two cases:
         # 1) self is location, other is location -> look at spatial intersection/relationship, do it here
         # 2) self is location, other is region -> get region map, then call again. do it here
-        # If self is region -> Region overwrite this method, adressed there
+        # If self is region -> Region overwrite this method, addressed there
 
         assert not isinstance(self, _region.Region)  # method is overwritten by Region!
         if (self, other) in self._ASSIGNMENT_CACHE:

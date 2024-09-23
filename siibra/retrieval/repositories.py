@@ -213,7 +213,7 @@ class GithubConnector(RepositoryConnector):
                 if len(matched_reftags) == 1:
                     self._want_commit_cached = matched_reftags[0]["commit"]
                 else:
-                    raise RuntimeError(f"Found {len(matched_reftags)} mathces to {reftag}")
+                    raise RuntimeError(f"Found {len(matched_reftags)} matches to {reftag}")
                 self._tag_checked = True
             except Exception:
                 logger.warning("Could not connect to GitHub repository.", exc_info=1)
@@ -601,7 +601,7 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
             Part of dataset title as an alternative dataset specification (will ignore dataset_id then)
         in_progress: bool (default:False)
             If true, will request datasets that are still under curation.
-            Will only work when autenticated with an appropriately privileged
+            Will only work when authenticated with an appropriately privileged
             user account.
         """
         self.dataset_id = dataset_id

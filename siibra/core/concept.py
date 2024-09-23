@@ -136,9 +136,9 @@ class AtlasConcept:
     @property
     def authors(self):
         return [
-            contributer['name']
+            contributor['name']
             for ds in self.datasets
-            for contributer in ds.contributors
+            for contributor in ds.contributors
         ]
 
     @property

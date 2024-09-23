@@ -99,7 +99,7 @@ else:
         from subprocess import run
         run(f"pyreverse -k  -o svg -p siibra {siibrapath} --colorized --all-ancestors --output-directory {staticpath}", shell=False)
 
-# napolean settings
+# napoleon settings
 napoleon_google_docstring = False
 napoleon_use_param = True
 napoleon_use_ivar = True

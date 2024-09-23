@@ -34,7 +34,7 @@ class ReceptorDensityFingerprint(
     DESCRIPTION = (
         "Fingerprint of densities (in fmol/mg protein) of receptors for classical neurotransmitters "
         "obtained by means of quantitative in vitro autoradiography. The fingerprint provides average "
-        "density measurments for different receptors measured in tissue samples from different subjects "
+        "density measurements for different receptors measured in tissue samples from different subjects "
         "together with the corresponding standard deviations. "
     )
 

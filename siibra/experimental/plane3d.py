@@ -33,7 +33,7 @@ class Plane3D:
         The plane's reference space is defined by the first point.
         """
         self.space = point1.space
-        # normal is the cross product of two arbitray in-plane vectors
+        # normal is the cross product of two arbitrary in-plane vectors
         n = np.cross(
             (point2.warp(self.space) - point1).coordinate,
             (point3.warp(self.space) - point1).coordinate,
@@ -160,7 +160,7 @@ class Plane3D:
         face_id = 0  # index of the mesh face to consider
         while len(face_indices) > 0:
 
-            # continue the contour with the next foward edge intersection
+            # continue the contour with the next forward edge intersection
             p = fwd_intersections[face_id]
             points.append(p)
             # Remember the ids of the face and start-/end vertices for the point

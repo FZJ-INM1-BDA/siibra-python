@@ -54,7 +54,7 @@ class FreesurferAnnot(_provider.VolumeProvider, srctype="freesurfer-annot"):
                 frag_labels[selected_label] = 1
                 frag_labels[~selected_label] = 0
             else:
-                frag_labels[frag_labels == -1] = 0  # annot files store backgorund as -1 while siibra uses 0
+                frag_labels[frag_labels == -1] = 0  # annot files store background as -1 while siibra uses 0
             vertex_labels.append(frag_labels)
 
         return {"labels": np.hstack(vertex_labels)}
@@ -98,7 +98,7 @@ class ZippedFreesurferAnnot(_provider.VolumeProvider, srctype="zip/freesurfer-an
                 frag_labels[selected_label] = 1
                 frag_labels[~selected_label] = 0
             else:
-                frag_labels[frag_labels == -1] = 0  # annot files store backgorund as -1 while siibra uses 0
+                frag_labels[frag_labels == -1] = 0  # annot files store background as -1 while siibra uses 0
             vertex_labels.append(frag_labels)
 
         return {"labels": np.hstack(vertex_labels)}

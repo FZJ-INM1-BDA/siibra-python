@@ -693,7 +693,7 @@ def MI(arr1, arr2, nbins=100, normalized=True):
     pxy, _, _ = np.histogram2d(arr1.ravel(), arr2.ravel(), bins=nbins)
     pxy /= pxy.sum()
 
-    # extract the empirical propabilities of intensities
+    # extract the empirical probabilities of intensities
     # from the joint histogram
     px = np.sum(pxy, axis=1)  # marginal for x over y
     py = np.sum(pxy, axis=0)  # marginal for y over x

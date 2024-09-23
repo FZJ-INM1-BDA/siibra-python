@@ -149,7 +149,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
 
     @property
     def _layers(self):
-        """List of layers assigned to each measurments,
+        """List of layers assigned to each measurements,
         if layer boundaries are available for this features.
         """
         if self.boundaries_mapped:

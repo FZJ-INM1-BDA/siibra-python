@@ -78,7 +78,7 @@
 				"Area hOc1 (V1, 17, CalcS)": "exact"
 			}
 		},
-		"PreS (Subiculum)": {
+		"press (Subiculum)": {
 			"Homo sapiens": {
 				"HC-Subiculum (Hippocampus)": "contained"
 			}

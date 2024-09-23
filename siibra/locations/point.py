@@ -103,7 +103,7 @@ class Point(location.Location):
 
     @property
     def homogeneous(self):
-        """The homogenous coordinate of this point as a 4-tuple,
+        """The homogeneous coordinate of this point as a 4-tuple,
         obtained by appending '1' to the original 3-tuple."""
         return np.atleast_2d(self.coordinate + (1,))
 
@@ -152,7 +152,7 @@ class Point(location.Location):
         return self.sigma**3 * np.pi * 4. / 3.
 
     def __sub__(self, other):
-        """Substract the coordinates of two points to get
+        """Subtract the coordinates of two points to get
         a new point representing the offset vector. Alternatively,
         subtract an integer from the all coordinates of this point
         to create a new one.

@@ -121,9 +121,9 @@ def warm_cache(level=WarmupLevel.INSTANCE):
     Preload preconfigured siibra concepts.
 
     Siibra relies on preconfigurations that simplify integrating various
-    concepts such as parcellations, refernce spaces, and multimodal data
+    concepts such as parcellations, reference spaces, and multimodal data
     features. By preloading the instances, siibra commits all preconfigurations
-    to the memory at once instead of commiting them when required.
+    to the memory at once instead of committing them when required.
     """
     Warmup.warmup(level)
 

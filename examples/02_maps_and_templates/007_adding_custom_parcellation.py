@@ -49,7 +49,7 @@ volume = siibra.volumes.from_nifti(nifti, 'mni152', "AICHA")
 
 # The text file with label mappings has a custom format. We provide a tsv
 # decoder to extract the list of region/label pairs since the txt file is tab
-# seperated.
+# separated.
 volume_info = conn.get("AICHA/AICHA_vol1.txt", decode_func=siibra.retrieval.requests.DECODERS['.tsv'])
 volume_info
 
@@ -84,7 +84,7 @@ print(f"{len(profiles)} intensity profiles found.")
 
 
 # %%
-# On the other hand, some features are only anchored to a sementic region
+# On the other hand, some features are only anchored to a semantic region
 # object and the link to the custome region is not directly known to siibra.
 # However, siibra circumvents this by comparing volumes of these regions to
 # assign a link between them.

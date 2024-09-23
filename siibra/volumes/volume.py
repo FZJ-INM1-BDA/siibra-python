@@ -292,7 +292,7 @@ class Volume(location.Location):
         this map.
 
 
-        Paramaters
+        Parameters
         ----------
         points: PointSet
         keep_labels: bool
@@ -402,7 +402,7 @@ class Volume(location.Location):
             format = 'neuroglancer/precomputed'
 
         if format is None:
-            # preseve fetch order in SUPPORTED_FORMATS
+            # preserve fetch order in SUPPORTED_FORMATS
             possible_formats = [f for f in self.SUPPORTED_FORMATS if f in self.formats]
         elif format in self._FORMAT_LOOKUP:  # allow use of aliases
             possible_formats = [f for f in self._FORMAT_LOOKUP[format] if f in self.formats]
@@ -446,7 +446,7 @@ class Volume(location.Location):
                     break
                 else:
                     break
-            # udpate the cache if fetch is successful
+            # update the cache if fetch is successful
             if result is not None:
                 self._FETCH_CACHE[fetch_hash] = result
                 while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
@@ -478,7 +478,7 @@ class Volume(location.Location):
     def draw_samples(self, N: int, sample_size: int = 100, e: float = 1, sigma_mm=None, invert=False, **kwargs):
         """
         Draw samples from the volume, by interpreting its values as an
-        unnormalized empirical probability distribtution.
+        unnormalized empirical probability distributions.
         Any keyword arguments are passed over to fetch()
         """
         if not self.provides_image:
@@ -637,7 +637,7 @@ def from_pointset(
     sigmas = np.array(points.sigma_mm)[selection]
     bandwidth = np.mean(sigmas)
     if len(np.unique(sigmas)) > 1:
-        logger.warning(f"KDE of pointset uses average bandwith {bandwidth} instead of the points' individual sigmas.")
+        logger.warning(f"KDE of pointset uses average bandwidth {bandwidth} instead of the points' individual sigmas.")
 
     filtered_arr = filters.gaussian(voxelcount_img, bandwidth)
     if normalize:
@@ -664,7 +664,7 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
     ----------
     volumes : List[Volume]
     labels : List[int], optional
-        Supply new labels to replace exisiting values per volume.
+        Supply new labels to replace existing values per volume.
 
     Returns
     -------
