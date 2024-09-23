@@ -568,7 +568,7 @@ def connected_components(
     Yields
     ------
     Generator[Tuple[int, np.ndarray], None, None]
-        tuple of integer label of the component and component as an nd.array in
+        tuple of integer label of the component and component as an ndarray in
         the shape of the original image.
     """
     from skimage import measure
