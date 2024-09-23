@@ -593,7 +593,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             with QUIET:
                 mapimg = self.fetch(index=index)  # returns a mask of the region
             maparr = np.asanyarray(mapimg.dataobj)
-            centroid_vox = np.mean(np.where(maparr == 1), axis=1)
+            centroid_vox = np.mean(np.nonzero(maparr), axis=1)
             assert regionname not in centroids
             centroids[regionname] = point.Point(
                 np.dot(mapimg.affine, np.r_[centroid_vox, 1])[:3], space=self.space
