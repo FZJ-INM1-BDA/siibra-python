@@ -96,7 +96,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         Each sample is linked to a donor, brain structure, and
         ICBM coordinate.
         When querying with a brain structure, the ICBM coordinates
-        will be tested agains the region mask in ICBM space
+        will be tested against the region mask in ICBM space
         to produce a table of outputs.
         """
         LiveQuery.__init__(self, **kwargs)

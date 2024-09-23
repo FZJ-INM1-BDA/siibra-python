@@ -133,7 +133,7 @@ class Volume(location.Location):
             ----
             To use it, clip must be True.
         fetch_kwargs:
-            key word arguments that are used for fetchin volumes,
+            key word arguments that are used for fetching volumes,
             such as voi or resolution_mm. Currently, only possible for
             Neuroglancer volumes except for `format`.
 

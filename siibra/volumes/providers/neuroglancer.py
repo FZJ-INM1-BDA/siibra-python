@@ -149,7 +149,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             ----
             To use it, clip must be True.
         fetch_kwargs:
-            key word arguments that are used for fetchin volumes,
+            key word arguments that are used for fetching volumes,
             such as voi or resolution_mm.
         """
         bbox = None
@@ -399,7 +399,7 @@ class NeuroglancerScale:
         return self.res_nm / 1e6
 
     def resolves(self, resolution_mm):
-        """Test wether the resolution of this scale is sufficient to provide the given resolution."""
+        """Test whether the resolution of this scale is sufficient to provide the given resolution."""
         return all(r / 1e6 <= resolution_mm for r in self.res_nm)
 
     def __lt__(self, other):

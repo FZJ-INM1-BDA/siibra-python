@@ -243,7 +243,7 @@ class Feature:
 
     def matches(self, concept: structure.BrainStructure, restrict_space: bool = False) -> bool:
         """
-        Match the features anatomical anchor agains the given query concept.
+        Match the features anatomical anchor against the given query concept.
         Record the most recently matched concept for inspection by the caller.
         """
         # TODO: storing the last matched concept. It is not ideal, might cause problems in multithreading

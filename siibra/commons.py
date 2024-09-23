@@ -138,7 +138,7 @@ class InstanceTable(Generic[T], Iterable):
         return (w for w in self._elements.values())
 
     def __contains__(self, key: Union[str, T]) -> bool:
-        """Test wether the given key or element is defined by the registry."""
+        """Test whether the given key or element is defined by the registry."""
         if isinstance(key, str):
             return key in self._elements
         return key in [item for _, item in self._elements.values()]
@@ -556,7 +556,7 @@ def connected_components(
 
     Note
     ----
-    `Uses skimage.measure.label()` to determine foreground compenents.
+    `Uses skimage.measure.label()` to determine foreground components.
 
     Parameters
     ----------
@@ -600,7 +600,7 @@ class PolyLine:
 
     def sample(self, d):
 
-        # if d is interable, we assume a list of sample positions
+        # if d is iterable, we assume a list of sample positions
         try:
             iter(d)
         except TypeError:
@@ -689,7 +689,7 @@ def MI(arr1, arr2, nbins=100, normalized=True):
     assert (all(arr.size > 0) for arr in [arr1, arr2])
 
     # compute the normalized joint 2D histogram as an
-    # empirical measure of the joint probabily of arr1 and arr2
+    # empirical measure of the joint probability of arr1 and arr2
     pxy, _, _ = np.histogram2d(arr1.ravel(), arr2.ravel(), bins=nbins)
     pxy /= pxy.sum()
 

@@ -295,7 +295,7 @@ class SparseMap(parcellationmap.Map):
     def save_sparseindex(self, destination: str, filename: str = None):
         """
         Save SparseIndex as a .zip in destination folder from local cache. If
-        SparseIndex is not cached, siibra will firt create it first.
+        SparseIndex is not cached, siibra will first create it first.
 
         Parameters
         ----------

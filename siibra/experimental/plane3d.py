@@ -107,7 +107,7 @@ class Plane3D:
         )[0]
         faces = mesh["faces"][face_indices]
 
-        # for each of N selected faces, indicate wether we cross the plane
+        # for each of N selected faces, indicate whether we cross the plane
         # as we go from vertex 2->0, 0->1, 1->2, respectively.
         # This gives us an Nx3 array, where forward crossings are identified by 1,
         # and backward crossings by -1.

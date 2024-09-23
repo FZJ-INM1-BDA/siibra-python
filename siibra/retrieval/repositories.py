@@ -275,7 +275,7 @@ class GitlabConnector(RepositoryConnector):
             n.b. only archive_mode should only be set for trusted domains. Extraction of archive can result in files created outside the path
             see https://docs.python.org/3/library/tarfile.html#tarfile.TarFile.extractall
         """
-        # TODO: the query builder needs to check wether the reftag is a branch, and then not cache.
+        # TODO: the query builder needs to check whether the reftag is a branch, and then not cache.
         assert server.startswith("http")
         RepositoryConnector.__init__(
             self, base_url=f"{server}/api/v4/projects/{project}/repository"
