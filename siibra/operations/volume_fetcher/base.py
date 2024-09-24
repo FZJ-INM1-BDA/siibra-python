@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 from ...operations.base import DataOp, Of
 from ...operations.file_fetcher import RemoteLocalDataOp
 from ...commons.logger import logger
-from ...commons.conf import SIIBRA_MAX_FETCH_SIZE_GIB
 
 
 class VolumeRetOp:
