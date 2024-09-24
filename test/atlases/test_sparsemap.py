@@ -10,6 +10,12 @@ import nibabel as nib
 import gzip
 from pathlib import Path
 import json
+import numpy as np
+
+
+@pytest.fixture
+def mock_numpy_array():
+    yield np.zeros((3, 3, 3), dtype=np.uint64)
 
 
 @pytest.fixture
@@ -19,14 +25,20 @@ def session_get_mock():
 
 
 @pytest.fixture
-def nib_frombytes_mock():
+def nib_frombytes_mock(mock_numpy_array):
     with patch.object(nib.Nifti1Image, "from_bytes") as mock:
+        mock.return_value = nib.Nifti1Image(
+            mock_numpy_array, affine=np.eye(4), dtype=np.uint64
+        )
         yield mock
 
 
 @pytest.fixture
-def nib_load_mock():
+def nib_load_mock(mock_numpy_array):
     with patch.object(nib, "load") as mock:
+        mock.return_value = nib.Nifti1Image(
+            mock_numpy_array, affine=np.eye(4), dtype=np.uint64
+        )
         yield mock
 
 

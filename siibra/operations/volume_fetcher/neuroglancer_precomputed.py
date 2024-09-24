@@ -36,6 +36,7 @@ from ...attributes.dataproviders.volume import (
 from ...attributes.dataproviders.volume.base import register_format_read
 from ...cache import fn_call_cache
 from ...commons.logger import logger
+from ...commons.conf import SiibraConf
 
 if TYPE_CHECKING:
     from ...attributes.dataproviders import ImageProvider
@@ -254,7 +255,7 @@ def select_scale(
     scales: List[Scale],
     resolution_mm: Union[None, float] = None,
     bbox=None,
-    max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
+    max_download_GB: float = SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB,
 ) -> Scale:
     max_bytes = max_download_GB * 1024**3
 

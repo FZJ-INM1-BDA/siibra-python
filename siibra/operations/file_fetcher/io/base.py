@@ -18,7 +18,7 @@ import io
 import requests
 
 from ....commons.logger import logger
-from ....commons.conf import KEEP_LOCAL_CACHE
+from ....commons.conf import SiibraConf
 
 BLOCK_SIZE = 512
 
@@ -65,7 +65,7 @@ class PartialReader(io.IOBase, ABC):
                 return instance
 
             # Check for conf
-            if KEEP_LOCAL_CACHE > 0:
+            if SiibraConf.KEEP_LOCAL_CACHE > 0:
                 PartialHttpReader.Warmup(path)
                 instance = PartialFileReader.__new__(cls, http_warm_path)
                 PartialFileReader.__init__(instance, http_warm_path)

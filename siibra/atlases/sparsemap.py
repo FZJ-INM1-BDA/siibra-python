@@ -43,7 +43,7 @@ from ..attributes.locations.boundingbox import (
 from ..operations.file_fetcher.io.base import PartialReader
 from ..operations.file_fetcher.io import MemoryPartialReader
 from ..commons.logger import siibra_tqdm, logger, QUIET
-from ..commons.conf import KEEP_LOCAL_CACHE, MEMORY_HUNGRY
+from ..commons.conf import SiibraConf
 from ..cache import CACHE
 from ..operations.image_assignment import (
     ImageAssignment,
@@ -497,7 +497,8 @@ class SparseMap(Map):
         **fetch_kwargs: VolumeOpsKwargs,
     ) -> DataFrame:
         spind = self._get_readable_sparseindex(
-            warmup=KEEP_LOCAL_CACHE > 0, inmemory=MEMORY_HUNGRY > 0
+            warmup=SiibraConf.KEEP_LOCAL_CACHE > 0,
+            inmemory=SiibraConf.MEMORY_HUNGRY > 0,
         )
         if spind is None:
             return super().lookup_points(points, **fetch_kwargs)
@@ -562,7 +563,7 @@ class SparseMap(Map):
                 return self.lookup_points(queryitem, **volume_ops_kwargs)
 
         spind = self._get_readable_sparseindex(
-            warmup=KEEP_LOCAL_CACHE > 0, inmemory=MEMORY_HUNGRY > 0
+            warmup=SiibraConf.KEEP_LOCAL_CACHE > 0, inmemory=MEMORY_HUNGRY > 0
         )
         queryitemloc = (
             bbox_from_imageprovider(queryitem)

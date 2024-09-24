@@ -196,5 +196,5 @@ def test_find_boundingboxes(parcspec, regionspec, expected_bbox_specs):
         siibra.BoundingBox(space_id=space_id, minpoint=minpoint, maxpoint=maxpoint)
         for space_id, minpoint, maxpoint in expected_bbox_specs
     ]
-    assert all(box in bboxes for box in expected_bboxes)
-    pass
+    for box in expected_bboxes:
+        assert box in bboxes

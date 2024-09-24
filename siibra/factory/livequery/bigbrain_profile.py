@@ -68,11 +68,10 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
         dtype = {"names": ["x", "y", "z"], "formats": [root_coords.dtype] * 3}
         root_coords = root_coords.view(dtype)
 
-        attributes = [*modalities_of_interest]
-
         input_attrs = [attr for attr_col in self.input for attr in attr_col.attributes]
 
         for input_attr in input_attrs:
+            attributes = [*modalities_of_interest]
             try:
                 matched_verts = intersect(input_attr, bigbrain_vertices)
             except UnregisteredAttrCompException:
@@ -83,7 +82,8 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                 continue
             if isinstance(matched_verts, Point):
                 matched_verts = PointCloud(
-                    space_id=matched_verts.space_id, coordinates=[matched_verts.coordinate]
+                    space_id=matched_verts.space_id,
+                    coordinates=[matched_verts.coordinate],
                 )
             assert isinstance(matched_verts, PointCloud)
             attributes.append(matched_verts)
@@ -113,12 +113,10 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                 ]
             ).reshape((-1, 200))
             means = [
-                matched_profiles[layer_labels == layer].mean()
-                for layer in range(1, 7)
+                matched_profiles[layer_labels == layer].mean() for layer in range(1, 7)
             ]
             std = [
-                matched_profiles[layer_labels == layer].std()
-                for layer in range(1, 7)
+                matched_profiles[layer_labels == layer].std() for layer in range(1, 7)
             ]
 
             dataframe = pd.DataFrame(
@@ -128,9 +126,9 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
             )
 
             hashed_io = md5(
-                (json.dumps(asdict(input_attr)) + json.dumps(asdict(matched_verts))).encode(
-                    "utf-8"
-                )
+                (
+                    json.dumps(asdict(input_attr)) + json.dumps(asdict(matched_verts))
+                ).encode("utf-8")
             ).hexdigest()
 
             filename = CACHE.build_filename(hashed_io, suffix=".csv")
@@ -147,9 +145,7 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                 depth = np.arange(0.0, 1.0, 1.0 / (profiles[index].shape[0]))
 
                 df = pd.DataFrame(_profile, index=depth)
-                filename = CACHE.build_filename(
-                    hashed_io, suffix=f"-pr-{index}.csv"
-                )
+                filename = CACHE.build_filename(hashed_io, suffix=f"-pr-{index}.csv")
                 df.to_csv(filename)
 
                 tabular_attr = TabularDataProvider(

@@ -28,9 +28,9 @@ def MockDataOp2():
     yield MockDataOp1
 
 
-@patch.object(siibra.attributes.dataproviders.base, "get_result")
-def test_merge(get_result_mock: Mock, MockDataOp1, MockDataOp2):
-    get_result_mock.side_effect = [1, 2]
+@patch.object(siibra.attributes.dataproviders.base, "run_steps")
+def test_merge(run_steps_mock: Mock, MockDataOp1, MockDataOp2):
+    run_steps_mock.side_effect = [1, 2]
     input1 = [MockDataOp1.to_json()]
     input2 = [MockDataOp2.to_json()]
     spec = Merge.generate_specs(
@@ -40,7 +40,7 @@ def test_merge(get_result_mock: Mock, MockDataOp1, MockDataOp2):
         ]
     )
     assert Merge().run(None, **spec) == [1, 2]
-    assert len(get_result_mock.call_args_list) == 2
+    assert len(run_steps_mock.call_args_list) == 2
 
-    assert get_result_mock.call_args_list[0].args == (input1,)
-    assert get_result_mock.call_args_list[1].args == (input2,)
+    assert run_steps_mock.call_args_list[0].args == (input1,)
+    assert run_steps_mock.call_args_list[1].args == (input2,)
