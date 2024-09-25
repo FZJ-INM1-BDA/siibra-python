@@ -63,7 +63,7 @@ def find_spaces(space_spec: str):
 
 
 def fetch_template(
-    space_spec: str, frmt: str = None, variant: str = "", fragment: str = ""
+    space_spec: str, frmt: str = None, variant: str = None, fragment: str = ""
 ):
     return get_space(space_spec).get_template(frmt=frmt, variant=variant)
 
@@ -172,16 +172,16 @@ def find_features(
 
 
 # convenient access to regions of a parcellation
-def get_region(parcellation_spec: str, regionspec: str):
-    found_regions = find_regions(parcellation_spec, regionspec)
+def get_region(parcellation: str, region: str):
+    found_regions = find_regions(parcellation, region)
     if len(found_regions) == 0:
         raise NotFoundException(
-            f"parcellation_spec={parcellation_spec!r} and regionspec={regionspec!r} found no regions"
+            f"parcellation_spec={parcellation!r} and regionspec={region!r} found no regions"
         )
-    exact_match = [r for r in found_regions if r.name == regionspec]
+    exact_match = [r for r in found_regions if r.name == region]
     if len(exact_match) > 0:
         logger.debug(
-            f"{len(exact_match)} exact match for {regionspec} found. Returning first exact match."
+            f"{len(exact_match)} exact match for {region} found. Returning first exact match."
         )
         return exact_match[0]
 

@@ -42,13 +42,14 @@ This example will show some typical settings.
 # %%
 import siibra
 from nilearn import plotting
+
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/02-002.png'
 
 # %%
 # We choose the ICBM 2009c on linear asymmetric space,
 # and then request the template `siibra` linked to it.
 # As expected, the template is an object of type `Volume`.
-icbm = siibra.spaces.get('icbm 2009c nonl asym')
+icbm = siibra.spaces.get("icbm 2009c nonl asym")
 icbm_tpls = icbm.find_templates()
 icbm_tpls
 
@@ -63,7 +64,7 @@ print(type(icbm_img))
 # %%
 # We can  display this template with common neuroimaging visualization tools.
 # Here we use the plotting tools provided by `nilearn <https://nilearn.github.io>`_
-plotting.view_img(icbm_img, bg_img=None, cmap='gray', colorbar=False)
+plotting.view_img(icbm_img.get_data(), bg_img=None, cmap="gray", colorbar=False)
 
 # %%
 # As described above however, the template has multiple volume providers, representing different
@@ -80,17 +81,29 @@ icbm.formats
 # we can pre-check wether a volume provides image or mesh data
 # explicitly using `provides_mesh` and `provides_image`
 assert icbm.provides_mesh
-icbm_mesh = icbm.get_template(frmt='mesh')
+icbm_mesh = icbm.get_template(frmt="mesh")
 print(type(icbm_mesh))
 
 # %%
 # We can likewise visualize the mesh using
 # plotting functions of `nilearn <https://nilearn.github.io>`_
+
+icbm_mesh_gii = icbm_mesh.get_data()
+
 plotting.view_surf(
-    surf_mesh=[darr.data for darr in icbm_mesh.darrays], colorbar=False
+    surf_mesh=[darr.data for darr in icbm_mesh_gii.darrays], colorbar=False
 )
 
 # %%
 # For convenience, templates may also be requested from an atlas,
 # or right away from the siibra package.
-siibra.fetch_template("icbm 152 asym")
+bigbrain_img = siibra.fetch_template("bigbrain", frmt="image")
+plotting.view_img(bigbrain_img.get_data(), bg_img=None, cmap="gray")
+
+
+# %%
+
+bigbrain_mesh = siibra.fetch_template("bigbrain", frmt="mesh")
+plotting.view_surf(
+    surf_mesh=[darr.data for darr in icbm_mesh_gii.darrays], colorbar=False
+)

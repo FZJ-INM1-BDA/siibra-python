@@ -44,6 +44,7 @@ class Mapping(TypedDict):
     range: Tuple[float, float]
     subspace: Tuple[slice, ...]
     target: str = None
+    color: str = None
 
 
 class VolumeOpsKwargs(TypedDict):
@@ -70,8 +71,7 @@ class VolumeProvider(DataProvider):
 
     @property
     def retrieval_ops(self):
-        previous_ops = super().retrieval_ops
-        return self.volume_postprocess.transform_retrieval_ops(self, previous_ops)
+        return self.volume_postprocess.on_get_retrieval_ops(self)
 
     def append_op(self, op: Dict):
         self.volume_postprocess.on_append_op(self, op)

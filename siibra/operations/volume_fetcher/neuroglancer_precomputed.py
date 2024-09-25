@@ -379,9 +379,7 @@ class NgVolPostProcImgProvider(PostProcVolProvider):
             volume_provider.transformation_ops.append(fetch_op)
 
     @classmethod
-    def transform_retrieval_ops(
-        cls, volume_provider: "VolumeProvider", base_retrieval_ops: List[Dict]
-    ):
+    def on_get_retrieval_ops(cls, volume_provider: "VolumeProvider"):
         cls._verify_image_provider(volume_provider)
         return [
             NgPrecomputedFetchCfg.generate_specs(

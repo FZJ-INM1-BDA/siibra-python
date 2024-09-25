@@ -87,21 +87,22 @@ class DataProvider(Attribute):
         if self.archive_options is None:
             return [RemoteLocalDataOp.generate_specs(filename=self.url)]
 
-        if self.archive_options["format"] == "tar":
+        archive_format = self.archive_options.get("format")
+        if archive_format == "tar":
             return [
                 TarDataOp.generate_specs(
                     url=self.url, filename=self.archive_options["file"]
                 )
             ]
 
-        if self.archive_options["format"] == "zip":
+        if archive_format == "zip":
             return [
                 ZipDataOp.generate_specs(
                     url=self.url, filename=self.archive_options["file"]
                 )
             ]
 
-        raise RuntimeError(f"Cannot understand {self.archive_options['format']}")
+        raise RuntimeError(f"Cannot understand {archive_format}")
 
     @property
     def ops(self):

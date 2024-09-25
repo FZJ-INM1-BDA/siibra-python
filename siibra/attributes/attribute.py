@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field
-from typing import List, Any, Dict, Iterable, Tuple, BinaryIO, Union
+from typing import List, Any, Dict, Iterable, Tuple, BinaryIO, Union, ClassVar
 import pandas as pd
 from ..commons.logger import logger
 
@@ -28,6 +28,8 @@ def key_is_extra(key: str):
 @dataclass
 class Attribute:
     """Base clase for attributes."""
+
+    IGNORE_KEYS: ClassVar = {"schema", "annotates", "extra", "id", "key"}
 
     schema: str = field(default="siibra/attr", init=False, repr=False)
     name: str = field(default=None, repr=False)

@@ -47,9 +47,8 @@ class NiftiCodec(DataOp):
 class FreesurferAnnot(PostProcVolProvider):
 
     @classmethod
-    def transform_retrieval_ops(
-        cls, image_provider: "ImageProvider", base_retrieval_ops: List[Dict]
-    ):
+    def on_get_retrieval_ops(cls, image_provider: "ImageProvider"):
+        base_retrieval_ops = super().on_get_retrieval_ops(image_provider)
         return [*base_retrieval_ops, ReadNiftiFromBytes.generate_specs()]
 
     @classmethod

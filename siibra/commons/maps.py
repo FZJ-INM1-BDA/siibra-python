@@ -67,6 +67,8 @@ def gii_to_arrs(gii: GiftiImage) -> Dict[str, np.ndarray]:
 def arrs_to_gii(mesh: Dict[str, np.ndarray]) -> "GiftiImage":
     darrays = []
     for key, arr in mesh.items():
+        # GIFTI does not support float64
+        arr = np.array(arr, dtype=np.float32)
         if key == "verts":
             darrays.append(GiftiDataArray(arr, intent=1008))
         if key == "faces":

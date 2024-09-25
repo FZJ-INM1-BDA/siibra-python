@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, replace, asdict
 from typing import (
     Tuple,
     Type,
@@ -90,9 +90,12 @@ class AttributeCollection:
             [
                 {
                     "type": type(d).__name__,
-                    "name": d.name,
-                    "source_url": d.url,
                     "dataprovider": d,
+                    **{
+                        key: value
+                        for key, value in asdict(d).items()
+                        if key not in d.IGNORE_KEYS
+                    },
                 }
                 for d in dataproviders
             ]

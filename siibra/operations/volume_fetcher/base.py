@@ -52,10 +52,10 @@ class PostProcVolProvider:
         pass
 
     @classmethod
-    def transform_retrieval_ops(
-        cls, volume_provider: "VolumeProvider", base_retrieval_ops: List[Dict]
-    ):
-        return base_retrieval_ops
+    def on_get_retrieval_ops(cls, volume_provider: "VolumeProvider"):
+        from ...attributes.dataproviders.volume import VolumeProvider
+
+        return super(VolumeProvider, volume_provider).retrieval_ops
 
     @classmethod
     def on_append_op(cls, volume_provider: "VolumeProvider", op: Dict):

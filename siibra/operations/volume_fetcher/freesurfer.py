@@ -60,9 +60,8 @@ def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
 class FreesurferAnnot(PostProcVolProvider):
 
     @classmethod
-    def transform_retrieval_ops(
-        cls, volume_provider: "VolumeProvider", base_retrieval_ops: List[Dict]
-    ):
+    def on_get_retrieval_ops(cls, volume_provider: "VolumeProvider"):
+        base_retrieval_ops = super().on_get_retrieval_ops(volume_provider)
         return [*base_retrieval_ops, ReadGiftiFromBytesFSAAnnot.generate_specs()]
 
 

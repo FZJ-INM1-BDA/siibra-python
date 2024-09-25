@@ -203,9 +203,7 @@ class Map(AtlasElement):
                 NiftiExtractSubspace.generate_specs(subspace=mapping.get("subspace"))
             )
 
-        return replace(
-            provider, retrieval_ops=[], transformation_ops=transformpation_ops
-        )
+        return replace(provider, transformation_ops=transformpation_ops)
 
     def extract_regional_map(
         self,
@@ -338,11 +336,10 @@ class Map(AtlasElement):
         ), f"Please provide a subset of {self.regionnames}"
 
         label_color_table = {
-            self.region_mapping[region]["label"]: convert_hexcolor_to_rgbtuple(
-                self.region_mapping[region]["color"]
-            )
+            mapping["label"]: convert_hexcolor_to_rgbtuple(mapping["color"])
             for region in regions
             for vol in self.volume_providers
+            for mapping in self.region_mapping[region]
             if vol.format == frmt and region in self.region_mapping
         }
         pallette = np.array(
