@@ -20,12 +20,16 @@ from typing import (
     Any,
     TYPE_CHECKING,
     Union,
-    get_origin,
 )
 import json
 
 if TYPE_CHECKING:
     from ..attributes.dataproviders.base import DataProvider
+
+try:
+    from typing import get_origin
+except ImportError:
+    from typing_extensions import get_origin
 
 from ..commons.logger import logger
 

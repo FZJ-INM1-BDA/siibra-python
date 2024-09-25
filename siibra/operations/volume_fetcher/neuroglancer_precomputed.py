@@ -353,7 +353,11 @@ class NgVolPostProcImgProvider(PostProcVolProvider):
         try:
             assert volume_provider.ops[-1]["type"] == ReadNeuroglancerPrecomputed.type
         except (IndexError, AssertionError):
-            volume_provider.append_op(ReadNeuroglancerPrecomputed.generate_specs())
+            fetch_kwarg_to_nifti_op = ReadNeuroglancerPrecomputed.generate_specs()
+            if len(volume_provider.override_ops) > 0:
+                volume_provider.override_ops.append(fetch_kwarg_to_nifti_op)
+            else:
+                volume_provider.transformation_ops.append(fetch_kwarg_to_nifti_op)
 
     @classmethod
     def on_append_op(cls, volume_provider: "VolumeProvider", op: Dict):
