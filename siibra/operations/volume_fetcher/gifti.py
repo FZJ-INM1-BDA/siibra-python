@@ -14,17 +14,28 @@
 # limitations under the License.
 
 import gzip
-
+from typing import TYPE_CHECKING, List, Dict
 from nibabel.gifti import gifti
 
-from .base import VolumeRetOp
+from .base import PostProcVolProvider, VolumeFormats
 from ...operations import DataOp
-from ...attributes.dataproviders.volume.base import register_format_read
+
+if TYPE_CHECKING:
+    from ...attributes.dataproviders.volume import VolumeProvider
 
 
-@register_format_read("gii-mesh", "mesh")
-@register_format_read("gii-label", "mesh")
-class ReadGiftiFromBytes(DataOp, VolumeRetOp):
+@VolumeFormats.register_format_read("gii-mesh", "mesh")
+@VolumeFormats.register_format_read("gii-label", "mesh")
+class FreesurferAnnot(PostProcVolProvider):
+
+    @classmethod
+    def transform_retrieval_ops(
+        cls, volume_provider: "VolumeProvider", base_retrieval_ops: List[Dict]
+    ):
+        return [*base_retrieval_ops, ReadGiftiFromBytesGii.generate_specs()]
+
+
+class ReadGiftiFromBytesGii(DataOp):
     input: bytes
     output: gifti.GiftiImage
     desc = "Reads bytes into gifti"

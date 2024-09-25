@@ -13,7 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Dict, Type, Any, TYPE_CHECKING
+from typing import (
+    List,
+    Dict,
+    Type,
+    Any,
+    TYPE_CHECKING,
+    Union,
+    get_origin,
+)
 import json
 
 if TYPE_CHECKING:
@@ -134,12 +142,16 @@ class DataOp:
         cls.step_register[cls.type] = cls
 
     @classmethod
-    def get_runner(cls, step: Dict):
+    def get_runner_cls(cls, step: Dict):
         _type = step.get("type")
         if _type not in cls.step_register:
             logger.warning(f"{_type} not found in register. Noop rather than hard fail")
-            return DataOp()
-        return cls.step_register[_type]()
+            return DataOp
+        return cls.step_register[_type]
+
+    @classmethod
+    def get_runner(cls, step: Dict):
+        return cls.get_runner_cls(step)()
 
     @classmethod
     def describe(cls, steps: List[Dict], detail=False):
@@ -154,6 +166,29 @@ class DataOp:
     @classmethod
     def generate_specs(cls, force=False, **kwargs):
         return {"type": cls.type, "force": force or cls.force}
+
+    @staticmethod
+    def get_types(cls: Type, key: str):
+        # This is necessary, as some type are stored on superclass
+        for k in cls.__mro__:
+            try:
+                t = k.__annotations__[key]
+                if get_origin(t) is not Union:
+                    return [t]
+                return [t]
+            except KeyError:
+                continue
+        return []
+
+    @classmethod
+    def get_output_type(cls, step: Dict):
+        Cls = cls.get_runner_cls(step)
+        return cls.get_types(Cls, "output")
+
+    @classmethod
+    def get_input_type(cls, step: Dict):
+        Cls = cls.get_runner_cls(step)
+        return cls.get_types(Cls, "input")
 
 
 class Merge(DataOp):
@@ -192,9 +227,7 @@ class Merge(DataOp):
         ), f"Expected no transformops to be in data providers"
         srcs: List[Dict] = []
         for dv in dataproviders:
-            retrival, transformer = dv.assemble_ops()
-            src = [*retrival, *transformer]
-            srcs.append(src)
+            srcs.append(dv.ops)
         return cls.generate_specs(srcs=srcs)
 
 

@@ -131,8 +131,7 @@ class CellbodyDensityAggregator(LiveQuery, generates=Feature):
             segments = segments[0]
 
             provider = TabularDataProvider(
-                retrieval_ops=[
-                    # n.b. position matters!
+                override_ops=[
                     Merge.spec_from_dataproviders([segments, layerinfo]),
                     ProcessCellBodyDensity.generate_specs(),
                 ]
@@ -140,12 +139,10 @@ class CellbodyDensityAggregator(LiveQuery, generates=Feature):
             providers.append(provider)
 
         summed_table = TabularDataProvider(
-            retrieval_ops=[
+            override_ops=[
                 Merge.spec_from_dataproviders(providers),
                 ConcatTabulars.generate_specs(axis=1),
-            ],
-            transformation_ops=[
-                TabularMeanStd.generate_specs(index=layerinfo.get_data()["Name"])
+                TabularMeanStd.generate_specs(index=layerinfo.get_data()["Name"]),
             ],
             plot_options={
                 "kind": "bar",

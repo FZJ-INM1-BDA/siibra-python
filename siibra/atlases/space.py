@@ -15,12 +15,8 @@
 
 from typing import TYPE_CHECKING, Set, Union, List
 from ..concepts import AtlasElement
-from ..attributes.dataproviders.volume import (
-    VolumeOpsKwargs,
-    IMAGE_FORMATS,
-    MESH_FORMATS,
-    FORMAT_LOOKUP,
-)
+from ..attributes.dataproviders.volume import VolumeOpsKwargs
+from ..operations.volume_fetcher import VolumeFormats
 from ..commons.iterable import assert_ooo
 from ..commons.string import fuzzy_match
 from ..commons.maps import merge_volumes
@@ -54,17 +50,19 @@ class Space(AtlasElement):
 
     @property
     def provides_mesh(self):
-        return any(f in self.formats for f in MESH_FORMATS)
+        return any(f in self.formats for f in VolumeFormats.MESH_FORMATS)
 
     @property
     def provides_image(self):
-        return any(f in self.formats for f in IMAGE_FORMATS)
+        return any(f in self.formats for f in VolumeFormats.IMAGE_FORMATS)
 
     def find_templates(
         self, variant: str = None, frmt: str = None
     ) -> List[Union["ImageProvider", "MeshProvider"]]:
         if frmt is None or frmt not in self.formats:
-            frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
+            frmt = [f for f in VolumeFormats.FORMAT_LOOKUP[frmt] if f in self.formats][
+                0
+            ]
         else:
             assert frmt in self.formats, RuntimeError(
                 f"Requested format '{frmt}' is not available for this space: {self.formats}."

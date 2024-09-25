@@ -15,15 +15,16 @@
 
 from dataclasses import dataclass
 from os import getenv
-from typing import TYPE_CHECKING, Tuple, Dict, Type
+from typing import TYPE_CHECKING, Tuple, Dict
 
 from ..base import DataProvider
 from ....commons.iterable import assert_ooo
 from ....commons.logger import logger
+from ....operations.volume_fetcher import VolumeFormats
+from ....operations.volume_fetcher.base import PostProcVolProvider
 
 if TYPE_CHECKING:
     from ...locations import BoundingBox
-    from ....operations.volume_fetcher.base import VolumeRetOp
 
 try:
     from typing import Literal, TypedDict
@@ -31,41 +32,6 @@ except ImportError:
     from typing_extensions import Literal, TypedDict
 
 SIIBRA_MAX_FETCH_SIZE_GIB = getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2)
-IMAGE_FORMATS = []
-MESH_FORMATS = []
-FORMAT_LOOKUP = {
-    None: IMAGE_FORMATS + MESH_FORMATS,  # TODO maybe buggy
-    "mesh": MESH_FORMATS,
-    "image": IMAGE_FORMATS,
-}
-READER_LOOKUP: Dict[str, Type["VolumeRetOp"]] = {}
-
-
-def register_format_read(format: str, voltype: Literal["mesh", "image"]):
-    from ....operations.volume_fetcher.base import VolumeRetOp
-    from ....operations.base import DataOp
-
-    def outer(Cls: Type[VolumeRetOp]):
-        assert issubclass(
-            Cls, VolumeRetOp
-        ), f"register_format_read must target a subclass of volume ret op"
-
-        assert issubclass(
-            Cls, DataOp
-        ), f"register_format_read must target a subclass of data op"
-        if format in READER_LOOKUP:
-            logger.warning(
-                f"{format} already registered by {READER_LOOKUP[format].__name__}, overriden by {Cls.__name__}"
-            )
-        READER_LOOKUP[format] = Cls
-        if voltype == "mesh":
-            MESH_FORMATS.append(format)
-        if voltype == "image":
-            IMAGE_FORMATS.append(format)
-        FORMAT_LOOKUP[None] = IMAGE_FORMATS + MESH_FORMATS
-        return Cls
-
-    return outer
 
 
 class Mapping(TypedDict):
@@ -102,9 +68,26 @@ class VolumeProvider(DataProvider):
     colormap: str = None  # TODO: remove from config and here
     format: str = None
 
+    @property
+    def retrieval_ops(self):
+        previous_ops = super().retrieval_ops
+        return self.volume_postprocess.transform_retrieval_ops(self, previous_ops)
+
+    def append_op(self, op: Dict):
+        self.volume_postprocess.on_append_op(self, op)
+
     def __post_init__(self):
-        if self.format not in READER_LOOKUP:
-            raise RuntimeError(f"{self.format} cannot be properly parsed as volume")
+        self.volume_postprocess.on_post_init(self)
+
+    @property
+    def volume_postprocess(self):
+        try:
+            return VolumeFormats.READER_LOOKUP[self.format]
+        except KeyError:
+            logger.warning(
+                f"{self.format} not found in {list(VolumeFormats.READER_LOOKUP.keys())}, default to default reader."
+            )
+            return PostProcVolProvider
 
     @property
     def space(self):
@@ -118,21 +101,3 @@ class VolumeProvider(DataProvider):
                 else f"Found multiple ({len(spaces)}) spaces with the id {self.space_id}"
             ),
         )
-
-    def assemble_ops(self, **kwargs):
-        retrieval_ops, transformation_ops = super().assemble_ops(**kwargs)
-
-        # if self.retrieval_ops is set, assume the constructor knows what it is doing, and do no futher processing
-        if len(self.retrieval_ops) > 0:
-            logger.debug(
-                f"VolumeProvider.assemble_ops: self.retrieval_ops is set to {self.retrieval_ops}. Will not transform."
-            )
-            return retrieval_ops, transformation_ops
-        if self.format not in READER_LOOKUP:
-            raise RuntimeError(f"{self.format} cannot be properly parsed as volume")
-        Cls = READER_LOOKUP[self.format]
-        retrieval_ops, transformation_ops = Cls.transform_ops(
-            retrieval_ops, transformation_ops, **kwargs
-        )
-        # post process retrieval
-        return retrieval_ops, transformation_ops

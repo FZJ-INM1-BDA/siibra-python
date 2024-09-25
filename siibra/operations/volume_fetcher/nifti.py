@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Tuple, List, Union
+from typing import TYPE_CHECKING, Tuple, List, Union, Dict
 import gzip
 
 from nibabel import Nifti1Image
@@ -21,13 +21,14 @@ import numpy as np
 from nilearn.image import resample_to_img, resample_img
 from skimage import filters
 
-from .base import VolumeRetOp
+from .base import PostProcVolProvider, VolumeFormats
 from ...operations import DataOp
 from ...commons.logger import siibra_tqdm, logger
-from ...attributes.dataproviders.volume.base import register_format_read
 
 if TYPE_CHECKING:
     from ...attributes.locations import BoundingBox, PointCloud
+    from ...attributes.dataproviders.volume.image import ImageProvider
+    from ...attributes.dataproviders.volume.base import VolumeProvider
 
 
 class NiftiCodec(DataOp):
@@ -35,9 +36,33 @@ class NiftiCodec(DataOp):
     output: Nifti1Image
     desc = "Transforms nifti to nifti"
 
+    _ALL_NIFTI_CODES = set()
 
-@register_format_read("nii", "image")
-class ReadNiftiFromBytes(DataOp, VolumeRetOp):
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+        cls._ALL_NIFTI_CODES.add(cls.type)
+
+
+@VolumeFormats.register_format_read("nii", "image")
+class FreesurferAnnot(PostProcVolProvider):
+
+    @classmethod
+    def transform_retrieval_ops(
+        cls, image_provider: "ImageProvider", base_retrieval_ops: List[Dict]
+    ):
+        return [*base_retrieval_ops, ReadNiftiFromBytes.generate_specs()]
+
+    @classmethod
+    def on_append_op(cls, volume_provider: "VolumeProvider", op: Dict):
+        if op["type"] not in NiftiCodec._ALL_NIFTI_CODES:
+            logger.warning(
+                f"{op['type']} not in nifti codes {NiftiCodec._ALL_NIFTI_CODES}. Ignored."
+            )
+            return
+        return super().on_append_op(volume_provider, op)
+
+
+class ReadNiftiFromBytes(DataOp, PostProcVolProvider):
     input: bytes
     output: Nifti1Image
     desc = "Reads bytes into nifti"
@@ -190,7 +215,9 @@ class ResampleNifti(NiftiCodec):
     def run(self, input, **kwargs):
         assert isinstance(input, Nifti1Image)
         target_img = kwargs.get("target")
-        return self.resample_img_to_img(input, target_img, kwargs.get('interpolation', ''))
+        return self.resample_img_to_img(
+            input, target_img, kwargs.get("interpolation", "")
+        )
 
     @classmethod
     def generate_specs(cls, *, target_img: "Nifti1Image", **kwargs):

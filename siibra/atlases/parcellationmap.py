@@ -34,9 +34,6 @@ from ..attributes.dataproviders.volume import (
     ImageProvider,
     VolumeOpsKwargs,
     Mapping,
-    FORMAT_LOOKUP,
-    IMAGE_FORMATS,
-    MESH_FORMATS,
     SIIBRA_MAX_FETCH_SIZE_GIB,
 )
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
@@ -46,6 +43,7 @@ from ..operations.image_assignment import (
     ScoredImageAssignment,
     get_intersection_scores,
 )
+from ..operations.volume_fetcher import VolumeFormats
 from ..operations.volume_fetcher.nifti import (
     MergeLabelledNiftis,
     NiftiMask,
@@ -108,11 +106,11 @@ class Map(AtlasElement):
 
     @property
     def provides_mesh(self):
-        return any(f in self.formats for f in MESH_FORMATS)
+        return any(f in self.formats for f in VolumeFormats.MESH_FORMATS)
 
     @property
     def provides_image(self):
-        return any(f in self.formats for f in IMAGE_FORMATS)
+        return any(f in self.formats for f in VolumeFormats.IMAGE_FORMATS)
 
     def get_filtered_map(self, regions: Union[List[Region], List[str]]) -> "Map":
         """
@@ -144,7 +142,9 @@ class Map(AtlasElement):
 
     def _select_format(self, frmt: Union[str, None] = None) -> str:
         if frmt is None or frmt not in self.formats:
-            frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
+            frmt = [f for f in VolumeFormats.FORMAT_LOOKUP[frmt] if f in self.formats][
+                0
+            ]
         else:
             assert frmt not in self.formats, RuntimeError(
                 f"Requested format '{frmt}' is not available for this map: {self.formats}."
@@ -265,15 +265,15 @@ class Map(AtlasElement):
         provider_types = set(type(p) for p in providers)
         assert len(provider_types) == 1
         provider_type = next(iter(provider_types))
+
         mask_provider = provider_type(
             space_id=self.space_id,
-            retrieval_ops=[
-                Merge.generate_specs(
-                    *[provider.retrieval_ops for provider in providers]
-                )
+            override_ops=[
+                Merge.spec_from_dataproviders(providers),
+                MergeLabelledNiftis.generate_specs(),
             ],
-            transformation_ops=[MergeLabelledNiftis.generate_specs()],
         )
+
         if isinstance(mask_provider, ImageProvider):
             if self.maptype == "statistical":
                 mask_provider.transformation_ops.append(
@@ -293,7 +293,7 @@ class Map(AtlasElement):
         self,
         frmt: str = None,
         allow_relabeling: bool = False,
-        as_binary_mask: bool = False
+        as_binary_mask: bool = False,
     ) -> VolumeProvider:
         """
         Extracts a single volume with all (sub)regions imcluded.
@@ -310,8 +310,10 @@ class Map(AtlasElement):
         fullmap_provider = providers[0].__class__(
             space_id=self.space_id,
             format=providers[0].format,
-            retrieval_ops=[Merge.spec_from_dataproviders(providers)],
-            transformation_ops=[MergeLabelledNiftis.generate_specs(labels=labels)],
+            override_ops=[
+                Merge.spec_from_dataproviders(providers),
+                MergeLabelledNiftis.generate_specs(labels=labels),
+            ],
         )
 
         return fullmap_provider
@@ -320,7 +322,9 @@ class Map(AtlasElement):
         from matplotlib.colors import ListedColormap
 
         if frmt is None or frmt not in self.formats:
-            frmt = [f for f in FORMAT_LOOKUP[frmt] if f in self.formats][0]
+            frmt = [f for f in VolumeFormats.FORMAT_LOOKUP[frmt] if f in self.formats][
+                0
+            ]
         else:
             assert frmt not in self.formats, RuntimeError(
                 f"Requested format '{frmt}' is not available for this map: {self.formats}."

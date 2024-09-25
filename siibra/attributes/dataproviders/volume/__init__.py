@@ -17,9 +17,6 @@ from .base import VolumeProvider
 from .image import ImageProvider
 from .mesh import MeshProvider
 from .base import (
-    FORMAT_LOOKUP,
-    IMAGE_FORMATS,
-    MESH_FORMATS,
     SIIBRA_MAX_FETCH_SIZE_GIB,
     VolumeOpsKwargs,
     Mapping,

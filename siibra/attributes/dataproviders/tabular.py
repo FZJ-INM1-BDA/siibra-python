@@ -34,14 +34,13 @@ class TabularDataProvider(DataProvider):
     plot_options: dict = field(default_factory=dict)
     parse_options: dict = field(default_factory=dict)
 
-    def assemble_ops(self, **kwargs):
-        retrieval_ops, transform_ops = super().assemble_ops(**kwargs)
-        if len(self.retrieval_ops) > 0:
-            return retrieval_ops, transform_ops
+    @property
+    def retrieval_ops(self):
+        previous_ops = super().retrieval_ops
         return [
-            *retrieval_ops,
+            *previous_ops,
             ParseAsTabular.generate_specs(parse_options=self.parse_options),
-        ], transform_ops
+        ]
 
     def plot(self, *args, **kwargs):
         plot_options = self.plot_options.copy()

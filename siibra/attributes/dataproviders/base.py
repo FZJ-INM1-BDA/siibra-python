@@ -13,9 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import List, Dict
-from copy import deepcopy
 import json
 
 try:
@@ -74,53 +73,76 @@ class DataProvider(Attribute):
     schema: str = "siibra/attr/data"
     key: str = None  # TODO: remove
     url: str = None  # url can be from remote (http) or localfile
-    format: str = None
 
     archive_options: Archive = None
 
-    retrieval_ops: List[Dict] = field(default_factory=list)
+    override_ops: List[Dict] = field(default_factory=list)
     transformation_ops: List[Dict] = field(default_factory=list)
 
-    def assemble_ops(self, **kwargs):
-        retrieval_ops, transformation_ops = (
-            deepcopy(self.retrieval_ops),
-            deepcopy(self.transformation_ops),
-        )
-        if len(retrieval_ops) > 0:
-            return retrieval_ops, transformation_ops
+    @property
+    def retrieval_ops(self):
 
         assert self.url, "url must be defined"
 
         if self.archive_options is None:
-            return [
-                RemoteLocalDataOp.generate_specs(filename=self.url)
-            ], transformation_ops
+            return [RemoteLocalDataOp.generate_specs(filename=self.url)]
 
         if self.archive_options["format"] == "tar":
             return [
                 TarDataOp.generate_specs(
                     url=self.url, filename=self.archive_options["file"]
                 )
-            ], transformation_ops
+            ]
 
         if self.archive_options["format"] == "zip":
             return [
                 ZipDataOp.generate_specs(
                     url=self.url, filename=self.archive_options["file"]
                 )
-            ], transformation_ops
+            ]
 
         raise RuntimeError(f"Cannot understand {self.archive_options['format']}")
 
-    def get_data(self, **kwargs):
-        retrieval_ops, transformation_ops = self.assemble_ops(**kwargs)
-        return run_steps(
-            [
-                *retrieval_ops,
-                *transformation_ops,
-            ]
-        )
+    @property
+    def ops(self):
+        if len(self.override_ops) > 0:
+            return self.override_ops
+        return [*self.retrieval_ops, *self.transformation_ops]
+
+    @property
+    def current_output_type(self):
+        return DataOp.get_output_type(self.ops[-1])
+
+    def append_op(self, op: Dict):
+        input_type = DataOp.get_input_type(op)
+        if input_type != self.current_output_type:
+            logger.debug(
+                f"append_op {op} potential issue: current output type is {self.current_output_type}, but input type is {input_type}"
+            )
+        if len(self.override_ops) > 0:
+            self.override_ops.append(op)
+            return
+        self.transformation_ops.append(op)
+
+    def extend_ops(self, ops: List[Dict]):
+        for op in ops:
+            self.append_op(op)
+
+    def pop_op(self, index=-1):
+        if len(self.override_ops) > 0:
+            if len(self.override_ops) == 1:
+                raise IndexError(f"overridden image provider cannot be fully popped")
+            return self.override_ops.pop(index)
+        return self.transformation_ops.pop(index)
+
+    def get_data(self):
+        return run_steps(self.ops)
 
     def describe_data(self):
-        retrieval_ops, transformation_ops = self.assemble_ops()
-        return DataOp.describe([*retrieval_ops, *transformation_ops])
+        return DataOp.describe(self.ops)
+
+    def query(self, *arg, **kwargs):
+        """
+        Returns a copy of the data provider.
+        """
+        return replace(self)

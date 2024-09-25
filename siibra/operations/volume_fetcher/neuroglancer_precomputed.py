@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, Callable, List, Union, ClassVar
+from typing import TYPE_CHECKING, Dict, Callable, List, Union, ClassVar, Tuple
 import requests
 from itertools import product
 import numpy as np
@@ -27,20 +27,50 @@ from neuroglancer_scripts.precomputed_io import (
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 
-from .base import NgVolumeRetOp
-from ...operations import DataOp
-from ...attributes.dataproviders.volume import (
-    VolumeOpsKwargs,
-    SIIBRA_MAX_FETCH_SIZE_GIB,
-)
-from ...attributes.dataproviders.volume.base import register_format_read
+
+try:
+    from typing import TypedDict
+except ImportError:
+    from typing_extensions import TypedDict
+
+from .base import PostProcVolProvider, VolumeFormats, DataOp
 from ...cache import fn_call_cache
 from ...commons.logger import logger
 from ...commons.conf import SiibraConf
 
 if TYPE_CHECKING:
-    from ...attributes.dataproviders import ImageProvider
+    from ...attributes.dataproviders.volume import VolumeProvider
     from ...attributes.locations import BoundingBox
+
+NG_VOLUME_FORMAT_STR = "neuroglancer/precomputed"
+
+
+class Mapping(TypedDict):
+    """
+    Represents restrictions to apply to an image to get partial information,
+    such as labelled mask, a specific slice etc.
+    """
+
+    label: int = None
+    range: Tuple[float, float]
+    subspace: Tuple[slice, ...]
+    target: str = None
+
+
+class VolumeOpsKwargs(TypedDict):
+    """
+    Key word arguments used for fetching images and meshes across siibra.
+
+    Note
+    ----
+    Not all parameters are avaialble for all formats and volumes.
+    """
+
+    url: str = None
+    bbox: "BoundingBox" = None
+    resolution_mm: float = None
+    max_download_GB: float = SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB
+    mapping: Dict[str, Mapping] = None
 
 
 def extract_label_mask(arr: np.ndarray, label: int):
@@ -291,7 +321,6 @@ def select_scale(
             f"Cannot fetch {f'bounding box {bbox} ' if bbox else ''}since the lowest download size "
             f"{scale._estimate_nbytes(bbox) / 1024**3}GiB > max_download_GB={max_download_GB}GiB."
         )
-
     return selected_scale
 
 
@@ -301,26 +330,94 @@ def fetch_neuroglancer(url: str, **fetchkwargs: VolumeOpsKwargs) -> "nib.Nifti1I
         scales,
         resolution_mm=fetchkwargs.get("resolution_mm"),
         bbox=fetchkwargs.get("bbox"),
-        max_download_GB=fetchkwargs.get("max_download_GB", SIIBRA_MAX_FETCH_SIZE_GIB),
+        max_download_GB=fetchkwargs.get(
+            "max_download_GB", SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB
+        ),
     )
     return scale.fetch(bbox=fetchkwargs.get("bbox"))
 
 
-@register_format_read("neuroglancer/precomputed", "image")
-class ReadNeuroglancerPrecomputed(DataOp, NgVolumeRetOp):
+@VolumeFormats.register_format_read(NG_VOLUME_FORMAT_STR, "image")
+class NgVolPostProcImgProvider(PostProcVolProvider):
+
+    @classmethod
+    def _verify_image_provider(cls, volume_provider: "VolumeProvider"):
+        assert (
+            volume_provider.format == NG_VOLUME_FORMAT_STR
+        ), f"Expected format to be {NG_VOLUME_FORMAT_STR}, but was {volume_provider.format}"
+
+    @classmethod
+    def on_post_init(cls, volume_provider: "VolumeProvider"):
+        cls._verify_image_provider(volume_provider)
+
+        try:
+            assert volume_provider.ops[-1]["type"] == ReadNeuroglancerPrecomputed.type
+        except (IndexError, AssertionError):
+            volume_provider.append_op(ReadNeuroglancerPrecomputed.generate_specs())
+
+    @classmethod
+    def on_append_op(cls, volume_provider: "VolumeProvider", op: Dict):
+        from .nifti import NiftiExtractVOI
+        from ...attributes.dataproviders.volume import VolumeProvider
+
+        cls._verify_image_provider(volume_provider)
+
+        if volume_provider.ops[-1]["type"] != ReadNeuroglancerPrecomputed.type:
+            raise RuntimeError(
+                f"neuroglancer volume must have ReadNeuroglancerPrecomputed as the final op. {volume_provider.ops[-1]['type']} was found."
+            )
+
+        fetch_op = volume_provider.pop_op()
+        if op["type"] == NiftiExtractVOI.type:
+            bbox = op["voi"]
+            op = NgPrecomputedFetchCfg.generate_specs(fetch_config={"bbox": bbox})
+        super(VolumeProvider, volume_provider).append_op(op)
+
+        if len(volume_provider.override_ops) > 0:
+            volume_provider.override_ops.append(fetch_op)
+        else:
+            volume_provider.transformation_ops.append(fetch_op)
+
+    @classmethod
+    def transform_retrieval_ops(
+        cls, volume_provider: "VolumeProvider", base_retrieval_ops: List[Dict]
+    ):
+        cls._verify_image_provider(volume_provider)
+        return [
+            NgPrecomputedFetchCfg.generate_specs(
+                fetch_config={"url": volume_provider.url}
+            )
+        ]
+
+
+class ReadNeuroglancerPrecomputed(DataOp):
     input: Union[None, VolumeOpsKwargs]
     output: nib.Nifti1Image
     desc = "Directly read neuroglancer volume"
     type = "read/neuroglancer_precomputed"
 
-    def run(self, input, url: str, **kwargs):
+    def run(self, input, url: str = None, **kwargs):
         if input is None:
             input = {}
         assert isinstance(input, dict)
-        return fetch_neuroglancer(url, **input, **kwargs)
+
+        kwargs = {
+            **input,
+            **kwargs,
+        }
+
+        kwarg_url = kwargs.pop("url", None)
+        if kwarg_url and url:
+            logger.warning(
+                f"url is provided both in kwarg {kwarg_url}, as well as positional arg {url}. Ignoring kwarg url"
+            )
+        url = url or kwarg_url
+        assert url is not None
+        print(url, kwargs)
+        return fetch_neuroglancer(url, **kwargs)
 
     @classmethod
-    def generate_specs(cls, *, url: str, **kwargs: VolumeOpsKwargs):
+    def generate_specs(cls, *, url: str = None, **kwargs: VolumeOpsKwargs):
         base = super().generate_specs(**kwargs)
         return {**base, "url": url}
 
@@ -331,22 +428,25 @@ class NgPrecomputedFetchCfg(DataOp):
     desc = "Creating/Updating neuroglancer fetch config"
     type = "volume/ngprecomp/update_cfg"
 
-    def run(self, input, fetch_config: VolumeOpsKwargs, **kwargs):
+    def run(self, input, url, fetch_config: VolumeOpsKwargs, **kwargs):
         return {
             **(input or {}),
             **fetch_config,
         }
 
     @classmethod
-    def generate_specs(cls, fetch_config: VolumeOpsKwargs, **kwargs):
+    def generate_specs(
+        cls, url: str = None, fetch_config: VolumeOpsKwargs = None, **kwargs
+    ):
         base = super().generate_specs(**kwargs)
-        return {**base, "fetch_config": fetch_config}
+        return {**base, "url": url, "fetch_config": fetch_config or {}}
 
 
 @fn_call_cache
 def fetch_ng_bbox(
-    image: "ImageProvider", fetchkwargs: Union[VolumeOpsKwargs, None] = None
+    image: "VolumeProvider", fetchkwargs: Union[VolumeOpsKwargs, None] = None
 ) -> "BoundingBox":
+    assert image.format == NG_VOLUME_FORMAT_STR
     from ...attributes.locations import BoundingBox
 
     provided_bbox = fetchkwargs["bbox"] if fetchkwargs else None

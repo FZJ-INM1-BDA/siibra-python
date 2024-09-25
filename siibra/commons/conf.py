@@ -33,17 +33,25 @@ class SiibraConf:
 
     @staticmethod
     @contextmanager
-    def override_conf(keep_local_cache=None, memory_hungry=None):
-        old_keep_local_cache, old_memory_hungry = (
+    def override_conf(keep_local_cache=None, memory_hungry=None, max_fetch_size=None):
+        old_keep_local_cache, old_memory_hungry, old_fetch_gib = (
             SiibraConf.KEEP_LOCAL_CACHE,
             SiibraConf.MEMORY_HUNGRY,
+            SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB,
         )
         if keep_local_cache is not None:
             SiibraConf.KEEP_LOCAL_CACHE = keep_local_cache
         if memory_hungry is not None:
             SiibraConf.MEMORY_HUNGRY = memory_hungry
+        if max_fetch_size is not None:
+            SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB = max_fetch_size
         yield
-        SiibraConf.KEEP_LOCAL_CACHE, SiibraConf.MEMORY_HUNGRY = (
+        (
+            SiibraConf.KEEP_LOCAL_CACHE,
+            SiibraConf.MEMORY_HUNGRY,
+            SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB,
+        ) = (
             old_keep_local_cache,
             old_memory_hungry,
+            old_fetch_gib,
         )

@@ -13,17 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
+from typing import Callable, Dict, List, TYPE_CHECKING
 from io import BytesIO
 import os
 
 from nibabel import freesurfer, gifti
 
-from .base import VolumeRetOp
+
+from .base import PostProcVolProvider, VolumeFormats
 from ...operations import DataOp
 from ...cache import CACHE
 from ...commons.maps import arrs_to_gii
-from ...attributes.dataproviders.volume.base import register_format_read
+
+if TYPE_CHECKING:
+    from ...attributes.dataproviders.volume import VolumeProvider
 
 
 def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
@@ -53,8 +56,17 @@ def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
     return result
 
 
-@register_format_read("freesurfer-annot", "mesh")
-class ReadGiftiFromBytes(DataOp, VolumeRetOp):
+@VolumeFormats.register_format_read("freesurfer-annot", "mesh")
+class FreesurferAnnot(PostProcVolProvider):
+
+    @classmethod
+    def transform_retrieval_ops(
+        cls, volume_provider: "VolumeProvider", base_retrieval_ops: List[Dict]
+    ):
+        return [*base_retrieval_ops, ReadGiftiFromBytesFSAAnnot.generate_specs()]
+
+
+class ReadGiftiFromBytesFSAAnnot(DataOp):
     input: bytes
     output: gifti.GiftiImage
     desc = "Reads bytes into gifti"

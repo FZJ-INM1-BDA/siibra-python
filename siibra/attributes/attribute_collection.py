@@ -23,10 +23,13 @@ from typing import (
     List,
     Union,
     BinaryIO,
+    TYPE_CHECKING,
 )
 import pandas as pd
 from zipfile import ZipFile
 
+
+from .dataproviders import DataProvider
 from .attribute import Attribute
 from .locations import Location
 from .descriptions import (
@@ -40,12 +43,15 @@ from .descriptions import (
     EbrainsRef,
     AttributeMapping,
 )
+from ..operations.volume_fetcher import VolumeFormats
 from ..commons.iterable import assert_ooo
 from ..commons.string import fuzzy_match
 from ..commons.logger import siibra_tqdm, logger
-from ..attributes.dataproviders import DataProvider, volume
 
 T = TypeVar("T")
+
+if TYPE_CHECKING:
+    from .dataproviders import ImageProvider
 
 
 MATRIX_INDEX_ENTITY_KEY = "x-siibra/matrix-index-entity/index"
@@ -71,6 +77,12 @@ class AttributeCollection:
             if isinstance(attr, attr_type):
                 yield attr
 
+    def get_dataprovider(self, expr, *args, **kwargs):
+        return assert_ooo(self.find_dataproviders(expr, *args, **kwargs))
+
+    def find_dataproviders(self, expr=None, *args, **kwargs) -> List[DataProvider]:
+        return list(self.data_providers_table.query(expr)["dataprovider"])
+
     @property
     def data_providers_table(self) -> pd.DataFrame:
         dataproviders = self._find(DataProvider)
@@ -78,50 +90,19 @@ class AttributeCollection:
             [
                 {
                     "type": type(d).__name__,
-                    "source_format": d.format,
                     "name": d.name,
                     "source_url": d.url,
+                    "dataprovider": d,
                 }
                 for d in dataproviders
             ]
         )
 
-    def filter_data_providers(
-        self,
-        attr_type: str = "",
-        source_format: str = "",
-        name: str = "",
-        source_url: str = "",
-        fuzzy_search: bool = False,
-    ) -> Iterable[DataProvider]:
-        match_func = lambda a, b: (
-            fuzzy_match(a, b) if fuzzy_search else a.lower() == b.lower()
-        )
-        for d in self._finditer(DataProvider):
-            if attr_type and match_func(attr_type, type(d).__name__):
-                yield d
-            elif source_format and match_func(source_format, d.format):
-                yield d
-            elif name and match_func(name, d.name):
-                yield d
-            elif source_url and match_func(source_url, d.url):
-                yield d
-            else:
-                continue
-
     @property
-    def volume_providers(
-        self,
-    ) -> List[Union["volume.ImageProvider", "volume.MeshProvider"]]:
-        return list(self.filter_data_providers(attr_type="ImageProvider")) + list(
-            self.filter_data_providers(attr_type="MeshProvider")
-        )
+    def volume_providers(self):
+        from .dataproviders.volume import VolumeProvider
 
-    def extract_imagedata(self, **kwargs) -> "volume.ImageProvider":
-        provider = assert_ooo(
-            [_ for _ in self.volume_providers if _.format in volume.IMAGE_FORMATS],
-        )
-        return provider.get_data(**kwargs)
+        return [attr for attr in self.attributes if isinstance(attr, VolumeProvider)]
 
     def filter(self, filter_fn: Callable[[Attribute], bool]):
         """

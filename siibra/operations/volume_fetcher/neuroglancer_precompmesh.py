@@ -13,18 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Tuple
+from typing import Dict, Tuple, TYPE_CHECKING, List
 import requests
 
 import numpy as np
 from nibabel import GiftiImage
 from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
 
-from .base import NgVolumeRetOp
+from .base import PostProcVolProvider, VolumeFormats
 from ...cache import fn_call_cache
 from ...commons.maps import arrs_to_gii
 from ...operations import DataOp
-from ...attributes.dataproviders.volume.base import register_format_read
+
+if TYPE_CHECKING:
+    from ...attributes.dataproviders.volume import VolumeProvider
 
 
 @fn_call_cache
@@ -85,8 +87,17 @@ def get_meshindex_info(self, base_url: str, meshindex: int) -> Dict[str, Tuple[s
             )
 
 
-@register_format_read("neuroglancer/precompmesh", "mesh")
-class ReadNeuroglancerPrecompmesh(DataOp, NgVolumeRetOp):
+@VolumeFormats.register_format_read("neuroglancer/precompmesh", "mesh")
+class FreesurferAnnot(PostProcVolProvider):
+
+    @classmethod
+    def transform_retrieval_ops(
+        cls, volume_provider: "VolumeProvider", base_retrieval_ops: List[Dict]
+    ):
+        return [*base_retrieval_ops, ReadNeuroglancerPrecompmesh.generate_specs()]
+
+
+class ReadNeuroglancerPrecompmesh(DataOp):
     input: str
     output: GiftiImage
     desc = "Reads neuroglancer_precompmesh url into gifti"

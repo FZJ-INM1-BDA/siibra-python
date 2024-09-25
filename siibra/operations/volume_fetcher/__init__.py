@@ -18,3 +18,5 @@ from . import neuroglancer_precomputed
 from . import gifti
 from . import neuroglancer_precompmesh
 from . import freesurfer
+
+from .base import VolumeFormats

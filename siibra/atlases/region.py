@@ -23,12 +23,12 @@ from collections import defaultdict
 from ..concepts import atlas_elements
 from ..attributes.descriptions import Name
 from ..attributes.locations import boundingbox, PointCloud
-from ..attributes.dataproviders.volume import IMAGE_FORMATS
 from ..commons.string import get_spec, SPEC_TYPE, extract_uuid
 from ..commons.iterable import assert_ooo
 from ..commons.maps import spatial_props
 from ..commons.logger import logger
 from ..commons.register_recall import RegisterRecall
+from ..operations.volume_fetcher import VolumeFormats
 from ..operations.file_fetcher.dataproxy_fetcher import DataproxyRepository
 from ..cache import fn_call_cache
 
@@ -69,7 +69,7 @@ def _get_region_boundingbox(parc_id: str, region_name: str, space_id: str):
     bbox = None
     for volume in mp.volume_providers:
 
-        if volume.format not in IMAGE_FORMATS:
+        if volume.format not in VolumeFormats.IMAGE_FORMATS:
             continue
         local_wanted_labels = []
         if volume.name:
@@ -177,7 +177,9 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         maps = find_maps(self.parcellation.ID)
 
         image_mps = [
-            m for m in maps if any(format in IMAGE_FORMATS for format in m.formats)
+            m
+            for m in maps
+            if any(format in VolumeFormats.IMAGE_FORMATS for format in m.formats)
         ]
 
         return_result: List[boundingbox.BoundingBox] = []

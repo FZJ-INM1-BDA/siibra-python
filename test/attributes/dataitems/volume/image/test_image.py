@@ -11,12 +11,15 @@ from unittest.mock import MagicMock, patch
 from itertools import product
 import pytest
 
+SPACE_ID = "foo"
+SPACE_ID_2 = "bar"
+
 
 # TODO fix fixture
 @pytest.fixture
 def mocked_image_foo():
     with patch.object(ImageProvider, "get_data") as fetch_mock:
-        image = ImageProvider(format="neuroglancer/precomputed", space_id="foo")
+        image = ImageProvider(format="foo", space_id=SPACE_ID, url="foo")
         yield image, fetch_mock
 
 
@@ -47,7 +50,7 @@ def test_insersect_ptcld_img(mocked_image_foo):
     fetch_mock.return_value = mock_nii
 
     ptcld = PointCloud(
-        space_id="foo",
+        space_id=SPACE_ID,
         coordinates=list(product([0, 1, 2], repeat=3)),
     )
 
@@ -69,7 +72,7 @@ def test_insersect_ptcld_img(mocked_image_foo):
 def get_space_mock():
     mocked_space = MagicMock()
     with patch.object(siibra, "get_space", return_value=mocked_space) as mock:
-        mocked_space.ID = "bar"
+        mocked_space.ID = SPACE_ID_2
         yield mock
 
 
@@ -86,7 +89,7 @@ def test_from_nifti(space_id, space, get_space_called, get_space_mock):
     assert isinstance(result, ImageProvider)
     if get_space_called:
         get_space_mock.assert_called()
-        assert result.space_id == "bar"
+        assert result.space_id == SPACE_ID_2
     else:
         get_space_mock.assert_not_called()
-        assert result.space_id == "foo"
+        assert result.space_id == SPACE_ID

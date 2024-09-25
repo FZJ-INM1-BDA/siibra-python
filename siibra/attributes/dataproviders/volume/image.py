@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, replace, asdict
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Dict
 from pathlib import Path
 from hashlib import md5
 from io import BytesIO
@@ -23,20 +23,16 @@ import gzip
 import numpy as np
 import nibabel as nib
 
-from .base import VolumeProvider, VolumeOpsKwargs, IMAGE_FORMATS
+from .base import VolumeProvider, VolumeOpsKwargs
 from ...locations import point, pointcloud, BoundingBox
 from ...locations.ops.intersection import _loc_intersection
+from ....operations.volume_fetcher.nifti import NiftiExtractVOI
+from ....operations.volume_fetcher.neuroglancer_precomputed import NgPrecomputedFetchCfg
 
 
 @dataclass
 class ImageProvider(VolumeProvider):
     schema: str = "siibra/attr/data/image/v0.1"
-
-    def __post_init__(self):
-        super().__post_init__()
-        assert (
-            self.format in IMAGE_FORMATS
-        ), f"Expected image format {self.format} to be in {IMAGE_FORMATS}, but was not."
 
     @property
     def boundingbox(self) -> "BoundingBox":
@@ -196,6 +192,26 @@ class ImageProvider(VolumeProvider):
     def get_data(self, **kwargs) -> nib.Nifti1Image:
         return super().get_data(**kwargs)
 
+    def query(
+        self, *arg, bbox: "BoundingBox" = None, resolution_mm: float = None, **kwargs
+    ):
+        """
+        Return a copy of the image provider with the following constrains (if provided):
+
+        - bounded by bbox (works on all formats)
+        - use closest resolution_mm (only on neuroglancer precomputed format)
+        """
+        new_img_prov = replace(self)
+        if bbox is not None:
+            new_img_prov.append_op(NiftiExtractVOI.generate_specs(voi=bbox))
+        if resolution_mm is not None:
+            new_img_prov.append_op(
+                NgPrecomputedFetchCfg.generate_specs(
+                    fetch_config={"resolution_mm": resolution_mm}
+                )
+            )
+        return new_img_prov
+
 
 def from_pointcloud(
     pointcloud: pointcloud.PointCloud,
@@ -212,14 +228,13 @@ def from_pointcloud(
         transformation_ops = [
             ResampleNifti.generate_specs(target_img=target.get_data())
         ]
-
     return ImageProvider(
-        retrieval_ops=[
+        format="nii",
+        override_ops=[
             Of.generate_specs(instance=pointcloud, force=(not cached)),
             NiftiFromPointCloud.generate_specs(normalize=normalize, force=(not cached)),
+            *transformation_ops,
         ],
-        transformation_ops=transformation_ops,
-        format="nii",
         space_id=pointcloud.space_id,
     )
 
