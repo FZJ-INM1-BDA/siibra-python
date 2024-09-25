@@ -1,9 +1,14 @@
 import pandas as pd
 import numpy as np
 from io import BytesIO
-from typing import List, Union
+from typing import List, Union, Dict, Optional
 
 from .base import DataOp
+
+try:
+    from typing import TypedDict
+except ImportError:
+    from typing_extensions import TypedDict
 
 
 class ParseAsTabular(DataOp):
@@ -72,6 +77,11 @@ class TabularMeanStd(DataOp):
         return {**base, "index": index}
 
 
+class RemapColRowDict(TypedDict):
+    column_mapping: Optional[Dict[int, str]]
+    row_mapping: Optional[Dict[int, str]]
+
+
 # TODO: change region_mapping to reflect this
 # TODO: region_mapping should be more generic
 class RenameColumnsAndOrRows(DataOp):
@@ -80,16 +90,41 @@ class RenameColumnsAndOrRows(DataOp):
     desc: str = "Rename columns with supplied mapping."
     type: str = "tabular/rename_cols"
 
-    def run(self, input, column_mapping=None, row_mapping=None, **kwargs):
+    def run(self, input, remap_dict: RemapColRowDict, **kwargs):
         assert isinstance(input, pd.DataFrame)
+        result = input
+
+        column_mapping = remap_dict.get("column_mapping")
+        row_mapping = remap_dict.get("row_mapping")
+
         if column_mapping:
-            result = input.rename(columns=column_mapping[input.columns])
+            result = result.rename(columns=column_mapping)
         if row_mapping:
-            result = input.rename(columns=row_mapping[input.index])
+            result = result.rename(index=row_mapping)
         return result
 
     @classmethod
-    def generate_specs(cls, column_mapping=None, row_mapping=None, force=False, **kwargs):
+    def generate_specs(
+        cls,
+        remap_dict: RemapColRowDict,
+        force=False,
+        **kwargs,
+    ):
         base = super().generate_specs(force, **kwargs)
-        return {**base, "column_mapping": column_mapping, "row_mapping": row_mapping}
+        return {**base, "remap_dict": remap_dict}
 
+
+class DFAccessor(DataOp):
+    input: pd.DataFrame
+    output: pd.Series
+    desc: str = "Get a series from a dataframe"
+    type: str = "tabular/df-accessor"
+
+    def run(self, input, column: str, **kwargs):
+        assert isinstance(input, pd.DataFrame)
+        return input[column]
+
+    @classmethod
+    def generate_specs(cls, column: str, force=False, **kwargs):
+        base = super().generate_specs(force, **kwargs)
+        return {**base, "column": column}

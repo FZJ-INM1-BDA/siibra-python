@@ -24,10 +24,11 @@ from typing import (
     Union,
     BinaryIO,
     TYPE_CHECKING,
+    Dict,
 )
 import pandas as pd
 from zipfile import ZipFile
-
+from collections import defaultdict
 
 from .dataproviders import DataProvider
 from .attribute import Attribute
@@ -43,7 +44,7 @@ from .descriptions import (
     EbrainsRef,
     AttributeMapping,
 )
-from ..operations.volume_fetcher import VolumeFormats
+from ..operations.tabular import RemapColRowDict, RenameColumnsAndOrRows
 from ..commons.iterable import assert_ooo
 from ..commons.string import fuzzy_match
 from ..commons.logger import siibra_tqdm, logger
@@ -65,6 +66,51 @@ def attr_of_general_interest(attr: Attribute):
 class AttributeCollection:
     schema: str = "siibra/attribute_collection"
     attributes: Tuple[Attribute] = field(default_factory=list, repr=False)
+
+    # TODO consider if this is the best spot for populating
+    def __post_init__(self):
+        from .dataproviders.tabular import TabularDataProvider
+
+        column_row_mapping: Dict[str, RemapColRowDict] = defaultdict(
+            lambda: {"column_mapping": {}, "row_mapping": {}}
+        )
+        for attr_mapping in self._find(AttributeMapping):
+            for regionname, mappings in attr_mapping.region_mapping.items():
+                for mapping in mappings:
+                    if mapping["@type"] != "csv/row-index":
+                        continue
+                    target = mapping.get("target", None)
+
+                    row_col_index = mapping.get("index")
+                    column_row_mapping[target]["column_mapping"][
+                        row_col_index
+                    ] = regionname
+                    column_row_mapping[target]["row_mapping"][
+                        row_col_index
+                    ] = regionname
+        if len(column_row_mapping) > 0:
+            for tabulardata in self._find(TabularDataProvider):
+                remap_ops = [
+                    op
+                    for op in tabulardata.ops
+                    if op["type"] == RenameColumnsAndOrRows.type
+                ]
+                if len(remap_ops) > 0:
+                    logger.debug("RenameRowColumn already mapped. Skipped. ")
+                    continue
+
+                remap_dict = column_row_mapping.get(
+                    tabulardata.name
+                ) or column_row_mapping.get(None)
+
+                if remap_dict is None:
+                    logger.debug(
+                        "Cannot find a suitable col/row remapper for the following tabular data:",
+                        tabulardata,
+                    )
+                tabulardata.append_op(
+                    RenameColumnsAndOrRows.generate_specs(remap_dict=remap_dict)
+                )
 
     def _get(self, attr_type: Type[T]):
         return assert_ooo(self._find(attr_type))
@@ -163,6 +209,7 @@ class AttributeCollection:
             if len(ebrain_ref_descs) > 0:
                 return ebrain_ref_descs[0]
 
+    # TODO deprecate. use data_providers_table
     @property
     def facets(self):
         df = pd.DataFrame(
@@ -170,6 +217,7 @@ class AttributeCollection:
         )
         return pd.concat([df, *[attr.facets for attr in self.attributes]])
 
+    # TODO deprecate
     @staticmethod
     def get_query_str(facet_dict=None, **kwargs):
         if facet_dict is not None:
@@ -193,6 +241,7 @@ class AttributeCollection:
             ]
         )
 
+    # TODO deprecate, use find_dataproviders instead
     def filter_attributes_by_facets(self, facet_dict=None, **kwargs):
         """
         Return a new AttributeCollection, where the attributes either:
@@ -209,6 +258,7 @@ class AttributeCollection:
             )
         )
 
+    # TODO deprecate, use find_dataproviders instead
     @staticmethod
     def filter_facets(
         attribute_collections: List["AttributeCollection"], facet_dict=None, **kwargs
@@ -218,6 +268,7 @@ class AttributeCollection:
             ac for ac in attribute_collections if len(ac.facets.query(query_str)) > 0
         ]
 
+    # TODO deprecate use find_dataproviders instead
     @staticmethod
     def find_facets(attribute_collections: List["AttributeCollection"]):
         return pd.concat([ac.facets for ac in attribute_collections])

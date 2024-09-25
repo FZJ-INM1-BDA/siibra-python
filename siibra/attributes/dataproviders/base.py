@@ -142,7 +142,7 @@ class DataProvider(Attribute):
     def describe_data(self):
         return DataOp.describe(self.ops)
 
-    def query(self, *arg, **kwargs):
+    def query(self, *arg, **kwargs) -> "DataProvider":
         """
         Returns a copy of the data provider.
         """

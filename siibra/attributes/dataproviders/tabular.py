@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Dict, Union
 import pandas as pd
 from io import BytesIO
@@ -24,7 +24,7 @@ except ImportError:
     from typing_extensions import Literal
 
 from .base import DataProvider
-from ...operations.tabular import ParseAsTabular
+from ...operations.tabular import ParseAsTabular, DFAccessor
 
 
 @dataclass
@@ -84,3 +84,13 @@ class TabularDataProvider(DataProvider):
         self.get_data().to_csv(bio)
         bio.seek(0)
         yield "Tabular data", ".tabular.csv", bio
+
+    def query(self, *arg, column: str = None, **kwargs):
+        return replace(
+            self,
+            transformation_ops=[
+                *self.transformation_ops,
+                DFAccessor.generate_specs(column=column),
+            ],
+            plot_options={},  # Series would not have the same plot options as the parent DF
+        )
