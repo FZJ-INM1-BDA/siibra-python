@@ -15,10 +15,8 @@
 
 import anytree
 import json
-from typing import Iterable, Union, TYPE_CHECKING, List, Tuple, Set, Dict
+from typing import Iterable, Union, TYPE_CHECKING, List, Tuple
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import replace
-from collections import defaultdict
 
 from ..concepts import atlas_elements
 from ..attributes.descriptions import Name
@@ -46,60 +44,22 @@ def filter_newest(regions: List["Region"]) -> List["Region"]:
 @fn_call_cache
 def _get_region_boundingbox(parc_id: str, region_name: str, space_id: str):
     from .. import get_region, get_map
-    from ..attributes.dataproviders.volume.base import VolumeProvider
-    from ..operations.base import DataOp, Merge
-    from ..operations.volume_fetcher.nifti import NiftiExtractLabels
 
     mp = get_map(parc_id, space_id)
-    region = get_region(parc_id, region_name)
-
-    wanted_regionnames: Set[str] = {r.name for r in region}
-
-    wanted_labels: Dict[Union[None, str], List[int]] = defaultdict(list)
-    for regionname, mappings in mp.region_mapping.items():
-        if regionname not in wanted_regionnames:
-            continue
-        for mapping in mappings:
-            assert mapping["label"], f"labelled map with label not defined"
-            assert isinstance(
-                mapping["label"], int
-            ), f"expected labelled to be int, but is not"
-            wanted_labels[mapping.get("target")].append(mapping["label"])
+    region = get_region(parc_id, region_name)  # using region_name to be able to cache
 
     bbox = None
-    for volume in mp.volume_providers:
-
-        if volume.format not in VolumeFormats.IMAGE_FORMATS:
-            continue
-        local_wanted_labels = []
-        if volume.name:
-            local_wanted_labels.extend(wanted_labels.get(volume.name, []))
-        local_wanted_labels.extend(wanted_labels.get(None, []))
-        if len(local_wanted_labels) == 0:
-            continue
-
-        if volume.format == "nii":
-            try:
-                masked_vol = replace(
-                    volume,
-                    transformation_ops=[
-                        NiftiExtractLabels.generate_specs(labels=local_wanted_labels)
-                    ],
-                )
-                mask = masked_vol.get_data()
-
-                _bbox = boundingbox.from_array(mask.dataobj)
-                _bbox = replace(_bbox, maxpoint=[v + 1.0 for v in _bbox.maxpoint])
-                _bbox = boundingbox.BoundingBox.transform(_bbox, mask.affine)
-                _bbox.space_id = space_id
-
-                if bbox is None:
-                    bbox = _bbox
-                else:
-                    bbox = bbox.union(_bbox)
-
-            except Exception as e:
-                ...
+    try:
+        for r in region:
+            if r.name not in mp.regionnames:
+                continue
+            rmap_vp = mp.extract_regional_map(r.name)
+            if bbox is None:
+                bbox = rmap_vp.boundingbox
+            else:
+                bbox = bbox.union(rmap_vp.boundingbox)
+    except Exception:
+        logger.info(f"Could not create Bounding Box from {region_name}:", exc_info=1)
 
     return bbox
 
@@ -249,7 +209,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             searched_maps,
             lambda maps: (
                 (
-                    f"""
+                    """
     The specification matched multiple maps. Specify one of their names as the `name` keyword argument.
     """
                     + "\n"
@@ -269,7 +229,6 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         frmt: str = None,
     ):
         from .. import find_maps, Space
-        from .parcellationmap import Map
 
         space_spec = space.ID if isinstance(space, Space) else space
         for mp in find_maps(self.parcellation.ID, space_spec):

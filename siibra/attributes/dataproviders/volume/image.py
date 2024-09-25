@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, replace, asdict
-from typing import Union, Tuple, List, Dict
+from typing import Union, Tuple, List
 from pathlib import Path
 from hashlib import md5
 from io import BytesIO
@@ -24,10 +24,10 @@ import numpy as np
 import nibabel as nib
 
 from .base import VolumeProvider, VolumeOpsKwargs
-from ...locations import point, pointcloud, BoundingBox
+from ...locations import point, pointcloud, boundingbox as _boundingbox
 from ...locations.ops.intersection import _loc_intersection
 from ....operations.volume_fetcher.nifti import NiftiExtractVOI
-from ....operations.volume_fetcher.neuroglancer_precomputed import NgPrecomputedFetchCfg
+from ....operations.volume_fetcher.neuroglancer_precomputed import NgPrecomputedFetchCfg, NG_VOLUME_FORMAT_STR, fetch_ng_bbox
 
 
 @dataclass
@@ -35,8 +35,15 @@ class ImageProvider(VolumeProvider):
     schema: str = "siibra/attr/data/image/v0.1"
 
     @property
-    def boundingbox(self) -> "BoundingBox":
-        raise NotImplementedError
+    def boundingbox(self) -> "_boundingbox.BoundingBox":
+        if self.format == 'nii':
+            img = self.get_data()
+            bbox = _boundingbox.from_array(img.dataobj)
+            bbox = bbox.transform(img.affine, bbox.space_id)
+            return bbox
+
+        if self.format == NG_VOLUME_FORMAT_STR:
+            return fetch_ng_bbox(self)
 
     def get_affine(self, **volume_ops_kwargs: VolumeOpsKwargs):
         # TODO: pull from source without fetching the whole image
@@ -161,7 +168,7 @@ class ImageProvider(VolumeProvider):
 
     def get_intersection_scores(
         self,
-        item: Union[point.Point, pointcloud.PointCloud, BoundingBox, "ImageProvider"],
+        item: Union[point.Point, pointcloud.PointCloud, _boundingbox.BoundingBox, "ImageProvider"],
         iou_lower_threshold: Union[int, float] = 0.0,
         voxel_sigma_threshold: int = 3,
         statistical_map_lower_threshold: float = 0.0,
@@ -193,7 +200,7 @@ class ImageProvider(VolumeProvider):
         return super().get_data(**kwargs)
 
     def query(
-        self, *arg, bbox: "BoundingBox" = None, resolution_mm: float = None, **kwargs
+        self, *arg, bbox: "_boundingbox.BoundingBox" = None, resolution_mm: float = None, **kwargs
     ):
         """
         Return a copy of the image provider with the following constrains (if provided):

@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, replace, asdict
-from typing import List, Dict, Tuple, Union, TYPE_CHECKING, Iterable
+from typing import List, Dict, Tuple, Union, Iterable
 import json
 from pathlib import Path
 import requests
@@ -30,23 +30,20 @@ except ImportError:
 import numpy as np
 from pandas import DataFrame
 import nibabel as nib
-import os
 
 from .parcellationmap import Map
-from .region import Region
 from ..attributes.dataproviders.volume.image import ImageProvider
-from ..attributes.dataproviders.volume import VolumeOpsKwargs, SIIBRA_MAX_FETCH_SIZE_GIB
+from ..attributes.dataproviders.volume import VolumeOpsKwargs
 from ..attributes.locations import Point, PointCloud, BoundingBox
 from ..attributes.locations.boundingbox import (
     from_imageprovider as bbox_from_imageprovider,
 )
 from ..operations.file_fetcher.io.base import PartialReader
 from ..operations.file_fetcher.io import MemoryPartialReader
-from ..commons.logger import siibra_tqdm, logger, QUIET
+from ..commons.logger import siibra_tqdm, logger
 from ..commons.conf import SiibraConf
 from ..cache import CACHE
 from ..operations.image_assignment import (
-    ImageAssignment,
     ScoredImageAssignment,
     get_intersection_scores,
 )
@@ -563,7 +560,7 @@ class SparseMap(Map):
                 return self.lookup_points(queryitem, **volume_ops_kwargs)
 
         spind = self._get_readable_sparseindex(
-            warmup=SiibraConf.KEEP_LOCAL_CACHE > 0, inmemory=MEMORY_HUNGRY > 0
+            warmup=SiibraConf.KEEP_LOCAL_CACHE > 0, inmemory=SiibraConf.MEMORY_HUNGRY > 0
         )
         queryitemloc = (
             bbox_from_imageprovider(queryitem)

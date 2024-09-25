@@ -70,7 +70,7 @@ class Map(AtlasElement):
             self.__getattribute__(spec) is not None for spec in essential_specs
         ), f"Cannot create a parcellation `Map` without {essential_specs}"
         if len(self.regionnames) == 0:
-            raise RuntimeError(f"Map does not contain any regions")
+            raise RuntimeError("Map does not contain any regions")
         super().__post_init__()
 
     @property
@@ -146,7 +146,7 @@ class Map(AtlasElement):
                 0
             ]
         else:
-            assert frmt not in self.formats, RuntimeError(
+            assert frmt in self.formats, RuntimeError(
                 f"Requested format '{frmt}' is not available for this map: {self.formats}."
             )
         return frmt
@@ -157,7 +157,6 @@ class Map(AtlasElement):
         frmt: str = None,
     ):
         # N.B. region *must* be a leaf node (i.e. directly mapped, cannot be a parent)
-        # TODO fix to allow parents?
         frmt = self._select_format(frmt)
 
         # TODO: filtering mappings should be smarter. ie what if there are two "volume/ref"?
@@ -225,8 +224,7 @@ class Map(AtlasElement):
         if region is None:
             if len(self.regionnames) != 1:
                 raise RuntimeError(
-                    """Map contains multiple regions. Please provide one of the following as region:
-                                   """
+                    """Map contains multiple regions. Please provide one of the following as region:"""
                     + "\n".join(self.regionnames)
                 )
             regionname = self.regionnames[0]

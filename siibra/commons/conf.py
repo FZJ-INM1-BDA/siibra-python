@@ -26,6 +26,7 @@ if SiibraConf.KEEP_LOCAL_CACHE:
 """
 
 
+# TODO: rename this class to avoid clash with configuration
 class SiibraConf:
     KEEP_LOCAL_CACHE = int(os.getenv("KEEP_LOCAL_CACHE", 1))
     MEMORY_HUNGRY = int(os.getenv("MEMORY_HUNGRY", 1))

@@ -25,7 +25,6 @@ from neuroglancer_scripts.precomputed_io import (
     PrecomputedIO,
 )
 from concurrent.futures import ThreadPoolExecutor
-from itertools import product
 
 
 try:
