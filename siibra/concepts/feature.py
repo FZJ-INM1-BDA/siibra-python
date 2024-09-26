@@ -16,7 +16,6 @@
 from typing import List
 import pandas as pd
 
-from ..commons.logger import logger
 from ..attributes.locations import Location
 from ..attributes.attribute_collection import (
     AttributeCollection,
@@ -78,28 +77,14 @@ class Feature(AttributeCollection):
 
         return dfs
 
-    def plotiter(self, *args, **kwargs):
-        from ..attributes.dataproviders import TabularDataProvider
+    def plot_summary(self, *args, **kwargs):
+        summaries = self.find_dataproviders("type == 'TabularDataProvider'")
+        if len(summaries) == 0:
+            raise RuntimeError("There are no summaries for this feature.")
+        if len(summaries) == 1:
+            return summaries[0].plot(*args, **kwargs)
+        raise NotImplementedError("Cannot plot several summary figures yet")
 
-        for d in self._find(TabularDataProvider):
-            yield d.plot(*args, **kwargs)
-
-    def plot(self, *args, **kwargs):
-        from ..attributes.dataproviders import TabularDataProvider
-
-        summaries = [
-            tdp for tdp in self._find(TabularDataProvider) if tdp.name == SUMMARY_NAME
-        ]
-        if len(summaries) > 0:
-            return [dp.plot(*args, **kwargs) for dp in summaries]
-        counter = 0
-        return_val = []
-        for plot in self.plotiter(*args, **kwargs):
-            return_val.append(plot)
-            counter += 1
-            if counter > 5:
-                logger.warning(
-                    "Only plotting 5 plots. Please use plotiter if you intend to plot all plots"
-                )
-                break
-        return return_val
+    def plot(self, expr: str = None, index: int = 0, *args, **kwargs):
+        dp = self.get_dataprovider(expr=expr, index=index)
+        return dp.plot(*args, **kwargs)

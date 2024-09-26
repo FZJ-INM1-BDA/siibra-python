@@ -136,7 +136,7 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
             input_attr = TabularDataProvider(
                 url=filename,
                 name=SUMMARY_NAME,
-                plot_options={"y": "mean", "yerr": "std", "type": "bar"},
+                plot_options={"y": "mean", "yerr": "std", "kind": "bar"},
             )
             attributes.append(input_attr)
 

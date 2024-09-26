@@ -23,7 +23,6 @@ from typing import (
     List,
     Union,
     BinaryIO,
-    TYPE_CHECKING,
     Dict,
 )
 import pandas as pd
@@ -46,13 +45,9 @@ from .descriptions import (
 )
 from ..operations.tabular import RemapColRowDict, RenameColumnsAndOrRows
 from ..commons.iterable import assert_ooo
-from ..commons.string import fuzzy_match
 from ..commons.logger import siibra_tqdm, logger
 
 T = TypeVar("T")
-
-if TYPE_CHECKING:
-    from .dataproviders import ImageProvider
 
 
 MATRIX_INDEX_ENTITY_KEY = "x-siibra/matrix-index-entity/index"
@@ -123,10 +118,14 @@ class AttributeCollection:
             if isinstance(attr, attr_type):
                 yield attr
 
-    def get_dataprovider(self, expr, *args, **kwargs):
-        return assert_ooo(self.find_dataproviders(expr, *args, **kwargs))
+    def get_dataprovider(self, expr: str = None, index: Union[int, None] = None):
+        if index is not None:
+            assert expr is None, "Only index or expr can be set at a time."
+            return self._find(DataProvider)[index]
+        assert index is None, "Only index or expr can be set at a time."
+        return assert_ooo(self.find_dataproviders(expr))
 
-    def find_dataproviders(self, expr=None, *args, **kwargs) -> List[DataProvider]:
+    def find_dataproviders(self, expr: str = None) -> List[DataProvider]:
         return list(self.data_providers_table.query(expr)["dataprovider"])
 
     @property

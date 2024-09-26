@@ -153,7 +153,7 @@ def find_features(
     if "genes" in kwargs:
         assert isinstance(kwargs["genes"], list)
         gene_ac = AttributeCollection(
-            attributes=[Gene(value=gene.upper()) for gene in kwargs["genes"]]
+            attributes=[Gene(value=gene.upper()) if isinstance(gene, Gene) else gene for gene in kwargs["genes"]]
         )
         query_ac.append(gene_ac)
 
