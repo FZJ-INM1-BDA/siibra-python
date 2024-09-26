@@ -75,7 +75,13 @@ class MeshProvider(VolumeProvider):
     #     return gii
 
     def plot(self, *args, **kwargs):
-        raise NotImplementedError
+        from nilearn import plotting
+
+        return plotting.view_surf(
+            self.get_data(),
+            *args,
+            **kwargs,
+        )
 
     def get_data(self) -> GiftiImage:
         return super().get_data()

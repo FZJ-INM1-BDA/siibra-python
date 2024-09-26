@@ -27,7 +27,11 @@ from .base import VolumeProvider, VolumeOpsKwargs
 from ...locations import point, pointcloud, boundingbox as _boundingbox
 from ...locations.ops.intersection import _loc_intersection
 from ....operations.volume_fetcher.nifti import NiftiExtractVOI
-from ....operations.volume_fetcher.neuroglancer_precomputed import NgPrecomputedFetchCfg, NG_VOLUME_FORMAT_STR, fetch_ng_bbox
+from ....operations.volume_fetcher.neuroglancer_precomputed import (
+    NgPrecomputedFetchCfg,
+    NG_VOLUME_FORMAT_STR,
+    fetch_ng_bbox,
+)
 
 
 @dataclass
@@ -36,7 +40,7 @@ class ImageProvider(VolumeProvider):
 
     @property
     def boundingbox(self) -> "_boundingbox.BoundingBox":
-        if self.format == 'nii':
+        if self.format == "nii":
             img = self.get_data()
             bbox = _boundingbox.from_array(img.dataobj)
             bbox.space_id = self.space_id
@@ -51,7 +55,19 @@ class ImageProvider(VolumeProvider):
         return self.get_data(**volume_ops_kwargs).affine
 
     def plot(self, *args, **kwargs):
-        raise NotImplementedError
+        from nilearn import plotting
+
+        bg_img = kwargs.pop("bg_img", self.space.get_template().get_data())
+        cmap = kwargs.pop("cmap", "magma")
+        symmetric_cmap = kwargs.pop("symmetric_cmap", False)
+        return plotting.view_img(
+            self.get_data(),
+            *args,
+            bg_img=bg_img,
+            cmap=cmap,
+            symmetric_cmap=symmetric_cmap,
+            **kwargs,
+        )
 
     def _iter_zippable(self):
         yield from super()._iter_zippable()
@@ -169,7 +185,12 @@ class ImageProvider(VolumeProvider):
 
     def get_intersection_scores(
         self,
-        item: Union[point.Point, pointcloud.PointCloud, _boundingbox.BoundingBox, "ImageProvider"],
+        item: Union[
+            point.Point,
+            pointcloud.PointCloud,
+            _boundingbox.BoundingBox,
+            "ImageProvider",
+        ],
         iou_lower_threshold: Union[int, float] = 0.0,
         voxel_sigma_threshold: int = 3,
         statistical_map_lower_threshold: float = 0.0,
@@ -201,7 +222,11 @@ class ImageProvider(VolumeProvider):
         return super().get_data(**kwargs)
 
     def query(
-        self, *arg, bbox: "_boundingbox.BoundingBox" = None, resolution_mm: float = None, **kwargs
+        self,
+        *arg,
+        bbox: "_boundingbox.BoundingBox" = None,
+        resolution_mm: float = None,
+        **kwargs,
     ):
         """
         Return a copy of the image provider with the following constrains (if provided):
