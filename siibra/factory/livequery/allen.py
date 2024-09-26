@@ -99,6 +99,7 @@ def add_allen_modality():
 # LiveQuery[Feature] -> the Feature annotation here is for typing
 # generates=Feature -> the declaration here is to indicate to the baseclass that this class generates Feature
 class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
+    # TODO: allen gene query should take ImageProviders as input
     def generate(self):
         from ... import get_map
 
@@ -114,7 +115,7 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
 
         use_query_concept: Union[ImageProvider, None] = None
         regions = self.find_attribute_collections(Region)
-        if len(regions) == 1:
+        if len(regions) != 1:
             logger.warning(
                 f"AllenLiveQueryError: expecting one and only one Region, but got {len(regions)}."
             )

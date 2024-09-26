@@ -132,7 +132,7 @@ class DataProvider(Attribute):
     def pop_op(self, index=-1):
         if len(self.override_ops) > 0:
             if len(self.override_ops) == 1:
-                raise IndexError(f"overridden image provider cannot be fully popped")
+                raise IndexError("Overridden image provider cannot be fully popped")
             return self.override_ops.pop(index)
         return self.transformation_ops.pop(index)
 
@@ -147,3 +147,6 @@ class DataProvider(Attribute):
         Returns a copy of the data provider.
         """
         return replace(self)
+
+    def plot(self, *args, **kwargs):
+        raise NotImplementedError

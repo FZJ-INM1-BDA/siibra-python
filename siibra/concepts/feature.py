@@ -16,6 +16,7 @@
 from typing import List
 import pandas as pd
 
+from ..commons.logger import logger
 from ..attributes.locations import Location
 from ..attributes.attribute_collection import (
     AttributeCollection,
@@ -56,6 +57,7 @@ class Feature(AttributeCollection):
 
     @property
     def data(self):
+        logger.warning("`data` will be depricated! Use `extract_data()` instead.")
         from ..attributes.dataproviders import TabularDataProvider
 
         matrix_entity_key = self.filter(attr_of_general_interest)
@@ -76,6 +78,10 @@ class Feature(AttributeCollection):
                 df.rename(index=remapper, columns=remapper, inplace=True)
 
         return dfs
+
+    def extract_data(self, expr: str = None, index: int = 0):
+        dp = self.get_dataprovider(expr=expr, index=index)
+        return dp.get_data()
 
     def plot_summary(self, *args, **kwargs):
         summaries = self.find_dataproviders("type == 'TabularDataProvider'")
