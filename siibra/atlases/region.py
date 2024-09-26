@@ -26,7 +26,6 @@ from ..commons.iterable import assert_ooo
 from ..commons.maps import spatial_props
 from ..commons.logger import logger
 from ..commons.register_recall import RegisterRecall
-from ..operations.volume_fetcher import VolumeFormats
 from ..operations.file_fetcher.dataproxy_fetcher import DataproxyRepository
 from ..cache import fn_call_cache
 
@@ -43,10 +42,10 @@ def filter_newest(regions: List["Region"]) -> List["Region"]:
 
 @fn_call_cache
 def _get_region_boundingbox(parc_id: str, region_name: str, space_id: str):
-    from .. import get_region, get_map
+    from .. import get_map
 
     mp = get_map(parc_id, space_id)
-    region = get_region(parc_id, region_name)  # using region_name to be able to cache
+    region = mp.parcellation.get_region(region_name)  # using region_name to be able to cache
 
     bbox = None
     try:
@@ -83,6 +82,12 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
     @property
     def parcellation(self) -> "ParcellationScheme":
         return self.root
+
+    @property
+    def mapped_spaces(self) -> Iterable["Space"]:
+        from .. import find_maps
+        for mp in find_maps(self.parcellation.ID):
+            yield mp.space
 
     def tree2str(self):
         """Render region-tree as a string"""
@@ -136,24 +141,20 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
 
         maps = find_maps(self.parcellation.ID)
 
-        image_mps = [
-            m
-            for m in maps
-            if any(format in VolumeFormats.IMAGE_FORMATS for format in m.formats)
-        ]
-
         return_result: List[boundingbox.BoundingBox] = []
-        for map in image_mps:
+        for mp in maps:
+            if not mp.provides_image:
+                continue
             try:
                 bbox = _get_region_boundingbox(
-                    self.parcellation.ID, self.name, map.space_id
+                    self.parcellation.ID, self.name, mp.space_id
                 )
                 if bbox:
                     return_result.append(bbox)
             except Exception as e:
                 print("Error:", e, type(e))
                 logger.debug(
-                    f"Error fetching boundingbox for {str(self)} in {str(map)}: {str(e)}"
+                    f"Error fetching boundingbox for {str(self)} in {str(mp)}: {str(e)}"
                 )
         return return_result
 

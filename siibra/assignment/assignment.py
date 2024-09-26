@@ -100,8 +100,12 @@ def preprocess_concept(concept: Union[AtlasElement, Location, DataProvider]):
     ), f"Expect concept to be either AtlasElement or Location, but was {type(concept)} instead"
 
     if isinstance(concept, Region):
-        bboxes = concept.find_boundingboxes()
-        concept.attributes = [*concept.attributes, *bboxes]
+        bbox = None
+        for space in concept.mapped_spaces:
+            bbox = concept.get_boundingbox(space=space)
+            if bbox is not None:
+                break
+        concept.attributes = (*concept.attributes, bbox,)
 
     if isinstance(concept, Space):
         # When user query space, we are assuming that they really want to see all features that overlaps with

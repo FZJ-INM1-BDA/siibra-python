@@ -120,11 +120,9 @@ def get_map(parcellation: str, space: str, maptype: str = "labelled", name: str 
         searched_maps,
         lambda maps: (
             (
-                f"""
-The specification matched multiple maps. Specify one of their names as the `name` keyword argument.
-"""
-                + "\n"
-                + "\n".join(f"- {m.name}" for m in maps)
+                "The specification matched multiple maps. Specify one of their ",
+                "names as the `name` keyword argument.\n",
+                "\n".join(f"- {m.name}" for m in maps)
             )
             if len(maps) > 1
             else """The specification matched no maps."""
@@ -172,7 +170,7 @@ def find_features(
 
 
 # convenient access to regions of a parcellation
-def get_region(parcellation: str, region: str):
+def get_region(parcellation: str, region: str) -> Region:
     found_regions = find_regions(parcellation, region)
     if len(found_regions) == 0:
         raise NotFoundException(
