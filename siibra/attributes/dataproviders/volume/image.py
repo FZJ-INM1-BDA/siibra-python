@@ -39,6 +39,7 @@ class ImageProvider(VolumeProvider):
         if self.format == 'nii':
             img = self.get_data()
             bbox = _boundingbox.from_array(img.dataobj)
+            bbox.space_id = self.space_id
             bbox = bbox.transform(img.affine, bbox.space_id)
             return bbox
 

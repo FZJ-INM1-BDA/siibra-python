@@ -445,21 +445,21 @@ class NgPrecomputedFetchCfg(DataOp):
 
 @fn_call_cache
 def fetch_ng_bbox(
-    image: "VolumeProvider", fetchkwargs: Union[VolumeOpsKwargs, None] = None
+    image_prov: "VolumeProvider", fetchkwargs: Union[VolumeOpsKwargs, None] = None
 ) -> "BoundingBox":
-    assert image.format == NG_VOLUME_FORMAT_STR
+    assert image_prov.format == NG_VOLUME_FORMAT_STR
     from ...attributes.locations import BoundingBox
 
     provided_bbox = fetchkwargs["bbox"] if fetchkwargs else None
-    if provided_bbox and provided_bbox.space_id != image.space_id:
+    if provided_bbox and provided_bbox.space_id != image_prov.space_id:
         raise RuntimeError(
-            f"Fetching ngbbox error. image.space_id={image.space_id!r} "
+            f"Fetching ngbbox error. image.space_id={image_prov.space_id!r} "
             f"!= provided_bbox.space_id={provided_bbox.space_id!r}"
         )
 
-    info_json = get_info(image.url)
+    info_json = get_info(image_prov.url)
 
-    transform_json = get_transform_nm(image.url)
+    transform_json = get_transform_nm(image_prov.url)
 
     scale, *_ = info_json.get("scales")
     size = scale.get("size")
@@ -473,7 +473,7 @@ def fetch_ng_bbox(
     min = np.min(new_coord, axis=0)
     max = np.max(new_coord, axis=0)
     bbox = BoundingBox(
-        minpoint=min.tolist(), maxpoint=max.tolist(), space_id=image.space_id
+        minpoint=min.tolist(), maxpoint=max.tolist(), space_id=image_prov.space_id
     )
 
     if not provided_bbox:

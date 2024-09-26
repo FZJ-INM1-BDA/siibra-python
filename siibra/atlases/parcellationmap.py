@@ -97,7 +97,7 @@ class Map(AtlasElement):
     def regionnames(self) -> List[str]:
         return list(self.region_mapping.keys())
 
-    def decode_region(self, regionname: str):
+    def get_region(self, regionname: str) -> Region:
         return self.parcellation.get_region(regionname)
 
     @property
