@@ -321,23 +321,7 @@ class MergeLabelledNiftis(DataOp):
 class IntersectNiftiWithNifti(DataOp):
     input: Tuple[Nifti1Image, Nifti1Image]
     output: Nifti1Image
-    desc = """
-    Get the intersection of the images' masks.
-
-    Note
-    ----
-    Assumes the background is 0 for both nifti.
-
-    Parameters
-    ----------
-    nii0 : Nifti1Image
-    nii1 : Nifti1Image
-
-    Returns
-    -------
-    Nifti1Image
-        returns a mask (i.e. dtype('uint8'))
-    """
+    desc = "Get the intersection of the images' masks."
     type = "codec/vol/intersectNifti"
 
     def run(self, input, **kwargs):

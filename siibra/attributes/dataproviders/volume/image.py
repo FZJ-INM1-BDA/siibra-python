@@ -26,12 +26,13 @@ import nibabel as nib
 from .base import VolumeProvider, VolumeOpsKwargs
 from ...locations import point, pointcloud, boundingbox as _boundingbox
 from ...locations.ops.intersection import _loc_intersection
-from ....operations.volume_fetcher.nifti import NiftiExtractVOI
+from ....operations.volume_fetcher.nifti import NiftiExtractVOI, IntersectNiftiWithNifti
 from ....operations.volume_fetcher.neuroglancer_precomputed import (
     NgPrecomputedFetchCfg,
     NG_VOLUME_FORMAT_STR,
     fetch_ng_bbox,
 )
+from ....operations.base import Merge
 
 
 @dataclass
@@ -119,7 +120,7 @@ class ImageProvider(VolumeProvider):
         self,
         points: Union["point.Point", "pointcloud.PointCloud"],
         **volume_ops_kwargs: VolumeOpsKwargs,
-    ):
+    ) -> Tuple[List[int], np.ndarray]:
         """
         Evaluate the image at the positions of the given points.
 
@@ -133,8 +134,15 @@ class ImageProvider(VolumeProvider):
         ptcloud: PointSet
         outside_value: int, float. Default: 0
         volume_ops_kwargs: dict
-            Any additional arguments are passed to the `fetch()` call for
-            retrieving the image data.
+            Any additional arguments are passed to the image override_ops
+            for retrieving the image data as requested.
+
+        Returns
+        -------
+        Tuple[valid_voxel_indices, values]
+            First array provides the indicies of valid voxel coordinates, and the
+            second contains the respective values. Invalid voxel coordinate means
+            the values lie outside of the nifti array.
         """
         x, y, z = self._points_to_voxels_coords(points, **volume_ops_kwargs)
         return self._read_voxels(x=x, y=y, z=z, **volume_ops_kwargs)
@@ -160,7 +168,7 @@ class ImageProvider(VolumeProvider):
 
         Returns
         -------
-        Iterator[valid_voxel_indices, values]
+        Tuple[valid_voxel_indices, values]
             First array provides the indicies of valid voxel coordinates, and the
             second contains the respective values. Invalid voxel coordinate means
             the values lie outside of the nifti array.
@@ -340,9 +348,10 @@ def compare_ptcloud_to_image(ptcloud: pointcloud.PointCloud, image: ImageProvide
 def intersect_ptcld_image(
     ptcloud: pointcloud.PointCloud, image: ImageProvider
 ) -> pointcloud.PointCloud:
-    value_outside = 0
-    values = image.lookup_points(ptcloud)
-    inside = np.array(values[0])[np.where(values[1] != value_outside)[0]].tolist()
+    print('hello')
+    background_value = 0
+    valid_voxel_indices, values = image.lookup_points(ptcloud)
+    inside = np.array(valid_voxel_indices)[np.where(values != background_value)[0]].tolist()
     return replace(
         ptcloud,
         coordinates=[ptcloud.coordinates[i] for i in inside],
@@ -351,18 +360,12 @@ def intersect_ptcld_image(
 
 
 @_loc_intersection.register(ImageProvider, ImageProvider)
-def intersect_image_to_image(image0: ImageProvider, image1: ImageProvider):
-    nii0 = image0.get_data()
-    nii1 = image1.get_data()
-    if np.issubdtype(nii0.dataobj, np.floating) or np.issubdtype(
-        nii1.dataobj, np.floating
-    ):
-        pass
-    else:
-        raise NotImplementedError
-        # TODO reimplement this asd a DataOp
-        # elementwise_mask_intersection = intersect_nii_to_nii(nii0, nii1)
-        # return from_nifti(
-        #     elementwise_mask_intersection,
-        #     space_id=image0.space_id,
-        # )
+def intersect_image_to_image(imgprov0: ImageProvider, imgprov1: ImageProvider):
+    intersection_provider = ImageProvider(
+        space_id=imgprov0.space_id,  # 1st image is resampled onto 0th voxel space
+        override_ops=[
+            Merge.spec_from_dataproviders([imgprov0, imgprov1]),
+            IntersectNiftiWithNifti.generate_specs(),
+        ],
+    )
+    return intersection_provider.get_data()

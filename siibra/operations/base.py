@@ -228,7 +228,7 @@ class Merge(DataOp):
     def spec_from_dataproviders(cls, dataproviders: List["DataProvider"]):
         assert all(
             len(dp.transformation_ops) == 0 for dp in dataproviders
-        ), f"Expected no transformops to be in data providers"
+        ), "Expected no transformops to be in data providers"
         srcs: List[Dict] = []
         for dv in dataproviders:
             srcs.append(dv.ops)
