@@ -153,13 +153,17 @@ def find_features(
     if "genes" in kwargs:
         assert isinstance(kwargs["genes"], list)
         gene_ac = AttributeCollection(
-            attributes=[Gene(value=gene.upper()) if isinstance(gene, Gene) else gene for gene in kwargs["genes"]]
+            attributes=[Gene(gene["symbol"]) if isinstance(gene, dict) else Gene(value=gene.upper()) for gene in kwargs["genes"]]
         )
         query_ac.append(gene_ac)
 
     if "gene" in kwargs:
-        assert isinstance(kwargs["gene"], str)
-        gene_ac = AttributeCollection(attributes=[Gene(value=kwargs["gene"].upper())])
+        if isinstance(kwargs["gene"], dict):
+            gene = kwargs["gene"]["symbol"]
+        else:
+            gene = kwargs["gene"]
+        assert isinstance(gene, str)
+        gene_ac = AttributeCollection(attributes=[Gene(value=gene.upper())])
         query_ac.append(gene_ac)
 
     # place modality_query_param first, since it shortcircuits alot quicker
