@@ -234,8 +234,8 @@ def get_image_intersection_score(
         "Assigned volume must be in the same space as the map."
     )
 
-    querynii = query_image.get_data(**fetch_kwargs)
-    target_nii = target_image.get_data(**fetch_kwargs)
+    querynii = query_image.query(**fetch_kwargs).get_data()
+    target_nii = target_image.query(**fetch_kwargs).get_data()
     querynii_resamp = ResampleNifti.resample_img_to_img(querynii, target_nii)
 
     iter_components = (
