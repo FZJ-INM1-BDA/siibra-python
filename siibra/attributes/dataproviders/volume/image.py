@@ -260,7 +260,7 @@ def from_pointcloud(
     cached=False,
     target: ImageProvider = None,
 ) -> ImageProvider:
-    from ....operations.base import Of
+    from ....operations.base import FromInstance
     from ....operations.volume_fetcher.nifti import NiftiFromPointCloud
     from ....operations.volume_fetcher.nifti import ResampleNifti
 
@@ -272,7 +272,7 @@ def from_pointcloud(
     return ImageProvider(
         format="nii",
         override_ops=[
-            Of.generate_specs(instance=pointcloud, force=(not cached)),
+            FromInstance.generate_specs(instance=pointcloud, force=(not cached)),
             NiftiFromPointCloud.generate_specs(normalize=normalize, force=(not cached)),
             *transformation_ops,
         ],
