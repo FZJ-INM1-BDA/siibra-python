@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, List, TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING
 from io import BytesIO
 import os
 
