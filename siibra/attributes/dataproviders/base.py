@@ -67,7 +67,12 @@ def run_steps(steps: List[Dict]):
 class DataProvider(Attribute):
     """Base DataProvider Class
 
+    A data provider is running a sequence of operations (DataOp instances) to produce a data element.
+    The operations are separated into two stages: retrieval operations and transformation operations.
+    Retrieval operations are meant to be read-only, thus always be carried out in the same fashion, 
+    while subsequent transformations might be adjusted by developers.
     If retrieval_op is defined, will use the provided retrieval_ops, rather than parsing properties etc.
+
     """
 
     schema: str = "siibra/attr/data"
