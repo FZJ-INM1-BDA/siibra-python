@@ -21,12 +21,13 @@ import numpy as np
 from nilearn.image import resample_to_img, resample_img
 from skimage import filters
 
-from .base import PostProcVolProvider
+from .base import PostProcVolProvider, VolumeFormats
 from ...operations import DataOp
 from ...commons.logger import siibra_tqdm, logger
 
 if TYPE_CHECKING:
     from ...attributes.locations import BoundingBox, PointCloud
+    from ...attributes.dataproviders.volume import VolumeProvider
 
 
 class NiftiCodec(DataOp):
@@ -43,6 +44,7 @@ class NiftiCodec(DataOp):
         cls._ALL_NIFTI_CODES.add(cls.type)
 
 
+@VolumeFormats.register_format_read("nii", "image")
 class ReadNiftiFromBytes(DataOp, PostProcVolProvider):
     input: bytes
     output: Nifti1Image
@@ -57,6 +59,11 @@ class ReadNiftiFromBytes(DataOp, PostProcVolProvider):
             return Nifti1Image.from_bytes(gzip.decompress(input))
         except gzip.BadGzipFile:
             return Nifti1Image.from_bytes(input)
+
+    @classmethod
+    def on_get_retrieval_ops(cls, volume_provider: "VolumeProvider"):
+        base_retrieval_ops = super().on_get_retrieval_ops(volume_provider)
+        return [*base_retrieval_ops, ReadNiftiFromBytes.generate_specs()]
 
 
 class NiftiMask(NiftiCodec):

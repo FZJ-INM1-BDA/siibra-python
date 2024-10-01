@@ -24,18 +24,9 @@ from ...commons.maps import _merge_giftis
 if TYPE_CHECKING:
     from ...attributes.dataproviders.volume import VolumeProvider
 
-
 @VolumeFormats.register_format_read("gii-mesh", "mesh")
 @VolumeFormats.register_format_read("gii-label", "mesh")
-class FreesurferAnnot(PostProcVolProvider):
-
-    @classmethod
-    def on_get_retrieval_ops(cls, volume_provider: "VolumeProvider"):
-        base_retrieval_ops = super().on_get_retrieval_ops(volume_provider)
-        return [*base_retrieval_ops, ReadGiftiFromBytesGii.generate_specs()]
-
-
-class ReadGiftiFromBytesGii(DataOp):
+class ReadGiftiFromBytesGii(DataOp, PostProcVolProvider):
     input: bytes
     output: gifti.GiftiImage
     desc = "Reads bytes into gifti"
@@ -47,6 +38,11 @@ class ReadGiftiFromBytesGii(DataOp):
             return gifti.GiftiImage.from_bytes(gzip.decompress(input))
         except gzip.BadGzipFile:
             return gifti.GiftiImage.from_bytes(input)
+        
+    @classmethod
+    def on_get_retrieval_ops(cls, volume_provider: "VolumeProvider"):
+        base_retrieval_ops = super().on_get_retrieval_ops(volume_provider)
+        return [*base_retrieval_ops, ReadGiftiFromBytesGii.generate_specs()]
 
 
 class MergeGifti(DataOp):
