@@ -192,17 +192,17 @@ class Map(AtlasElement):
             )
             provider = providers[0]
 
-        transformpation_ops: List[DataOp] = []
+        transformation_ops: List[DataOp] = []
         if mapping.get("label"):
-            transformpation_ops.append(
+            transformation_ops.append(
                 NiftiExtractLabels.generate_specs(labels=[mapping.get("label")])
             )
         if mapping.get("subspace"):
-            transformpation_ops.append(
+            transformation_ops.append(
                 NiftiExtractSubspace.generate_specs(subspace=mapping.get("subspace"))
             )
 
-        return replace(provider, transformation_ops=transformpation_ops)
+        return replace(provider, transformation_ops=transformation_ops)
 
     def extract_regional_map(
         self,
