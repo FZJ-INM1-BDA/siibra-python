@@ -26,13 +26,18 @@ import nibabel as nib
 from .base import VolumeProvider, VolumeOpsKwargs
 from ...locations import point, pointcloud, boundingbox as _boundingbox
 from ...locations.ops.intersection import _loc_intersection
-from ....operations.volume_fetcher.nifti import NiftiExtractVOI, IntersectNiftiWithNifti
+from ....operations.volume_fetcher.nifti import (
+    NiftiExtractVOI,
+    IntersectNiftiWithNifti,
+    NiftiFromPointCloud,
+    ResampleNifti,
+)
 from ....operations.volume_fetcher.neuroglancer_precomputed import (
     NgPrecomputedFetchCfg,
     NG_VOLUME_FORMAT_STR,
     fetch_ng_bbox,
 )
-from ....operations.base import Merge
+from ....operations.base import Merge, FromInstance
 
 
 @dataclass
@@ -260,15 +265,20 @@ def from_pointcloud(
     cached=False,
     target: ImageProvider = None,
 ) -> ImageProvider:
-    from ....operations.base import FromInstance
-    from ....operations.volume_fetcher.nifti import NiftiFromPointCloud
-    from ....operations.volume_fetcher.nifti import ResampleNifti
+    from ..base import DataRecipe
 
     transformation_ops = []
     if target is not None:
         transformation_ops = [
             ResampleNifti.generate_specs(target_img=target.get_data())
         ]
+    return DataRecipe(
+        ops=[
+            FromInstance.generate_specs(instance=pointcloud, force=(not cached)),
+            NiftiFromPointCloud.generate_specs(normalize=normalize, force=(not cached)),
+            *transformation_ops,
+        ]
+    )
     return ImageProvider(
         format="nii",
         override_ops=[
@@ -348,10 +358,11 @@ def compare_ptcloud_to_image(ptcloud: pointcloud.PointCloud, image: ImageProvide
 def intersect_ptcld_image(
     ptcloud: pointcloud.PointCloud, image: ImageProvider
 ) -> pointcloud.PointCloud:
-    print('hello')
     background_value = 0
     valid_voxel_indices, values = image.lookup_points(ptcloud)
-    inside = np.array(valid_voxel_indices)[np.where(values != background_value)[0]].tolist()
+    inside = np.array(valid_voxel_indices)[
+        np.where(values != background_value)[0]
+    ].tolist()
     return replace(
         ptcloud,
         coordinates=[ptcloud.coordinates[i] for i in inside],

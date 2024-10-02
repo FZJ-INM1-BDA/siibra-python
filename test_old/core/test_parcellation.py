@@ -222,24 +222,24 @@ class TestParcellation(unittest.TestCase):
                 p.find.assert_called_once_with(regionspec="fooz")
             self.assertEqual(result, [parc3] if parents_only else [parc1, parc2, parc3])
 
-    @parameterized.expand([
-        # partial matches work
-        ("foo bar", False, False, region_parent),
-
-        # exact matches work
-        (region_child1.name, False, False, region_child1),
-
-        # regionspec work
-        (region_parent, False, False, region_parent),
-    ])
+    @parameterized.expand(
+        [
+            # partial matches work
+            ("foo bar", False, False, region_parent),
+            # exact matches work
+            (region_child1.name, False, False, region_child1),
+            # regionspec work
+            (region_parent, False, False, region_parent),
+        ]
+    )
     def test_get_region(self, regionspec, find_topmost, allow_tuple, result):
         self.parc.children = [region_parent]
-        self.assertIs(self.parc.get_region(regionspec, find_topmost, allow_tuple), result)
+        self.assertIs(
+            self.parc.get_region(regionspec, find_topmost, allow_tuple), result
+        )
 
 
-@pytest.mark.parametrize('space_id,parc_id,map_type', [
-    ('waxholm', 'v4', 'labelled')
-])
+@pytest.mark.parametrize("space_id,parc_id,map_type", [("waxholm", "v4", "labelled")])
 def test_should_be_able_to_fetch_map(space_id, parc_id, map_type):
 
     space = siibra.spaces[space_id]

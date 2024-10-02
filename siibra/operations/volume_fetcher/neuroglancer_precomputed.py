@@ -323,17 +323,17 @@ def select_scale(
     return selected_scale
 
 
-def fetch_neuroglancer(url: str, **fetchkwargs: VolumeOpsKwargs) -> "nib.Nifti1Image":
-    scales = get_scales(url)
+def fetch_neuroglancer(
+    base_url: str = None, bbox: "BoundingBox" = None, resolution_mm: float = None
+) -> nib.Nifti1Image:
+    scales = get_scales(base_url)
     scale = select_scale(
         scales,
-        resolution_mm=fetchkwargs.get("resolution_mm"),
-        bbox=fetchkwargs.get("bbox"),
-        max_download_GB=fetchkwargs.get(
-            "max_download_GB", SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB
-        ),
+        resolution_mm=resolution_mm,
+        bbox=bbox,
+        max_download_GB=SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB,
     )
-    return scale.fetch(bbox=fetchkwargs.get("bbox"))
+    return scale.fetch(bbox=bbox)
 
 
 @VolumeFormats.register_format_read(NG_VOLUME_FORMAT_STR, "image")
@@ -392,37 +392,41 @@ class NgVolPostProcImgProvider(PostProcVolProvider):
 
 
 class ReadNeuroglancerPrecomputed(DataOp):
-    input: Union[None, VolumeOpsKwargs]
+    input: None
     output: nib.Nifti1Image
     desc = "Directly read neuroglancer volume"
     type = "read/neuroglancer_precomputed"
 
-    def run(self, input, url: str = None, **kwargs):
-        if input is None:
-            input = {}
-        assert isinstance(input, dict)
-
-        kwargs = {
-            **input,
-            **kwargs,
-        }
-
-        kwarg_url = kwargs.pop("url", None)
-        if kwarg_url and url:
-            logger.warning(
-                f"url is provided both in kwarg {kwarg_url}, as well as positional arg {url}. Ignoring kwarg url"
-            )
-        url = url or kwarg_url
-        assert url is not None
-        print(url, kwargs)
-        return fetch_neuroglancer(url, **kwargs)
+    def run(
+        self,
+        input,
+        base_url: str = None,
+        bbox: "BoundingBox" = None,
+        resolution_mm: float = None,
+        **kwargs,
+    ):
+        assert base_url is not None
+        return fetch_neuroglancer(base_url, bbox, resolution_mm)
 
     @classmethod
-    def generate_specs(cls, *, url: str = None, **kwargs: VolumeOpsKwargs):
+    def generate_specs(
+        cls,
+        *,
+        base_url: str = None,
+        bbox: "BoundingBox" = None,
+        resolution_mm: float = None,
+        **kwargs,
+    ):
         base = super().generate_specs(**kwargs)
-        return {**base, "url": url}
+        return {
+            **base,
+            "base_url": base_url,
+            "bbox": bbox,
+            "resolution_mm": resolution_mm,
+        }
 
 
+# TODO deprecate
 class NgPrecomputedFetchCfg(DataOp):
     input: Union[None, VolumeOpsKwargs]
     output: VolumeOpsKwargs

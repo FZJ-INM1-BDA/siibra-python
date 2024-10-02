@@ -72,8 +72,8 @@ class TabularMeanStd(DataOp):
         )
 
     @classmethod
-    def generate_specs(cls, index=None, force=False, **kwargs):
-        base = super().generate_specs(force, **kwargs)
+    def generate_specs(cls, index=None, **kwargs):
+        base = super().generate_specs(**kwargs)
         return {**base, "index": index}
 
 
@@ -107,10 +107,9 @@ class RenameColumnsAndOrRows(DataOp):
     def generate_specs(
         cls,
         remap_dict: RemapColRowDict,
-        force=False,
         **kwargs,
     ):
-        base = super().generate_specs(force, **kwargs)
+        base = super().generate_specs(**kwargs)
         return {**base, "remap_dict": remap_dict}
 
 
@@ -125,6 +124,6 @@ class DFAccessor(DataOp):
         return input[column]
 
     @classmethod
-    def generate_specs(cls, column: str, force=False, **kwargs):
-        base = super().generate_specs(force, **kwargs)
+    def generate_specs(cls, column: str, **kwargs):
+        base = super().generate_specs(**kwargs)
         return {**base, "column": column}

@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, field, replace
-from typing import List, Dict
+from typing import List, Dict, Tuple, Type, Optional
 import json
 
 try:
@@ -63,13 +63,95 @@ def run_steps(steps: List[Dict]):
         raise e from e
 
 
+# TODO convey that the ops *should* be immutable
+@dataclass
+class DataRecipe(Attribute):
+    """
+    Describes a series of operations which lazily produce a well defined, interopable data element.
+    This effectively represent the data element.
+    """
+
+    schema: str = None
+    ops: List[Dict] = field(default_factory=list)
+    update_kwargs: List[Dict] = field(default_factory=list)
+
+    def get_parameters(self, *arg, **kwargs):
+        import pandas as pd
+
+        r: List[Tuple[str, Type[DataOp]]] = []
+        for op in self.ops:
+            param_names, Runner = DataOp.get_parameters(op)
+            for param_name in param_names:
+                r.append([param_name, Runner])
+
+        return pd.DataFrame(r, columns=["param_name", "Runner"])
+
+    def reconfigure(self, *args, **kwargs) -> "DataProvider":
+        """
+        Given a set of kwargs, return a shallow copy of DataRecipe, generating data element conforming to the updated configuration
+        """
+
+        return replace(self, updates=[*self.update_kwargs, kwargs])
+
+    def get_data(self):
+        pass
+
+
+# TODO consider if DataLoader is still needed.
+# url + archive_options probably does not belong in DataLoader/DataRecipe
+@dataclass
+class DataLoader(DataRecipe):
+
+    schema: str = None
+    key: Optional[str] = None  # TODO: remove
+    url: Optional[str] = None  # url can be from remote (http) or localfile
+
+    archive_options: Optional[Archive] = None
+    transformation_ops: List[Dict] = field(default_factory=list)
+
+    # TODO reconsider how this can be implemented in the DataRecipe world
+    @property
+    def retrieval_ops(self):
+
+        assert self.url, "url must be defined"
+
+        if self.archive_options is None:
+            return [RemoteLocalDataOp.generate_specs(filename=self.url)]
+
+        archive_format = self.archive_options.get("format")
+        if archive_format == "tar":
+            return [
+                TarDataOp.generate_specs(
+                    url=self.url, filename=self.archive_options["file"]
+                )
+            ]
+
+        if archive_format == "zip":
+            return [
+                ZipDataOp.generate_specs(
+                    url=self.url, filename=self.archive_options["file"]
+                )
+            ]
+
+        raise RuntimeError(f"Cannot understand {archive_format}")
+
+    @property
+    def ops(self):
+        return [*self.retrieval_ops, *self.transformation_ops]
+
+    @ops.setter
+    def ops(self, value):
+        """As DataLoader subclasses DataGenerator, the super class will try to set ops. Add a setter to ensure it does not fail. Setting ops is a no-op."""
+        pass
+
+
 @dataclass
 class DataProvider(Attribute):
     """Base DataProvider Class
 
     A data provider is running a sequence of operations (DataOp instances) to produce a data element.
     The operations are separated into two stages: retrieval operations and transformation operations.
-    Retrieval operations are meant to be read-only, thus always be carried out in the same fashion, 
+    Retrieval operations are meant to be read-only, thus always be carried out in the same fashion,
     while subsequent transformations might be adjusted by developers.
     If retrieval_op is defined, will use the provided retrieval_ops, rather than parsing properties etc.
 

@@ -75,7 +75,7 @@ class RemoteLocalDataOp(DataOp):
     def run(self, _, *, filename, **kwargs):
         assert isinstance(
             filename, str
-        ), "remote local da73ta op only takes string as filename kwarg"
+        ), "remote local data op only takes string as filename kwarg"
         if filename.startswith("https"):
             cache_filename = CACHE.build_filename(filename)
             if Path(cache_filename).is_file():

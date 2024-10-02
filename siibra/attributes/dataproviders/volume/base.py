@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from os import getenv
 from typing import TYPE_CHECKING, Tuple, Dict
 
-from ..base import DataProvider
+from ..base import DataRecipe, DataProvider
 from ....commons.iterable import assert_ooo
 from ....commons.logger import logger
 from ....operations.volume_fetcher import VolumeFormats
@@ -63,11 +63,33 @@ class VolumeOpsKwargs(TypedDict):
 
 
 @dataclass
-class VolumeProvider(DataProvider):
-    schema: str = "siibra/attr/data/volume"
-    space_id: str = None
-    colormap: str = None  # TODO: remove from config and here
+class Volume:
     format: str = None
+    space_id: str = None
+
+    @property
+    def space(self):
+        from .... import find_spaces
+
+        return assert_ooo(
+            find_spaces(self.space_id),
+            lambda spaces: (
+                f"Cannot find any space with the id {self.space_id}"
+                if len(spaces) == 0
+                else f"Found multiple ({len(spaces)}) spaces with the id {self.space_id}"
+            ),
+        )
+
+
+@dataclass
+class VolumeGenerator(DataRecipe, Volume):
+    pass
+
+
+@dataclass
+class VolumeProvider(DataProvider, Volume):
+    schema: str = "siibra/attr/data/volume"
+    colormap: str = None  # TODO: remove from config and here
 
     @property
     def retrieval_ops(self):
@@ -88,16 +110,3 @@ class VolumeProvider(DataProvider):
                 f"{self.format} not found in {list(VolumeFormats.READER_LOOKUP.keys())}, default to default reader."
             )
             return PostProcVolProvider
-
-    @property
-    def space(self):
-        from .... import find_spaces
-
-        return assert_ooo(
-            find_spaces(self.space_id),
-            lambda spaces: (
-                f"Cannot find any space with the id {self.space_id}"
-                if len(spaces) == 0
-                else f"Found multiple ({len(spaces)}) spaces with the id {self.space_id}"
-            ),
-        )

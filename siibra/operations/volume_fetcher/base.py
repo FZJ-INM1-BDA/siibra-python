@@ -12,6 +12,7 @@ from ...operations.base import DataOp
 from ...commons.logger import logger
 
 
+# TODO consider reconsolidate, retrieval_ops / transformation_ops
 class VolumeFormats:
     IMAGE_FORMATS = []
     MESH_FORMATS = []

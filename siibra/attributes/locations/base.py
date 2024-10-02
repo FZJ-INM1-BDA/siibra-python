@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class Location(Attribute):
-    schema = "siibra/attr/loc"
+    schema = None
     space_id: str = None
 
     @property
