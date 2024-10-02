@@ -114,7 +114,7 @@ plotting.plot_roi(v1left_imgprovider.get_data(), title="v1 left", cmap="viridis"
 hoc5L = siibra.get_region(parcellation="julich 2.9", region="hoc5 left")
 
 # TODO buggy
-hoc5L_mask = hoc5L.get_regional_map(space="mni 152", maptype="labelled")
+hoc5L_mask = hoc5L.extract_map(space="mni 152", maptype="labelled")
 hoc5L_imgprov = hoc5L_mask.get_dataprovider("format=='nii'")
 plotting.plot_roi(hoc5L_imgprov.get_data(), title=f"Mask of {hoc5L.name}")
 

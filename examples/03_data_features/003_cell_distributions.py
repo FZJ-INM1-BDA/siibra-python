@@ -88,7 +88,7 @@ view.add_markers([tuple(location)])
 v1left = siibra.get_region("julich 2.9", "v1 left")
 cf = siibra.features.get(v1left, "BigBrainIntensityProfile")[0]
 
-mask = v1left.get_regional_map("bigbrain").fetch()  # to highlight the region mask
+mask = v1left.extract_map("bigbrain").fetch()  # to highlight the region mask
 view2 = plotting.plot_roi(mask, bg_img=template)
 view2.add_markers(cf.anchor.location.coordinates, marker_size=5)
 

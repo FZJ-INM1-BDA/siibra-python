@@ -168,8 +168,8 @@ class DataProvider(Attribute):
 
     @property
     def retrieval_ops(self):
-
-        assert self.url, "url must be defined"
+        if "srcs" not in self.transformation_ops:
+            assert self.url, "url must be defined"
 
         if self.archive_options is None:
             return [RemoteLocalDataOp.generate_specs(filename=self.url)]

@@ -120,5 +120,5 @@ plotting.plot_roi(v1l_pmap, title="v1 left", cmap='viridis')
 # %%
 # In addition to parcellation maps, `siibra` can produce binary masks of brain regions.
 hoc5L = siibra.get_region(parcellation='julich 2.9', region='hoc5 left')
-hoc5L_mask = hoc5L.get_regional_map(space="mni152", maptype="labelled")
+hoc5L_mask = hoc5L.extract_map(space="mni152", maptype="labelled")
 plotting.plot_roi(hoc5L_mask.fetch(), title=f"Mask of {hoc5L.name}")

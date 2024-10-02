@@ -102,7 +102,7 @@ def preprocess_concept(concept: Union[AtlasElement, Location, DataProvider]):
     if isinstance(concept, Region):
         bbox = None
         for space in concept.mapped_spaces:
-            bbox = concept.get_boundingbox(space=space)
+            bbox = concept.extract_mask(space=space)
             if bbox is not None:
                 break
         concept.attributes = (*concept.attributes, bbox,)

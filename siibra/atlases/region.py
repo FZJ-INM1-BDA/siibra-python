@@ -32,7 +32,7 @@ from ..cache import fn_call_cache
 if TYPE_CHECKING:
     from . import Space, ParcellationScheme
     from ..assignment.qualification import Qualification
-    from .parcellationmap import Map
+    from ..attributes.dataproviders.volume import VolumeProvider
 
 
 def filter_newest(regions: List["Region"]) -> List["Region"]:
@@ -41,26 +41,15 @@ def filter_newest(regions: List["Region"]) -> List["Region"]:
 
 
 @fn_call_cache
-def _get_region_boundingbox(parc_id: str, region_name: str, space_id: str):
-    from .. import get_map
+def _get_region_boundingbox(parc_id: str, region_name: str, space_id: str, maptype: str):
+    from .. import get_region
+    region = get_region(parcellation=parc_id, region=region_name)  # using region_name to be able to cache
 
-    mp = get_map(parc_id, space_id)
-    region = mp.parcellation.get_region(region_name)  # using region_name to be able to cache
-
-    bbox = None
     try:
-        for r in region:
-            if r.name not in mp.regionnames:
-                continue
-            rmap_vp = mp.extract_regional_map(r.name)
-            if bbox is None:
-                bbox = rmap_vp.boundingbox
-            else:
-                bbox = bbox.union(rmap_vp.boundingbox)
+        rmap_vp = region.extract_mask(space=space_id, maptype=maptype)
+        return rmap_vp.boundingbox
     except Exception:
         logger.info(f"Could not create Bounding Box from {region_name}:", exc_info=1)
-
-    return bbox
 
 
 class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
@@ -121,7 +110,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         return PointCloud([sp["centroid"] for sp in spatialprops], space_id=space.ID)
 
     def get_boundingbox(
-        self, space: Union[str, "Space", None] = None
+        self, space: Union[str, "Space", None] = None, maptype: str = "labelled"
     ) -> boundingbox.BoundingBox:
         from .. import get_space, Space
 
@@ -134,7 +123,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             raise RuntimeError(
                 f"space must be of type str or Space. You provided {type(space).__name__}"
             )
-        return _get_region_boundingbox(self.parcellation.ID, self.name, space_id)
+        return _get_region_boundingbox(self.parcellation.ID, self.name, space_id, maptype)
 
     def find_boundingboxes(self):
         from .. import find_maps
@@ -168,7 +157,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         maptype: Union[str, None] = None,
         threshold: float = 0.0,
     ):
-        regional_map = self.get_regional_map(space, maptype)
+        regional_map = self.extract_map(space, maptype)
         mask = regional_map.extract_mask([self], lower_threshold=threshold)
         _spatial_props = spatial_props(
             mask, maptype=maptype, threshold_statistical=threshold
@@ -177,70 +166,53 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             prop["centroid"].space_id = regional_map.space_id
         return _spatial_props
 
-    def find_regional_maps(
+    def extract_map(
         self,
         space: Union[str, "Space", None] = None,
-        maptype: Union[str, None] = None,
-    ):
+        maptype: str = "labelled",
+        name: str = "",
+    ) -> "VolumeProvider":
         from .. import find_maps
 
-        return_maps: List["Map"] = []
-        for mp in find_maps(self.parcellation.ID, space, maptype):
-            mapped_regions = [r for r in self if r.name in mp.regionnames]
-            try:
-                return_maps.append(mp.get_filtered_map(mapped_regions))
-            except RuntimeError as e:
-                logger.warning(
-                    f"Error filtering {mp.name} with {mapped_regions}: {str(e)}. Skipping."
-                )
-        return return_maps
-
-    def get_regional_map(
-        self,
-        space: Union[str, "Space", None] = None,
-        maptype: Union[str, None] = None,
-        name: str = "",
-    ) -> "Map":
-        searched_maps = [
-            m
-            for m in self.find_regional_maps(space=space, maptype=maptype)
-            if name in m.name
-        ]
-        return assert_ooo(
-            searched_maps,
+        suitable_maps = find_maps(parcellation=self.parcellation.ID, space=space, maptype=maptype, name=name)
+        selected_mp = assert_ooo(
+            suitable_maps,
             lambda maps: (
                 (
-                    """
-    The specification matched multiple maps. Specify one of their names as the `name` keyword argument.
-    """
-                    + "\n"
-                    + "\n".join(f"- {m.name}" for m in maps)
+                    "The specification matched multiple maps. Specify one of ",
+                    " their names as the `name` keyword argument.\n",
+                    "\n".join(f"- {m.name}" for m in maps)
                 )
                 if len(maps) > 1
                 else """The specification matched no maps."""
             ),
         )
 
-    def fetch_regional_mask(
+        return selected_mp.extract_regional_map(self.name)
+
+    def extract_mask(
         self,
         space: Union[str, "Space", None] = None,
         maptype: str = "labelled",
-        background_value: Union[int, float] = 0,
-        lower_threshold: float = None,
-        frmt: str = None,
-    ):
-        from .. import find_maps, Space
+        name: str = "",
+    ) -> "VolumeProvider":
+        from .. import find_maps
 
-        space_spec = space.ID if isinstance(space, Space) else space
-        for mp in find_maps(self.parcellation.ID, space_spec):
-            mp.regionnames
-            pass
-        region_map = self.get_regional_map(space=space, maptype=maptype)
-        region_map.extract_mask(
-            region_map.regionnames,
-            background_value=background_value,
-            lower_threshold=lower_threshold,
+        suitable_maps = find_maps(parcellation=self.parcellation.ID, space=space, maptype=maptype, name=name)
+        selected_mp = assert_ooo(
+            suitable_maps,
+            lambda maps: (
+                (
+                    "The specification matched multiple maps. Specify one of ",
+                    " their names as the `name` keyword argument.\n",
+                    "\n".join(f"- {m.name}" for m in maps)
+                )
+                if len(maps) > 1
+                else """The specification matched no maps."""
+            ),
         )
+
+        return selected_mp.extract_mask([self.name])
 
     def get_related_regions(self):
         """

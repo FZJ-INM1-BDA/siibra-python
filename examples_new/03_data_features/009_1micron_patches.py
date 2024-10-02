@@ -29,7 +29,7 @@ import siibra
 hem = 'right'
 parc = siibra.get_parcellation('julich 3.1')
 region = parc.get_region('4p ' + hem)
-pmap = region.get_regional_map('mni 152', 'statistical', name='207')
+pmap = region.extract_map('mni 152', 'statistical', name='207')
 
 # %%
 # Find relevant cellbody stained brain sections.

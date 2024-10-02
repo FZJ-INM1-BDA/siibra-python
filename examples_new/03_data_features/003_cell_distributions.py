@@ -98,7 +98,7 @@ v1left = siibra.get_region("julich 2.9", "v1 left")
 features = siibra.find_features(v1left, "Modified silver staining")
 feature, *_ = features[0]
 
-mask = v1left.get_regional_map("bigbrain").fetch()  # to highlight the region mask
+mask = v1left.extract_map("bigbrain").fetch()  # to highlight the region mask
 view2 = plotting.plot_roi(mask, bg_img=template)
 
 ptclouds = [loc for loc in feature.locations if isinstance(loc, PointCloud)]

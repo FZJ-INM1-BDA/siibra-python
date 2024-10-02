@@ -254,21 +254,23 @@ class Map(AtlasElement):
         background_value: Union[int, float] = 0,
         lower_threshold: Union[int, float, None] = None,
     ):
+        frmt_ = self._select_format(frmt)
         providers = [
-            self._extract_regional_map_volume_provider(region, frmt=frmt)
+            self._extract_regional_map_volume_provider(region, frmt=frmt_)
             for region in regions
         ]
         provider_types = set(type(p) for p in providers)
         assert len(provider_types) == 1
         provider_type = next(iter(provider_types))
 
-        mask_provider = provider_type(
-            space_id=self.space_id,
-            override_ops=[
-                Merge.spec_from_dataproviders(providers),
-                MergeLabelledNiftis.generate_specs(),
-            ],
-        )
+        mask_provider = provider_type(space_id=self.space_id, format=frmt_)
+        if len(providers) > 1:
+            mask_provider.transformation_ops.extend(
+                [
+                    MergeLabelledNiftis.generate_specs(),
+                    Merge.spec_from_dataproviders(providers),
+                ]
+            )
 
         if isinstance(mask_provider, ImageProvider):
             if self.maptype == "statistical":
@@ -281,9 +283,10 @@ class Map(AtlasElement):
                 )
         else:
             # TODO: implement a gifti masker
-            mask_provider.transformation_ops.append()
+            raise NotImplementedError
+            # mask_provider.override_ops.append()
 
-        return mask_provider.get_data()
+        return mask_provider
 
     def extract_full_map(
         self,
@@ -294,6 +297,9 @@ class Map(AtlasElement):
         """
         Extracts a single volume with all (sub)regions imcluded.
         """
+        if self.maptype == "statistical" and not as_binary_mask:
+            raise ValueError("Statistical maps can only be merged as masks.")
+
         if as_binary_mask:
             return self.extract_mask(regions=self.regionnames)
 
@@ -352,26 +358,26 @@ class Map(AtlasElement):
         ) / [255, 255, 255, 1]
         return ListedColormap(pallette)
 
-    def get_centroids(self, **volume_ops_kwargs: VolumeOpsKwargs) -> Dict[str, "Point"]:
-        """
-        Compute a dictionary of the centroids of all regions in this map.
+    # def get_centroids(self, **volume_ops_kwargs: VolumeOpsKwargs) -> Dict[str, "Point"]:
+    #     """
+    #     Compute a dictionary of the centroids of all regions in this map.
 
-        Returns
-        -------
-        Dict[str, Point]
-            Region names as keys and computed centroids as items.
-        """
-        centroids = {}
-        for regionname in siibra_tqdm(
-            self.regionnames, unit="regions", desc="Computing centroids"
-        ):
-            img = self.extract_mask(
-                region=regionname, **volume_ops_kwargs
-            )  # returns a mask of the region
-            centroid = compute_centroid(img)
-            centroid.space_id = self.space_id
-            centroids[regionname] = centroid
-        return centroids
+    #     Returns
+    #     -------
+    #     Dict[str, Point]
+    #         Region names as keys and computed centroids as items.
+    #     """
+    #     centroids = {}
+    #     for regionname in siibra_tqdm(
+    #         self.regionnames, unit="regions", desc="Computing centroids"
+    #     ):
+    #         img = self.extract_mask(
+    #             region=regionname, **volume_ops_kwargs
+    #         )  # returns a mask of the region
+    #         centroid = compute_centroid(img)
+    #         centroid.space_id = self.space_id
+    #         centroids[regionname] = centroid
+    #     return centroids
 
     # TODO: should be a dataop
     # def colorize(
