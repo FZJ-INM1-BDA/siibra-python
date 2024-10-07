@@ -52,6 +52,7 @@ class ImageRecipe(VolumeRecipe):
     """
 
     schema: str = "siibra/attr/data/image/v0.1"
+    colormap: str = None  # TODO: remove
 
     @classmethod
     def _generate_ops(cls, conf: Dict):
