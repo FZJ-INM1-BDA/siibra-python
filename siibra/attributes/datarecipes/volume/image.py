@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass, replace, asdict
-from typing import Union, Tuple, List
+from typing import Dict, Union, Tuple, List
 from pathlib import Path
 from hashlib import md5
 from io import BytesIO
@@ -31,8 +31,10 @@ from ....operations.volume_fetcher.nifti import (
     IntersectNiftiWithNifti,
     NiftiFromPointCloud,
     ResampleNifti,
+    ReadNiftiFromBytes,
 )
 from ....operations.volume_fetcher.neuroglancer_precomputed import (
+    ReadNeuroglancerPrecomputed,
     NgPrecomputedFetchCfg,
     NG_VOLUME_FORMAT_STR,
     fetch_ng_bbox,
@@ -49,8 +51,20 @@ class ImageRecipe(VolumeRecipe):
     As a result, the conversion from image -> location should *always* be explicit
     """
 
-    format: str = None
     schema: str = "siibra/attr/data/image/v0.1"
+
+    @classmethod
+    def _generate_ops(cls, conf: Dict):
+        format = conf.get("format")
+        base_url = conf.get("url")
+        if format == "neuroglancer/precomputed":
+            return [ReadNeuroglancerPrecomputed.generate_specs(base_url=base_url)]
+        if format == "nii":
+            return [
+                *super()._generate_ops(conf),
+                ReadNiftiFromBytes.generate_specs(),
+            ]
+        raise NotImplementedError(f"Cannot parse format: {format}")
 
     @property
     def boundingbox(self) -> "_boundingbox.BoundingBox":
@@ -282,7 +296,7 @@ def from_pointcloud(
         ]
     return ImageRecipe(
         format="nii",
-        ops=[
+        _ops=[
             FromInstance.generate_specs(instance=pointcloud, force=(not cached)),
             NiftiFromPointCloud.generate_specs(normalize=normalize, force=(not cached)),
             *transformation_ops,

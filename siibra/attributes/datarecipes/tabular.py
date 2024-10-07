@@ -34,13 +34,10 @@ class TabularDataRecipe(DataRecipe):
     plot_options: dict = field(default_factory=dict)
     parse_options: dict = field(default_factory=dict)
 
-    @property
-    def retrieval_ops(self):
-        previous_ops = super().retrieval_ops
-        return [
-            *previous_ops,
-            ParseAsTabular.generate_specs(parse_options=self.parse_options),
-        ]
+    @classmethod
+    def _generate_ops(cls, conf: Dict):
+        previous_ops = super()._generate_ops(conf)
+        return [*previous_ops, ParseAsTabular.generate_specs()]
 
     def plot(self, *args, **kwargs):
         plot_options = self.plot_options.copy()

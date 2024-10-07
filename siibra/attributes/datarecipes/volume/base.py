@@ -68,6 +68,7 @@ class VolumeOpsKwargs(TypedDict):
 @dataclass
 class VolumeRecipe(DataRecipe):
 
+    format: str = None
     space_id: str = None
 
     @property

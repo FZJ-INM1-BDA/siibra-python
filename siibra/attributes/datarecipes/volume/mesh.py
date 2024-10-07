@@ -14,12 +14,15 @@
 # limitations under the License.
 
 from dataclasses import dataclass
+from typing import Dict
 
 from nibabel import GiftiImage
 
 from .base import VolumeRecipe
 from ...locations import BoundingBox
-from ....operations.volume_fetcher import VolumeFormats
+from ....operations.volume_fetcher.neuroglancer_precompmesh import ReadNgMeshes
+from ....operations.volume_fetcher.gifti import MergeGifti, ReadGiftiFromBytesGii
+from ....operations.volume_fetcher.freesurfer import ReadGiftiFromBytesFSAAnnot
 
 
 def extract_label_mask(gii: GiftiImage, label: int):
@@ -29,6 +32,27 @@ def extract_label_mask(gii: GiftiImage, label: int):
 @dataclass
 class MeshRecipe(VolumeRecipe):
     schema: str = "siibra/attr/data/mesh/v0.1"
+
+    @classmethod
+    def _generate_ops(cls, conf: Dict):
+        format = conf.get("format")
+        if format == "neuroglancer/precompmesh":
+            archive_options = conf.get("archive_options")
+            label = archive_options.get("label")
+            base_url = conf.get("url")
+            assert label
+            return [
+                ReadNgMeshes.generate_specs(base_url=base_url, label=label),
+                MergeGifti.generate_specs(),
+            ]
+        if format == "freesurfer-annot":
+            return [
+                *super()._generate_ops(conf),
+                ReadGiftiFromBytesFSAAnnot.generate_specs(),
+            ]
+        if format == "gii-mesh" or format == "gii-label":
+            return [*super()._generate_ops(), ReadGiftiFromBytesGii.generate_specs()]
+        raise NotImplementedError(f"Does not know how to parse {format}")
 
     @property
     def boundingbox(self) -> "BoundingBox":

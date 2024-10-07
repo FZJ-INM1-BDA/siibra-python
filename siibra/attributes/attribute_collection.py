@@ -62,7 +62,7 @@ class AttributeCollection:
     schema: str = "siibra/attribute_collection"
     attributes: Tuple[Attribute] = field(default_factory=list, repr=False)
 
-    # TODO consider if this is the best spot for populating
+    # TODO (2.1) consider if this is the best spot for populating column/row mapping
     def __post_init__(self):
         from .datarecipes.tabular import TabularDataRecipe
 
@@ -103,7 +103,7 @@ class AttributeCollection:
                         "Cannot find a suitable col/row remapper for the following tabular data:",
                         tabulardata,
                     )
-                tabulardata.append_op(
+                tabulardata._ops.append(
                     RenameColumnsAndOrRows.generate_specs(remap_dict=remap_dict)
                 )
 

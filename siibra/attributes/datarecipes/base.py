@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, replace, asdict
 from typing import List, Dict, Tuple, Type, Optional
 import json
 
@@ -80,9 +80,49 @@ class DataRecipe(Attribute):
     and implementing lazy execution of the undelying operations.
     """
 
+    @classmethod
+    def _generate_ops(cls, conf: Dict):
+        """From configuration definition of DataRecipe, generates the list of ops."""
+        url = conf.get("url")
+        archive_options = conf.get("archive_options")
+        assert url, "url must be defined"
+        if archive_options is None:
+            return [RemoteLocalDataOp.generate_specs(filename=url)]
+        archive_format = archive_options.get("format")
+        if archive_format == "tar":
+            return [TarDataOp.generate_specs(url=url, filename=archive_options["file"])]
+        if archive_format == "zip":
+            return [ZipDataOp.generate_specs(url=url, filename=archive_options["file"])]
+        raise RuntimeError(f"Cannot understand {archive_format}")
+
+    def __post_init__(self):
+        """
+        From configuration definition of DataRecipe, generates the list of ops.
+        TODO (2.1) at the moment, this violates the principle that DataRecipe should be immutable. But this is a quick way to get
+        DataRecipe to work. In future, migrate this to __new__, and use @datacclass(frozen=True)
+        TODO (ASAP) check to use factory pattern
+        """
+
+        if len(self._ops) > 0:
+            return
+
+        self_dict = asdict(self)
+        ops = self._generate_ops(self_dict)
+        self._ops.extend(ops)
+
     schema: str = None
-    ops: List[Dict] = field(default_factory=list)
-    update_kwargs: List[Dict] = field(default_factory=list)
+    _ops: List[Dict] = field(default_factory=list)
+
+    url: str = None
+    archive_options: Dict = None
+
+    @property
+    def ops(self):
+        return self._ops
+
+    @ops.setter
+    def ops(self, value):
+        raise RuntimeError("Please use reconfigure instance method")
 
     def get_parameters(self, *arg, **kwargs):
         import pandas as pd
@@ -95,12 +135,25 @@ class DataRecipe(Attribute):
 
         return pd.DataFrame(r, columns=["param_name", "Runner"])
 
-    def reconfigure(self, *args, **kwargs) -> "DataRecipe":
+    def reconfigure(self, **kwargs) -> "DataRecipe":
         """
         Given a set of kwargs, return a shallow copy of DataRecipe, generating data element conforming to the updated configuration
         """
 
-        return replace(self, updates=[*self.update_kwargs, kwargs])
+        steps = []
+        for op in self._ops:
+
+            # safe overwrite kwargs
+            Cls = DataOp.get_runner_cls(op)
+            modified_step = Cls.update_parameters(op, **kwargs)
+
+            # modified_step = {
+            #     **op,
+            #     **kwargs,
+            # }
+            steps.append(modified_step)
+
+        return replace(self, _ops=steps)
 
     def get_data(self):
         return run_steps(self.ops)

@@ -18,8 +18,6 @@ from typing import List, Any, Dict, Iterable, Tuple, BinaryIO, Union, ClassVar
 import pandas as pd
 from ..commons.logger import logger
 
-SCHEMAS = {}
-
 
 def key_is_extra(key: str):
     return key.startswith("x-") or key.startswith("facet/")
@@ -30,6 +28,7 @@ class Attribute:
     """Base clase for attributes."""
 
     IGNORE_KEYS: ClassVar = {"schema", "annotates", "extra", "id", "key"}
+    SCHEMAS: ClassVar = {}
 
     schema: str = field(default="siibra/attr", init=False, repr=False)
     name: str = field(default=None, repr=False)
@@ -49,8 +48,8 @@ class Attribute:
         assert (
             cls.schema != Attribute.schema
         ), "Subclassed attributes must have unique schemas"
-        assert cls.schema not in SCHEMAS, f"{cls.schema} already registered."
-        SCHEMAS[cls.schema] = cls
+        assert cls.schema not in cls.SCHEMAS, f"{cls.schema} already registered."
+        cls.SCHEMAS[cls.schema] = cls
 
     @staticmethod
     def from_dict(json_dict: Dict[str, Any]) -> List["Attribute"]:
@@ -63,7 +62,7 @@ class Attribute:
             attr = Attribute(extra=json_dict)
             attr.schema = att_type
             return [attr]
-        Cls = SCHEMAS.get(att_type)
+        Cls = Attribute.SCHEMAS.get(att_type)
         if Cls is None:
             logger.warning(f"Cannot parse type {att_type}")
             return []
