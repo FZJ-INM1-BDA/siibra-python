@@ -28,3 +28,6 @@ geckodriver.log
 venv
 docs/_static/*_siibra.svg
 docs/_static/*_siibra.dot
+!4-probabilistic-assignment.ipynb
+!5-comparative-analysis.ipynb
+!6-sampling.ipynb
