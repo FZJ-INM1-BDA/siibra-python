@@ -42,7 +42,7 @@ from .assignment import (
     find,
     preprocess_concept,
 )
-from .factory.iterator import iter_preconfigured_ac
+from .factory.configuration import iter_preconfigured
 
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
@@ -228,13 +228,13 @@ def find_regions(parcellation_spec: str, regionspec: str):
 
 spaces = LazyBkwdCompatInstanceTable(
     getitem=get_space,
-    get_elements=lambda: {spc.name: spc for spc in iter_preconfigured_ac(Space)},
+    get_elements=lambda: {spc.name: spc for spc in iter_preconfigured(Space)},
 )
 
 parcellations = LazyBkwdCompatInstanceTable(
     getitem=get_parcellation,
     get_elements=lambda: {
-        spc.name: spc for spc in iter_preconfigured_ac(ParcellationScheme)
+        spc.name: spc for spc in iter_preconfigured(ParcellationScheme)
     },
 )
 
@@ -246,7 +246,7 @@ def _not_implemented(*args):
 maps = LazyBkwdCompatInstanceTable(
     getitem=_not_implemented,
     get_elements=lambda: {
-        mp.name: mp for mp in iter_preconfigured_ac(parcellationmap.Map)
+        mp.name: mp for mp in iter_preconfigured(parcellationmap.Map)
     },
 )
 

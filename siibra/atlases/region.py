@@ -25,7 +25,7 @@ from ..commons.string import get_spec, SPEC_TYPE, extract_uuid
 from ..commons.iterable import assert_ooo
 from ..commons.maps import spatial_props
 from ..commons.logger import logger
-from ..commons.register_recall import RegisterRecall
+from ..commons.registry import Registry
 from ..operations.file_fetcher.dataproxy_fetcher import DataproxyRepository
 from ..cache import fn_call_cache
 
@@ -252,7 +252,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         yield from RegionRelationAssessments.parse_from_region(self)
 
 
-_region_ebrainsref_register = RegisterRecall()
+_region_ebrainsref_register = Registry()
 
 
 class RegionRelationAssessments:
@@ -362,10 +362,10 @@ class RegionRelationAssessments:
 
     @classmethod
     def yield_all_regions(cls) -> Iterable[Region]:
-        from ..factory import iter_preconfigured_ac
+        from ..factory import iter_preconfigured
         from . import ParcellationScheme
 
-        for p in iter_preconfigured_ac(ParcellationScheme):
+        for p in iter_preconfigured(ParcellationScheme):
             for region in p:
                 yield region
 

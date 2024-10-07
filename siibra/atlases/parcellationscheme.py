@@ -65,9 +65,9 @@ class ParcellationScheme(region.Region):
         next_id = self._get(Version).next_id
         if not next_id:
             return None
-        from siibra.factory.iterator import iter_preconfigured_ac
+        from siibra.factory import iter_preconfigured
 
-        for parc in iter_preconfigured_ac(ParcellationScheme):
+        for parc in iter_preconfigured(ParcellationScheme):
             if parc.ID == next_id:
                 return parc
         logger.warning(f"Cannot find parcellation with id {next_id}")
