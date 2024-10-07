@@ -76,13 +76,9 @@ class VolumeRecipe(DataRecipe):
         if self.space_id is None:
             return None
 
-        from ....factory import iter_preconfigured_ac
+        from ....factory import iter_preconfigured
         from ....atlases import Space
 
         return assert_ooo(
-            [
-                space
-                for space in iter_preconfigured_ac(Space)
-                if space.ID == self.space_id
-            ]
+            [space for space in iter_preconfigured(Space) if space.ID == self.space_id]
         )

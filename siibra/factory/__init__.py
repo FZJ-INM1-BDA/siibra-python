@@ -13,11 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# needed to boostrap preconfigured objects
-from . import configuration
+"""
+This subpackage (siibra.factory) is where siibra fetches and builds siibra objects from various sources.
 
-from .factory import build_feature, build_object
-from .iterator import iter_preconfigured_ac
+- .configuration.Configuration reads preconfigured/foundational siibra specificiations from an archive (e.g. git repository).
+It uses factory to construct siibra-instances.
+
+- livequery.* connects to external repositories to generate instances of siibra
+
+- userfunctions (NYI) should be the place where user inputs
+"""
+
+# needed to boostrap preconfigured objects
+
+from .configuration import iter_preconfigured
 from .livequery import iter_livequery_clss
 
 # import convenient image builders

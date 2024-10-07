@@ -14,23 +14,181 @@
 # limitations under the License.
 
 import json
-from typing import Iterator, Union, List, Tuple, Type, Dict
+from typing import Iterator, Union, List, Tuple, Type, Dict, TypeVar, Callable
 from requests import HTTPError
 from os import getenv
+from functools import wraps
 
-from .factory import build_feature, build_space, build_parcellation, build_map
-from .iterator import preconfigured_ac_registrar, iter_preconfigured_ac
 from .livequery import LiveQuery
-from ..atlases import Space, ParcellationScheme, Region, parcellationmap
-from ..attributes.descriptions import register_modalities, Modality, RegionSpec
+from ..atlases import Space, ParcellationScheme, Region, Map, SparseMap
+from ..attributes.descriptions import (
+    register_modalities,
+    Modality,
+    RegionSpec,
+    ID,
+    SpeciesSpec,
+    Name,
+)
+from ..attributes import Attribute
 from ..concepts import Feature
 from ..operations.file_fetcher.base import Repository
 from ..operations.file_fetcher import (
     GithubRepository,
 )
 from ..commons.logger import logger
+from ..commons.registry import Registry
+from ..commons.iterable import assert_ooo
+from ..commons.string import create_key
+
+T = TypeVar("T")
 
 SIIBRA_USE_CONFIGURATION = getenv("SIIBRA_USE_CONFIGURATION")
+
+_preconfigured_registry = Registry()
+
+
+build_registry: Dict[str, Callable[[Dict], T]] = {}
+
+
+def register_build_type(type_str: str):
+    def outer(fn: Callable[[Dict], T]):
+        @wraps(fn)
+        def inner(*args, **kwargs):
+            kwargs.pop("@type", None)
+            return fn(*args, **kwargs)
+
+        assert type_str not in build_registry, f"{type_str} already registered!"
+        build_registry[type_str] = inner
+
+        return inner
+
+    return outer
+
+
+class JsonParser:
+    """Unlike a regulard JSON parser, which converts str to dict, JSON parser turns dict to siibra instances"""
+
+    @staticmethod
+    def parse_attributes(attribute_objs: List):
+        return tuple(
+            att
+            for attribute_obj in attribute_objs
+            for att in Attribute.from_dict(attribute_obj)
+        )
+
+    @staticmethod
+    @register_build_type(Feature.schema)
+    def build_feature(dict_obj: dict):
+        dict_obj.pop("@type", None)
+        attribute_objs = dict_obj.pop("attributes", [])
+        attributes = JsonParser.parse_attributes(attribute_objs)
+        return Feature(attributes=attributes, **dict_obj)
+
+    @staticmethod
+    @register_build_type(Region.schema)
+    def build_region(dict_obj: dict, parc_id: ID = None, species: SpeciesSpec = None):
+        """_summary_
+
+        Parameters
+        ----------
+        dict_obj : dict
+            see Region.schema
+        parc_id : ID, optional
+            Either dict_obj has an ID attribute in attributes field or a
+            parcellation ID is required.
+        species : SpeciesSpec, optional
+            Either dict_obj has an SpeciesSpec attribute in attributes field or a
+            parcellation SpeciesSpec is required.
+
+        Returns
+        -------
+        region.Region
+        """
+        dict_obj.pop("@type", None)
+        attribute_objs = dict_obj.pop("attributes", [])
+        attributes = JsonParser.parse_attributes(attribute_objs)
+
+        name_attributes: List[Name] = list(
+            filter(lambda a: isinstance(a, Name), attributes)
+        )
+        id_attributes: List[ID] = list(filter(lambda a: isinstance(a, ID), attributes))
+        attr_species: List[SpeciesSpec] = list(
+            filter(lambda a: isinstance(a, SpeciesSpec), attributes)
+        )
+
+        name_str = name_attributes[0].value
+
+        attributes += (RegionSpec(value=name_str, parcellation_id=parc_id.value),)
+        if len(id_attributes) == 0:
+            attributes += (ID(value=f"{parc_id.value}_{create_key(name_str)}"),)
+
+        if len(attr_species) == 0:
+            attributes += (species,)
+        else:
+            assert all(
+                existing_spec == species for existing_spec in attr_species
+            ), f"attribute species {attr_species} does not equal to passed specices {species}"
+
+        return Region(
+            attributes=attributes,
+            children=tuple(
+                map(
+                    lambda r: JsonParser.build_region(r, parc_id, species),
+                    dict_obj.get("children", []),
+                )
+            ),
+        )
+
+    @staticmethod
+    @register_build_type(ParcellationScheme.schema)
+    def build_parcellation(dict_obj: dict):
+        dict_obj.pop("@type", None)
+        attribute_objs = dict_obj.pop("attributes", [])
+        attributes = JsonParser.parse_attributes(attribute_objs)
+
+        id_attribute: ID = assert_ooo(filter(lambda a: isinstance(a, ID), attributes))
+        species: SpeciesSpec = assert_ooo(
+            filter(lambda a: isinstance(a, SpeciesSpec), attributes)
+        )
+        name_attribute: Name = assert_ooo(
+            [attr for attr in attributes if isinstance(attr, Name)]
+        )
+
+        attributes += (
+            RegionSpec(parcellation_id=id_attribute.value, value=name_attribute.value),
+        )
+
+        return ParcellationScheme(
+            attributes=attributes,
+            children=tuple(
+                map(
+                    lambda r: JsonParser.build_region(r, id_attribute, species),
+                    dict_obj.get("regions", []),
+                )
+            ),
+        )
+
+    @staticmethod
+    @register_build_type(Space.schema)
+    def build_space(dict_obj):
+        dict_obj.pop("@type", None)
+        attribute_objs = dict_obj.pop("attributes", [])
+        attributes = JsonParser.parse_attributes(attribute_objs)
+        return Space(attributes=attributes)
+
+    @staticmethod
+    @register_build_type(Map.schema)
+    def build_map(dict_obj):
+        dict_obj.pop("@type", None)
+        if dict_obj.pop("sparsemap", False):
+            MapType = SparseMap
+        else:
+            MapType = Map
+
+        attribute_objs = dict_obj.pop("attributes", [])
+        attributes = JsonParser.parse_attributes(attribute_objs)
+
+        return MapType(attributes=attributes, **dict_obj)
 
 
 class Configuration:
@@ -144,6 +302,10 @@ class Configuration:
         cls.using_default_configuration = False
 
 
+def iter_preconfigured(_type: Type[T]):
+    return [item for item in _preconfigured_registry.iter(_type)]
+
+
 #
 # register features modalities
 #
@@ -160,32 +322,34 @@ def iter_modalities():
 #
 
 
-@preconfigured_ac_registrar.register(Space)
+@_preconfigured_registry.register(Space)
 def _iter_preconf_spaces():
     cfg = Configuration()
 
     # below should produce the same result
-    return [build_space(obj) for obj in cfg.iter_jsons("spaces")]
+    return [JsonParser.build_space(obj) for obj in cfg.iter_jsons("spaces")]
 
 
-@preconfigured_ac_registrar.register(ParcellationScheme)
+@_preconfigured_registry.register(ParcellationScheme)
 def _iter_preconf_parcellations():
     cfg = Configuration()
+    return [
+        JsonParser.build_parcellation(obj)
+        for obj in cfg.iter_jsons("parcellationschemes")
+    ]
 
-    return [build_parcellation(obj) for obj in cfg.iter_jsons("parcellationschemes")]
 
-
-@preconfigured_ac_registrar.register(Feature)
+@_preconfigured_registry.register(Feature)
 def _iter_preconf_features():
     cfg = Configuration()
 
-    return [build_feature(obj) for obj in cfg.iter_type("siibra/concepts/feature/v0.2")]
+    return [JsonParser.build_feature(obj) for obj in cfg.iter_jsons("features")]
 
 
-@preconfigured_ac_registrar.register(parcellationmap.Map)
+@_preconfigured_registry.register(Map)
 def _iter_preconf_maps():
     cfg = Configuration()
-    return [build_map(obj) for obj in cfg.iter_jsons("maps")]
+    return [JsonParser.build_map(obj) for obj in cfg.iter_jsons("maps")]
 
 
 class PreconfiguredRegionQuery(LiveQuery[Region], generates=Region):
@@ -208,16 +372,14 @@ class PreconfiguredRegionQuery(LiveQuery[Region], generates=Region):
         regspec = region_specs[0]
         yield from [
             region
-            for parc in iter_preconfigured_ac(ParcellationScheme)
+            for parc in iter_preconfigured(ParcellationScheme)
             if regspec.parcellation_id is None or regspec.parcellation_id == parc.ID
             for region in parc.find(regspec.value)
         ]
 
 
-class PreconfiguredMapQuery(
-    LiveQuery[parcellationmap.Map], generates=parcellationmap.Map
-):
-    def generate(self) -> Iterator[parcellationmap.Map]:
+class PreconfiguredMapQuery(LiveQuery[Map], generates=Map):
+    def generate(self) -> Iterator[Map]:
         from ..attributes.descriptions import SpaceSpec, ParcSpec, ID, Name
         from ..concepts import QueryParam
         from ..atlases import Space, ParcellationScheme
@@ -265,7 +427,7 @@ class PreconfiguredMapQuery(
 
         yield from [
             mp
-            for mp in iter_preconfigured_ac(parcellationmap.Map)
+            for mp in iter_preconfigured(Map)
             if (
                 (len(space_specs) == 0 or mp.space_id in space_ids)
                 and (len(parc_specs) == 0 or mp.parcellation_id in parc_ids)

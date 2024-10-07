@@ -21,7 +21,7 @@ from .assignment import (
     preprocess_concept,
 )
 from ..factory.livequery import LiveQuery
-from ..factory.iterator import iter_preconfigured_ac
+from ..factory.configuration import iter_preconfigured
 from ..attributes import AttributeCollection
 from ..attributes.descriptions import ID, Name
 
@@ -39,7 +39,7 @@ def finditer(criteria: List[AttributeCollection], find_type: Type[T]):
     matches with the instance of _find_type.
 
     For LiveQuery instances, it is configured at runtime."""
-    for item in iter_preconfigured_ac(find_type):
+    for item in iter_preconfigured(find_type):
         if all(collection_match(cri, item) for cri in criteria):
             yield item
     for cls in LiveQuery.get_clss(find_type):
