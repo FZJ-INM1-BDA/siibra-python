@@ -58,7 +58,7 @@ class Feature(AttributeCollection):
     @property
     def data(self):
         logger.warning("`data` will be depricated! Use `extract_data()` instead.")
-        from ..attributes.dataproviders import TabularDataRecipe
+        from ..attributes.datarecipes import TabularDataRecipe
 
         matrix_entity_key = self.filter(attr_of_general_interest)
 
@@ -78,11 +78,11 @@ class Feature(AttributeCollection):
         return dfs
 
     def extract_data(self, expr: str = None, index: int = 0):
-        dp = self.get_dataprovider(expr=expr, index=index)
+        dp = self.get_datarecipe(expr=expr, index=index)
         return dp.get_data()
 
     def plot_summary(self, *args, **kwargs):
-        summaries = self.find_dataproviders("type == 'TabularDataProvider'")
+        summaries = self.find_datarecipes("type == 'TabularDataRecipe'")
         if len(summaries) == 0:
             raise RuntimeError("There are no summaries for this feature.")
         if len(summaries) == 1:
@@ -90,5 +90,5 @@ class Feature(AttributeCollection):
         raise NotImplementedError("Cannot plot several summary figures yet")
 
     def plot(self, expr: str = None, index: int = 0, *args, **kwargs):
-        dp = self.get_dataprovider(expr=expr, index=index)
+        dp = self.get_datarecipe(expr=expr, index=index)
         return dp.plot(*args, **kwargs)
