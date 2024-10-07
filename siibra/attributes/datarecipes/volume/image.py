@@ -288,11 +288,9 @@ def from_pointcloud(
     cached=False,
     target: ImageRecipe = None,
 ) -> ImageRecipe:
-    from ..base import DataRecipe
-
-    transformation_ops = []
+    extra_ops = []
     if target is not None:
-        transformation_ops = [
+        extra_ops = [
             ResampleNifti.generate_specs(target_img=target.get_data())
         ]
     return ImageRecipe(
@@ -300,7 +298,7 @@ def from_pointcloud(
         _ops=[
             FromInstance.generate_specs(instance=pointcloud, force=(not cached)),
             NiftiFromPointCloud.generate_specs(normalize=normalize, force=(not cached)),
-            *transformation_ops,
+            *extra_ops,
         ],
         space_id=pointcloud.space_id,
     )

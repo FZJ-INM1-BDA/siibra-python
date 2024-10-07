@@ -51,7 +51,7 @@ from ..operations.volume_fetcher.nifti import (
     NiftiExtractSubspace,
     NiftiExtractVOI,
 )
-from ..operations.base import Merge, DataOp
+from ..operations.base import Merge
 
 VALID_MAPTYPES = ("statistical", "labelled")
 
@@ -192,17 +192,17 @@ class Map(AtlasElement):
             )
             provider = providers[0]
 
-        transformation_ops: List[DataOp] = []
+        extraction_ops: List[Dict] = []
         if mapping.get("label"):
-            transformation_ops.append(
+            extraction_ops.append(
                 NiftiExtractLabels.generate_specs(labels=[mapping.get("label")])
             )
         if mapping.get("subspace"):
-            transformation_ops.append(
+            extraction_ops.append(
                 NiftiExtractSubspace.generate_specs(subspace=mapping.get("subspace"))
             )
 
-        return replace(provider, transformation_ops=transformation_ops)
+        return replace(provider, _ops=[*provider._ops, *extraction_ops])
 
     def extract_regional_map(
         self,
@@ -236,14 +236,14 @@ class Map(AtlasElement):
             regionname=regionname,
             frmt=frmt,
         )
-        additional_transform_ops = []
+        additional_ops = []
         if bbox:
-            additional_transform_ops.append(NiftiExtractVOI.generate_specs(voi=bbox))
+            additional_ops.append(NiftiExtractVOI.generate_specs(voi=bbox))
         return replace(
             provider,
-            transformation_ops=[
-                *provider.transformation_ops,
-                *additional_transform_ops,
+            _ops=[
+                *provider._ops,
+                *additional_ops,
             ],
         )
 
@@ -265,7 +265,7 @@ class Map(AtlasElement):
 
         mask_provider = provider_type(space_id=self.space_id, format=frmt_)
         if len(providers) > 1:
-            mask_provider.transformation_ops.extend(
+            mask_provider._ops.extend(
                 [
                     MergeLabelledNiftis.generate_specs(),
                     Merge.spec_from_datarecipes(providers),
@@ -274,11 +274,11 @@ class Map(AtlasElement):
 
         if isinstance(mask_provider, ImageRecipe):
             if self.maptype == "statistical":
-                mask_provider.transformation_ops.append(
+                mask_provider._ops.append(
                     NiftiMask.generate_specs(lower_threshold=lower_threshold)
                 )
             else:
-                mask_provider.transformation_ops.append(
+                mask_provider._ops.append(
                     NiftiMask.generate_specs(background_value=background_value)
                 )
         else:

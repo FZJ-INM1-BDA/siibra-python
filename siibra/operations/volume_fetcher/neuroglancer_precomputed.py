@@ -356,7 +356,7 @@ class NgVolPostProcImgProvider(PostProcVolProvider):
             if len(volume_provider.override_ops) > 0:
                 volume_provider.override_ops.append(fetch_kwarg_to_nifti_op)
             else:
-                volume_provider.transformation_ops.append(fetch_kwarg_to_nifti_op)
+                volume_provider._ops.append(fetch_kwarg_to_nifti_op)
 
     @classmethod
     def on_append_op(cls, volume_provider: "VolumeRecipe", op: Dict):
@@ -377,9 +377,9 @@ class NgVolPostProcImgProvider(PostProcVolProvider):
         super(VolumeRecipe, volume_provider).append_op(op)
 
         if len(volume_provider.override_ops) > 0:
-            volume_provider.override_ops.append(fetch_op)
+            volume_provider._ops.append(fetch_op)
         else:
-            volume_provider.transformation_ops.append(fetch_op)
+            volume_provider._ops.append(fetch_op)
 
     @classmethod
     def on_get_retrieval_ops(cls, volume_provider: "VolumeRecipe"):

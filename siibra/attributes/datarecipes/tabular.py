@@ -85,8 +85,8 @@ class TabularDataRecipe(DataRecipe):
     def query(self, *arg, column: str = None, **kwargs):
         return replace(
             self,
-            transformation_ops=[
-                *self.transformation_ops,
+            _ops=[
+                *self._ops,
                 DFAccessor.generate_specs(column=column),
             ],
             plot_options={},  # Series would not have the same plot options as the parent DF
