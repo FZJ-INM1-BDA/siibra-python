@@ -51,7 +51,7 @@ class MeshRecipe(VolumeRecipe):
                 ReadGiftiFromBytesFSAAnnot.generate_specs(),
             ]
         if format == "gii-mesh" or format == "gii-label":
-            return [*super()._generate_ops(), ReadGiftiFromBytesGii.generate_specs()]
+            return [*super()._generate_ops(conf), ReadGiftiFromBytesGii.generate_specs()]
         raise NotImplementedError(f"Does not know how to parse {format}")
 
     @property
