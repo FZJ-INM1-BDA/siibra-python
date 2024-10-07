@@ -50,10 +50,17 @@ def cache_validation_callback(metadata):
 
 @fn_call_cache(cache_validation_callback=cache_validation_callback)
 def run_steps(steps: List[Dict]):
+    """
+    Run a list of operations, such as from a data recipe, and return the result.
+    """
     if len(steps) == 0:
         return None
+
+    # obtain input for the last ste by recursing into previous steps
     *prev_steps, step = steps
     result = run_steps(prev_steps)
+
+    # execute the last step
     runner = DataOp.get_runner(step)
     try:
         return runner.run(result, **step)
@@ -67,8 +74,9 @@ def run_steps(steps: List[Dict]):
 @dataclass
 class DataRecipe(Attribute):
     """
-    Describes a series of operations which lazily produce a well defined, interopable data element.
-    This effectively represent the data element.
+    Describes a series of operations which produce a well defined, interopable data element.
+    The recipe effectively represents the resulting data element while keeping provenance 
+    and implementing lazy execution of the undelying operations.
     """
 
     schema: str = None
@@ -94,7 +102,7 @@ class DataRecipe(Attribute):
         return replace(self, updates=[*self.update_kwargs, kwargs])
 
     def get_data(self):
-        pass
+        return run_steps(self.ops)
 
 
 # TODO consider if DataLoader is still needed.
