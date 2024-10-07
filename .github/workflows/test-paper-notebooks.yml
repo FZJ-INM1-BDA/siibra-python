@@ -26,4 +26,4 @@ jobs:
           pip install pytest nbmake
       
       - name: Run notebooks with nbmake
-        run: pytest --nbmake --nbmake-timeout=1200 ./paper_notebookes
+        run: pytest --nbmake --nbmake-timeout=1200 paper_notebookes
