@@ -37,12 +37,17 @@ class MeshRecipe(VolumeRecipe):
     def _generate_ops(cls, conf: Dict):
         format = conf.get("format")
         if format == "neuroglancer/precompmesh":
-            archive_options = conf.get("archive_options")
-            label = archive_options.get("label")
             base_url = conf.get("url")
-            assert label
+            archive_options = conf.get("archive_options")
+            if archive_options is not None:
+                label = archive_options.get("label")
+                assert label
+                return [
+                    ReadNgMeshes.generate_specs(base_url=base_url, label=label),
+                    MergeGifti.generate_specs(),
+                ]
             return [
-                ReadNgMeshes.generate_specs(base_url=base_url, label=label),
+                ReadNgMeshes.generate_specs(base_url=base_url),
                 MergeGifti.generate_specs(),
             ]
         if format == "freesurfer-annot":

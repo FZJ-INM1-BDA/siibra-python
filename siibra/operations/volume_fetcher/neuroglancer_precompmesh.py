@@ -105,7 +105,10 @@ class ReadNgMeshes(DataOp):
         mesh_dir = info_json.get("mesh")
         assert mesh_dir, f"{base_url} does not have mesh key defined."
 
-        mesh_info_resp = sess.get(f"{base_url}/{mesh_dir}/{str(label)}:0")
+        if label is None:
+            mesh_info_resp = sess.get(f"{base_url}/{mesh_dir}")
+        else:
+            mesh_info_resp = sess.get(f"{base_url}/{mesh_dir}/{str(label)}:0")
         mesh_info_resp.raise_for_status()
         mesh_info_json = mesh_info_resp.json()
         fragments = mesh_info_json.get("fragments")
@@ -130,6 +133,6 @@ class ReadNgMeshes(DataOp):
         return result
 
     @classmethod
-    def generate_specs(cls, *, base_url: str, label: int, **kwargs):
+    def generate_specs(cls, *, base_url: str, label: int = None, **kwargs):
         base = super().generate_specs(**kwargs)
         return {**base, "base_url": base_url, "label": label}
