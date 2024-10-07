@@ -13,6 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+TODO (2.0)
+move to attributes.datarecipes.operations
+
+TODO (2.1)
+restructure subpackage (?) into
+- source
+- transform
+- filter
+
+(or alternatively based on inputs?)
+"""
+
 from .base import DataOp
 from . import volume_fetcher
 from . import file_fetcher

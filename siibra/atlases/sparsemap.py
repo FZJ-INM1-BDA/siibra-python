@@ -32,7 +32,7 @@ from pandas import DataFrame
 import nibabel as nib
 
 from .parcellationmap import Map
-from ..attributes.dataproviders.volume.image import ImageProvider
+from ..attributes.dataproviders.volume.image import ImageRecipe
 from ..attributes.dataproviders.volume import VolumeOpsKwargs
 from ..attributes.locations import Point, PointCloud, BoundingBox
 from ..attributes.locations.boundingbox import (
@@ -540,7 +540,7 @@ class SparseMap(Map):
     # profile and check if performance can be improved
     def assign(
         self,
-        queryitem: Union[Point, PointCloud, ImageProvider],
+        queryitem: Union[Point, PointCloud, ImageRecipe],
         split_components: bool = True,
         voxel_sigma_threshold: int = 3,
         iou_lower_threshold=0,
@@ -564,7 +564,7 @@ class SparseMap(Map):
         )
         queryitemloc = (
             bbox_from_imageprovider(queryitem)
-            if isinstance(queryitem, ImageProvider)
+            if isinstance(queryitem, ImageRecipe)
             else queryitem
         )
         assignments = []

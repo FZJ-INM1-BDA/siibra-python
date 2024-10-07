@@ -31,7 +31,7 @@ from ...commons.iterable import flatmap
 from ...concepts import Feature
 from ...attributes.descriptions import register_modalities, Modality, Gene
 from ...attributes.locations import PointCloud
-from ...attributes.dataproviders import TabularDataProvider, ImageProvider
+from ...attributes.dataproviders import TabularDataRecipe, ImageRecipe
 from ...attributes.dataproviders.volume.image import intersect_ptcld_image
 from ...exceptions import ExternalApiException
 
@@ -112,7 +112,7 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
             )
             return
 
-        use_query_concept: Union[ImageProvider, None] = None
+        use_query_concept: Union[ImageRecipe, None] = None
         regions = self.find_attribute_collections(Region)
         if len(regions) > 1:
             logger.warning(
@@ -124,7 +124,7 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
             map = get_map(region.parcellation.ID, "icbm 152")
             use_query_concept = map.extract_regional_map(region)
 
-        queried_image_providers = flatmap(self.find_attributes(ImageProvider))
+        queried_image_providers = flatmap(self.find_attributes(ImageRecipe))
         if len(queried_image_providers) > 0:
             if use_query_concept is not None:
                 logger.warning(
@@ -149,7 +149,7 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
             space_id=MNI152_SPACE_ID,
             coordinates=[measure["mni_xyz"] for measure in retrieved_measurements],
         )
-        if isinstance(use_query_concept, ImageProvider):
+        if isinstance(use_query_concept, ImageRecipe):
             intersection = intersect_ptcld_image(ptcld, use_query_concept)
 
         inside_coord_set = set(tuple(coord) for coord in intersection.coordinates)
@@ -165,7 +165,7 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
 
         filename = CACHE.build_filename(output_hash, suffix=".csv")
         dataframe.to_csv(filename)
-        tabular_data_attr = TabularDataProvider(
+        tabular_data_attr = TabularDataRecipe(
             url=filename,
             plot_options={
                 "kind": "box",

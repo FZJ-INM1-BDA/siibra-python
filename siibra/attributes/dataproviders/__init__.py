@@ -13,6 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .volume import ImageProvider, MeshProvider
-from .tabular import TabularDataProvider
-from .base import Archive, DataProvider
+from .volume import ImageRecipe, MeshRecipe
+from .tabular import TabularDataRecipe
+from .base import Archive, DataRecipe

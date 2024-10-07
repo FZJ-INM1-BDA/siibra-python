@@ -26,7 +26,7 @@ from ...cache import CACHE
 from ...commons.maps import arrs_to_gii
 
 if TYPE_CHECKING:
-    from ...attributes.dataproviders.volume import VolumeProvider
+    from ...attributes.dataproviders.volume import VolumeRecipe
 
 
 def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
@@ -60,7 +60,7 @@ def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
 class FreesurferAnnot(PostProcVolProvider):
 
     @classmethod
-    def on_get_retrieval_ops(cls, volume_provider: "VolumeProvider"):
+    def on_get_retrieval_ops(cls, volume_provider: "VolumeRecipe"):
         base_retrieval_ops = super().on_get_retrieval_ops(volume_provider)
         return [*base_retrieval_ops, ReadGiftiFromBytesFSAAnnot.generate_specs()]
 

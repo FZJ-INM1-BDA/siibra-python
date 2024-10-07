@@ -23,9 +23,9 @@ import gzip
 import numpy as np
 import nibabel as nib
 
-from .base import VolumeProvider, VolumeOpsKwargs
+from .base import VolumeRecipe, VolumeOpsKwargs
 from ...locations import point, pointcloud, boundingbox as _boundingbox
-from ...locations.ops.intersection import _loc_intersection
+from ...locations.ops.intersection import _location_intersection_registry
 from ....operations.volume_fetcher.nifti import (
     NiftiExtractVOI,
     IntersectNiftiWithNifti,
@@ -41,7 +41,15 @@ from ....operations.base import Merge, FromInstance
 
 
 @dataclass
-class ImageProvider(VolumeProvider):
+class ImageRecipe(VolumeRecipe):
+    """
+    n.b. should not be a location, even it has a space_id attribute because
+    There are ambiguous strategies to use image as location (peaks vs boundingboxes vs non-zero voxels etc)
+
+    As a result, the conversion from image -> location should *always* be explicit
+    """
+
+    format: str = None
     schema: str = "siibra/attr/data/image/v0.1"
 
     @property
@@ -202,7 +210,7 @@ class ImageProvider(VolumeProvider):
             point.Point,
             pointcloud.PointCloud,
             _boundingbox.BoundingBox,
-            "ImageProvider",
+            "ImageRecipe",
         ],
         iou_lower_threshold: Union[int, float] = 0.0,
         voxel_sigma_threshold: int = 3,
@@ -263,8 +271,8 @@ def from_pointcloud(
     pointcloud: pointcloud.PointCloud,
     normalize=True,
     cached=False,
-    target: ImageProvider = None,
-) -> ImageProvider:
+    target: ImageRecipe = None,
+) -> ImageRecipe:
     from ..base import DataRecipe
 
     transformation_ops = []
@@ -272,16 +280,9 @@ def from_pointcloud(
         transformation_ops = [
             ResampleNifti.generate_specs(target_img=target.get_data())
         ]
-    return DataRecipe(
-        ops=[
-            FromInstance.generate_specs(instance=pointcloud, force=(not cached)),
-            NiftiFromPointCloud.generate_specs(normalize=normalize, force=(not cached)),
-            *transformation_ops,
-        ]
-    )
-    return ImageProvider(
+    return ImageRecipe(
         format="nii",
-        override_ops=[
+        ops=[
             FromInstance.generate_specs(instance=pointcloud, force=(not cached)),
             NiftiFromPointCloud.generate_specs(normalize=normalize, force=(not cached)),
             *transformation_ops,
@@ -295,7 +296,7 @@ def from_nifti(
     space: str = None,
     space_id: str = None,
     **kwargs,
-) -> "ImageProvider":
+) -> "ImageRecipe":
     """
     Builds an `Image` `Attribute` from a Nifti image or path to a nifti file.
     Use space_id kwargs if you want to directly set the space_id. Otherwise, use the space kwarg to specify a space to look up.
@@ -322,7 +323,7 @@ def from_nifti(
         raise RuntimeError(
             f"nifti must be either str or NIftiImage, but you provided {type(nifti)}"
         )
-    return ImageProvider(format="nii", url=filename, space_id=space_id, **kwargs)
+    return ImageRecipe(format="nii", url=filename, space_id=space_id, **kwargs)
 
 
 def from_array(
@@ -331,7 +332,7 @@ def from_array(
     space: str = None,
     space_id: str = None,
     **kwargs,
-) -> "ImageProvider":
+) -> "ImageRecipe":
     """
     Builds an `Image` `Attribute` from a volumetric array and affine matrix.
     Use space_id kwargs if you want to directly set the space_id. Otherwise, use the space kwarg to specify a space to look up.
@@ -342,21 +343,17 @@ def from_array(
     )
 
 
-@_loc_intersection.register(point.Point, ImageProvider)
-def compare_pt_to_image(pt: point.Point, image: ImageProvider):
+@_location_intersection_registry.register(point.Point, ImageRecipe)
+def compare_pt_to_image(pt: point.Point, image: ImageRecipe):
     ptcloud = pointcloud.PointCloud(space_id=pt.space_id, coordinates=[pt.coordinate])
-    intersection = compare_ptcloud_to_image(ptcloud=ptcloud, image=image)
+    intersection = intersect_ptcld_image(ptcloud=ptcloud, image=image)
     if intersection:
         return pt
 
 
-@_loc_intersection.register(pointcloud.PointCloud, ImageProvider)
-def compare_ptcloud_to_image(ptcloud: pointcloud.PointCloud, image: ImageProvider):
-    return intersect_ptcld_image(ptcloud=ptcloud, image=image)
-
-
+@_location_intersection_registry.register(pointcloud.PointCloud, ImageRecipe)
 def intersect_ptcld_image(
-    ptcloud: pointcloud.PointCloud, image: ImageProvider
+    ptcloud: pointcloud.PointCloud, image: ImageRecipe
 ) -> pointcloud.PointCloud:
     background_value = 0
     valid_voxel_indices, values = image.lookup_points(ptcloud)
@@ -370,9 +367,9 @@ def intersect_ptcld_image(
     )
 
 
-@_loc_intersection.register(ImageProvider, ImageProvider)
-def intersect_image_to_image(imgprov0: ImageProvider, imgprov1: ImageProvider):
-    intersection_provider = ImageProvider(
+@_location_intersection_registry.register(ImageRecipe, ImageRecipe)
+def intersect_image_to_image(imgprov0: ImageRecipe, imgprov1: ImageRecipe):
+    intersection_provider = ImageRecipe(
         space_id=imgprov0.space_id,  # 1st image is resampled onto 0th voxel space
         override_ops=[
             Merge.spec_from_dataproviders([imgprov0, imgprov1]),

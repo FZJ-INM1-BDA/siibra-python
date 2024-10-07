@@ -40,7 +40,7 @@ class Patch(polyline.PolyLine):
         assert len(self.coordinates) == 4
         assert len(np.unique(self.coordinates[:, 1])) == 1
 
-    def extract_volume(self, imgprovider: "image.ImageProvider", resolution_mm: float):
+    def extract_volume(self, imgprovider: "image.ImageRecipe", resolution_mm: float):
         """
         fetches image data in a planar patch.
         TODO The current implementation only covers patches which are strictly

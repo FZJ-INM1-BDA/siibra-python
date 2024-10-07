@@ -220,8 +220,8 @@ def calculate_nifti_intersection_score(
 
 
 def get_image_intersection_score(
-    query_image: _image.ImageProvider,
-    target_image: _image.ImageProvider,
+    query_image: _image.ImageRecipe,
+    target_image: _image.ImageRecipe,
     split_components: bool = False,
     iou_lower_threshold: float = 0.0,
     target_masking_lower_threshold: float = 0.0,
@@ -272,7 +272,7 @@ def get_image_intersection_score(
 
 def get_bounding_intersection_score(
     bbox: BoundingBox,
-    image: _image.ImageProvider,
+    image: _image.ImageRecipe,
     **fetch_kwargs: VolumeOpsKwargs,
 ):
     # quick check
@@ -286,7 +286,7 @@ def get_bounding_intersection_score(
 
 def get_pointcloud_intersection_score(
     points: PointCloud,
-    image: _image.ImageProvider,
+    image: _image.ImageRecipe,
     voxel_sigma_threshold: int = 3,
     iou_lower_threshold: float = 0.0,
     target_masking_lower_threshold: float = 0.0,
@@ -359,8 +359,8 @@ def get_pointcloud_intersection_score(
 
 
 def get_intersection_scores(
-    queryitem: Union[Point, PointCloud, BoundingBox, _image.ImageProvider],
-    target_image: _image.ImageProvider,
+    queryitem: Union[Point, PointCloud, BoundingBox, _image.ImageRecipe],
+    target_image: _image.ImageRecipe,
     iou_lower_threshold: Union[int, float] = 0.0,
     target_masking_lower_threshold: float = 0.0,
     split_components: bool = False,
@@ -389,7 +389,7 @@ def get_intersection_scores(
             **fetch_kwargs,
         )
 
-    if isinstance(queryitem, _image.ImageProvider):
+    if isinstance(queryitem, _image.ImageRecipe):
         return get_image_intersection_score(
             query_image=queryitem,
             target_image=target_image,

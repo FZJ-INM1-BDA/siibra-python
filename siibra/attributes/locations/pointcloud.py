@@ -20,7 +20,7 @@ from dataclasses import dataclass, field, replace, asdict
 import nibabel as nib
 
 if TYPE_CHECKING:
-    from ..dataproviders.volume.image import ImageProvider
+    from ..dataproviders.volume.image import ImageRecipe
 
 from .base import Location
 from . import point, boundingbox as _boundingbox
@@ -224,7 +224,7 @@ class LabelledPointCloud(PointCloud):
         ]
 
 
-def unifrom_from_image(provider: "ImageProvider"):
+def unifrom_from_image(provider: "ImageRecipe"):
     """
     Create a pointcloud that mimick the provided image.
     """
@@ -244,7 +244,7 @@ def unifrom_from_image(provider: "ImageProvider"):
 
 
 def sample_from_image(
-    provider: "ImageProvider",
+    provider: "ImageRecipe",
     num_points: int,
     sample_size: int = 100,
     e: float = 1,
@@ -281,7 +281,7 @@ def sample_from_image(
     return result
 
 
-def peaks_from_image(provider: "ImageProvider", mindist=5, sigma=0, **kwargs):
+def peaks_from_image(provider: "ImageRecipe", mindist=5, sigma=0, **kwargs):
     """
     Find local peaks in the volume.
     Additional keyword arguments are passed over to fetch()

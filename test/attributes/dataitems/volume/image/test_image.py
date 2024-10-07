@@ -1,6 +1,6 @@
 from siibra.attributes.dataproviders.volume.image import (
     intersect_ptcld_image,
-    ImageProvider,
+    ImageRecipe,
     from_nifti,
 )
 import siibra
@@ -18,8 +18,8 @@ SPACE_ID_2 = "bar"
 # TODO fix fixture
 @pytest.fixture
 def mocked_image_foo():
-    with patch.object(ImageProvider, "get_data") as fetch_mock:
-        image = ImageProvider(format="foo", space_id=SPACE_ID, url="foo")
+    with patch.object(ImageRecipe, "get_data") as fetch_mock:
+        image = ImageRecipe(format="foo", space_id=SPACE_ID, url="foo")
         yield image, fetch_mock
 
 
@@ -86,7 +86,7 @@ from_nifti_args = [
 @pytest.mark.parametrize("space_id, space, get_space_called", from_nifti_args)
 def test_from_nifti(space_id, space, get_space_called, get_space_mock):
     result = from_nifti("http", space=space, space_id=space_id)
-    assert isinstance(result, ImageProvider)
+    assert isinstance(result, ImageRecipe)
     if get_space_called:
         get_space_mock.assert_called()
         assert result.space_id == SPACE_ID_2

@@ -6,7 +6,7 @@ import hashlib
 import os
 
 from siibra.attributes.locations import BoundingBox, Point
-from siibra.attributes.dataproviders.volume import ImageProvider
+from siibra.attributes.dataproviders.volume import ImageRecipe
 from siibra.operations.volume_fetcher.nifti import NiftiExtractVOI
 from siibra.operations.volume_fetcher.neuroglancer_precomputed import (
     NgPrecomputedFetchCfg,
@@ -32,14 +32,14 @@ EXPECTED_FILE_MD5_HASH = "257d7d1549f9dbff5622f9e4147f996a"
 
 @pytest.fixture
 def jba31_icbm152_labelled_improv():
-    yield ImageProvider(
+    yield ImageRecipe(
         format="nii", url=JBA_31_ICBM152_LABELLED_URL, space_id=ICBM152_SPACEID
     )
 
 
 @pytest.fixture
 def jba_hoc1_lh_icbm152_stat_imgprov():
-    yield ImageProvider(
+    yield ImageRecipe(
         format="nii",
         url=JBA_HOC1_ICBM152_STATMAP,
         space_id=ICBM152_SPACEID,
@@ -48,7 +48,7 @@ def jba_hoc1_lh_icbm152_stat_imgprov():
 
 @pytest.fixture
 def bb_template():
-    yield ImageProvider(
+    yield ImageRecipe(
         format="neuroglancer/precomputed", url=NG_PRECOMP_BB_20UM, space_id=BIGBRAIN_ID
     )
 

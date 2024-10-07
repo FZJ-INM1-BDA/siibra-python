@@ -17,6 +17,7 @@
 
 from dataclasses import dataclass, field
 from typing import Tuple, TYPE_CHECKING
+
 if TYPE_CHECKING:
     from ..dataproviders.volume import image
 
@@ -29,7 +30,7 @@ from . import base, point, pointcloud, patch
 class Plane(base.Location):
     schema = "siibra/attr/loc/plane/v0.1"
     normal: Tuple[float, float, float] = field(default_factory=tuple)
-    distance_to_origin: float = 0.
+    distance_to_origin: float = 0.0
 
     def get_sidedness(self, points: np.ndarray):
         """
@@ -39,7 +40,9 @@ class Plane(base.Location):
         assert points.shape[1] == 3
         return (np.dot(points, self.normal) >= self.distance_from_origin).astype("int")
 
-    def intersect_line_segments(self, startpoints: np.ndarray, endpoints: np.ndarray) -> np.ndarray:
+    def intersect_line_segments(
+        self, startpoints: np.ndarray, endpoints: np.ndarray
+    ) -> np.ndarray:
         """
         Intersects a set of straight line segments with the plane.
         Returns the set of intersection points.
@@ -154,9 +157,7 @@ class Plane(base.Location):
             # finish the current contour.
             result.append(
                 pointcloud.PolyLine(
-                    coordinates=np.array(points),
-                    labels=labels, 
-                    space=self.space
+                    coordinates=np.array(points), labels=labels, space=self.space
                 )
             )
             if len(face_indices) > 0:
@@ -224,7 +225,7 @@ class Plane(base.Location):
         return patch.Patch(self.project_points(corners))
 
 
-def from_points(p1: point.Point, p2:point.Point, p3:point.Point):
+def from_points(p1: point.Point, p2: point.Point, p3: point.Point):
     """
     Create a 3D plane from 3 points.
     The plane's reference space is defined by the first point.
@@ -238,7 +239,7 @@ def from_points(p1: point.Point, p2:point.Point, p3:point.Point):
     return Plane(space=p1.space, normal=n, distance_to_origin=d)
 
 
-def from_image(image: "image.ImageProvider"):
+def from_image(image: "image.ImageRecipe"):
     """
     Derive an image plane by assuming it 2D.
     The smallest dimension in voxel space is considered flat.

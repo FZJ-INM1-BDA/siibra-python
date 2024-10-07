@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .base import VolumeProvider
-from .image import ImageProvider
-from .mesh import MeshProvider
+from .base import VolumeRecipe
+from .image import ImageRecipe
+from .mesh import MeshRecipe
 from .base import (
     SIIBRA_MAX_FETCH_SIZE_GIB,
     VolumeOpsKwargs,

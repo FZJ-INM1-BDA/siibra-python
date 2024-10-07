@@ -17,7 +17,8 @@ from dataclasses import dataclass
 from os import getenv
 from typing import TYPE_CHECKING, Tuple, Dict
 
-from ..base import DataRecipe, DataProvider
+
+from ..base import DataRecipe
 from ....commons.iterable import assert_ooo
 from ....commons.logger import logger
 from ....operations.volume_fetcher import VolumeFormats
@@ -62,51 +63,25 @@ class VolumeOpsKwargs(TypedDict):
     mapping: Dict[str, Mapping] = None
 
 
+# TODO (ASAP) volume_postprocess rework retreival ops, on_appends_ops on_post_init
+# rework data recipe init so that these functionalities continues to work
 @dataclass
-class Volume:
-    format: str = None
+class VolumeRecipe(DataRecipe):
+
     space_id: str = None
 
     @property
     def space(self):
-        from .... import find_spaces
+        if self.space_id is None:
+            return None
+
+        from ....factory import iter_preconfigured_ac
+        from ....atlases import Space
 
         return assert_ooo(
-            find_spaces(self.space_id),
-            lambda spaces: (
-                f"Cannot find any space with the id {self.space_id}"
-                if len(spaces) == 0
-                else f"Found multiple ({len(spaces)}) spaces with the id {self.space_id}"
-            ),
+            [
+                space
+                for space in iter_preconfigured_ac(Space)
+                if space.ID == self.space_id
+            ]
         )
-
-
-@dataclass
-class VolumeGenerator(DataRecipe, Volume):
-    pass
-
-
-@dataclass
-class VolumeProvider(DataProvider, Volume):
-    schema: str = "siibra/attr/data/volume"
-    colormap: str = None  # TODO: remove from config and here
-
-    @property
-    def retrieval_ops(self):
-        return self.volume_postprocess.on_get_retrieval_ops(self)
-
-    def append_op(self, op: Dict):
-        self.volume_postprocess.on_append_op(self, op)
-
-    def __post_init__(self):
-        self.volume_postprocess.on_post_init(self)
-
-    @property
-    def volume_postprocess(self):
-        try:
-            return VolumeFormats.READER_LOOKUP[self.format]
-        except KeyError:
-            logger.warning(
-                f"{self.format} not found in {list(VolumeFormats.READER_LOOKUP.keys())}, default to default reader."
-            )
-            return PostProcVolProvider

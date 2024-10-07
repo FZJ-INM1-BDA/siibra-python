@@ -58,13 +58,11 @@ class Feature(AttributeCollection):
     @property
     def data(self):
         logger.warning("`data` will be depricated! Use `extract_data()` instead.")
-        from ..attributes.dataproviders import TabularDataProvider
+        from ..attributes.dataproviders import TabularDataRecipe
 
         matrix_entity_key = self.filter(attr_of_general_interest)
 
-        dfs: List[pd.DataFrame] = [
-            d.get_data() for d in self._find(TabularDataProvider)
-        ]
+        dfs: List[pd.DataFrame] = [d.get_data() for d in self._find(TabularDataRecipe)]
         if len(matrix_entity_key.attributes) > 0:
             mapping_idx = {
                 attr.extra[MATRIX_INDEX_ENTITY_KEY]: attr

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 from nibabel import GiftiImage
 
-from .base import VolumeProvider
+from .base import VolumeRecipe
 from ...locations import BoundingBox
 from ....operations.volume_fetcher import VolumeFormats
 
@@ -27,14 +27,8 @@ def extract_label_mask(gii: GiftiImage, label: int):
 
 
 @dataclass
-class MeshProvider(VolumeProvider):
+class MeshRecipe(VolumeRecipe):
     schema: str = "siibra/attr/data/mesh/v0.1"
-
-    def __post_init__(self):
-        super().__post_init__()
-        assert (
-            self.format in VolumeFormats.MESH_FORMATS
-        ), f"{self.format} is not a supportes mesh format."
 
     @property
     def boundingbox(self) -> "BoundingBox":

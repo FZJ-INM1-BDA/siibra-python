@@ -32,7 +32,7 @@ from ..cache import fn_call_cache
 if TYPE_CHECKING:
     from . import Space, ParcellationScheme
     from ..assignment.qualification import Qualification
-    from ..attributes.dataproviders.volume import VolumeProvider
+    from ..attributes.dataproviders.volume import VolumeRecipe
 
 
 def filter_newest(regions: List["Region"]) -> List["Region"]:
@@ -41,9 +41,14 @@ def filter_newest(regions: List["Region"]) -> List["Region"]:
 
 
 @fn_call_cache
-def _get_region_boundingbox(parc_id: str, region_name: str, space_id: str, maptype: str):
+def _get_region_boundingbox(
+    parc_id: str, region_name: str, space_id: str, maptype: str
+):
     from .. import get_region
-    region = get_region(parcellation=parc_id, region=region_name)  # using region_name to be able to cache
+
+    region = get_region(
+        parcellation=parc_id, region=region_name
+    )  # using region_name to be able to cache
 
     try:
         rmap_vp = region.extract_mask(space=space_id, maptype=maptype)
@@ -75,6 +80,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
     @property
     def mapped_spaces(self) -> Iterable["Space"]:
         from .. import find_maps
+
         for mp in find_maps(self.parcellation.ID):
             yield mp.space
 
@@ -123,7 +129,9 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             raise RuntimeError(
                 f"space must be of type str or Space. You provided {type(space).__name__}"
             )
-        return _get_region_boundingbox(self.parcellation.ID, self.name, space_id, maptype)
+        return _get_region_boundingbox(
+            self.parcellation.ID, self.name, space_id, maptype
+        )
 
     def find_boundingboxes(self):
         from .. import find_maps
@@ -171,17 +179,19 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         space: Union[str, "Space", None] = None,
         maptype: str = "labelled",
         name: str = "",
-    ) -> "VolumeProvider":
+    ) -> "VolumeRecipe":
         from .. import find_maps
 
-        suitable_maps = find_maps(parcellation=self.parcellation.ID, space=space, maptype=maptype, name=name)
+        suitable_maps = find_maps(
+            parcellation=self.parcellation.ID, space=space, maptype=maptype, name=name
+        )
         selected_mp = assert_ooo(
             suitable_maps,
             lambda maps: (
                 (
                     "The specification matched multiple maps. Specify one of ",
                     " their names as the `name` keyword argument.\n",
-                    "\n".join(f"- {m.name}" for m in maps)
+                    "\n".join(f"- {m.name}" for m in maps),
                 )
                 if len(maps) > 1
                 else """The specification matched no maps."""
@@ -195,17 +205,19 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         space: Union[str, "Space", None] = None,
         maptype: str = "labelled",
         name: str = "",
-    ) -> "VolumeProvider":
+    ) -> "VolumeRecipe":
         from .. import find_maps
 
-        suitable_maps = find_maps(parcellation=self.parcellation.ID, space=space, maptype=maptype, name=name)
+        suitable_maps = find_maps(
+            parcellation=self.parcellation.ID, space=space, maptype=maptype, name=name
+        )
         selected_mp = assert_ooo(
             suitable_maps,
             lambda maps: (
                 (
                     "The specification matched multiple maps. Specify one of ",
                     " their names as the `name` keyword argument.\n",
-                    "\n".join(f"- {m.name}" for m in maps)
+                    "\n".join(f"- {m.name}" for m in maps),
                 )
                 if len(maps) > 1
                 else """The specification matched no maps."""

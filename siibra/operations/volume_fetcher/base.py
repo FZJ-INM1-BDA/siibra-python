@@ -6,13 +6,13 @@ except ImportError:
     from typing_extensions import Literal
 
 if TYPE_CHECKING:
-    from ...attributes.dataproviders.volume import VolumeProvider
+    from ...attributes.dataproviders.volume import VolumeRecipe
 
 from ...operations.base import DataOp
 from ...commons.logger import logger
 
 
-# TODO consider reconsolidate, retrieval_ops / transformation_ops
+# TODO (ASAP) re: datarecipe rewrite, consider how to implement on_init, on_append etc
 class VolumeFormats:
     IMAGE_FORMATS = []
     MESH_FORMATS = []
@@ -46,20 +46,21 @@ class VolumeFormats:
         return outer
 
 
+# TODO (ASAP) remove, but consider how it should be implemented in lieu with the new datarecipe paradigm
 class PostProcVolProvider:
 
     @classmethod
-    def on_post_init(cls, volume_provider: "VolumeProvider"):
+    def on_post_init(cls, volume_provider: "VolumeRecipe"):
         pass
 
     @classmethod
-    def on_get_retrieval_ops(cls, volume_provider: "VolumeProvider"):
-        from ...attributes.dataproviders.volume import VolumeProvider
+    def on_get_retrieval_ops(cls, volume_provider: "VolumeRecipe"):
+        from ...attributes.dataproviders.volume import VolumeRecipe
 
-        return super(VolumeProvider, volume_provider).retrieval_ops
+        return super(VolumeRecipe, volume_provider).retrieval_ops
 
     @classmethod
-    def on_append_op(cls, volume_provider: "VolumeProvider", op: Dict):
-        from ...attributes.dataproviders.volume import VolumeProvider
+    def on_append_op(cls, volume_provider: "VolumeRecipe", op: Dict):
+        from ...attributes.dataproviders.volume import VolumeRecipe
 
-        return super(VolumeProvider, volume_provider).append_op(op)
+        return super(VolumeRecipe, volume_provider).append_op(op)

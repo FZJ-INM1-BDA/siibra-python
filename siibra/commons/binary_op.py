@@ -19,7 +19,7 @@ T = TypeVar("T")
 V = TypeVar("V")
 
 
-class BinaryOp(Generic[T, V]):
+class BinaryOpRegistry(Generic[T, V]):
     """
     Create a container for methods that takes two objects.
 

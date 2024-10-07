@@ -27,7 +27,7 @@ from ...commons.logger import logger
 from ...cache import fn_call_cache
 
 if TYPE_CHECKING:
-    from ..dataproviders.volume import ImageProvider
+    from ..dataproviders.volume import ImageRecipe
 
 
 @dataclass
@@ -200,11 +200,11 @@ def from_array(array: np.ndarray, threshold=0.0) -> "BoundingBox":
     )
 
 
-def from_imageprovider(img_provider: "ImageProvider", threshold=0.0) -> BoundingBox:
-    from ..dataproviders.volume import ImageProvider
+def from_imageprovider(img_provider: "ImageRecipe", threshold=0.0) -> BoundingBox:
+    from ..dataproviders.volume import ImageRecipe
 
     assert isinstance(
-        img_provider, ImageProvider
+        img_provider, ImageRecipe
     ), f"img_provider must be of type ImageProvider, but was {type(img_provider)}"
     data = img_provider.get_data()
     assert isinstance(

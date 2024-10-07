@@ -22,13 +22,13 @@ from ..pointcloud import PointCloud, LabelledPointCloud
 from ..boundingbox import BoundingBox
 from ..base import Location
 from ....exceptions import InvalidAttrCompException, UnregisteredAttrCompException
-from ....commons.binary_op import BinaryOp
+from ....commons.binary_op import BinaryOpRegistry
 from ....commons.logger import logger
 
-_loc_intersection = BinaryOp[Location, Union[Location, None]]()
+_location_intersection_registry = BinaryOpRegistry[Location, Union[Location, None]]()
 
 
-@_loc_intersection.register(Point, Point)
+@_location_intersection_registry.register(Point, Point)
 def pt_pt(pta: Point, ptb: Point):
     if pta.space_id != ptb.space_id:
         raise InvalidAttrCompException
@@ -36,7 +36,7 @@ def pt_pt(pta: Point, ptb: Point):
         return replace(pta)
 
 
-@_loc_intersection.register(Point, PointCloud)
+@_location_intersection_registry.register(Point, PointCloud)
 def pt_ptcld(pt: Point, ptcld: PointCloud):
     if pt.space_id != ptcld.space_id:
         raise InvalidAttrCompException
@@ -44,7 +44,7 @@ def pt_ptcld(pt: Point, ptcld: PointCloud):
         return replace(pt)
 
 
-@_loc_intersection.register(Point, BoundingBox)
+@_location_intersection_registry.register(Point, BoundingBox)
 def pt_bbox(pt: Point, bbox: BoundingBox):
     if pt.space_id != bbox.space_id:
         raise InvalidAttrCompException
@@ -55,7 +55,7 @@ def pt_bbox(pt: Point, bbox: BoundingBox):
         return replace(pt)
 
 
-@_loc_intersection.register(PointCloud, PointCloud)
+@_location_intersection_registry.register(PointCloud, PointCloud)
 def ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
     if ptclda.space_id != ptcldb.space_id:
         raise InvalidAttrCompException
@@ -71,7 +71,7 @@ def ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
     )
 
 
-@_loc_intersection.register(LabelledPointCloud, LabelledPointCloud)
+@_location_intersection_registry.register(LabelledPointCloud, LabelledPointCloud)
 def lblptcld_lblptcld(ptclda: LabelledPointCloud, ptcldb: LabelledPointCloud):
     if ptclda.space_id != ptcldb.space_id:
         raise InvalidAttrCompException
@@ -88,7 +88,7 @@ def lblptcld_lblptcld(ptclda: LabelledPointCloud, ptcldb: LabelledPointCloud):
     )
 
 
-@_loc_intersection.register(PointCloud, BoundingBox)
+@_location_intersection_registry.register(PointCloud, BoundingBox)
 def ptcld_bbox(ptcld: PointCloud, bbox: BoundingBox):
     if ptcld.space_id != bbox.space_id:
         raise InvalidAttrCompException
@@ -102,7 +102,7 @@ def ptcld_bbox(ptcld: PointCloud, bbox: BoundingBox):
     )
 
 
-@_loc_intersection.register(LabelledPointCloud, BoundingBox)
+@_location_intersection_registry.register(LabelledPointCloud, BoundingBox)
 def lblptcld_bbox(ptcld: LabelledPointCloud, bbox: BoundingBox):
     if ptcld.space_id != bbox.space_id:
         raise InvalidAttrCompException
@@ -119,7 +119,7 @@ def lblptcld_bbox(ptcld: LabelledPointCloud, bbox: BoundingBox):
     )
 
 
-@_loc_intersection.register(BoundingBox, BoundingBox)
+@_location_intersection_registry.register(BoundingBox, BoundingBox)
 def bbox_bbox(bboxa: BoundingBox, bboxb: BoundingBox):
     if bboxa.space_id != bboxb.space_id:
         raise InvalidAttrCompException
@@ -143,7 +143,7 @@ def intersect(loca: Location, locb: Location):
     """
     Get intersection between location A and location B. If the
     """
-    value = _loc_intersection.get(loca, locb)
+    value = _location_intersection_registry.get(loca, locb)
     if value is None:
         raise UnregisteredAttrCompException(
             f"Cannot find comparison between {type(loca)} and {type(locb)}"

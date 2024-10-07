@@ -25,7 +25,7 @@ from .attribute_qualification import (
 from ..commons.logger import logger
 from ..attributes import AttributeCollection
 from ..attributes.locations import Location, BoundingBox
-from ..attributes.dataproviders import DataProvider
+from ..attributes.dataproviders import DataRecipe
 from ..concepts import AtlasElement, QueryParam
 from ..atlases import Region, Space
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
@@ -82,7 +82,7 @@ def qualify(col_a: AttributeCollection, col_b: AttributeCollection):
     raise UnregisteredAttrCompException
 
 
-def preprocess_concept(concept: Union[AtlasElement, Location, DataProvider]):
+def preprocess_concept(concept: Union[AtlasElement, Location, DataRecipe]):
     """
     User provided concepts may need preprocessed. e.g.
 
@@ -93,7 +93,7 @@ def preprocess_concept(concept: Union[AtlasElement, Location, DataProvider]):
 
     - When user provides Space, this function adds an infinite boundingbox
     """
-    if isinstance(concept, (Location, DataProvider)):
+    if isinstance(concept, (Location, DataRecipe)):
         concept = QueryParam(attributes=[concept])
     assert isinstance(
         concept, AttributeCollection
@@ -105,7 +105,10 @@ def preprocess_concept(concept: Union[AtlasElement, Location, DataProvider]):
             bbox = concept.extract_mask(space=space)
             if bbox is not None:
                 break
-        concept.attributes = (*concept.attributes, bbox,)
+        concept.attributes = (
+            *concept.attributes,
+            bbox,
+        )
 
     if isinstance(concept, Space):
         # When user query space, we are assuming that they really want to see all features that overlaps with

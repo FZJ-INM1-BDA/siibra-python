@@ -22,7 +22,7 @@ from ..commons.string import fuzzy_match
 from ..commons.maps import merge_volumes
 
 if TYPE_CHECKING:
-    from ..attributes.dataproviders import ImageProvider, MeshProvider
+    from ..attributes.dataproviders import ImageRecipe, MeshRecipe
 
 
 class Space(AtlasElement):
@@ -40,12 +40,12 @@ class Space(AtlasElement):
 
     @property
     def volume_providers(self):
-        from ..attributes.dataproviders import ImageProvider, MeshProvider
+        from ..attributes.dataproviders import ImageRecipe, MeshRecipe
 
         return [
             attr
             for attr in self.attributes
-            if isinstance(attr, (MeshProvider, ImageProvider))
+            if isinstance(attr, (MeshRecipe, ImageRecipe))
         ]
 
     @property
@@ -58,7 +58,7 @@ class Space(AtlasElement):
 
     def find_templates(
         self, variant: str = None, frmt: str = None
-    ) -> List[Union["ImageProvider", "MeshProvider"]]:
+    ) -> List[Union["ImageRecipe", "MeshRecipe"]]:
         if frmt is None or frmt not in self.formats:
             frmt = [f for f in VolumeFormats.FORMAT_LOOKUP[frmt] if f in self.formats][
                 0
@@ -71,7 +71,7 @@ class Space(AtlasElement):
         if variant is not None and not self.variants:
             raise ValueError("This space has no variants.")
 
-        def filter_templates(vol: Union["ImageProvider", "MeshProvider"]):
+        def filter_templates(vol: Union["ImageRecipe", "MeshRecipe"]):
             if len(self.variants) == 0:
                 return vol.format == frmt
             return vol.format == frmt and (

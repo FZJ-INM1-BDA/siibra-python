@@ -23,12 +23,12 @@ try:
 except ImportError:
     from typing_extensions import Literal
 
-from .base import DataProvider
+from .base import DataRecipe
 from ...operations.tabular import ParseAsTabular, DFAccessor
 
 
 @dataclass
-class TabularDataProvider(DataProvider):
+class TabularDataRecipe(DataRecipe):
     schema: str = "siibra/attr/data/tabular/v0.1"
     format: Literal["csv"] = None
     plot_options: dict = field(default_factory=dict)

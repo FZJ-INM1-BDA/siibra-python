@@ -25,7 +25,7 @@ import json
 import inspect
 
 if TYPE_CHECKING:
-    from ..attributes.dataproviders.base import DataProvider
+    from ..attributes.dataproviders.base import DataRecipe
 
 try:
     from typing import get_origin
@@ -178,7 +178,7 @@ class Merge(DataOp):
         return return_desc
 
     @classmethod
-    def spec_from_dataproviders(cls, dataproviders: List["DataProvider"]):
+    def spec_from_dataproviders(cls, dataproviders: List["DataRecipe"]):
         srcs: List[Dict] = []
         for dv in dataproviders:
             srcs.append(dv.ops)

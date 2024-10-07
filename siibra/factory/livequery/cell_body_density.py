@@ -27,7 +27,7 @@ from ...attributes.descriptions import (
     ID,
     Name,
 )
-from ...attributes.dataproviders.tabular import TabularDataProvider
+from ...attributes.dataproviders.tabular import TabularDataRecipe
 from ...operations.base import Merge, DataOp
 from ...concepts import Feature
 from ...operations.tabular import (
@@ -108,16 +108,16 @@ class CellbodyDensityAggregator(LiveQuery, generates=Feature):
         if len(wanted_features) == 0:
             return
 
-        providers: List[TabularDataProvider] = []
+        providers: List[TabularDataRecipe] = []
         for feat in wanted_features:
             layerinfo = [
                 replace(tab)
-                for tab in feat._find(TabularDataProvider)
+                for tab in feat._find(TabularDataRecipe)
                 if "layerinfo.txt" in tab.url
             ]
             segments = [
                 replace(tab)
-                for tab in feat._find(TabularDataProvider)
+                for tab in feat._find(TabularDataRecipe)
                 if "segments.txt" in tab.url
             ]
             assert (
@@ -130,7 +130,7 @@ class CellbodyDensityAggregator(LiveQuery, generates=Feature):
             layerinfo = layerinfo[0]
             segments = segments[0]
 
-            provider = TabularDataProvider(
+            provider = TabularDataRecipe(
                 override_ops=[
                     Merge.spec_from_dataproviders([segments, layerinfo]),
                     ProcessCellBodyDensity.generate_specs(),
@@ -138,7 +138,7 @@ class CellbodyDensityAggregator(LiveQuery, generates=Feature):
             )
             providers.append(provider)
 
-        summed_table = TabularDataProvider(
+        summed_table = TabularDataRecipe(
             override_ops=[
                 Merge.spec_from_dataproviders(providers),
                 ConcatTabulars.generate_specs(axis=1),
@@ -165,7 +165,7 @@ class CellbodyDensityAggregator(LiveQuery, generates=Feature):
                     for feature in wanted_features
                     for attr in feature.attributes
                     if not isinstance(
-                        attr, (RegionSpec, Name, ID, Modality, TabularDataProvider)
+                        attr, (RegionSpec, Name, ID, Modality, TabularDataRecipe)
                     )
                 ],
                 summed_table,

@@ -28,7 +28,7 @@ from ...cache import fn_call_cache, Warmup, WarmupLevel, CACHE
 from ...commons.logger import logger
 from ...concepts.feature import Feature, SUMMARY_NAME
 from ...attributes.descriptions import Modality, register_modalities
-from ...attributes.dataproviders.tabular import TabularDataProvider
+from ...attributes.dataproviders.tabular import TabularDataRecipe
 from ...attributes.locations.layerboundary import (
     LayerBoundary,
     X_PRECALCULATED_BOUNDARY_KEY,
@@ -133,7 +133,7 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
 
             filename = CACHE.build_filename(hashed_io, suffix=".csv")
             dataframe.to_csv(filename)
-            input_attr = TabularDataProvider(
+            input_attr = TabularDataRecipe(
                 url=filename,
                 name=SUMMARY_NAME,
                 plot_options={"y": "mean", "yerr": "std", "kind": "bar"},
@@ -148,7 +148,7 @@ class BigBrainProfile(LiveQuery[Feature], generates=Feature):
                 filename = CACHE.build_filename(hashed_io, suffix=f"-pr-{index}.csv")
                 df.to_csv(filename)
 
-                tabular_attr = TabularDataProvider(
+                tabular_attr = TabularDataRecipe(
                     url=filename,
                     name=f"Intensity profile for {bigbrain_vertices[index]}",
                     extra={

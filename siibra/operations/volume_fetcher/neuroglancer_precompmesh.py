@@ -27,7 +27,7 @@ from ...commons.maps import arrs_to_gii
 from ...operations import DataOp
 
 if TYPE_CHECKING:
-    from ...attributes.dataproviders.volume import VolumeProvider
+    from ...attributes.dataproviders.volume import VolumeRecipe
 
 
 @fn_call_cache
@@ -81,7 +81,7 @@ def get_meshindex_info(self, base_url: str, meshindex: int) -> Dict[str, Tuple[s
 class PostProcNgMesh(PostProcVolProvider):
 
     @classmethod
-    def on_get_retrieval_ops(cls, volume_provider: "VolumeProvider"):
+    def on_get_retrieval_ops(cls, volume_provider: "VolumeRecipe"):
         from .gifti import MergeGifti
 
         label = volume_provider.archive_options.get("label")

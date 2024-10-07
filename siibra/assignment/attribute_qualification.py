@@ -18,11 +18,11 @@ from itertools import product
 
 from .qualification import Qualification
 from ..commons.logger import logger
-from ..commons.binary_op import BinaryOp
+from ..commons.binary_op import BinaryOpRegistry
 from ..commons.string import fuzzy_match, clear_name
 from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 from ..attributes import Attribute
-from ..attributes.dataproviders import ImageProvider
+from ..attributes.dataproviders import ImageRecipe
 from ..attributes.descriptions import (
     Modality,
     RegionSpec,
@@ -35,7 +35,7 @@ from ..attributes.locations import Point, PointCloud, BoundingBox, intersect
 from ..cache import fn_call_cache
 
 
-_attr_qual: BinaryOp[Attribute, Union[Qualification, None]] = BinaryOp()
+_attr_qual: BinaryOpRegistry[Attribute, Union[Qualification, None]] = BinaryOpRegistry()
 
 register_attr_qualifier = _attr_qual.register
 
@@ -274,8 +274,8 @@ def qualify_bbox_bbox(bboxa: BoundingBox, bboxb: BoundingBox):
     return Qualification.OVERLAPS
 
 
-@register_attr_qualifier(PointCloud, ImageProvider)
-def qualify_ptcld_image(ptcld: PointCloud, image: ImageProvider):
+@register_attr_qualifier(PointCloud, ImageRecipe)
+def qualify_ptcld_image(ptcld: PointCloud, image: ImageRecipe):
     intersected = intersect(ptcld, image)
     if isinstance(intersected, PointCloud):
         if len(intersected.coordinates) == len(ptcld.coordinates):
@@ -285,8 +285,8 @@ def qualify_ptcld_image(ptcld: PointCloud, image: ImageProvider):
         return Qualification.OVERLAPS
 
 
-@register_attr_qualifier(RegionSpec, ImageProvider)
-def qualify_regionspec_image(regionspec: RegionSpec, image: ImageProvider):
+@register_attr_qualifier(RegionSpec, ImageRecipe)
+def qualify_regionspec_image(regionspec: RegionSpec, image: ImageRecipe):
     logger.debug(
         "RegionSpec and Image comparison is disabled on purpose. This comparison turns out to be "
         "quite expensive even when caching the intermediate steps. Developers should implement their"

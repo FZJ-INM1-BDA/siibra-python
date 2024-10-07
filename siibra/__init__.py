@@ -35,7 +35,7 @@ from .attributes import Attribute, AttributeCollection
 from .attributes.descriptions import Modality, RegionSpec, Gene
 from .attributes.descriptions.modality import modality_vocab
 from .attributes.locations import Location, Point, PointCloud, BoundingBox
-from .attributes.dataproviders import DataProvider
+from .attributes.dataproviders import DataRecipe
 from .concepts import AtlasElement, QueryParam, Feature
 from .assignment import (
     string_search,
@@ -122,7 +122,7 @@ def get_map(parcellation: str, space: str, maptype: str = "labelled", name: str 
             (
                 "The specification matched multiple maps. Specify one of their ",
                 "names as the `name` keyword argument.\n",
-                "\n".join(f"- {m.name}" for m in maps)
+                "\n".join(f"- {m.name}" for m in maps),
             )
             if len(maps) > 1
             else """The specification matched no maps."""
@@ -131,7 +131,7 @@ def get_map(parcellation: str, space: str, maptype: str = "labelled", name: str 
 
 
 def find_features(
-    concept: Union[AtlasElement, Location, DataProvider],
+    concept: Union[AtlasElement, Location, DataRecipe],
     modality: Union[Modality, str],
     **kwargs,
 ):
@@ -153,7 +153,14 @@ def find_features(
     if "genes" in kwargs:
         assert isinstance(kwargs["genes"], list)
         gene_ac = AttributeCollection(
-            attributes=[Gene(gene["symbol"]) if isinstance(gene, dict) else Gene(value=gene.upper()) for gene in kwargs["genes"]]
+            attributes=[
+                (
+                    Gene(gene["symbol"])
+                    if isinstance(gene, dict)
+                    else Gene(value=gene.upper())
+                )
+                for gene in kwargs["genes"]
+            ]
         )
         query_ac.append(gene_ac)
 

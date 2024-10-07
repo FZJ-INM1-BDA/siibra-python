@@ -30,8 +30,8 @@ from ..commons.string import convert_hexcolor_to_rgbtuple
 from ..commons.logger import logger, siibra_tqdm, QUIET
 from ..atlases import ParcellationScheme, Space, Region
 from ..attributes.dataproviders.volume import (
-    VolumeProvider,
-    ImageProvider,
+    VolumeRecipe,
+    ImageRecipe,
     VolumeOpsKwargs,
     Mapping,
     SIIBRA_MAX_FETCH_SIZE_GIB,
@@ -272,7 +272,7 @@ class Map(AtlasElement):
                 ]
             )
 
-        if isinstance(mask_provider, ImageProvider):
+        if isinstance(mask_provider, ImageRecipe):
             if self.maptype == "statistical":
                 mask_provider.transformation_ops.append(
                     NiftiMask.generate_specs(lower_threshold=lower_threshold)
@@ -293,7 +293,7 @@ class Map(AtlasElement):
         frmt: str = None,
         allow_relabeling: bool = False,
         as_binary_mask: bool = False,
-    ) -> VolumeProvider:
+    ) -> VolumeRecipe:
         """
         Extracts a single volume with all (sub)regions imcluded.
         """
@@ -420,7 +420,7 @@ class Map(AtlasElement):
 
     def assign(
         self,
-        queryitem: Union[Point, PointCloud, ImageProvider],
+        queryitem: Union[Point, PointCloud, ImageRecipe],
         split_components: bool = True,
         voxel_sigma_threshold: int = 3,
         iou_lower_threshold=0.0,
@@ -497,6 +497,8 @@ class Map(AtlasElement):
                 ],
             )
 
+    # TODO (ASAP) broken if parcellation map is neuroglancer precomputed.
+    # *should* be fixed by the new DataRecipe paradigm
     def lookup_points(
         self,
         points: Union[Point, PointCloud],

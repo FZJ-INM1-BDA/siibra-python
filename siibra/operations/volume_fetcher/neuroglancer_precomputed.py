@@ -38,7 +38,7 @@ from ...commons.logger import logger
 from ...commons.conf import SiibraConf
 
 if TYPE_CHECKING:
-    from ...attributes.dataproviders.volume import VolumeProvider
+    from ...attributes.dataproviders.volume import VolumeRecipe
     from ...attributes.locations import BoundingBox
 
 NG_VOLUME_FORMAT_STR = "neuroglancer/precomputed"
@@ -340,13 +340,13 @@ def fetch_neuroglancer(
 class NgVolPostProcImgProvider(PostProcVolProvider):
 
     @classmethod
-    def _verify_image_provider(cls, volume_provider: "VolumeProvider"):
+    def _verify_image_provider(cls, volume_provider: "VolumeRecipe"):
         assert (
             volume_provider.format == NG_VOLUME_FORMAT_STR
         ), f"Expected format to be {NG_VOLUME_FORMAT_STR}, but was {volume_provider.format}"
 
     @classmethod
-    def on_post_init(cls, volume_provider: "VolumeProvider"):
+    def on_post_init(cls, volume_provider: "VolumeRecipe"):
         cls._verify_image_provider(volume_provider)
 
         try:
@@ -359,9 +359,9 @@ class NgVolPostProcImgProvider(PostProcVolProvider):
                 volume_provider.transformation_ops.append(fetch_kwarg_to_nifti_op)
 
     @classmethod
-    def on_append_op(cls, volume_provider: "VolumeProvider", op: Dict):
+    def on_append_op(cls, volume_provider: "VolumeRecipe", op: Dict):
         from .nifti import NiftiExtractVOI
-        from ...attributes.dataproviders.volume import VolumeProvider
+        from ...attributes.dataproviders.volume import VolumeRecipe
 
         cls._verify_image_provider(volume_provider)
 
@@ -374,7 +374,7 @@ class NgVolPostProcImgProvider(PostProcVolProvider):
         if op["type"] == NiftiExtractVOI.type:
             bbox = op["voi"]
             op = NgPrecomputedFetchCfg.generate_specs(fetch_config={"bbox": bbox})
-        super(VolumeProvider, volume_provider).append_op(op)
+        super(VolumeRecipe, volume_provider).append_op(op)
 
         if len(volume_provider.override_ops) > 0:
             volume_provider.override_ops.append(fetch_op)
@@ -382,7 +382,7 @@ class NgVolPostProcImgProvider(PostProcVolProvider):
             volume_provider.transformation_ops.append(fetch_op)
 
     @classmethod
-    def on_get_retrieval_ops(cls, volume_provider: "VolumeProvider"):
+    def on_get_retrieval_ops(cls, volume_provider: "VolumeRecipe"):
         cls._verify_image_provider(volume_provider)
         return [
             NgPrecomputedFetchCfg.generate_specs(
@@ -449,7 +449,7 @@ class NgPrecomputedFetchCfg(DataOp):
 
 @fn_call_cache
 def fetch_ng_bbox(
-    image_prov: "VolumeProvider", fetchkwargs: Union[VolumeOpsKwargs, None] = None
+    image_prov: "VolumeRecipe", fetchkwargs: Union[VolumeOpsKwargs, None] = None
 ) -> "BoundingBox":
     assert image_prov.format == NG_VOLUME_FORMAT_STR
     from ...attributes.locations import BoundingBox

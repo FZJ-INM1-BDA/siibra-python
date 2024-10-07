@@ -22,7 +22,7 @@ from ...operations import DataOp
 from ...commons.maps import _merge_giftis
 
 if TYPE_CHECKING:
-    from ...attributes.dataproviders.volume import VolumeProvider
+    from ...attributes.dataproviders.volume import VolumeRecipe
 
 
 @VolumeFormats.register_format_read("gii-mesh", "mesh")
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 class FreesurferAnnot(PostProcVolProvider):
 
     @classmethod
-    def on_get_retrieval_ops(cls, volume_provider: "VolumeProvider"):
+    def on_get_retrieval_ops(cls, volume_provider: "VolumeRecipe"):
         base_retrieval_ops = super().on_get_retrieval_ops(volume_provider)
         return [*base_retrieval_ops, ReadGiftiFromBytesGii.generate_specs()]
 
