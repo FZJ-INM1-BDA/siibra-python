@@ -32,8 +32,8 @@ from pandas import DataFrame
 import nibabel as nib
 
 from .parcellationmap import Map
-from ..attributes.dataproviders.volume.image import ImageRecipe
-from ..attributes.dataproviders.volume import VolumeOpsKwargs
+from ..attributes.datarecipes.volume.image import ImageRecipe
+from ..attributes.datarecipes.volume import VolumeOpsKwargs
 from ..attributes.locations import Point, PointCloud, BoundingBox
 from ..attributes.locations.boundingbox import (
     from_imageprovider as bbox_from_imageprovider,

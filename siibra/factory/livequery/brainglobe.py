@@ -35,7 +35,7 @@ from ...commons.logger import logger
 from ...commons.string import to_hex
 from ...attributes import Attribute
 from ...attributes.descriptions import Name, ID, Url, SpeciesSpec, ParcSpec, SpaceSpec
-from ...attributes.dataproviders import ImageRecipe
+from ...attributes.datarecipes import ImageRecipe
 from ...atlases import Space, ParcellationScheme, Map
 from ...operations.file_fetcher import GitHttpRepository, TarRepository
 

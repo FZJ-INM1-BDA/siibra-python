@@ -22,7 +22,7 @@ from ...operations import DataOp
 from ...commons.maps import _merge_giftis
 
 if TYPE_CHECKING:
-    from ...attributes.dataproviders.volume import VolumeRecipe
+    from ...attributes.datarecipes.volume import VolumeRecipe
 
 
 @VolumeFormats.register_format_read("gii-mesh", "mesh")

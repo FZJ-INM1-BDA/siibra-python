@@ -6,7 +6,7 @@ except ImportError:
     from typing_extensions import Literal
 
 if TYPE_CHECKING:
-    from ...attributes.dataproviders.volume import VolumeRecipe
+    from ...attributes.datarecipes.volume import VolumeRecipe
 
 from ...operations.base import DataOp
 from ...commons.logger import logger
@@ -55,12 +55,12 @@ class PostProcVolProvider:
 
     @classmethod
     def on_get_retrieval_ops(cls, volume_provider: "VolumeRecipe"):
-        from ...attributes.dataproviders.volume import VolumeRecipe
+        from ...attributes.datarecipes.volume import VolumeRecipe
 
         return super(VolumeRecipe, volume_provider).retrieval_ops
 
     @classmethod
     def on_append_op(cls, volume_provider: "VolumeRecipe", op: Dict):
-        from ...attributes.dataproviders.volume import VolumeRecipe
+        from ...attributes.datarecipes.volume import VolumeRecipe
 
         return super(VolumeRecipe, volume_provider).append_op(op)

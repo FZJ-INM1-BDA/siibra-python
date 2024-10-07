@@ -1,4 +1,4 @@
-from siibra.attributes.dataproviders.volume.image import (
+from siibra.attributes.datarecipes.volume.image import (
     intersect_ptcld_image,
     ImageRecipe,
     from_nifti,

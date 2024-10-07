@@ -25,7 +25,7 @@ from .attribute_qualification import (
 from ..commons.logger import logger
 from ..attributes import AttributeCollection
 from ..attributes.locations import Location, BoundingBox
-from ..attributes.dataproviders import DataRecipe
+from ..attributes.datarecipes import DataRecipe
 from ..concepts import AtlasElement, QueryParam
 from ..atlases import Region, Space
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException

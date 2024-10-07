@@ -18,7 +18,7 @@ import math
 import numpy as np
 from nilearn import image
 
-from ..attributes.dataproviders.volume.image import ImageRecipe, from_nifti
+from ..attributes.datarecipes.volume.image import ImageRecipe, from_nifti
 from ..attributes.locations import pointcloud, boundingbox
 
 

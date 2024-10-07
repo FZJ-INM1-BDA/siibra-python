@@ -28,7 +28,7 @@ from ...cache import fn_call_cache, Warmup, WarmupLevel, CACHE
 from ...commons.logger import logger
 from ...concepts.feature import Feature, SUMMARY_NAME
 from ...attributes.descriptions import Modality, register_modalities
-from ...attributes.dataproviders.tabular import TabularDataRecipe
+from ...attributes.datarecipes.tabular import TabularDataRecipe
 from ...attributes.locations.layerboundary import (
     LayerBoundary,
     X_PRECALCULATED_BOUNDARY_KEY,

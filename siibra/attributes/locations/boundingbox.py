@@ -27,7 +27,7 @@ from ...commons.logger import logger
 from ...cache import fn_call_cache
 
 if TYPE_CHECKING:
-    from ..dataproviders.volume import ImageRecipe
+    from ..datarecipes.volume import ImageRecipe
 
 
 @dataclass
@@ -201,7 +201,7 @@ def from_array(array: np.ndarray, threshold=0.0) -> "BoundingBox":
 
 
 def from_imageprovider(img_provider: "ImageRecipe", threshold=0.0) -> BoundingBox:
-    from ..dataproviders.volume import ImageRecipe
+    from ..datarecipes.volume import ImageRecipe
 
     assert isinstance(
         img_provider, ImageRecipe

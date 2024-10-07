@@ -29,7 +29,7 @@ import pandas as pd
 from zipfile import ZipFile
 from collections import defaultdict
 
-from .dataproviders import DataRecipe
+from .datarecipes import DataRecipe
 from .attribute import Attribute
 from .locations import Location
 from .descriptions import (
@@ -64,7 +64,7 @@ class AttributeCollection:
 
     # TODO consider if this is the best spot for populating
     def __post_init__(self):
-        from .dataproviders.tabular import TabularDataRecipe
+        from .datarecipes.tabular import TabularDataRecipe
 
         column_row_mapping: Dict[str, RemapColRowDict] = defaultdict(
             lambda: {"column_mapping": {}, "row_mapping": {}}
@@ -118,14 +118,14 @@ class AttributeCollection:
             if isinstance(attr, attr_type):
                 yield attr
 
-    def get_dataprovider(self, expr: str = None, index: Union[int, None] = None):
+    def get_datarecipe(self, expr: str = None, index: Union[int, None] = None):
         if index is not None:
             assert expr is None, "Only index or expr can be set at a time."
             return self._find(DataRecipe)[index]
         assert index is None, "Only index or expr can be set at a time."
-        return assert_ooo(self.find_dataproviders(expr))
+        return assert_ooo(self.find_datarecipes(expr))
 
-    def find_dataproviders(self, expr: str = None) -> List[DataRecipe]:
+    def find_datarecipes(self, expr: str = None) -> List[DataRecipe]:
         return list(self.data_providers_table.query(expr)["dataprovider"])
 
     @property
@@ -148,7 +148,7 @@ class AttributeCollection:
 
     @property
     def volume_providers(self):
-        from .dataproviders.volume import VolumeRecipe
+        from .datarecipes.volume import VolumeRecipe
 
         return [attr for attr in self.attributes if isinstance(attr, VolumeRecipe)]
 
@@ -309,7 +309,7 @@ class AttributeCollection:
         """
         from .descriptions.base import Description
         from .locations.base import Location
-        from .dataproviders.base import DataRecipe
+        from .datarecipes.base import DataRecipe
         from .._version import __version__
 
         with ZipFile(filelike, "w") as fp:

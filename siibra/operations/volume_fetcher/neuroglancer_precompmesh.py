@@ -27,7 +27,7 @@ from ...commons.maps import arrs_to_gii
 from ...operations import DataOp
 
 if TYPE_CHECKING:
-    from ...attributes.dataproviders.volume import VolumeRecipe
+    from ...attributes.datarecipes.volume import VolumeRecipe
 
 
 @fn_call_cache

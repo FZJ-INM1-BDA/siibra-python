@@ -32,7 +32,7 @@ from ..cache import fn_call_cache
 if TYPE_CHECKING:
     from . import Space, ParcellationScheme
     from ..assignment.qualification import Qualification
-    from ..attributes.dataproviders.volume import VolumeRecipe
+    from ..attributes.datarecipes.volume import VolumeRecipe
 
 
 def filter_newest(regions: List["Region"]) -> List["Region"]:

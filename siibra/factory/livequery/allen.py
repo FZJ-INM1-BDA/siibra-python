@@ -31,8 +31,8 @@ from ...commons.iterable import flatmap
 from ...concepts import Feature
 from ...attributes.descriptions import register_modalities, Modality, Gene
 from ...attributes.locations import PointCloud
-from ...attributes.dataproviders import TabularDataRecipe, ImageRecipe
-from ...attributes.dataproviders.volume.image import intersect_ptcld_image
+from ...attributes.datarecipes import TabularDataRecipe, ImageRecipe
+from ...attributes.datarecipes.volume.image import intersect_ptcld_image
 from ...exceptions import ExternalApiException
 
 modality_of_interest = Modality(

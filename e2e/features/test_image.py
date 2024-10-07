@@ -58,7 +58,7 @@ def test_cell_body_staining(fixturename, expected_len, request):
 
 def test_pli_channel(bigbrain_pli):
     for feat in bigbrain_pli:
-        for image in feat._find(siibra.attributes.dataproviders.ImageRecipe):
+        for image in feat._find(siibra.attributes.datarecipes.ImageRecipe):
             image.fetch(color_channel=0)
             image.fetch(color_channel=1)
             image.fetch(color_channel=2)

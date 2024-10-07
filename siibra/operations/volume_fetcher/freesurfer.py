@@ -26,7 +26,7 @@ from ...cache import CACHE
 from ...commons.maps import arrs_to_gii
 
 if TYPE_CHECKING:
-    from ...attributes.dataproviders.volume import VolumeRecipe
+    from ...attributes.datarecipes.volume import VolumeRecipe
 
 
 def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):

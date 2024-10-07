@@ -38,7 +38,7 @@ from ...commons.logger import logger
 from ...commons.conf import SiibraConf
 
 if TYPE_CHECKING:
-    from ...attributes.dataproviders.volume import VolumeRecipe
+    from ...attributes.datarecipes.volume import VolumeRecipe
     from ...attributes.locations import BoundingBox
 
 NG_VOLUME_FORMAT_STR = "neuroglancer/precomputed"
@@ -361,7 +361,7 @@ class NgVolPostProcImgProvider(PostProcVolProvider):
     @classmethod
     def on_append_op(cls, volume_provider: "VolumeRecipe", op: Dict):
         from .nifti import NiftiExtractVOI
-        from ...attributes.dataproviders.volume import VolumeRecipe
+        from ...attributes.datarecipes.volume import VolumeRecipe
 
         cls._verify_image_provider(volume_provider)
 

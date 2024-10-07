@@ -20,7 +20,7 @@ from dataclasses import dataclass, field, replace, asdict
 import nibabel as nib
 
 if TYPE_CHECKING:
-    from ..dataproviders.volume.image import ImageRecipe
+    from ..datarecipes.volume.image import ImageRecipe
 
 from .base import Location
 from . import point, boundingbox as _boundingbox

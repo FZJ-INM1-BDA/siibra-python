@@ -28,7 +28,7 @@ def MockDataOp2():
     yield MockDataOp1
 
 
-@patch.object(siibra.attributes.dataproviders.base, "run_steps")
+@patch.object(siibra.attributes.datarecipes.base, "run_steps")
 def test_merge(run_steps_mock: Mock, MockDataOp1, MockDataOp2):
     run_steps_mock.side_effect = [1, 2]
     input1 = [MockDataOp1.to_json()]

@@ -15,14 +15,14 @@
 
 from typing import TYPE_CHECKING, Set, Union, List
 from ..concepts import AtlasElement
-from ..attributes.dataproviders.volume import VolumeOpsKwargs
+from ..attributes.datarecipes.volume import VolumeOpsKwargs
 from ..operations.volume_fetcher import VolumeFormats
 from ..commons.iterable import assert_ooo
 from ..commons.string import fuzzy_match
 from ..commons.maps import merge_volumes
 
 if TYPE_CHECKING:
-    from ..attributes.dataproviders import ImageRecipe, MeshRecipe
+    from ..attributes.datarecipes import ImageRecipe, MeshRecipe
 
 
 class Space(AtlasElement):
@@ -40,7 +40,7 @@ class Space(AtlasElement):
 
     @property
     def volume_providers(self):
-        from ..attributes.dataproviders import ImageRecipe, MeshRecipe
+        from ..attributes.datarecipes import ImageRecipe, MeshRecipe
 
         return [
             attr

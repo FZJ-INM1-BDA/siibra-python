@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from typing import Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..dataproviders.volume import image
+    from ..datarecipes.volume import image
 
 import numpy as np
 

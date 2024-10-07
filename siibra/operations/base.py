@@ -25,7 +25,7 @@ import json
 import inspect
 
 if TYPE_CHECKING:
-    from ..attributes.dataproviders.base import DataRecipe
+    from ..attributes.datarecipes.base import DataRecipe
 
 try:
     from typing import get_origin
@@ -155,7 +155,7 @@ class Merge(DataOp):
     desc = "Merge multiple srcs into a single src, output a list"
 
     def run(self, input, *, srcs: List[List[Dict]], **kwargs) -> List[Any]:
-        from ..attributes.dataproviders.base import run_steps
+        from ..attributes.datarecipes.base import run_steps
 
         return [run_steps(src) for src in srcs]
 
@@ -178,9 +178,9 @@ class Merge(DataOp):
         return return_desc
 
     @classmethod
-    def spec_from_dataproviders(cls, dataproviders: List["DataRecipe"]):
+    def spec_from_datarecipes(cls, datarecipes: List["DataRecipe"]):
         srcs: List[Dict] = []
-        for dv in dataproviders:
+        for dv in datarecipes:
             srcs.append(dv.ops)
         return cls.generate_specs(srcs=srcs)
 

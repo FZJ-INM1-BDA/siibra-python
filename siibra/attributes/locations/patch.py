@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..dataproviders.volume import image
+    from ..datarecipes.volume import image
 
 import numpy as np
 import math
@@ -93,7 +93,7 @@ class Patch(polyline.PolyLine):
         h, w = xmax - xmin, zmax - zmin
         affine = np.dot(affine_rot, translation_matrix(xmin, 0, zmin))
 
-        from ..dataproviders.volume import image
+        from ..datarecipes.volume import image
 
         return image.from_nifti(
             resample_img(patch, target_affine=affine, target_shape=[h, 1, w]),

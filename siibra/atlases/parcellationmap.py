@@ -29,7 +29,7 @@ from ..commons.iterable import assert_ooo
 from ..commons.string import convert_hexcolor_to_rgbtuple
 from ..commons.logger import logger, siibra_tqdm, QUIET
 from ..atlases import ParcellationScheme, Space, Region
-from ..attributes.dataproviders.volume import (
+from ..attributes.datarecipes.volume import (
     VolumeRecipe,
     ImageRecipe,
     VolumeOpsKwargs,
@@ -268,7 +268,7 @@ class Map(AtlasElement):
             mask_provider.transformation_ops.extend(
                 [
                     MergeLabelledNiftis.generate_specs(),
-                    Merge.spec_from_dataproviders(providers),
+                    Merge.spec_from_datarecipes(providers),
                 ]
             )
 
@@ -313,7 +313,7 @@ class Map(AtlasElement):
             space_id=self.space_id,
             format=providers[0].format,
             override_ops=[
-                Merge.spec_from_dataproviders(providers),
+                Merge.spec_from_datarecipes(providers),
                 MergeLabelledNiftis.generate_specs(labels=labels),
             ],
         )

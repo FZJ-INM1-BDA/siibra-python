@@ -21,7 +21,7 @@ from nibabel import Nifti1Image
 
 from ..commons.maps import ComputeCentroid
 from ..attributes.locations import Point, BoundingBox, PointCloud
-from ..attributes.dataproviders.volume import image as _image, VolumeOpsKwargs
+from ..attributes.datarecipes.volume import image as _image, VolumeOpsKwargs
 
 
 @dataclass

@@ -6,7 +6,7 @@ import hashlib
 import os
 
 from siibra.attributes.locations import BoundingBox, Point
-from siibra.attributes.dataproviders.volume import ImageRecipe
+from siibra.attributes.datarecipes.volume import ImageRecipe
 from siibra.operations.volume_fetcher.nifti import NiftiExtractVOI
 from siibra.operations.volume_fetcher.neuroglancer_precomputed import (
     NgPrecomputedFetchCfg,

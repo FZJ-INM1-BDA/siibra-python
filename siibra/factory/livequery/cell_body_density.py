@@ -27,7 +27,7 @@ from ...attributes.descriptions import (
     ID,
     Name,
 )
-from ...attributes.dataproviders.tabular import TabularDataRecipe
+from ...attributes.datarecipes.tabular import TabularDataRecipe
 from ...operations.base import Merge, DataOp
 from ...concepts import Feature
 from ...operations.tabular import (
@@ -132,7 +132,7 @@ class CellbodyDensityAggregator(LiveQuery, generates=Feature):
 
             provider = TabularDataRecipe(
                 override_ops=[
-                    Merge.spec_from_dataproviders([segments, layerinfo]),
+                    Merge.spec_from_datarecipes([segments, layerinfo]),
                     ProcessCellBodyDensity.generate_specs(),
                 ]
             )
@@ -140,7 +140,7 @@ class CellbodyDensityAggregator(LiveQuery, generates=Feature):
 
         summed_table = TabularDataRecipe(
             override_ops=[
-                Merge.spec_from_dataproviders(providers),
+                Merge.spec_from_datarecipes(providers),
                 ConcatTabulars.generate_specs(axis=1),
                 TabularMeanStd.generate_specs(index=layerinfo.get_data()["Name"]),
             ],

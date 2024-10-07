@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import nibabel as nib
 
 from siibra.attributes.locations.pointcloud import PointCloud, unifrom_from_image
-from siibra.attributes.dataproviders.volume import ImageRecipe
+from siibra.attributes.datarecipes.volume import ImageRecipe
 
 ptcloud = PointCloud(
     coordinates=[

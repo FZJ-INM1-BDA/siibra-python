@@ -35,7 +35,7 @@ from .attributes import Attribute, AttributeCollection
 from .attributes.descriptions import Modality, RegionSpec, Gene
 from .attributes.descriptions.modality import modality_vocab
 from .attributes.locations import Location, Point, PointCloud, BoundingBox
-from .attributes.dataproviders import DataRecipe
+from .attributes.datarecipes import DataRecipe
 from .concepts import AtlasElement, QueryParam, Feature
 from .assignment import (
     string_search,

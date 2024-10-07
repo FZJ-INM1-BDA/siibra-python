@@ -22,7 +22,7 @@ from ..commons.binary_op import BinaryOpRegistry
 from ..commons.string import fuzzy_match, clear_name
 from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 from ..attributes import Attribute
-from ..attributes.dataproviders import ImageRecipe
+from ..attributes.datarecipes import ImageRecipe
 from ..attributes.descriptions import (
     Modality,
     RegionSpec,
