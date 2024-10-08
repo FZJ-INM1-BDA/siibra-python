@@ -70,7 +70,7 @@ class ProcessCellBodyDensity(DataOp):
 
 class CellbodyDensityAggregator(LiveQuery, generates=Feature):
     def generate(self) -> Iterator:
-        from ...factory.configuration import iter_preconfigured_ac
+        from ...factory.configuration import iter_preconfigured
         from ...atlases import Region
         from ...assignment.assignment import match as ac_match
         from ...attributes.attribute_collection import AttributeCollection
@@ -89,7 +89,7 @@ class CellbodyDensityAggregator(LiveQuery, generates=Feature):
         ]
 
         wanted_features: List[Feature] = []
-        for feature in iter_preconfigured_ac(Feature):
+        for feature in iter_preconfigured(Feature):
             if all(
                 mod.value != source_feature_modality.value
                 for mod in feature._find(Modality)
