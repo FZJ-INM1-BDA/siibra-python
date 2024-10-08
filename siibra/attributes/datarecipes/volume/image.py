@@ -290,9 +290,7 @@ def from_pointcloud(
 ) -> ImageRecipe:
     extra_ops = []
     if target is not None:
-        extra_ops = [
-            ResampleNifti.generate_specs(target_img=target.get_data())
-        ]
+        extra_ops = [ResampleNifti.generate_specs(target_img=target.get_data())]
     return ImageRecipe(
         format="nii",
         _ops=[
@@ -384,7 +382,7 @@ def intersect_ptcld_image(
 def intersect_image_to_image(imgprov0: ImageRecipe, imgprov1: ImageRecipe):
     intersection_provider = ImageRecipe(
         space_id=imgprov0.space_id,  # 1st image is resampled onto 0th voxel space
-        override_ops=[
+        _ops=[
             Merge.spec_from_datarecipes([imgprov0, imgprov1]),
             IntersectNiftiWithNifti.generate_specs(),
         ],
