@@ -46,37 +46,6 @@ def ngvoxelmesh_to_gii(
     return arrs_to_gii({"verts": vertices, "faces": triangles})
 
 
-def get_meshindex_info(self, base_url: str, meshindex: int) -> Dict[str, Tuple[str,]]:
-    mesh_key = get_mesh_info(base_url).get("mesh")
-    meshurl = f"{base_url}/{mesh_key}/{str(meshindex)}:0"
-    transform_nm = get_transform_nm(base_url)
-
-    req = requests.get(url=meshurl)
-    req.raise_for_status()
-    meshdetails = req.json()
-    fragment_names = meshdetails.get("fragments")
-
-    if len(fragment_names) == 0:
-        raise RuntimeError(f"No fragments found at {meshurl}")
-    elif len(self._meshes) > 1:
-        # multiple meshes were configured, so we expect only one fragment under each mesh url
-        if len(fragment_names) > 1:
-            raise RuntimeError(
-                f"{self.__class__.__name__} was configured with multiple mesh fragments "
-                f"({', '.join(self._meshes.keys())}), but unexpectedly even more fragmentations "
-                f"were found at {spec['url']}."
-            )
-        return (f"{spec['url']}/{mesh_key}/{fragment_names[0]}", transform_nm)
-    else:
-        # only one mesh was configured, so we might still
-        # see muliple fragments under the mesh url
-        for fragment_name in fragment_names:
-            result[fragment_name] = (
-                f"{spec['url']}/{mesh_key}/{fragment_name}",
-                transform_nm,
-            )
-
-
 @VolumeFormats.register_format_read("neuroglancer/precompmesh", "mesh")
 class PostProcNgMesh(PostProcVolProvider):
 
@@ -94,10 +63,12 @@ class PostProcNgMesh(PostProcVolProvider):
 class ReadNgMeshes(DataOp):
     input: None
     output: List[GiftiImage]
-    desc = "Reads neuroglancer_precompmesh url into gifti"
+    desc = "Given a neuroglancer base_url, a label index, return a list of GiftiMeshes"
     type = "read/neuroglancer_precompmesh"
 
     def run(self, input, base_url: str, label: int, **kwargs):
+        assert label is not None, "index label must be provided for ReadNgMeshes"
+        assert base_url is not None, "base_url must be provided for ReadNgMeshes"
         sess = requests.Session()
 
         info_json, transform_nm = get_mesh_info(base_url)
@@ -105,10 +76,7 @@ class ReadNgMeshes(DataOp):
         mesh_dir = info_json.get("mesh")
         assert mesh_dir, f"{base_url} does not have mesh key defined."
 
-        if label is None:
-            mesh_info_resp = sess.get(f"{base_url}/{mesh_dir}")
-        else:
-            mesh_info_resp = sess.get(f"{base_url}/{mesh_dir}/{str(label)}:0")
+        mesh_info_resp = sess.get(f"{base_url}/{mesh_dir}/{str(label)}:0")
         mesh_info_resp.raise_for_status()
         mesh_info_json = mesh_info_resp.json()
         fragments = mesh_info_json.get("fragments")

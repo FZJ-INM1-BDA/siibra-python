@@ -33,21 +33,17 @@ def extract_label_mask(gii: GiftiImage, label: int):
 class MeshRecipe(VolumeRecipe):
     schema: str = "siibra/attr/data/mesh/v0.1"
 
+    # TODO (2.0) Mesh recipe should __not__ know about implementation details such as
+    # which mesh format is available, and what to do when encountering
     @classmethod
     def _generate_ops(cls, conf: Dict):
         format = conf.get("format")
         if format == "neuroglancer/precompmesh":
             base_url = conf.get("url")
-            archive_options = conf.get("archive_options")
-            if archive_options is not None:
-                label = archive_options.get("label")
-                assert label
-                return [
-                    ReadNgMeshes.generate_specs(base_url=base_url, label=label),
-                    MergeGifti.generate_specs(),
-                ]
+            label = conf.get("archive_options", {}).get("label")
+
             return [
-                ReadNgMeshes.generate_specs(base_url=base_url),
+                ReadNgMeshes.generate_specs(base_url=base_url, label=label),
                 MergeGifti.generate_specs(),
             ]
         if format == "freesurfer-annot":
@@ -56,7 +52,10 @@ class MeshRecipe(VolumeRecipe):
                 ReadGiftiFromBytesFSAAnnot.generate_specs(),
             ]
         if format == "gii-mesh" or format == "gii-label":
-            return [*super()._generate_ops(conf), ReadGiftiFromBytesGii.generate_specs()]
+            return [
+                *super()._generate_ops(conf),
+                ReadGiftiFromBytesGii.generate_specs(),
+            ]
         raise NotImplementedError(f"Does not know how to parse {format}")
 
     @property
