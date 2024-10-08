@@ -40,7 +40,7 @@ class MeshRecipe(VolumeRecipe):
         format = conf.get("format")
         if format == "neuroglancer/precompmesh":
             base_url = conf.get("url")
-            label = conf.get("archive_options", {}).get("label")
+            label = (conf.get("archive_options") or {}).get("label")
 
             return [
                 ReadNgMeshes.generate_specs(base_url=base_url, label=label),
