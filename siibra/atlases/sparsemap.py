@@ -512,9 +512,7 @@ class SparseMap(Map):
 
         points_wrpd = points_.warp(self.space_id)
 
-        volume_provider = self._extract_regional_map_volume_provider(
-            self.regionnames[0]
-        )
+        volume_provider = self._extract_regional_map_volume_recipe(self.regionnames[0])
         # TODO: consider just using affine to transform the points
         vx, vy, vz = volume_provider._points_to_voxels_coords(points_wrpd)
 
@@ -576,7 +574,7 @@ class SparseMap(Map):
             bbox = bbox.transform(spind.affine, space_id=self.space_id)
             if not intersect(bbox, queryitemloc):
                 continue
-            region_image = self._extract_regional_map_volume_provider(
+            region_image = self._extract_regional_map_volume_recipe(
                 regionname=regionname, frmt="image", **volume_ops_kwargs
             )
             for assgnmt in get_intersection_scores(

@@ -151,7 +151,7 @@ class Map(AtlasElement):
             )
         return frmt
 
-    def _extract_regional_map_volume_provider(
+    def _extract_regional_map_volume_recipe(
         self,
         regionname: str,
         frmt: str = None,
@@ -232,7 +232,7 @@ class Map(AtlasElement):
         assert (
             regionname in self.regionnames
         ), f"{region} parsed to {regionname}, which was not found in regionnames"
-        provider = self._extract_regional_map_volume_provider(
+        provider = self._extract_regional_map_volume_recipe(
             regionname=regionname,
             frmt=frmt,
         )
@@ -255,38 +255,47 @@ class Map(AtlasElement):
         lower_threshold: Union[int, float, None] = None,
     ):
         frmt_ = self._select_format(frmt)
-        providers = [
-            self._extract_regional_map_volume_provider(region, frmt=frmt_)
+        recipes = [
+            self._extract_regional_map_volume_recipe(region, frmt=frmt_)
             for region in regions
         ]
-        provider_types = set(type(p) for p in providers)
-        assert len(provider_types) == 1
-        provider_type = next(iter(provider_types))
+        assert (
+            len(recipes) > 0
+        ), f"Did not find any volume recipe with the given parameters: {regions}, {frmt}"
 
-        mask_provider = provider_type(space_id=self.space_id, format=frmt_)
-        if len(providers) > 1:
-            mask_provider._ops.extend(
-                [
+        mask_recipe = None
+        if len(recipes) == 1:
+            mask_recipe = recipes[0]
+        else:
+            provider_types = set(type(p) for p in recipes)
+
+            assert len(provider_types) == 1
+            provider_type = next(iter(provider_types))
+
+            mask_recipe = provider_type(
+                space_id=self.space_id,
+                format=frmt_,
+                _ops=[
+                    Merge.spec_from_datarecipes(recipes),
                     MergeLabelledNiftis.generate_specs(),
-                    Merge.spec_from_datarecipes(providers),
-                ]
+                ],
             )
 
-        if isinstance(mask_provider, ImageRecipe):
+        if isinstance(mask_recipe, ImageRecipe):
             if self.maptype == "statistical":
-                mask_provider._ops.append(
+                mask_recipe._ops.append(
                     NiftiMask.generate_specs(lower_threshold=lower_threshold)
                 )
             else:
-                mask_provider._ops.append(
+                mask_recipe._ops.append(
                     NiftiMask.generate_specs(background_value=background_value)
                 )
         else:
             # TODO: implement a gifti masker
             raise NotImplementedError
-            # mask_provider.override_ops.append()
+            # mask_recipe.override_ops.append()
 
-        return mask_provider
+        return mask_recipe
 
     def extract_full_map(
         self,
@@ -309,16 +318,16 @@ class Map(AtlasElement):
 
         labels = list(range(len(self.regionnames))) if allow_relabeling else []
 
-        fullmap_provider = providers[0].__class__(
+        fullmap_recipe = providers[0].__class__(
             space_id=self.space_id,
             format=providers[0].format,
-            override_ops=[
+            _ops=[
                 Merge.spec_from_datarecipes(providers),
                 MergeLabelledNiftis.generate_specs(labels=labels),
             ],
         )
 
-        return fullmap_provider
+        return fullmap_recipe
 
     def get_colormap(self, regions: List[str] = None, frmt=None) -> List[str]:
         from matplotlib.colors import ListedColormap
@@ -436,7 +445,7 @@ class Map(AtlasElement):
 
         assignments: List[Union[Map.RegionAssignment, Map.ScoredRegionAssignment]] = []
         for regionname in siibra_tqdm(self.regionnames, unit="region"):
-            region_image = self._extract_regional_map_volume_provider(
+            region_image = self._extract_regional_map_volume_recipe(
                 regionname=regionname, frmt="image", **volume_ops_kwargs
             )
             with QUIET:
@@ -518,9 +527,10 @@ class Map(AtlasElement):
 
         assignments: List[Map.RegionAssignment] = []
         for region in siibra_tqdm(self.regionnames, unit="region"):
-            region_image = self._extract_regional_map_volume_provider(
+            region_image = self._extract_regional_map_volume_recipe(
                 regionname=region, frmt="image", **volume_ops_kwargs
             )
+            assert isinstance(region_image, ImageRecipe)
             for pointindex, map_value in zip(
                 *region_image.lookup_points(points=points_wrpd, **volume_ops_kwargs)
             ):
