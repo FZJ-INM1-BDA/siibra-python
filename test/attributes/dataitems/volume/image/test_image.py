@@ -15,11 +15,10 @@ SPACE_ID = "foo"
 SPACE_ID_2 = "bar"
 
 
-# TODO fix fixture
 @pytest.fixture
 def mocked_image_foo():
     with patch.object(ImageRecipe, "get_data") as fetch_mock:
-        image = ImageRecipe(format="foo", space_id=SPACE_ID, url="foo")
+        image = ImageRecipe(format="nii", space_id=SPACE_ID, url="nii")
         yield image, fetch_mock
 
 

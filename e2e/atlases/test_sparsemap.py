@@ -28,7 +28,7 @@ def freshlocal_jba29_icbm152():
 
     progress = tqdm(total=len(mp.regionnames), leave=True)
     for regionname in mp.regionnames:
-        image_provider = mp._extract_regional_map_volume_provider(regionname)
+        image_provider = mp._extract_regional_map_volume_recipe(regionname)
 
         spi.add_img(image_provider.get_data(), regionname)
         progress.update(1)
