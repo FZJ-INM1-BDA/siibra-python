@@ -26,17 +26,44 @@ jobs:
 
       - name: Run notebooks with nbmake
         run: |
+          error_flag=0
           for notebook in $(find ./paper_notebooks -type f)
           do
             echo "jupyter execute $notebook --allow-errors --inplace"
             jupyter execute $notebook --allow-errors --inplace
 
+            # All error cells
+            ERROR_CELLS=$(jq -r '[.cells[].outputs[] | select( .output_type == "error" )]' $notebook)
+
+            # Set error flag
+            echo $ERROR_CELLS | jq 'length'
+            if [[ echo $ERROR_CELLS | jq 'length' -gt "0" ]]
+            then
+              echo "Setting error flag."
+              error_flag=1
+            fi
+
+            # Print error messages
+            echo $ERROR_CELLS | jq -rc '.[]' $notebook \
+            | while IFS= read -r line
+            do
+              echo $line | jq -rc '.traceback | join("")'
+            done
+
             echo "jupyter nbconvert --to pdf $notebook"
             jupyter nbconvert --to pdf $notebook
           done
 
-      - name: Archive code coverage results
+          if [[ $error_flag ]]
+          then
+            exit 1
+          fi
+
+      - if: always()
+        name: Archive code coverage results
         uses: actions/upload-artifact@v4
         with:
           name: Notebook PDFs
-          path: paper_notebooks/*.pdf
+          path: |
+            paper_notebooks/*.pdf
+            paper_notebooks/*.ipynb
