@@ -32,22 +32,30 @@ jobs:
             echo "jupyter execute $notebook --allow-errors --inplace"
             jupyter execute $notebook --allow-errors --inplace
 
-            # All error cells
-            ERROR_CELLS=$(jq -r '[.cells[].outputs[] | select( .output_type == "error" )]' $notebook)
-
-            # Set error flag
-            echo $ERROR_CELLS | jq 'length'
-            if [[ $(echo $ERROR_CELLS | jq 'length') -gt "0" ]]
-            then
-              echo "Setting error flag."
-              error_flag=1
-            fi
-
-            # Print error messages
-            echo $ERROR_CELLS | jq -rc '.[]' $notebook \
-            | while IFS= read -r line
+            echo "Trying to print tracebacks & set error flag where appropriate"
+            jq -c '.cells[]' $notebook | while IFS= read -r line
             do
-              echo $line | jq -rc '.traceback | join("")'
+              echo "-------------------------------"
+              outputs=$(echo $line | jq '.outputs')
+
+              # sometimes outputs is null (non code block?)
+              if [[ $outputs == "null" ]]
+              then
+                echo "Non code block. Skipping..."
+                continue
+              fi
+
+              error_length=$(echo $line | jq '[.outputs[] | select( .output_type == "error" )] | length')
+
+              # if outputs has no errors, then continue
+              if [[ $error_length -eq 0 ]]
+              then
+                echo "No Error. Skipping"
+                continue
+              fi
+              
+              error_flag=1
+              echo $line | jq -r '.outputs[] | select( .output_type == "error" ) | .traceback | join("")'
             done
 
             echo "jupyter nbconvert --to pdf $notebook"
