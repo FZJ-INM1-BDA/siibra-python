@@ -37,7 +37,7 @@ jobs:
 
             # Set error flag
             echo $ERROR_CELLS | jq 'length'
-            if [[ echo $ERROR_CELLS | jq 'length' -gt "0" ]]
+            if [[ $(echo $ERROR_CELLS | jq 'length') -gt "0" ]]
             then
               echo "Setting error flag."
               error_flag=1
@@ -54,7 +54,7 @@ jobs:
             jupyter nbconvert --to pdf $notebook
           done
 
-          if [[ $error_flag ]]
+          if [[ ! $error_flag -eq "0" ]]
           then
             exit 1
           fi
