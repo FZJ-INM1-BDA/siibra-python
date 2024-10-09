@@ -28,7 +28,6 @@ from ..attributes.descriptions import (
     RegionSpec,
     Name,
     ID,
-    Facet,
     AttributeMapping,
 )
 from ..attributes.locations import Point, PointCloud, BoundingBox, intersect
@@ -106,12 +105,6 @@ def qualify_name(name1: Name, name2: Name):
             name2.shortform, name1.shortform
         ):
             return Qualification.APPROXIMATE
-
-
-@register_attr_qualifier(Facet, Facet)
-def qualify_aggregate_by(face_a: Facet, facet_b: Facet):
-    if face_a.key == facet_b.key and face_a.value == facet_b.value:
-        return Qualification.EXACT
 
 
 @register_attr_qualifier(Modality, Modality)

@@ -20,7 +20,7 @@ from ..commons.logger import logger
 
 
 def key_is_extra(key: str):
-    return key.startswith("x-") or key.startswith("facet/")
+    return key.startswith("x-")
 
 
 @dataclass
@@ -79,17 +79,6 @@ class Attribute:
             if key_is_extra(key):
                 return_attr.extra[key] = json_dict[key]
         return [return_attr]
-
-    @property
-    def facets(self):
-        # TODO use str.removeprefix when py3.9 is the lowest python version supported
-        return pd.DataFrame(
-            [
-                {"key": key.replace("facet/", ""), "value": self.extra[key]}
-                for key in self.extra
-                if key.startswith("facet/")
-            ]
-        )
 
     def _iter_zippable(
         self,

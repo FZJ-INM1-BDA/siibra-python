@@ -39,7 +39,6 @@ from .descriptions import (
     Url,
     Doi,
     TextDescription,
-    Facet,
     EbrainsRef,
     AttributeMapping,
 )
@@ -208,70 +207,6 @@ class AttributeCollection:
             if len(ebrain_ref_descs) > 0:
                 return ebrain_ref_descs[0]
 
-    # TODO deprecate. use data_providers_table
-    @property
-    def facets(self):
-        df = pd.DataFrame(
-            [{"key": facet.key, "value": facet.value} for facet in self._find(Facet)]
-        )
-        return pd.concat([df, *[attr.facets for attr in self.attributes]])
-
-    # TODO deprecate
-    @staticmethod
-    def get_query_str(facet_dict=None, **kwargs):
-        if facet_dict is not None:
-            assert isinstance(facet_dict, dict), "positional argument must be a dict"
-            assert all(
-                (
-                    isinstance(key, str) and isinstance(value, str)
-                    for key, value in facet_dict.items()
-                )
-            ), "Only string key value can be provided!"
-        else:
-            facet_dict = dict()
-
-        return " | ".join(
-            [
-                f"key=='{key}' & value=='{value}'"
-                for key, value in {
-                    **facet_dict,
-                    **kwargs,
-                }.items()
-            ]
-        )
-
-    # TODO deprecate, use find_dataproviders instead
-    def filter_attributes_by_facets(self, facet_dict=None, **kwargs):
-        """
-        Return a new AttributeCollection, where the attributes either:
-
-        - do not contain facet information OR
-        - the attribute facet matches *ALL* of the specs
-        """
-        query_str = AttributeCollection.get_query_str(facet_dict, **kwargs)
-
-        return self.filter(
-            lambda a: (
-                len(a.facets) == 0
-                or (len(a.facets) > 0 and len(a.facets.query(query_str)) > 0)
-            )
-        )
-
-    # TODO deprecate, use find_dataproviders instead
-    @staticmethod
-    def filter_facets(
-        attribute_collections: List["AttributeCollection"], facet_dict=None, **kwargs
-    ):
-        query_str = AttributeCollection.get_query_str(facet_dict, **kwargs)
-        return [
-            ac for ac in attribute_collections if len(ac.facets.query(query_str)) > 0
-        ]
-
-    # TODO deprecate use find_dataproviders instead
-    @staticmethod
-    def find_facets(attribute_collections: List["AttributeCollection"]):
-        return pd.concat([ac.facets for ac in attribute_collections])
-
     def relates_to(self, attribute_collection: Union["AttributeCollection", Location]):
         """Yields attribute from self, attribute from target attribute_collection, and how they relate"""
         from ..assignment import collection_qualify, preprocess_concept
@@ -332,8 +267,6 @@ class AttributeCollection:
                             filename = f"file{filenum_counter}{suffix or ''}"
                             filenum_counter += 1
                             readme_md += f"\n\nexported file: {filename}\n"
-                            for colname, fac in attr.facets.iterrows():
-                                readme_md += f"facets: ({fac['key']}={fac['value']})"
 
                             # TODO not ideal, since loads everything in memory. Ideally we can stream it as IO
                             fp.writestr(filename, binaryio.read())

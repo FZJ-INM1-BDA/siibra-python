@@ -51,8 +51,12 @@ logger.info(
 T = TypeVar("T", bound=AttributeCollection)
 
 
+def get_search_cursor(criteria: List[AttributeCollection], find_type: Type[T]):
+    return SearchResult(criteria=criteria, search_type=find_type)
+
+
 def find(criteria: List[AttributeCollection], find_type: Type[T]):
-    res = SearchResult(criteria=criteria, search_type=find_type)
+    res = get_search_cursor(criteria, find_type)
     return res.find()
 
 

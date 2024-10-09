@@ -14,7 +14,8 @@
 # limitations under the License.
 
 from typing import TypeVar, List, Type, Generic, Iterable
-from dataclasses import dataclass, field
+from dataclasses import field
+import pandas as pd
 
 from .assignment import (
     match as collection_match,
@@ -25,6 +26,7 @@ from ..factory.livequery import LiveQuery
 from ..factory.configuration import iter_preconfigured
 from ..attributes import AttributeCollection
 from ..attributes.descriptions import ID, Name
+from ..cache import fn_call_cache
 
 T = TypeVar("T", bound=AttributeCollection)
 
@@ -52,20 +54,26 @@ class SearchResult(Generic[T]):
     criteria: List[AttributeCollection] = field(default_factory=list)
     search_type: Type[T] = None
 
-    def find_iter(self) -> Iterable[T]:
+    def find(self) -> List[T]:
+        return SearchResult.cached_find(self.criteria, self.search_type)
+
+    @staticmethod
+    def _find_iter(criteria: List[AttributeCollection], search_type: Type[T]):
+
         from ..factory import iter_preconfigured
 
-        for item in iter_preconfigured(self.search_type):
-            if all(collection_match(cri, item) for cri in self.criteria):
+        for item in iter_preconfigured(search_type):
+            if all(collection_match(cri, item) for cri in criteria):
                 yield item
 
-        for cls in LiveQuery.get_clss(self.search_type):
-            inst = cls(self.criteria)
+        for cls in LiveQuery.get_clss(search_type):
+            inst = cls(criteria)
             yield from inst.generate()
 
-    def find(self):
-        self.search_type
-        return list(self.find_iter())
+    @staticmethod
+    @fn_call_cache
+    def cached_find(criteria: List[AttributeCollection], search_type: Type[T]):
+        return list(SearchResult._find_iter(criteria, search_type))
 
     @staticmethod
     def str_search_criteria(input: str):
@@ -73,3 +81,29 @@ class SearchResult(Generic[T]):
         name_attr = Name(value=input, shortform=input)
         query = AttributeCollection(attributes=[id_attr, name_attr])
         return [query]
+
+    def build_summary_table(self):
+        """
+        Returns a dataframe where user can inspect/evaluate how to further narrow down
+        the search result. Similar to AttributeCollection.data_providers_table
+        """
+        list_of_dict = [
+            {
+                "ID": item.ID,
+                "name": item.name,
+                "modalities": item.modalities,
+                "instance": item,
+            }
+            for item in self.find()
+        ]
+        return pd.DataFrame(list_of_dict)
+
+    def get_instance(self, expr=None, index=None, **kwargs) -> "SearchResult":
+        """
+        Allow user to apply what was learnt from get_summary_table and get a subset of the search.
+        """
+        if index is not None:
+            return self.build_summary_table().iloc[index]["instance"]
+        if expr is not None:
+            return self.build_summary_table().query(expr).iloc[0]["instance"]
+        raise NotImplementedError
