@@ -26,7 +26,7 @@ def _decode(regionspec: "RegionSpec"):
     # it caches the entire tree
     from ...atlases import Region
     from ...concepts import QueryParam
-    from ...assignment import find
+    from ... import find
 
     return find([QueryParam(attributes=[regionspec])], Region)
 

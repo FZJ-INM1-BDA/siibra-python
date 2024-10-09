@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TypeVar, List, Type
+from typing import TypeVar, List, Type, Generic, Iterable
+from dataclasses import dataclass, field
 
 from .assignment import (
     match as collection_match,
@@ -28,27 +29,47 @@ from ..attributes.descriptions import ID, Name
 T = TypeVar("T", bound=AttributeCollection)
 
 
-def find(criteria: List[AttributeCollection], find_type: Type[T]):
-    return list(finditer(criteria, find_type))
+class SearchResult(Generic[T]):
+    """
+    Handles searching through both preconfigured, but also live-populated attribute collections.
+    User of this class provide critieria as a list of AttributeCollections and the Type of
+    attribute collection to search for. This class will yield all instances of requested type satisfying
+    all of the criteria provided.
 
+    For preconfigured instances, the "all" logic is enforced via `all(collection_match(...))`; for live
+    query instances, it falls back to the individual implementation of the LiveQuery.generate method call.
 
-def finditer(criteria: List[AttributeCollection], find_type: Type[T]):
-    """Providing a list of AttributeCollection and Type. Yields instances of the given type.
+    n.b. especially for preconfigured instances, order of the criteria can affect the search efficiency.
+    opt for the criteria that is most likely to return false first (e.g. for feature, Modality)
+    """
 
-    For preconfigured instances, will yield if and only if every instance of attribute_collection
-    matches with the instance of _find_type.
+    def __init__(self, criteria=None, search_type: Type[T] = None):
+        if search_type is None:
+            raise RuntimeError(f"search_type must be defined!")
+        self.search_type = search_type
+        self.criteria = criteria or []
 
-    For LiveQuery instances, it is configured at runtime."""
-    for item in iter_preconfigured(find_type):
-        if all(collection_match(cri, item) for cri in criteria):
-            yield item
-    for cls in LiveQuery.get_clss(find_type):
-        inst = cls(criteria)
-        yield from inst.generate()
+    criteria: List[AttributeCollection] = field(default_factory=list)
+    search_type: Type[T] = None
 
+    def find_iter(self) -> Iterable[T]:
+        from ..factory import iter_preconfigured
 
-def string_search(input: str, req_type: Type[T]) -> List[T]:
-    id_attr = ID(value=input)
-    name_attr = Name(value=input, shortform=input)
-    query = AttributeCollection(attributes=[id_attr, name_attr])
-    return find([query], req_type)
+        for item in iter_preconfigured(self.search_type):
+            if all(collection_match(cri, item) for cri in self.criteria):
+                yield item
+
+        for cls in LiveQuery.get_clss(self.search_type):
+            inst = cls(self.criteria)
+            yield from inst.generate()
+
+    def find(self):
+        self.search_type
+        return list(self.find_iter())
+
+    @staticmethod
+    def str_search_criteria(input: str):
+        id_attr = ID(value=input)
+        name_attr = Name(value=input, shortform=input)
+        query = AttributeCollection(attributes=[id_attr, name_attr])
+        return [query]

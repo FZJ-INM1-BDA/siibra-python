@@ -14,9 +14,8 @@
 # limitations under the License.
 
 
-from typing import Union
+from typing import Union, Type, List, TypeVar
 import os as _os
-import math
 
 from .exceptions import NotFoundException
 from .commons.logger import logger, QUIET, VERBOSE, set_log_level
@@ -38,8 +37,7 @@ from .attributes.locations import Location, Point, PointCloud, BoundingBox
 from .attributes.datarecipes import DataRecipe
 from .concepts import AtlasElement, QueryParam, Feature
 from .assignment import (
-    string_search,
-    find,
+    SearchResult,
     preprocess_concept,
 )
 from .factory.configuration import iter_preconfigured
@@ -50,16 +48,24 @@ logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
+T = TypeVar("T", bound=AttributeCollection)
+
+
+def find(criteria: List[AttributeCollection], find_type: Type[T]):
+    res = SearchResult(criteria=criteria, search_type=find_type)
+    return res.find()
+
 
 def get_space(space_spec: str):
     """Convenient access to reference space templates."""
-    searched_spaces = list(string_search(space_spec, Space))
-    return assert_ooo(searched_spaces)
+    return assert_ooo(find_spaces(space_spec))
 
 
 @fn_call_cache
 def find_spaces(space_spec: str):
-    return list(string_search(space_spec, Space))
+    critiera = SearchResult.str_search_criteria(space_spec)
+    searchresult = SearchResult(criteria=critiera, search_type=Space)
+    return searchresult.find()
 
 
 def fetch_template(
@@ -70,7 +76,7 @@ def fetch_template(
 
 def get_parcellation(parc_spec: str):
     """Convenient access to parcellations."""
-    searched_parcs = list(string_search(parc_spec, ParcellationScheme))
+    searched_parcs = find_parcellations(parc_spec)
     newest_versions = [
         p
         for p in searched_parcs
@@ -81,7 +87,9 @@ def get_parcellation(parc_spec: str):
 
 @fn_call_cache
 def find_parcellations(parc_spec: str):
-    return list(string_search(parc_spec, ParcellationScheme))
+    critiera = SearchResult.str_search_criteria(parc_spec)
+    searchresult = SearchResult(criteria=critiera, search_type=ParcellationScheme)
+    return searchresult.find()
 
 
 def find_maps(
@@ -106,9 +114,11 @@ def find_maps(
             parcellation = parcellation.ID
         parc_query = QueryParam(attributes=[ParcSpec(value=parcellation)])
         queries.append(parc_query)
+
+    searchresult = SearchResult(criteria=queries, search_type=parcellationmap.Map)
     return [
         mp
-        for mp in find(queries, parcellationmap.Map)
+        for mp in searchresult.find()
         if (maptype is None or mp.maptype == maptype) and name in mp.name
     ]
 

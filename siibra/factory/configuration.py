@@ -383,7 +383,7 @@ class PreconfiguredMapQuery(LiveQuery[Map], generates=Map):
         from ..attributes.descriptions import SpaceSpec, ParcSpec, ID, Name
         from ..concepts import QueryParam
         from ..atlases import Space, ParcellationScheme
-        from ..assignment import find
+        from .. import find
 
         spaces = []
         parcellations = []
