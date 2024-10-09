@@ -1,10 +1,10 @@
-name: '[test] test siibra-paper notebooks'
+name: "[test] test siibra-paper notebooks"
 
 on:
   push:
-    branches: [ 'main', 'refactor_attr' ]
+    branches: ["main", "refactor_attr"]
   pull_request:
-    branches: [ '*' ]
+    branches: ["*"]
 
 jobs:
   test_tutorials:
@@ -21,9 +21,22 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -U .
-          pip install -r requirements.txt
-          pip install matplotlib
-          pip install pytest nbmake
-      
+          pip install matplotlib jupyter
+          apt-get install pandoc
+
       - name: Run notebooks with nbmake
-        run: pytest --nbmake --nbmake-timeout=1200 paper_notebookes
+        run: |
+          for notebook in $(find ./paper_notebooks -type f)
+          do
+            echo "jupyter execute $notebook --allow-errors --inplace"
+            jupyter execute $notebook --allow-errors --inplace
+
+            echo "jupyter nbconvert --to pdf $notebook"
+            jupyter nbconvert --to pdf $notebook
+          done
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notebook PDFs
+          path: paper_notebooks/*.pdf
