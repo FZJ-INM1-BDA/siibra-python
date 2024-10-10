@@ -69,6 +69,9 @@ class TabularDataRecipe(DataRecipe):
                 return
             matrix_kwargs: Dict = plot_options.get("matrix").copy()
             matrix_kwargs.update(kwargs)
+            # for nilearn's plotting module, we need to rename 'ax'
+            if 'ax' in matrix_kwargs:
+                matrix_kwargs['axes'] = matrix_kwargs.pop('ax')
             return plotting.plot_matrix(data, *args, **matrix_kwargs)
         if "scatter" in plot_options:
             scatter_kwargs: Dict[str, Union[str, int, float]] = plot_options.get(
