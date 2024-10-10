@@ -146,11 +146,6 @@ class DataRecipe(Attribute):
             # safe overwrite kwargs
             Cls = DataOp.get_runner_cls(op)
             modified_step = Cls.update_parameters(op, **kwargs)
-
-            # modified_step = {
-            #     **op,
-            #     **kwargs,
-            # }
             steps.append(modified_step)
 
         return replace(self, _ops=steps)
