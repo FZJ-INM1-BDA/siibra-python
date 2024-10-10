@@ -119,11 +119,17 @@ class DFAccessor(DataOp):
     desc: str = "Get a series from a dataframe"
     type: str = "tabular/df-accessor"
 
-    def run(self, input, column: str, **kwargs):
+    def run(self, input, column: str, row: str, **kwargs):
         assert isinstance(input, pd.DataFrame)
-        return input[column]
+        if row is None:
+            assert column is not None
+            return input[column]
+        if column is None:
+            assert row is not None
+            return input.T[row]
 
     @classmethod
-    def generate_specs(cls, column: str, **kwargs):
+    def generate_specs(cls, column: str = None, row: str = None, **kwargs):
+        assert not (column is None and row is None)
         base = super().generate_specs(**kwargs)
-        return {**base, "column": column}
+        return {**base, "column": column, "row": row}

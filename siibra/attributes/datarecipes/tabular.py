@@ -85,13 +85,3 @@ class TabularDataRecipe(DataRecipe):
         self.get_data().to_csv(bio)
         bio.seek(0)
         yield "Tabular data", ".tabular.csv", bio
-
-    def query(self, *arg, column: str = None, **kwargs):
-        return replace(
-            self,
-            _ops=[
-                *self._ops,
-                DFAccessor.generate_specs(column=column),
-            ],
-            plot_options={},  # Series would not have the same plot options as the parent DF
-        )
