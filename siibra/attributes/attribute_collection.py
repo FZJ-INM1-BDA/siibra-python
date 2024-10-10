@@ -41,6 +41,7 @@ from .descriptions import (
     TextDescription,
     EbrainsRef,
     AttributeMapping,
+    Categorization,
 )
 from ..operations.tabular import RemapColRowDict, RenameColumnsAndOrRows
 from ..commons.iterable import assert_ooo
@@ -153,6 +154,8 @@ class AttributeCollection:
 
         return [attr for attr in self.attributes if isinstance(attr, VolumeRecipe)]
 
+    # TODO (2.0) update configuration to remove the usage of MATRIX_INDEX_ENTITY_KEY and update
+    # with region_mapping. then remove this functionality
     def filter(self, filter_fn: Callable[[Attribute], bool]):
         """
         Return a new `AttributeCollection` that is a copy of this one where the
@@ -187,6 +190,16 @@ class AttributeCollection:
     @property
     def modalities(self):
         return [m.value for m in self._find(Modality)]
+
+    @property
+    def categorizations(self):
+        """
+        Returns human readable categorizations, a (semi)-freeform description
+        of the attribute_collection.
+        """
+        return "\n".join(
+            [f"{key}: {value}" for key, value in self._find(Categorization)]
+        )
 
     @property
     def publications(self):

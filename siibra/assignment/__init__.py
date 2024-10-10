@@ -25,7 +25,7 @@ from .assignment import (
 from ..factory.livequery import LiveQuery
 from ..factory.configuration import iter_preconfigured
 from ..attributes import AttributeCollection
-from ..attributes.descriptions import ID, Name
+from ..attributes.descriptions import ID, Name, Categorization
 from ..cache import fn_call_cache
 
 T = TypeVar("T", bound=AttributeCollection)
@@ -82,28 +82,46 @@ class SearchResult(Generic[T]):
         query = AttributeCollection(attributes=[id_attr, name_attr])
         return [query]
 
-    def build_summary_table(self):
+    @staticmethod
+    def build_summary_table(items: List[T]):
         """
         Returns a dataframe where user can inspect/evaluate how to further narrow down
         the search result. Similar to AttributeCollection.data_recipe_table
         """
         list_of_dict = [
             {
-                "ID": item.ID,
                 "name": item.name,
                 "modalities": item.modalities,
+                # In case key is one of ID, name etc, prepend to avoid name collision
+                "categorizations": item.categorizations,
+                **{
+                    f"category_{key}": value
+                    for key, value in item._find(Categorization)
+                },
+                "ID": item.ID,
                 "instance": item,
             }
-            for item in self.find()
+            for item in items
         ]
         return pd.DataFrame(list_of_dict)
 
-    def get_instance(self, expr=None, index=None, **kwargs) -> "SearchResult":
+    @staticmethod
+    def pick_instance(items: List[T], expr=None, index=None) -> T:
         """
         Allow user to apply what was learnt from get_summary_table and get a subset of the search.
         """
-        if index is not None:
-            return self.build_summary_table().iloc[index]["instance"]
+        df = SearchResult.build_summary_table(items)
         if expr is not None:
-            return self.build_summary_table().query(expr).iloc[0]["instance"]
+            return df.query(expr=expr).iloc[0]["instance"]
+        if index is not None:
+            return df.iloc[index]["instance"]
         raise NotImplementedError
+
+    def get_summary_table(self):
+        return self.build_summary_table(self.find())
+
+    def get_instance(self, expr=None, index=None):
+        """
+        Allow user to apply what was learnt from get_summary_table and get a subset of the search.
+        """
+        return self.pick_instance(self.find(), expr=expr, index=index)

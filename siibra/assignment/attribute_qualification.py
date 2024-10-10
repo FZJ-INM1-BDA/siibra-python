@@ -34,13 +34,13 @@ from ..attributes.locations import Point, PointCloud, BoundingBox, intersect
 from ..cache import fn_call_cache
 
 
-_attr_qual: BinaryOpRegistry[Attribute, Union[Qualification, None]] = BinaryOpRegistry()
-
-register_attr_qualifier = _attr_qual.register
+_attribute_qualification_register: BinaryOpRegistry[
+    Attribute, Union[Qualification, None]
+] = BinaryOpRegistry()
 
 
 def is_qualifiable(t: Type):
-    return _attr_qual.is_registered(t)
+    return _attribute_qualification_register.is_registered(t)
 
 
 def qualify(attra: Attribute, attrb: Attribute):
@@ -66,7 +66,7 @@ def qualify(attra: Attribute, attrb: Attribute):
         If the comparison of type(attra) and type(attrb) has been registered, but the their
         value could not directly be compared (e.g. locations in different spaces)
     """
-    val = _attr_qual.get(attra, attrb)
+    val = _attribute_qualification_register.get(attra, attrb)
     if val is None:
         logger.debug(
             f"{type(attra)} and {type(attrb)} comparison has not been registered"
@@ -85,13 +85,13 @@ def qualify(attra: Attribute, attrb: Attribute):
     return result
 
 
-@register_attr_qualifier(ID, ID)
+@_attribute_qualification_register.register(ID, ID)
 def qualify_id(id0: ID, id1: ID):
     if id0.value == id1.value:
         return Qualification.EXACT
 
 
-@register_attr_qualifier(Name, Name)
+@_attribute_qualification_register.register(Name, Name)
 def qualify_name(name1: Name, name2: Name):
     if name1.value == name2.value:
         return Qualification.EXACT
@@ -107,7 +107,7 @@ def qualify_name(name1: Name, name2: Name):
             return Qualification.APPROXIMATE
 
 
-@register_attr_qualifier(Modality, Modality)
+@_attribute_qualification_register.register(Modality, Modality)
 def qualify_modality(mod1: Modality, mod2: Modality):
     if mod1.value == mod2.value:
         return Qualification.EXACT
@@ -116,7 +116,7 @@ def qualify_modality(mod1: Modality, mod2: Modality):
         return Qualification.APPROXIMATE
 
 
-@register_attr_qualifier(RegionSpec, RegionSpec)
+@_attribute_qualification_register.register(RegionSpec, RegionSpec)
 @fn_call_cache
 def qualify_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
     # if both parcellation_ids are present, short curcuit if parc id do not match
@@ -143,7 +143,7 @@ def qualify_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
         return Qualification.APPROXIMATE
 
 
-@register_attr_qualifier(RegionSpec, AttributeMapping)
+@_attribute_qualification_register.register(RegionSpec, AttributeMapping)
 def qualify_regionspec_attributemapping(
     regionspec: RegionSpec, attribute_mapping: AttributeMapping
 ):
@@ -166,20 +166,20 @@ def qualify_regionspec_attributemapping(
             return qualification
 
 
-@register_attr_qualifier(Point, Point)
+@_attribute_qualification_register.register(Point, Point)
 def qualify_pt_to_pt(pt1: Point, pt2: Point):
     if intersect(pt1, pt2):
         return Qualification.EXACT
 
 
-@register_attr_qualifier(Point, PointCloud)
-@register_attr_qualifier(Point, BoundingBox)
+@_attribute_qualification_register.register(Point, PointCloud)
+@_attribute_qualification_register.register(Point, BoundingBox)
 def qualify_pt_ptcld_bbox(pt: Point, ptcld_bbox: Union[PointCloud, BoundingBox]):
     if intersect(pt, ptcld_bbox):
         return Qualification.CONTAINED
 
 
-@register_attr_qualifier(PointCloud, BoundingBox)
+@_attribute_qualification_register.register(PointCloud, BoundingBox)
 def qualify_ptcld_bbox(ptcld: PointCloud, bbox: BoundingBox):
     intersected = intersect(ptcld, bbox)
     if not intersected:
@@ -204,7 +204,7 @@ def qualify_ptcld_bbox(ptcld: PointCloud, bbox: BoundingBox):
     )
 
 
-@register_attr_qualifier(PointCloud, PointCloud)
+@_attribute_qualification_register.register(PointCloud, PointCloud)
 def qualify_ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
     intersected = intersect(ptclda, ptcldb)
     if intersected is None:
@@ -238,7 +238,7 @@ def qualify_ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
     return Qualification.OVERLAPS
 
 
-@register_attr_qualifier(BoundingBox, BoundingBox)
+@_attribute_qualification_register.register(BoundingBox, BoundingBox)
 def qualify_bbox_bbox(bboxa: BoundingBox, bboxb: BoundingBox):
     intersected = intersect(bboxa, bboxb)
     if intersected is None:
@@ -267,7 +267,7 @@ def qualify_bbox_bbox(bboxa: BoundingBox, bboxb: BoundingBox):
     return Qualification.OVERLAPS
 
 
-@register_attr_qualifier(PointCloud, ImageRecipe)
+@_attribute_qualification_register.register(PointCloud, ImageRecipe)
 def qualify_ptcld_image(ptcld: PointCloud, image: ImageRecipe):
     intersected = intersect(ptcld, image)
     if isinstance(intersected, PointCloud):
@@ -278,7 +278,7 @@ def qualify_ptcld_image(ptcld: PointCloud, image: ImageRecipe):
         return Qualification.OVERLAPS
 
 
-@register_attr_qualifier(RegionSpec, ImageRecipe)
+@_attribute_qualification_register.register(RegionSpec, ImageRecipe)
 def qualify_regionspec_image(regionspec: RegionSpec, image: ImageRecipe):
     logger.debug(
         "RegionSpec and Image comparison is disabled on purpose. This comparison turns out to be "
