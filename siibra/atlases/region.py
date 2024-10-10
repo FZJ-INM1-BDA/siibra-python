@@ -82,7 +82,8 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         from .. import find_maps
 
         for mp in find_maps(self.parcellation.ID):
-            yield mp.space
+            if self.name in mp.regionnames:
+                yield mp.space
 
     def tree2str(self):
         """Render region-tree as a string"""
