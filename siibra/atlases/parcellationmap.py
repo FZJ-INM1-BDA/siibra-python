@@ -102,7 +102,7 @@ class Map(AtlasElement):
 
     @property
     def formats(self) -> Set[str]:
-        return {vol.format for vol in self.volume_providers}
+        return {vol.format for vol in self.volume_recipes}
 
     @property
     def provides_mesh(self):
@@ -131,7 +131,7 @@ class Map(AtlasElement):
 
         sub_mapping = {r: m for r, m in self.region_mapping.items() if r in regionnames}
         target_attrs = {mp["target"] for mps in sub_mapping.values() for mp in mps}
-        vol_providers = [vp for vp in self.volume_providers if vp.name in target_attrs]
+        vol_providers = [vp for vp in self.volume_recipes if vp.name in target_attrs]
         attributes = [
             Name(value=f"{regionnames} filtered from {self.name}"),
             _ID(value=None),
@@ -171,7 +171,7 @@ class Map(AtlasElement):
         mapping = mappings[0]
         providers = [
             v
-            for v in self.volume_providers
+            for v in self.volume_recipes
             if (
                 v.format == frmt
                 and (mapping.get("target") is None or v.name == mapping["target"])
@@ -313,7 +313,7 @@ class Map(AtlasElement):
             return self.extract_mask(regions=self.regionnames)
 
         frmt = self._select_format(frmt)
-        providers = [vp for vp in self.volume_providers if vp.format == frmt]
+        providers = [vp for vp in self.volume_recipes if vp.format == frmt]
         assert len(set(type(p) for p in providers)) == 1
 
         labels = list(range(len(self.regionnames))) if allow_relabeling else []
@@ -351,7 +351,7 @@ class Map(AtlasElement):
         label_color_table = {
             mapping["label"]: convert_hexcolor_to_rgbtuple(mapping["color"])
             for region in regions
-            for vol in self.volume_providers
+            for vol in self.volume_recipes
             for mapping in self.region_mapping[region]
             if vol.format == frmt and region in self.region_mapping
         }

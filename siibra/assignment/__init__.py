@@ -85,7 +85,7 @@ class SearchResult(Generic[T]):
     def build_summary_table(self):
         """
         Returns a dataframe where user can inspect/evaluate how to further narrow down
-        the search result. Similar to AttributeCollection.data_providers_table
+        the search result. Similar to AttributeCollection.data_recipe_table
         """
         list_of_dict = [
             {

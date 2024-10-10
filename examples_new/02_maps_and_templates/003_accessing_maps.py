@@ -56,7 +56,7 @@ print(julich_mpm)
 # we call the fetch() method. Per default, this gives us a Nifti1Image object
 # if image data is available for the volume.
 assert julich_mpm.provides_image
-julich_mpm.data_providers_table
+julich_mpm.data_recipes_table
 mapimg_provider = julich_mpm.extract_full_map()
 
 # we can now plot the image with nilearn. Some maps even provide
@@ -115,7 +115,7 @@ hoc5L = siibra.get_region(parcellation="julich 2.9", region="hoc5 left")
 
 # TODO buggy
 hoc5L_mask = hoc5L.extract_map(space="mni 152", maptype="labelled")
-hoc5L_imgprov = hoc5L_mask.get_dataprovider("format=='nii'")
+hoc5L_imgprov = hoc5L_mask.get_datarecipe("format=='nii'")
 plotting.plot_roi(hoc5L_imgprov.get_data(), title=f"Mask of {hoc5L.name}")
 
 # %%

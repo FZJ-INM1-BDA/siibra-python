@@ -125,28 +125,30 @@ class AttributeCollection:
         return assert_ooo(self.find_datarecipes(expr))
 
     def find_datarecipes(self, expr: str = None) -> List[DataRecipe]:
-        return list(self.data_providers_table.query(expr)["dataprovider"])
+        if expr is None:
+            return list(self.data_recipes_table["datarecipe"])
+        return list(self.data_recipes_table.query(expr)["datarecipe"])
 
     @property
-    def data_providers_table(self) -> pd.DataFrame:
-        dataproviders = self._find(DataRecipe)
+    def data_recipes_table(self) -> pd.DataFrame:
+        data_recipes = self._find(DataRecipe)
         return pd.DataFrame(
             [
                 {
                     "type": type(d).__name__,
-                    "dataprovider": d,
+                    "datarecipe": d,
                     **{
                         key: value
                         for key, value in asdict(d).items()
                         if key not in d.IGNORE_KEYS
                     },
                 }
-                for d in dataproviders
+                for d in data_recipes
             ]
         )
 
     @property
-    def volume_providers(self):
+    def volume_recipes(self):
         from .datarecipes.volume import VolumeRecipe
 
         return [attr for attr in self.attributes if isinstance(attr, VolumeRecipe)]

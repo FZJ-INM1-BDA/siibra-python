@@ -30,7 +30,7 @@ class Space(AtlasElement):
 
     @property
     def formats(self) -> Set[str]:
-        return {vol.format for vol in self.volume_providers}
+        return {vol.format for vol in self.volume_recipes}
 
     @property
     def variants(self) -> List[str]:
@@ -39,7 +39,7 @@ class Space(AtlasElement):
         return list(self._attribute_mapping.region_mapping.keys())
 
     @property
-    def volume_providers(self):
+    def volume_recipes(self):
         from ..attributes.datarecipes import ImageRecipe, MeshRecipe
 
         return [
@@ -78,7 +78,7 @@ class Space(AtlasElement):
                 (variant is None) or fuzzy_match(variant, vol.name)
             )
 
-        return list(filter(filter_templates, self.volume_providers))
+        return list(filter(filter_templates, self.volume_recipes))
 
     def get_template(
         self,
