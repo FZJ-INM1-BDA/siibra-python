@@ -55,28 +55,6 @@ class Feature(AttributeCollection):
         ]
         return sorted(attr, key=lambda a: a.extra[MATRIX_INDEX_ENTITY_KEY])
 
-    @property
-    def data(self):
-        logger.warning("`data` will be depricated! Use `extract_data()` instead.")
-        from ..attributes.datarecipes import TabularDataRecipe
-
-        matrix_entity_key = self.filter(attr_of_general_interest)
-
-        dfs: List[pd.DataFrame] = [d.get_data() for d in self._find(TabularDataRecipe)]
-        if len(matrix_entity_key.attributes) > 0:
-            mapping_idx = {
-                attr.extra[MATRIX_INDEX_ENTITY_KEY]: attr
-                for attr in matrix_entity_key.attributes
-            }
-
-            def remapper(index: int):
-                return mapping_idx.get(index, index)
-
-            for df in dfs:
-                df.rename(index=remapper, columns=remapper, inplace=True)
-
-        return dfs
-
     def extract_data(self, expr: str = None, index: int = 0):
         dp = self.get_datarecipe(expr=expr, index=index)
         return dp.get_data()
