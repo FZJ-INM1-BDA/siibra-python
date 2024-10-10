@@ -198,7 +198,10 @@ class AttributeCollection:
         of the attribute_collection.
         """
         return "\n".join(
-            [f"{key}: {value}" for key, value in self._find(Categorization)]
+            [
+                f"{categorization.key}: {categorization.value}"
+                for categorization in self._find(Categorization)
+            ]
         )
 
     @property

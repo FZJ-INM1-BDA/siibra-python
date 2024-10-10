@@ -102,9 +102,14 @@ def preprocess_concept(concept: Union[AtlasElement, Location, DataRecipe]):
     if isinstance(concept, Region):
         bbox = None
         for space in concept.mapped_spaces:
-            bbox = concept.extract_mask(space=space)
-            if bbox is not None:
-                break
+            try:
+                bbox = concept.extract_mask(space=space)
+                if bbox is not None:
+                    break
+
+            # TODO (2.0) implement gifti extract mask
+            except NotImplementedError:
+                ...
         concept.attributes = (
             *concept.attributes,
             bbox,

@@ -95,8 +95,8 @@ class SearchResult(Generic[T]):
                 # In case key is one of ID, name etc, prepend to avoid name collision
                 "categorizations": item.categorizations,
                 **{
-                    f"category_{key}": value
-                    for key, value in item._find(Categorization)
+                    f"category_{categorization.key}": categorization.value
+                    for categorization in item._find(Categorization)
                 },
                 "ID": item.ID,
                 "instance": item,
