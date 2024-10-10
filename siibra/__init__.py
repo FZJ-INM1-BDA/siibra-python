@@ -169,7 +169,7 @@ def find_features(
         gene_ac = AttributeCollection(
             attributes=[
                 (
-                    Gene(gene["symbol"])
+                    Gene(value=gene["symbol"])
                     if isinstance(gene, dict)
                     else Gene(value=gene.upper())
                 )
