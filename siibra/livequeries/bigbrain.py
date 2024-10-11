@@ -21,6 +21,7 @@ from ..commons import logger
 from ..locations import point, pointset
 from ..core import region
 from ..retrieval import requests, cache
+from ..retrieval.datasets import GenericDataset
 
 import numpy as np
 from typing import List
@@ -36,6 +37,37 @@ class WagstylProfileLoader:
     _profiles = None
     _vertices = None
     _boundary_depths = None
+    DATASET = GenericDataset(
+        name="HIBALL workshop on cortical layers",
+        contributors=[
+            'Konrad Wagstyl',
+            'Stéphanie Larocque',
+            'Guillem Cucurull',
+            'Claude Lepage',
+            'Joseph Paul Cohen',
+            'Sebastian Bludau',
+            'Nicola Palomero-Gallagher',
+            'Lindsay B. Lewis',
+            'Thomas Funck',
+            'Hannah Spitzer',
+            'Timo Dickscheid',
+            'Paul C. Fletcher',
+            'Adriana Romero',
+            'Karl Zilles',
+            'Katrin Amunts',
+            'Yoshua Bengio',
+            'Alan C. Evans'
+        ],
+        url="https://github.com/kwagstyl/cortical_layers_tutorial/",
+        description="Cortical profiles of BigBrain staining intensities computed by Konrad Wagstyl, "
+        "as described in the publication 'Wagstyl, K., et al (2020). BigBrain 3D atlas of "
+        "cortical layers: Cortical and laminar thickness gradients diverge in sensory and "
+        "motor cortices. PLoS Biology, 18(4), e3000678. "
+        "http://dx.doi.org/10.1371/journal.pbio.3000678."
+        "The data is taken from the tutorial at "
+        "https://github.com/kwagstyl/cortical_layers_tutorial. Each vertex is "
+        "assigned to the regional map when queried."
+    )
 
     def __init__(self):
         if self._profiles is None:
@@ -174,6 +206,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
                     boundaries=boundary_depths[i, :],
                     location=point.Point(coords[i, :], 'bigbrain')  # points are warped into BigBrain
                 )
+                prof.datasets = [WagstylProfileLoader.DATASET]
                 result.append(prof)
 
         return result
@@ -216,6 +249,7 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
                 stds=[matched_profiles[layer_labels == layer].std() for layer in range(1, 7)],
             )
             assert fp.matches(subregion)  # to create an assignment result
+            fp.datasets = [WagstylProfileLoader.DATASET]
             result.append(fp)
 
         return result
