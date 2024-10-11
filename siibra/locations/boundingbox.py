@@ -19,6 +19,7 @@ from . import point, pointset, location
 from ..commons import logger
 from ..exceptions import SpaceWarpingFailedError, ZeroVolumeBoundingBox
 
+from itertools import product
 import hashlib
 import numpy as np
 from typing import TYPE_CHECKING, Union
@@ -271,20 +272,9 @@ class BoundingBox(location.Location):
 
         TODO: deal with sigma. Currently, returns the mean of min and max point.
         """
-        x0, y0, z0 = self.minpoint
-        x1, y1, z1 = self.maxpoint
-        all_corners = [
-            (x0, y0, z0),
-            (x1, y0, z0),
-            (x0, y1, z0),
-            (x1, y1, z0),
-            (x0, y0, z1),
-            (x1, y0, z1),
-            (x0, y1, z1),
-            (x1, y1, z1)
-        ]
+        xs, ys, zs = zip(self.minpoint, self.maxpoint)
         return pointset.PointSet(
-            all_corners,
+            coordinates=[[x, y, z] for x, y, z in product(xs, ys, zs)],
             space=self.space,
             sigma_mm=np.mean([self.minpoint.sigma, self.maxpoint.sigma])
         )
