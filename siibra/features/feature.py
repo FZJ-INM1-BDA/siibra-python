@@ -26,8 +26,8 @@ from collections import defaultdict
 from zipfile import ZipFile
 
 if TYPE_CHECKING:
-    from ..retrieval.datasets import EbrainsDataset
-    TypeDataset = EbrainsDataset
+    from ..retrieval.datasets import EbrainsBaseDataset
+    TypeDataset = EbrainsBaseDataset
 
 
 class ParseLiveQueryIdException(Exception):
