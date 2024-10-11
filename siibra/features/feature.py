@@ -153,12 +153,15 @@ class Feature:
     @property
     def description(self):
         """Allows subclasses to overwrite the description with a function call."""
+        description = ""
         if self._description:
-            return self._description
+            description = self._description
         for ds in self.datasets:
             if ds.description:
-                return ds.description
-        return ''
+                description = ds.description
+        if not any(len(ds.urls) > 0 for ds in self.datasets):
+            description = "[PRERELEASE] " + description
+        return description
 
     @property
     def LICENSE(self) -> str:
