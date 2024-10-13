@@ -70,7 +70,7 @@ def test_containedness(point, map: Map, query):
 
 
 def test_point_assignment_to_labelled():
-    mp = siibra.get_map('julich 3', 'mni152')
+    mp = siibra.get_map('julich 3.0.3', 'mni152')
     # certain point
     point = siibra.Point((25.5, -26.0, 72.0), space='mni152')
     assignments = mp.assign(point)
@@ -123,9 +123,10 @@ def test_fetching_merged_volume():
     _ = mp.fetch()
 
 
+# TODO: add tests for jba 3.1
 @pytest.mark.parametrize("siibramap", [
-    siibra.get_map('julich 3', 'fsaverage'),
-    siibra.get_map('julich 3', 'mni152'),
+    siibra.get_map('julich 3.0.3', 'fsaverage'),
+    siibra.get_map('julich 3.0.3', 'mni152'),
 ])
 def test_fetching_mask(siibramap: Map):
     for fmt in siibramap.formats:
@@ -137,3 +138,21 @@ def test_fetching_mask(siibramap: Map):
                 f"{siibramap}, {fmt}. Mask for {region} should only contain 0 "
                 f"and 1 but found: {unq_vals}"
             )
+
+
+def test_freesurfer_annot_map_fetch():
+    annotmaps = [
+        mp for mp in siibra.maps
+        if any(
+            fmt in ["freesurfer-annot", "zip/freesurfer-annot"]
+            for fmt in mp.formats
+        )
+    ]
+    if len(annotmaps) == 0:
+        pytest.skip("No freesurfer-annot map in the configuration.")
+    for mp in annotmaps:
+        mesh = mp.fetch(fragment='left', variant='pial')
+    assert np.array_equal(
+        np.unique(mesh['labels']),
+        np.array([0] + list(mp.labels))
+    )

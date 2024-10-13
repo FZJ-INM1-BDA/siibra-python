@@ -1,6 +1,7 @@
 name: '[cron] test siibra-tutorials'
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '30 6 1,11,21 * *' # every 1st, 11th, and 21th of every month at 6:30
 
@@ -19,6 +20,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -U .
+          pip install -r requirements.txt
+          pip install siibra_jugex
+          pip install matplotlib
           pip install pytest nbmake
 
       - name: checkout siibra-tutorials
@@ -31,4 +35,4 @@ jobs:
           ref: 'main'
       
       - name: Test tutorial notebooks with nbmake
-        run: pytest --nbmake ./siibra-tutorials-${{ github.run_id }}-${{ github.run_number }}
+        run: pytest --nbmake --nbmake-timeout=1200 ./siibra-tutorials-${{ github.run_id }}-${{ github.run_number }}

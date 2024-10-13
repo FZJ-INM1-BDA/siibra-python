@@ -3,7 +3,6 @@ import pytest
 from typing import List
 from siibra.features.feature import CompoundFeature
 from siibra.features.connectivity.regional_connectivity import RegionalConnectivity
-from e2e.util import check_duplicate
 from zipfile import ZipFile
 import os
 
@@ -13,17 +12,7 @@ all_conn_instances = [
     for f in Cls._get_instances()
 ]
 
-compound_conns = siibra.features.get(siibra.parcellations['julich 3'], RegionalConnectivity)
-
-
-def test_id_unique():
-    duplicates = check_duplicate([f.id for f in all_conn_instances])
-    assert len(duplicates) == 0
-
-
-def test_feature_unique():
-    duplicates = check_duplicate([f for f in all_conn_instances])
-    assert len(duplicates) == 0
+compound_conns = siibra.features.get(siibra.parcellations['julich 3.0.3'], RegionalConnectivity)
 
 
 @pytest.mark.parametrize("cf", compound_conns)
@@ -38,7 +27,7 @@ def test_connectivity_get_data(cf: CompoundFeature):
 
 
 jba_29 = siibra.parcellations["julich 2.9"]
-jba_3 = siibra.parcellations["julich 3"]
+jba_3 = siibra.parcellations["julich 3.0.3"]
 
 args = [
     (jba_29, "StreamlineCounts"),

@@ -137,6 +137,9 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
                 measurements.append(measurement)
                 coordinates.append(pt)
 
+        if len(points_inside) == 0:
+            raise StopIteration
+
         # Build the anatomical anchor and assignment to the query concept.
         # It will be attached to the returned feature, with the set of matched
         # MNI coordinates as anchor's location.

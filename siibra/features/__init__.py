@@ -14,6 +14,9 @@
 # limitations under the License.
 """Multimodal data features types and query mechanisms."""
 
+from typing import Union
+from functools import partial
+
 from . import (
     connectivity,
     tabular,
@@ -21,7 +24,8 @@ from . import (
     dataset,
 )
 
-from typing import Union
+from ..commons import logger
+
 from .feature import Feature
 from ..retrieval import cache
 from ..commons import siibra_tqdm
@@ -49,7 +53,7 @@ def __getattr__(attr: str):
 
 
 @cache.Warmup.register_warmup_fn()
-def _warm_feature_cache_insntaces():
+def _warm_feature_cache_instances():
     """Preload preconfigured multimodal data features."""
     for ftype in TYPES.values():
         _ = ftype._get_instances()
@@ -60,18 +64,25 @@ def _warm_feature_cache_data():
     return_callables = []
     for ftype in TYPES.values():
         instances = ftype._get_instances()
+
+        # the instances *must* be cleared, or it will impede the garbage collection, and results in memleak
+        ftype._clean_instances()
         tally = siibra_tqdm(desc=f"Warming data {ftype.__name__}", total=len(instances))
         for f in instances:
-            def get_data():
+            def get_data(arg):
+                tally = arg.pop("tally")
+                feature = arg.pop("feature")
                 # TODO
                 # the try catch is as a result of https://github.com/FZJ-INM1-BDA/siibra-python/issues/509
                 # sometimes f.data can fail
                 try:
-                    _ = f.data
-                except Exception:
-                    ...
-                tally.update(1)
-            return_callables.append(get_data)
+                    _ = feature.data
+                except Exception as e:
+                    logger.warn(f"Feature {feature.name} warmup failed: {str(e)}")
+                finally:
+                    tally.update(1)
+            # append dictionary, so that popping the dictionary will mark the feature to be garbage collected
+            return_callables.append(partial(get_data, {"feature": f, "tally": tally}))
     return return_callables
 
 

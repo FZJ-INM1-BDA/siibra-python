@@ -69,7 +69,8 @@ class CellDensityProfile(
         patch: int,
         url: str,
         anchor: _anchor.AnatomicalAnchor,
-        datasets: list = []
+        datasets: list = [],
+        id: str = None
     ):
         """
         Generate a cell density profile from a URL to a cloud folder
@@ -82,6 +83,7 @@ class CellDensityProfile(
             unit="cells / 0.1mm3",
             anchor=anchor,
             datasets=datasets,
+            id=id
         )
         self._step = 0.01
         self._url = url
@@ -234,7 +236,7 @@ class CellDensityProfile(
 
     @property
     def _depths(self):
-        return [d + self._step / 2 for d in np.arange(0, 1, self._step)]
+        return np.arange(0, 1, self._step) + self._step / 2
 
     @property
     def _values(self):
@@ -246,7 +248,7 @@ class CellDensityProfile(
                 densities.append(self.density_image[mask].mean())
             else:
                 densities.append(np.NaN)
-        return densities
+        return np.asanyarray(densities)
 
     @property
     def key(self):

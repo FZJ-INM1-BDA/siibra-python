@@ -356,6 +356,7 @@ class Factory:
             tsvfile=spec['file'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
+            id=spec.get("@id", None)
         )
 
     @classmethod
@@ -366,6 +367,7 @@ class Factory:
             layerfiles=spec['layerfiles'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
+            id=spec.get("@id", None)
         )
 
     @classmethod
@@ -376,6 +378,7 @@ class Factory:
             tsvfile=spec['file'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
+            id=spec.get("@id", None)
         )
 
     @classmethod
@@ -387,6 +390,7 @@ class Factory:
             url=spec['file'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
+            id=spec.get("@id", None)
         )
 
     @classmethod
@@ -399,6 +403,7 @@ class Factory:
             "space_spec": vol._space_spec,
             "providers": vol._providers.values(),
             "datasets": cls.extract_datasets(spec),
+            "id": spec.get("@id", None)
         }
         modality = spec.get('modality', "")
         if modality == "cell body staining":
@@ -416,6 +421,7 @@ class Factory:
             "space_spec": vol._space_spec,
             "providers": vol._providers.values(),
             "datasets": cls.extract_datasets(spec),
+            "id": spec.get("@id", None)
         }
         modality = spec.get('modality', "")
         if modality == "cell body staining":
@@ -486,7 +492,8 @@ class Factory:
                 "filename": filename,
                 "subject": fkey if files_indexed_by == "subject" else "average",
                 "feature": fkey if files_indexed_by == "feature" else None,
-                "connector": repo_connector or base_url + filename
+                "connector": repo_connector or base_url + filename,
+                "id": spec.get("@id", None)
             })
             conn_by_file.append(conn_cls(**kwargs))
         return conn_by_file
@@ -519,7 +526,8 @@ class Factory:
         for fkey, filename in files.items():
             kwargs.update({
                 "filename": filename,
-                "subject": fkey
+                "subject": fkey,
+                "id": spec.get("@id", None)
             })
             timeseries_by_file.append(timeseries_cls(**kwargs))
         return timeseries_by_file

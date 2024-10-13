@@ -8,6 +8,10 @@ on:
       python-version:
         required: true
         type: string
+      use-cfg:
+        required: false
+        type: string
+        default: ''
 
 jobs:
   e2e:
@@ -18,7 +22,12 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ inputs.python-version }}
-          
+
+    - if: ${{ inputs.use-cfg != '' }}
+      uses: './.github/workflows/setup-custom-cfg'
+      with:
+        siibra-cfg-ref: ${{ inputs.use-cfg }}
+
     - name: Install dependencies
       shell: bash
       run: |
