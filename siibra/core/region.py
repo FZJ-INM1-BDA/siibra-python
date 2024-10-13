@@ -17,7 +17,7 @@
 from . import concept, structure, space as _space, parcellation as _parcellation
 from .assignment import Qualification, AnatomicalAssignment
 
-from ..locations import location, point, pointset
+from ..locations import location, point, pointset, boundingbox as _boundingbox
 from ..volumes import parcellationmap, volume
 from ..commons import (
     logger,
@@ -642,13 +642,14 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(other)
                 return self._ASSIGNMENT_CACHE[self, other]
 
-            try:
-                regionbbox_otherspace = self.get_boundingbox(other.space, restrict_space=False)
-                if regionbbox_otherspace is not None:
-                    self._ASSIGNMENT_CACHE[self, other] = regionbbox_otherspace.assign(other)
-                    return self._ASSIGNMENT_CACHE[self, other]
-            except Exception as e:
-                logger.debug(e)
+            if isinstance(other, _boundingbox.BoundingBox):  # volume.intersection(bbox) gets boundingbox anyway
+                try:
+                    regionbbox_otherspace = self.get_boundingbox(other.space, restrict_space=False)
+                    if regionbbox_otherspace is not None:
+                        self._ASSIGNMENT_CACHE[self, other] = regionbbox_otherspace.assign(other)
+                        return self._ASSIGNMENT_CACHE[self, other]
+                except Exception as e:
+                    logger.debug(e)
 
             assignment_result = None
             for targetspace in self.supported_spaces:
