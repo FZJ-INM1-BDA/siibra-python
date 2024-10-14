@@ -180,6 +180,7 @@ class Factory:
             spec["@id"],
             spec["name"],
             species=Species.decode(spec.get('species')),
+            prerelease=spec.get("prerelease", False),
         )
         for space_id in spec["spaces"]:
             a._register_space(space_id)
@@ -200,6 +201,7 @@ class Factory:
             modality=spec.get("modality"),
             publications=spec.get("publications", []),
             datasets=cls.extract_datasets(spec),
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -213,6 +215,7 @@ class Factory:
             datasets=cls.extract_datasets(spec),
             rgb=spec.get("rgb", None),
             spec=spec,
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -235,6 +238,7 @@ class Factory:
             modality=spec.get('modality', ""),
             publications=spec.get("publications", []),
             datasets=cls.extract_datasets(spec),
+            prerelease=spec.get("prerelease", False),
         )
 
         # add version object, if any is specified
@@ -303,7 +307,8 @@ class Factory:
             description=spec.get("description"),
             modality=spec.get("modality"),
             publications=spec.get("publications", []),
-            datasets=cls.extract_datasets(spec)
+            datasets=cls.extract_datasets(spec),
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -421,7 +426,8 @@ class Factory:
             "space_spec": vol._space_spec,
             "providers": vol._providers.values(),
             "datasets": cls.extract_datasets(spec),
-            "id": spec.get("@id", None)
+            "id": spec.get("@id", None),
+            "prerelease": spec.get("prerelease", False),
         }
         modality = spec.get('modality', "")
         if modality == "cell body staining":
@@ -479,7 +485,8 @@ class Factory:
             "decode_func": decoder_func,
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
-            "datasets": cls.extract_datasets(spec)
+            "datasets": cls.extract_datasets(spec),
+            "prerelease": spec.get("prerelease", False),
         }
         paradigm = spec.get("paradigm")
         if paradigm:
@@ -517,7 +524,8 @@ class Factory:
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
-            "timestep": spec.get("timestep")
+            "timestep": spec.get("timestep"),
+            "prerelease": spec.get("prerelease", False),
         }
         paradigm = spec.get("paradigm")
         if paradigm:

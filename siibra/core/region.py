@@ -85,6 +85,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         datasets: list = [],
         rgb: str = None,
         spec=None,
+        prerelease: bool = False,
     ):
         """
         Constructs a new Region object.
@@ -122,7 +123,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             modality=modality,
             publications=publications,
             datasets=datasets,
-            spec=spec
+            spec=spec,
+            prerelease=prerelease,
         )
 
         # anytree node will take care to use this appropriately

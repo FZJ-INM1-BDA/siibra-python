@@ -30,14 +30,15 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
     spaces, as well as common functionalities of those.
     """
 
-    def __init__(self, identifier: str, name: str, species: Species):
+    def __init__(self, identifier: str, name: str, species: Species, **kwargs):
         """Construct an empty atlas object with a name and identifier."""
 
         concept.AtlasConcept.__init__(
             self,
             identifier=identifier,
             name=name,
-            species=species
+            species=species,
+            **kwargs
         )
         self._parcellation_ids: List[str] = []
         self._space_ids: List[str] = []

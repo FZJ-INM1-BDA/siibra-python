@@ -99,7 +99,8 @@ class Feature:
         description: str,
         anchor: _anchor.AnatomicalAnchor,
         datasets: List['TypeDataset'] = [],
-        id: str = None
+        id: str = None,
+        prerelease: bool = False,
     ):
         """
         Parameters
@@ -117,6 +118,7 @@ class Feature:
         self._anchor_cached = anchor
         self.datasets = datasets
         self._id = id
+        self._prerelease = prerelease
 
     @property
     def modality(self):
@@ -199,7 +201,8 @@ class Feature:
     def name(self):
         """Returns a short human-readable name of this feature."""
         readable_class_name = sub("([a-z])([A-Z])", r"\g<1> \g<2>", self.__class__.__name__)
-        return sub("([b,B]ig [b,B]rain)", "BigBrain", readable_class_name)
+        name_ = sub("([b,B]ig [b,B]rain)", "BigBrain", readable_class_name)
+        return name_ if not self._prerelease else f"[PRERELEASE] {name_}"
 
     @classmethod
     def _get_instances(cls, **kwargs) -> List['Feature']:
@@ -724,7 +727,7 @@ class CompoundFeature(Feature):
     def __init__(
         self,
         elements: List['Feature'],
-        queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
+        queryconcept: Union[region.Region, parcellation.Parcellation, space.Space],
     ):
         """
         A compound of several features of the same type with an anchor created
@@ -757,7 +760,8 @@ class CompoundFeature(Feature):
             modality=modality,
             description="\n".join({f.description for f in elements}),
             anchor=self._feature_type._merge_anchors([f.anchor for f in elements]),
-            datasets=list(dict.fromkeys([ds for f in elements for ds in f.datasets]))
+            datasets=list(dict.fromkeys([ds for f in elements for ds in f.datasets])),
+            prerelease=all(f._prerelease for f in elements),
         )
         self._queryconcept = queryconcept
         self._merged_feature_cached = None
@@ -833,7 +837,8 @@ class CompoundFeature(Feature):
             for k, v in self._compounding_attributes.items()
             if k != 'modality'
         ])
-        return f"{len(self)} {readable_feature_type} features{f' {groupby}' if groupby else ''}"
+        cf_name = f"{len(self)} {readable_feature_type} features{f' {groupby}' if groupby else ''}"
+        return cf_name if not self._prerelease else f"[PRERELEASE] {cf_name}"
 
     @property
     def id(self) -> str:

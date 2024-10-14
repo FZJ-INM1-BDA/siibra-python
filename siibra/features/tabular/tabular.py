@@ -45,7 +45,8 @@ class Tabular(feature.Feature):
         anchor: _anchor.AnatomicalAnchor,
         data: pd.DataFrame,  # sample x feature dimension
         datasets: list = [],
-        id: str = None
+        id: str = None,
+        prerelease: bool = False,
     ):
         feature.Feature.__init__(
             self,
@@ -53,7 +54,8 @@ class Tabular(feature.Feature):
             description=description,
             anchor=anchor,
             datasets=datasets,
-            id=id
+            id=id,
+            prerelease=prerelease
         )
         self._data_cached = data
 

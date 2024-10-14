@@ -76,6 +76,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         modality: str = None,
         publications: list = [],
         datasets: list = [],
+        prerelease: bool = False,
     ):
         """
         Constructs a new parcellation object.
@@ -120,12 +121,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             description=description,
             publications=publications,
             datasets=datasets,
-            modality=modality
+            modality=modality,
+            prerelease=prerelease,
         )
         self._space_spec = space_spec
         self._parcellation_spec = parcellation_spec
-        if 'prerelease' in self.parcellation.name.lower():
-            self.name = f"[PRERELEASE] {self.name}"
 
         # Since the volumes might include 4D arrays, where the actual
         # volume index points to a z coordinate, we create subvolume

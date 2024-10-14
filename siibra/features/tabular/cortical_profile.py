@@ -57,7 +57,8 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         unit: str = None,
         boundary_positions: Dict[Tuple[int, int], float] = None,
         datasets: list = [],
-        id: str = None
+        id: str = None,
+        prerelease: bool = False,
     ):
         """Initialize profile.
 
@@ -98,7 +99,8 @@ class CorticalProfile(tabular.Tabular, Compoundable):
             anchor=anchor,
             data=None,  # lazy loader below
             datasets=datasets,
-            id=id
+            id=id,
+            prerelease=prerelease,
         )
 
     def _check_sanity(self):
