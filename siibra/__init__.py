@@ -160,4 +160,5 @@ def __dir__():
         "cache",
         "warm_cache",
         "set_cache_size",
+        "from_json",
     ]
