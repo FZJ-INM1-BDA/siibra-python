@@ -253,9 +253,8 @@ class Volume(location.Location):
             raise NotImplementedError("Filtering of points by pure mesh volumes not yet implemented.")
 
         # make sure the points are in the same physical space as this volume
-        warped = (
-            pointset.from_points([points]) if isinstance(points, point.Point) else points
-        ).warp(self.space)
+        as_pointset = pointset.from_points([points]) if isinstance(points, point.Point) else points
+        warped = as_pointset.warp(self.space)
         assert warped is not None, SpaceWarpingFailedError
 
         # get the voxel array of this volume
