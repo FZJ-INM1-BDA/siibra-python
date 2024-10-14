@@ -503,7 +503,24 @@ class NeuroglancerScale:
         if voi is None:
             bbox_ = _boundingbox.BoundingBox((0, 0, 0), self.size, space=None)
         else:
-            bbox_ = voi.transform(np.linalg.inv(self.affine))
+            if voi.space is not None:
+                # ensure the voi is inside the template
+                tmplt_bbox = voi.space.get_template().get_boundingbox(clip=False)
+                intersection_bbox = voi.intersection(tmplt_bbox)
+                if intersection_bbox is None:
+                    raise RuntimeError(f"{voi=} provided lies out side the voxel space of the {voi.space.name} template.")
+                if intersection_bbox == voi:
+                    bbox_ = voi.transform(np.linalg.inv(self.affine))
+                else:
+                    logger.warning(
+                        (
+                            f"{voi=} provided was cliped to be in the voxel space of the {voi.space.name} template.\n",
+                            f"Clipped boundingbox={intersection_bbox}"
+                        )
+                    )
+                    bbox_ = intersection_bbox.transform(np.linalg.inv(self.affine))
+            else:
+                bbox_ = voi.transform(np.linalg.inv(self.affine))
 
         for dim in range(3):
             if bbox_.shape[dim] < 1:
