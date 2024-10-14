@@ -17,7 +17,7 @@
 from . import point, pointset, location
 
 from ..commons import logger
-from ..exceptions import SpaceWarpingFailedError, ZeroVolumeBoundingBox
+from ..exceptions import SpaceWarpingFailedError
 
 from itertools import product
 import hashlib
@@ -85,7 +85,7 @@ class BoundingBox(location.Location):
                     self.maxpoint[d] = self.minpoint[d] + minsize
 
         if self.volume == 0:
-            raise ZeroVolumeBoundingBox("Created BoundedBox's have zero volume.")
+            logger.warning("Created BoundedBox's have zero volume.")
 
     @property
     def id(self) -> str:
