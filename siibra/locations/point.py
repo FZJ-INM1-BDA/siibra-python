@@ -138,7 +138,7 @@ class Point(location.Location):
         )
         response = HttpRequest(url, lambda b: json.loads(b.decode())).get()
         if any(map(np.isnan, response['target_point'])):
-            logger.debug(f'Warping {str(self)} to {spaceobj.name} resulted in NaN')
+            logger.info(f'Warping {str(self)} to {spaceobj.name} resulted in NaN')
             return None
         return self.__class__(
             coordinatespec=tuple(response["target_point"]),

@@ -18,7 +18,7 @@ from . import concept, structure, space as _space, parcellation as _parcellation
 from .assignment import Qualification, AnatomicalAssignment
 
 from ..retrieval.cache import cache_user_fn
-from ..locations import location, point, pointset
+from ..locations import location, point, pointset, boundingbox as _boundingbox
 from ..volumes import parcellationmap, volume
 from ..commons import (
     logger,
@@ -648,17 +648,29 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(other)
                 return self._ASSIGNMENT_CACHE[self, other]
 
-            assignment_result = None
-            for space in self.supported_spaces:
+            if isinstance(other, _boundingbox.BoundingBox):  # volume.intersection(bbox) gets boundingbox anyway
                 try:
-                    other_warped = other.warp(space)
-                    regionmap = self.get_regional_map(space)
+                    regionbbox_otherspace = self.get_boundingbox(other.space, restrict_space=False)
+                    if regionbbox_otherspace is not None:
+                        self._ASSIGNMENT_CACHE[self, other] = regionbbox_otherspace.assign(other)
+                        return self._ASSIGNMENT_CACHE[self, other]
+                except Exception as e:
+                    logger.debug(e)
+
+            assignment_result = None
+            for targetspace in self.supported_spaces:
+                try:
+                    other_warped = other.warp(targetspace)
+                    regionmap = self.get_regional_map(targetspace)
                     assignment_result = regionmap.assign(other_warped)
                 except SpaceWarpingFailedError:
                     try:
-                        regionbbox_warped = self.get_boundingbox(
-                            space, restrict_space=True
-                        ).warp(other.space)
+                        regionbbox_targetspace = self.get_boundingbox(
+                            targetspace, restrict_space=True
+                        )
+                        if regionbbox_targetspace is None:
+                            continue
+                        regionbbox_warped = regionbbox_targetspace.warp(other.space)
                     except SpaceWarpingFailedError:
                         continue
                     assignment_result = regionbbox_warped.assign(other)
@@ -700,7 +712,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         space: _space.Space,
         maptype: MapType = MapType.LABELLED,
         threshold_statistical=None,
-        restrict_space=False,
+        restrict_space=True,
         **fetch_kwargs
     ):
         """
@@ -747,7 +759,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                             bbox_warped = bbox.warp(spaceobj)
                         except SpaceWarpingFailedError:
                             continue
-                        logger.warning(
+                        logger.debug(
                             f"No bounding box for {self.name} defined in {spaceobj.name}, "
                             f"warped the bounding box from {other_space.name} instead."
                         )
