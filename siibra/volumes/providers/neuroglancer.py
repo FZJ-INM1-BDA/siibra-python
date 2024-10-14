@@ -149,7 +149,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             ----
             To use it, clip must be True.
         fetch_kwargs:
-            key word arguments that are used for fetchin volumes,
+            key word arguments that are used for fetching volumes,
             such as voi or resolution_mm.
         """
         bbox = None
@@ -399,7 +399,7 @@ class NeuroglancerScale:
         return self.res_nm / 1e6
 
     def resolves(self, resolution_mm):
-        """Test wether the resolution of this scale is sufficient to provide the given resolution."""
+        """Test whether the resolution of this scale is sufficient to provide the given resolution."""
         return all(r / 1e6 <= resolution_mm for r in self.res_nm)
 
     def __lt__(self, other):
@@ -568,7 +568,7 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
         elif isinstance(resource, dict):
             self._meshes = {n: self._fragmentinfo(u) for n, u in resource.items()}
         else:
-            raise ValueError(f"Resource specificaton not understood for {self.__class__.__name__}: {resource}")
+            raise ValueError(f"Resource specification not understood for {self.__class__.__name__}: {resource}")
 
     @property
     def _url(self) -> Union[str, Dict[str, str]]:
@@ -609,7 +609,7 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
                 result[name] = (f"{spec['url']}/{mesh_key}/{fragment_names[0]}", transform)
             else:
                 # only one mesh was configures, so we might still
-                # see muliple fragments under the mesh url
+                # see multiple fragments under the mesh url
                 for fragment_name in fragment_names:
                     result[fragment_name] = (f"{spec['url']}/{mesh_key}/{fragment_name}", transform)
 

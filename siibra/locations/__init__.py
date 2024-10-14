@@ -22,7 +22,7 @@ from .boundingbox import BoundingBox
 
 def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
     """
-    Add two locations of same or diffrent type to find their union as a
+    Add two locations of same or different type to find their union as a
     Location object.
     Note
     ----

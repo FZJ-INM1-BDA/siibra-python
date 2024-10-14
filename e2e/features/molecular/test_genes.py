@@ -28,7 +28,7 @@ def test_gene_exp():
     assert len(features_grandparent_struct) == 1
     assert len(features_leaf_struct) == 1
 
-    # Using higher threshold should result in less gene expresssion measures
+    # Using higher threshold should result in less gene expression measures
     assert len(features_grandparent_struct[0].data) > len(features_leaf_struct[0].data)
 
 

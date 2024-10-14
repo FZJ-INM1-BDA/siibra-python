@@ -94,8 +94,8 @@ DECODERS = {
 def find_suitiable_decoder(url: str) -> Callable:
     """
     By supplying a url or a filename, obtain a suitable decoder function
-    for siibra to digest based on predifined DECODERS. An extra layer of
-    gzip decompresser automatically added for gzipped files.
+    for siibra to digest based on predefined DECODERS. An extra layer of
+    gzip decompressor automatically added for gzipped files.
 
     Parameters
     ----------
@@ -194,7 +194,7 @@ class HttpRequest:
         """
         Populates the file cache with the data from http if required.
         noop if 1/ data is already cached and 2/ refresh flag not set
-        The caller should load the cachefile after _retrieve successfuly executes
+        The caller should load the cachefile after _retrieve successfully executes
         """
         if self.cached and not self.refresh:
             return
@@ -440,9 +440,9 @@ class EbrainsRequest(HttpRequest):
 
             if resp.status_code == 200:
                 json_resp = resp.json()
-                logger.debug("Device flow sucessful:", json_resp)
+                logger.debug("Device flow successful:", json_resp)
                 cls._KG_API_TOKEN = json_resp.get("access_token")
-                print("ebrains token successfuly set.")
+                print("ebrains token successfully set.")
                 break
 
             if resp.status_code == 400:
