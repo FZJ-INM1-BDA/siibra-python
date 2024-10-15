@@ -422,7 +422,7 @@ class Volume(location.Location):
             tmplt_bbox = voi.space.get_template().get_boundingbox(clip=False)
             intersection_bbox = voi.intersection(tmplt_bbox)
             if intersection_bbox is None:
-                raise RuntimeError(f"{voi=} provided lies out side the voxel space of the {voi.space.name} template.")
+                raise RuntimeError(f"voi provided ({voi}) lies out side the voxel space of the {voi.space.name} template.")
             if intersection_bbox != voi:
                 logger.info(
                     f"Since provided voi lies outside the template ({voi.space}) it is clipped as: {intersection_bbox}"
