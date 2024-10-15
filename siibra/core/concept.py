@@ -51,7 +51,8 @@ class AtlasConcept:
         modality: str = "",
         publications: List[TypePublication] = [],
         datasets: List['TypeDataset'] = [],
-        spec=None
+        spec=None,
+        prerelease: bool = False,
     ):
         """
         Construct a new atlas concept base object.
@@ -78,7 +79,7 @@ class AtlasConcept:
             The preconfigured specification.
         """
         self._id = identifier
-        self.name = name
+        self.name = name if not prerelease else f"[PRERELEASE] {name}"
         self._species_cached = None if species is None \
             else Species.decode(species)  # overwritable property implementation below
         self.shortname = shortname
@@ -87,6 +88,7 @@ class AtlasConcept:
         self._publications = publications
         self.datasets = datasets
         self._spec = spec
+        self._prerelease = prerelease
 
     @property
     def description(self):

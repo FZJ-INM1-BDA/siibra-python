@@ -82,6 +82,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         modality: str = None,
         publications: list = [],
         datasets: list = [],
+        prerelease: bool = False,
     ):
         """
         Constructs a new parcellation object.
@@ -118,7 +119,8 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             description=description,
             publications=publications,
             datasets=datasets,
-            modality=modality
+            modality=modality,
+            prerelease=prerelease,
         )
         self._species_cached = Species.decode(species)
         self._id = identifier

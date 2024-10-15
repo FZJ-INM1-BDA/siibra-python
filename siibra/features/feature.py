@@ -92,7 +92,8 @@ class Feature:
         modality: str,
         description: str,
         anchor: _anchor.AnatomicalAnchor,
-        datasets: List['TypeDataset'] = []
+        datasets: List['TypeDataset'] = [],
+        prerelease: bool = False,
     ):
         """
         Parameters
@@ -109,6 +110,7 @@ class Feature:
         self._description = description
         self._anchor_cached = anchor
         self.datasets = datasets
+        self._prerelease = prerelease
 
     @property
     def modality(self):
@@ -183,7 +185,8 @@ class Feature:
     @property
     def name(self):
         """Returns a short human-readable name of this feature."""
-        return f"{self.__class__.__name__} ({self.modality}) anchored at {self.anchor}"
+        name_ = f"{self.__class__.__name__} ({self.modality}) anchored at {self.anchor}"
+        return name_ if not self._prerelease else f"[PRERELEASE] {name_}"
 
     @classmethod
     def get_instances(cls, **kwargs) -> List['Feature']:

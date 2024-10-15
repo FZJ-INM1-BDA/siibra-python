@@ -187,6 +187,7 @@ class Factory:
             modality=spec.get("modality"),
             publications=spec.get("publications", []),
             datasets=cls.extract_datasets(spec),
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -200,6 +201,7 @@ class Factory:
             datasets=cls.extract_datasets(spec),
             rgb=spec.get("rgb", None),
             spec=spec,
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -222,6 +224,7 @@ class Factory:
             modality=spec.get('modality', ""),
             publications=spec.get("publications", []),
             datasets=cls.extract_datasets(spec),
+            prerelease=spec.get("prerelease", False),
         )
 
         # add version object, if any is specified
@@ -299,7 +302,8 @@ class Factory:
             description=spec.get("description"),
             modality=spec.get("modality"),
             publications=spec.get("publications", []),
-            datasets=cls.extract_datasets(spec)
+            datasets=cls.extract_datasets(spec),
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -352,6 +356,7 @@ class Factory:
             tsvfile=spec['file'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -362,6 +367,7 @@ class Factory:
             layerfiles=spec['layerfiles'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -372,6 +378,7 @@ class Factory:
             tsvfile=spec['file'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -383,6 +390,7 @@ class Factory:
             url=spec['file'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -395,6 +403,7 @@ class Factory:
             "space_spec": vol._space_spec,
             "providers": vol._providers.values(),
             "datasets": cls.extract_datasets(spec),
+            "prerelease": spec.get("prerelease", False),
         }
         modality = spec.get('modality', "")
         if modality == "cell body staining":
@@ -412,6 +421,7 @@ class Factory:
             "space_spec": vol._space_spec,
             "providers": vol._providers.values(),
             "datasets": cls.extract_datasets(spec),
+            "prerelease": spec.get("prerelease", False),
         }
         modality = spec.get('modality', "")
         if modality == "cell body staining":
@@ -461,6 +471,7 @@ class Factory:
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
+            "prerelease": spec.get("prerelease", False),
         }
         if modality == "StreamlineCounts":
             return connectivity.StreamlineCounts(**kwargs)
@@ -491,7 +502,8 @@ class Factory:
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
-            "timestep": spec.get("timestep", ("1 no_unit"))
+            "timestep": spec.get("timestep", ("1 no_unit")),
+            "prerelease": spec.get("prerelease", False),
         }
         if modality == "Regional BOLD signal":
             kwargs["paradigm"] = spec.get("paradigm", "")

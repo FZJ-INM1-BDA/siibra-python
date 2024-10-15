@@ -87,6 +87,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         modality: str = None,
         publications: list = [],
         datasets: list = [],
+        prerelease: bool = False,
     ):
         """
         Constructs a new parcellation object.
@@ -131,7 +132,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             description=description,
             publications=publications,
             datasets=datasets,
-            modality=modality
+            modality=modality,
+            prerelease=prerelease,
         )
 
         # Since the volumes might include 4D arrays, where the actual

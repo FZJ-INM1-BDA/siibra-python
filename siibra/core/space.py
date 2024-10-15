@@ -39,6 +39,7 @@ class Space(AtlasConcept, configuration_folder="spaces"):
         modality: str = "",
         publications: list = [],
         datasets: list = [],
+        prerelease: bool = False,
     ):
         """
         Constructs a new parcellation object.
@@ -76,6 +77,7 @@ class Space(AtlasConcept, configuration_folder="spaces"):
             modality=modality,
             publications=publications,
             datasets=datasets,
+            prerelease=prerelease,
         )
         self.volumes = volumes
         for v in self.volumes:

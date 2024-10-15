@@ -62,13 +62,15 @@ class Image(feature.Feature, _volume.Volume):
         providers: List[_volume.VolumeProvider],
         region: str = None,
         datasets: List = [],
+        prerelease: bool = False,
     ):
         feature.Feature.__init__(
             self,
             modality=modality,
             description=None,  # lazy implementation below!
             anchor=None,  # lazy implementation below!
-            datasets=datasets
+            datasets=datasets,
+            prerelease=prerelease,
         )
 
         _volume.Volume.__init__(

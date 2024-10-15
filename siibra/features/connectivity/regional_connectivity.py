@@ -51,6 +51,7 @@ class RegionalConnectivity(Feature):
         anchor: _anchor.AnatomicalAnchor,
         description: str = "",
         datasets: list = [],
+        prerelease: bool = False,
     ):
         """
         Construct a parcellation-averaged connectivity matrix.
@@ -84,6 +85,7 @@ class RegionalConnectivity(Feature):
             description=description or '\n'.join({ds.description for ds in datasets}),
             anchor=anchor,
             datasets=datasets,
+            prerelease=prerelease,
         )
         self.cohort = cohort.upper()
         self._connector = connector

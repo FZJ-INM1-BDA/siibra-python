@@ -47,7 +47,8 @@ class RegionalTimeseriesActivity(tabular.Tabular):
         timestep: str,
         description: str = "",
         datasets: list = [],
-        paradigm: str = ""
+        paradigm: str = "",
+        prerelease: bool = False,
     ):
         """
         """
@@ -57,7 +58,8 @@ class RegionalTimeseriesActivity(tabular.Tabular):
             description=description or '\n'.join({ds.description for ds in datasets}),
             anchor=anchor,
             datasets=datasets,
-            data=None  # lazy loading below
+            data=None,  # lazy loading below
+            prerelease=prerelease
         )
         self.cohort = cohort.upper()
         self._connector = connector

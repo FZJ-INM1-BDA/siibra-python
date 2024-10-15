@@ -67,7 +67,8 @@ class CellDensityProfile(
         patch: int,
         url: str,
         anchor: _anchor.AnatomicalAnchor,
-        datasets: list = []
+        datasets: list = [],
+        prerelease: bool = False,
     ):
         """
         Generate a cell density profile from a URL to a cloud folder
@@ -80,6 +81,7 @@ class CellDensityProfile(
             unit="detected cells / 0.1mm3",
             anchor=anchor,
             datasets=datasets,
+            prerelease=prerelease,
         )
         self._step = 0.01
         self._url = url

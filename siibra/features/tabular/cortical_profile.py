@@ -52,7 +52,8 @@ class CorticalProfile(tabular.Tabular):
         values: Union[list, np.ndarray] = None,
         unit: str = None,
         boundary_positions: Dict[Tuple[int, int], float] = None,
-        datasets: list = []
+        datasets: list = [],
+        prerelease: bool = False,
     ):
         """Initialize profile.
 
@@ -92,7 +93,8 @@ class CorticalProfile(tabular.Tabular):
             description=description,
             anchor=anchor,
             data=None,  # lazy loader below
-            datasets=datasets
+            datasets=datasets,
+            prerelease=prerelease,
         )
 
     def _check_sanity(self):

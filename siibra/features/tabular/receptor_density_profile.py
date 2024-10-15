@@ -39,7 +39,8 @@ class ReceptorDensityProfile(
         receptor: str,
         tsvfile: str,
         anchor: _anchor.AnatomicalAnchor,
-        datasets: list = []
+        datasets: list = [],
+        prerelease: bool = False,
     ):
         """Generate a receptor density profile from a URL to a .tsv file
         formatted according to the structure used by Palomero-Gallagher et al.
@@ -50,6 +51,7 @@ class ReceptorDensityProfile(
             modality=f"{receptor} receptor density",
             anchor=anchor,
             datasets=datasets,
+            prerelease=prerelease,
         )
         self.type = receptor
         self._data_cached = None

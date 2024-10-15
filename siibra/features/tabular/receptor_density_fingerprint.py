@@ -42,7 +42,8 @@ class ReceptorDensityFingerprint(
         self,
         tsvfile: str,
         anchor: _anchor.AnatomicalAnchor,
-        datasets: list = []
+        datasets: list = [],
+        prerelease: bool = False,
     ):
         """ Generate a receptor fingerprint from a URL to a .tsv file
         formatted according to the structure used by Palomero-Gallagher et al.
@@ -54,6 +55,7 @@ class ReceptorDensityFingerprint(
             anchor=anchor,
             data=None,  # lazy loading below
             datasets=datasets,
+            prerelease=prerelease,
         )
         self._loader = requests.HttpRequest(tsvfile)
 
