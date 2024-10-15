@@ -26,7 +26,7 @@ from ...commons import (
 from ...retrieval import requests, cache
 from ...locations import boundingbox as _boundingbox
 
-from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
+from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset, PrecomputedIO
 from neuroglancer_scripts.http_accessor import HttpAccessor
 from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
 from io import BytesIO
@@ -243,7 +243,7 @@ class NeuroglancerVolume:
         self._scales_cached = None
         self._info = None
         self._transform_nm = None
-        self._io = None
+        self._io: PrecomputedIO = None
 
     @property
     def transform_nm(self):
@@ -266,7 +266,7 @@ class NeuroglancerVolume:
         self._transform_nm = val
 
     @property
-    def io(self):
+    def io(self) -> PrecomputedIO:
         if self._io is None:
             accessor = HttpAccessor(self.url)
             self._io = get_IO_for_existing_dataset(accessor)
@@ -385,7 +385,7 @@ class NeuroglancerScale:
 
     color_warning_issued = False
 
-    def __init__(self, volume: NeuroglancerProvider, scaleinfo: dict):
+    def __init__(self, volume: NeuroglancerVolume, scaleinfo: dict):
         self.volume = volume
         self.chunk_sizes = np.array(scaleinfo["chunk_sizes"]).squeeze()
         self.encoding = scaleinfo["encoding"]
