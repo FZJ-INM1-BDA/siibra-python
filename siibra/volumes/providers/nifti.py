@@ -188,7 +188,7 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
             result = loader()
 
         if voi is not None:
-            bb_vox = voi.transform(np.linalg.inv(result.affine))
+            bb_vox = voi.transform(np.linalg.inv(self.affine))
             (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
             shift = np.identity(4)
             shift[:3, -1] = bb_vox.minpoint
