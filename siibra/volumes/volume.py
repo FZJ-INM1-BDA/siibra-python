@@ -416,6 +416,20 @@ class Volume(location.Location):
                 f"volume are: {self.formats}"
             )
 
+        # ensure the voi is inside the template
+        voi = kwargs.get("voi", None)
+        if voi is not None and voi.space is not None:
+            assert isinstance(voi, boundingbox.BoundingBox)
+            tmplt_bbox = voi.space.get_template().get_boundingbox(clip=False)
+            intersection_bbox = voi.intersection(tmplt_bbox)
+            if intersection_bbox is None:
+                raise RuntimeError(f"{voi=} provided lies out side the voxel space of the {voi.space.name} template.")
+            if intersection_bbox != voi:
+                logger.info(
+                    f"Since provided voi lies outside the template ({voi.space}) it is clipped as: {intersection_bbox}"
+                )
+                kwargs["voi"] = intersection_bbox
+
         result = None
         # try each possible format
         for fmt in possible_formats:

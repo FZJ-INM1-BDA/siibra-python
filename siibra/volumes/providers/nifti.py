@@ -188,24 +188,7 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
             result = loader()
 
         if voi is not None:
-            if voi.space is not None:
-                # ensure the voi is inside the template
-                tmplt_bbox = voi.space.get_template().get_boundingbox(clip=False)
-                intersection_bbox = voi.intersection(tmplt_bbox)
-                if intersection_bbox is None:
-                    raise RuntimeError(f"{voi=} provided lies out side the voxel space of the {voi.space.name} template.")
-                if intersection_bbox == voi:
-                    bb_vox = voi.transform(np.linalg.inv(result.affine))
-                else:
-                    logger.warning(
-                        (
-                            f"{voi=} provided was cliped to be in the voxel space of the {voi.space.name} template.\n",
-                            f"Clipped boundingbox={intersection_bbox}"
-                        )
-                    )
-                    bb_vox = intersection_bbox.transform(np.linalg.inv(result.affine))
-            else:
-                bb_vox = voi.transform(np.linalg.inv(result.affine))
+            bb_vox = voi.transform(np.linalg.inv(self.affine))
             (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
             shift = np.identity(4)
             shift[:3, -1] = bb_vox.minpoint
