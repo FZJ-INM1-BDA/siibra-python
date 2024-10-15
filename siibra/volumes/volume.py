@@ -202,6 +202,19 @@ class Volume:
         else:
             raise ValueError(f"Invalid format requested: {format}")
 
+        # ensure the voi is inside the template
+        voi = kwargs.get("voi", None)
+        if isinstance(voi, _boundingbox.BoundingBox) and voi.space is not None:
+            tmplt_bbox = voi.space.get_template().boundingbox
+            intersection_bbox = voi.intersection(tmplt_bbox)
+            if intersection_bbox is None:
+                raise RuntimeError(f"{voi=} provided lies out side the voxel space of the {voi.space.name} template.")
+            if intersection_bbox.minpoint != voi.minpoint or intersection_bbox.maxpoint != voi.maxpoint:
+                logger.info(
+                    f"Since provided voi lies outside the template ({voi.space}) it is clipped as: {intersection_bbox}"
+                )
+                kwargs["voi"] = intersection_bbox
+
         # try the selected format only
         for try_count in range(6):
             try:
