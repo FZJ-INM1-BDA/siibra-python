@@ -361,7 +361,8 @@ class Factory:
             tsvfile=spec['file'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
-            id=spec.get("@id", None)
+            id=spec.get("@id", None),
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -372,7 +373,8 @@ class Factory:
             layerfiles=spec['layerfiles'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
-            id=spec.get("@id", None)
+            id=spec.get("@id", None),
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -383,7 +385,8 @@ class Factory:
             tsvfile=spec['file'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
-            id=spec.get("@id", None)
+            id=spec.get("@id", None),
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -395,7 +398,8 @@ class Factory:
             url=spec['file'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
-            id=spec.get("@id", None)
+            id=spec.get("@id", None),
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
@@ -408,7 +412,8 @@ class Factory:
             "space_spec": vol._space_spec,
             "providers": vol._providers.values(),
             "datasets": cls.extract_datasets(spec),
-            "id": spec.get("@id", None)
+            "id": spec.get("@id", None),
+            "prerelease": spec.get("prerelease", False),
         }
         modality = spec.get('modality', "")
         if modality == "cell body staining":
