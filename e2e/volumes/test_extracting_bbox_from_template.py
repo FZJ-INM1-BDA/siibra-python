@@ -1,6 +1,6 @@
 import pytest
 import siibra
-
+from nibabel import Nifti1Image
 
 vois = [
     siibra.locations.BoundingBox(
@@ -17,4 +17,6 @@ vois = [
 
 @pytest.mark.parametrize("voi", vois)
 def test_fetching_voi(voi):
-    voi.space.get_template().fetch(voi=voi, resolution_mm=0.52)
+    assert isinstance(
+        voi.space.get_template().fetch(voi=voi, resolution_mm=0.52), Nifti1Image
+    )
