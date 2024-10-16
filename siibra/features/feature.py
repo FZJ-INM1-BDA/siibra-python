@@ -271,13 +271,18 @@ class Feature:
         if self._id:
             return self._id
 
+        if self._prerelease:
+            name_ = self.name.removeprefix("[PRERELEASE] ")
+        else:
+            name_ = self.name
+
         prefix = ''
         for ds in self.datasets:
             if hasattr(ds, "id"):
                 prefix = ds.id + '--'
                 break
         return prefix + md5(
-            f"{self.name} - {self.anchor}".encode("utf-8")
+            f"{name_} - {self.anchor}".encode("utf-8")
         ).hexdigest()
 
     def _to_zip(self, fh: ZipFile):
@@ -842,12 +847,16 @@ class CompoundFeature(Feature):
 
     @property
     def id(self) -> str:
+        if self._prerelease:
+            name_ = self.name.removeprefix("[PRERELEASE] ")
+        else:
+            name_ = self.name
         return "::".join((
             "cf0",
             f"{self._feature_type.__name__}",
             self._encode_concept(self._queryconcept),
             self.datasets[0].id if self.datasets else "nodsid",
-            md5(self.name.encode("utf-8")).hexdigest()
+            md5(name_.encode("utf-8")).hexdigest()
         ))
 
     def __iter__(self) -> Iterator['Feature']:
