@@ -164,7 +164,15 @@ class Feature:
 
     @property
     def LICENSE(self) -> str:
-        return '\n'.join([ds.LICENSE for ds in self.datasets])
+        licenses = []
+        for ds in self.datasets:
+            if ds.LICENSE is None or ds.LICENSE == "No license information is found.":
+                continue
+            if isinstance(ds.LICENSE, str):
+                licenses.append(ds.LICENSE)
+            if isinstance(ds.LICENSE, list):
+                licenses.extend(ds.LICENSE)
+        return '\n'.join(licenses)
 
     @property
     def doi_or_url(self) -> str:

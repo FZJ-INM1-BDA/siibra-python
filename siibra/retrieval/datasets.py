@@ -57,6 +57,10 @@ class EbrainsBaseDataset(ABC):
         raise NotImplementedError
 
     @abstractproperty
+    def LICENSE(self) -> List[str]:
+        raise NotImplementedError
+
+    @abstractproperty
     def urls(self) -> List[EbrainsDatasetUrl]:
         raise NotImplementedError
 
