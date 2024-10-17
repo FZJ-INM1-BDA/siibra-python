@@ -1,12 +1,20 @@
 import pytest
 import siibra
+from typing import Union, List
 
-test_params = [("hoc1 left", "MAOA")]
+test_params = [
+    ("julich 2.9", "hoc1 left", "MAOA"),
+    ("julich 3.0.3", "hoc1 left", "MAOA"),
+    ("julich 3.1", "hoc1 left", "MAOA"),
+    ("julich 3.1", "ifg 44 left", "MAOA"),
+    ("julich 3.1", "hoc1 left", ["GABRA1", "GABRA2", "GABRQ"]),
+    ("julich 3.1", "ifg 44 left", ["GABRA1", "GABRA2", "GABRQ"]),
+]
 
 
-@pytest.mark.parametrize("region_spec,gene", test_params)
-def test_genes(region_spec: str, gene: str):
-    parc = siibra.parcellations["2.9"]
+@pytest.mark.parametrize("parc_spec, region_spec, gene", test_params)
+def test_genes(parc_spec: str, region_spec: str, gene: Union[str, List[str]]):
+    parc = siibra.parcellations[parc_spec]
     region = parc.get_region(region_spec)
     features = siibra.features.get(region, "gene", gene=gene)
     assert len(features) > 0, "expecting at least 1 gene feature"
@@ -15,27 +23,18 @@ def test_genes(region_spec: str, gene: str):
     ), "expecting all features to be of type GeneExpression"
 
 
-def test_gene_exp():
-    kwargs = {"gene": "MAOA", "maptype": siibra.commons.MapType.STATISTICAL}
+def test_gene_exp_w_parent_structures():
+    kwargs = {"gene": "MAOA"}
     features_grandparent_struct = siibra.features.get(
-        *(siibra.parcellations["2.9"].get_region("frontal pole"), 'gene'), **kwargs
+        *(siibra.parcellations["2.9"].get_region("frontal pole"), "gene"), **kwargs
     )
     features_leaf_struct = siibra.features.get(
-        *(siibra.parcellations["2.9"].get_region("fp1 left"), 'gene'), **kwargs
+        *(siibra.parcellations["2.9"].get_region("fp1 left"), "gene"), **kwargs
     )
 
-    # should have received one gene expression feature each
+    # must find a gene expression for both
     assert len(features_grandparent_struct) == 1
     assert len(features_leaf_struct) == 1
 
-    # Using higher threshold should result in less gene expresssion measures
+    # grandparent area should contain more measurements
     assert len(features_grandparent_struct[0].data) > len(features_leaf_struct[0].data)
-
-
-def test_query_w_genelist():
-    genes = ["GABRA1", "GABRA2", "GABRQ"]
-    p = siibra.parcellations['julich 3']
-    regions = [p.get_region(spec) for spec in ["ifg 44 left", "hoc1 left"]]
-    for region in regions:
-        fts = siibra.features.get(region, "GeneExpressions", gene=genes)
-        assert len(fts) > 0

@@ -101,9 +101,6 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         """
         LiveQuery.__init__(self, **kwargs)
         gene = kwargs.get('gene')
-        self.maptype = kwargs.get("maptype", None)
-        if isinstance(self.maptype, str):
-            self.maptype = MapType[self.maptype.upper()]
 
         def parse_gene(spec):
             if isinstance(spec, str):
