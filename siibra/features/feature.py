@@ -260,7 +260,8 @@ class Feature:
             if hasattr(ds, "id"):
                 prefix = ds.id + '--'
                 break
-        return prefix + md5(self.name.encode("utf-8")).hexdigest()
+        name_ = self.name.lstrip("[PRERELEASE] ")
+        return prefix + md5(name_.encode("utf-8")).hexdigest()
 
     def _export(self, fh: ZipFile):
         """
