@@ -279,7 +279,7 @@ class Feature:
             return self._id
 
         if self._prerelease:
-            name_ = self.name.removeprefix("[PRERELEASE] ")
+            name_ = self.name.lstrip("[PRERELEASE] ")
         else:
             name_ = self.name
 
@@ -855,7 +855,7 @@ class CompoundFeature(Feature):
     @property
     def id(self) -> str:
         if self._prerelease:
-            name_ = self.name.removeprefix("[PRERELEASE] ")
+            name_ = self.name.lstrip("[PRERELEASE] ")
         else:
             name_ = self.name
         return "::".join((
