@@ -63,6 +63,7 @@ class Image(feature.Feature, _volume.Volume):
         region: str = None,
         datasets: List = [],
         prerelease: bool = False,
+        id: str = None,
     ):
         feature.Feature.__init__(
             self,
@@ -71,6 +72,7 @@ class Image(feature.Feature, _volume.Volume):
             anchor=None,  # lazy implementation below!
             datasets=datasets,
             prerelease=prerelease,
+            id=id,
         )
 
         _volume.Volume.__init__(

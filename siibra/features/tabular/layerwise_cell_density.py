@@ -57,6 +57,7 @@ class LayerwiseCellDensity(
         anchor: _anchor.AnatomicalAnchor,
         datasets: list = [],
         prerelease: bool = False,
+        id: str = None,
     ):
         tabular.Tabular.__init__(
             self,
@@ -66,6 +67,7 @@ class LayerwiseCellDensity(
             datasets=datasets,
             data=None,  # lazy loading below
             prerelease=prerelease,
+            id=id,
         )
         self.unit = "# detected cells/0.1mm3"
         self._filepairs = list(zip(segmentfiles, layerfiles))

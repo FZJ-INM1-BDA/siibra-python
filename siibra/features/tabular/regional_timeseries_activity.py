@@ -49,6 +49,7 @@ class RegionalTimeseriesActivity(tabular.Tabular):
         datasets: list = [],
         paradigm: str = "",
         prerelease: bool = False,
+        id: str = None,
     ):
         """
         """
@@ -59,7 +60,8 @@ class RegionalTimeseriesActivity(tabular.Tabular):
             anchor=anchor,
             datasets=datasets,
             data=None,  # lazy loading below
-            prerelease=prerelease
+            prerelease=prerelease,
+            id=id,
         )
         self.cohort = cohort.upper()
         self._connector = connector
