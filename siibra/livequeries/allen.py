@@ -19,7 +19,7 @@ from .query import LiveQuery
 from ..core import space as _space, structure
 from ..features import anchor as _anchor
 from ..features.tabular.gene_expression import GeneExpressions
-from ..commons import logger, Species, MapType
+from ..commons import logger, Species
 from ..locations import point, pointset
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
