@@ -98,3 +98,11 @@ jobs:
       os: ubuntu-latest
       python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
+
+  test-examples:
+    needs: 'use-custom-cfg'
+    uses: ./.github/workflows/_run_examples.yaml
+    with:
+      os: ubuntu-latest
+      python-version: "3.8"
+      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
