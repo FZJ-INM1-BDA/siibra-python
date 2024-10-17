@@ -94,6 +94,8 @@ class Feature:
         anchor: _anchor.AnatomicalAnchor,
         datasets: List['TypeDataset'] = [],
         prerelease: bool = False,
+        id: str = None,
+
     ):
         """
         Parameters
@@ -111,6 +113,7 @@ class Feature:
         self._anchor_cached = anchor
         self.datasets = datasets
         self._prerelease = prerelease
+        self._id = id
 
     @property
     def modality(self):
@@ -255,6 +258,9 @@ class Feature:
 
     @property
     def id(self):
+        if self._id:
+            return self._id
+
         prefix = ''
         for ds in self.datasets:
             if hasattr(ds, "id"):

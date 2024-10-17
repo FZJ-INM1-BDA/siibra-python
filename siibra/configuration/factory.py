@@ -357,6 +357,7 @@ class Factory:
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
             prerelease=spec.get("prerelease", False),
+            id=spec.get("@id", None),
         )
 
     @classmethod
@@ -368,6 +369,7 @@ class Factory:
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
             prerelease=spec.get("prerelease", False),
+            id=spec.get("@id", None),
         )
 
     @classmethod
@@ -379,6 +381,7 @@ class Factory:
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
             prerelease=spec.get("prerelease", False),
+            id=spec.get("@id", None),
         )
 
     @classmethod
@@ -391,6 +394,7 @@ class Factory:
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
             prerelease=spec.get("prerelease", False),
+            id=spec.get("@id", None),
         )
 
     @classmethod
@@ -404,6 +408,7 @@ class Factory:
             "providers": vol._providers.values(),
             "datasets": cls.extract_datasets(spec),
             "prerelease": spec.get("prerelease", False),
+            "id": spec.get("@id", None),
         }
         modality = spec.get('modality', "")
         if modality == "cell body staining":
@@ -422,6 +427,7 @@ class Factory:
             "providers": vol._providers.values(),
             "datasets": cls.extract_datasets(spec),
             "prerelease": spec.get("prerelease", False),
+            "id": spec.get("@id", None),
         }
         modality = spec.get('modality', "")
         if modality == "cell body staining":
@@ -472,6 +478,7 @@ class Factory:
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
             "prerelease": spec.get("prerelease", False),
+            "id": spec.get("@id", None),
         }
         if modality == "StreamlineCounts":
             return connectivity.StreamlineCounts(**kwargs)
@@ -504,6 +511,7 @@ class Factory:
             "datasets": cls.extract_datasets(spec),
             "timestep": spec.get("timestep", ("1 no_unit")),
             "prerelease": spec.get("prerelease", False),
+            "id": spec.get("@id", None),
         }
         if modality == "Regional BOLD signal":
             kwargs["paradigm"] = spec.get("paradigm", "")
