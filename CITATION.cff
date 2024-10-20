@@ -11,15 +11,15 @@ abstract: |
 
 message: "If you use this software, please cite it as below."
 
-license: Apache License, Version 2.0
+license: Apache-2.0
 
 repository-code: https://github.com/FZJ-INM1-BDA/siibra-python
 
-version: v1.0a01
+version: v1.0a17
 
-date-released: 2023-11-16
+date-released: 2024-10-16
 
-doi: https://zenodo.org/records/7885729
+doi: 10.5281/zenodo.7885728
 
 contact:
   - given-names: Timo
@@ -45,3 +45,4 @@ authors:
     given-names: Sebastian
   - family-names: Amunts
     given-names: Katrin
+

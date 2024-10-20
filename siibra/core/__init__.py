@@ -14,10 +14,3 @@
 # limitations under the License.
 """:ref:`Main siibra concepts<mainconcepts>`"""
 from . import atlas, parcellation, space
-
-
-def warm_cache():
-    """Preload preconfigured siibra core concepts."""
-    _ = atlas.Atlas.registry()
-    _ = space.Space.registry()
-    _ = parcellation.Parcellation.registry()

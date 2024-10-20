@@ -18,15 +18,17 @@ import os
 import re
 from enum import Enum
 from nibabel import Nifti1Image
+from nilearn.image import resample_to_img
 import logging
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
+from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict, Generator, Tuple
 from skimage.filters import gaussian
 from dataclasses import dataclass
 from hashlib import md5
 from uuid import UUID
+import math
 try:
     from typing import TypedDict
 except ImportError:
@@ -49,7 +51,7 @@ SIIBRA_LOG_LEVEL = os.getenv("SIIBRA_LOG_LEVEL", "INFO")
 SIIBRA_USE_CONFIGURATION = os.getenv("SIIBRA_USE_CONFIGURATION")
 SIIBRA_USE_LOCAL_SNAPSPOT = os.getenv("SIIBRA_USE_LOCAL_SNAPSPOT")
 SKIP_CACHEINIT_MAINTENANCE = os.getenv("SKIP_CACHEINIT_MAINTENANCE")
-NEUROGLANCER_MAX_GIB = os.getenv("NEUROGLANCER_MAX_GIB", 0.2)
+SIIBRA_MAX_FETCH_SIZE_GIB = float(os.getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2))
 
 with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
     __version__ = fp.read().strip()
@@ -101,9 +103,11 @@ class InstanceTable(Generic[T], Iterable):
         self._dataframe_cached = None
 
     def add(self, key: str, value: T) -> None:
-        """Add a key/value pair to the registry.
+        """
+        Add a key/value pair to the registry.
 
-        Args:
+        Parameters
+        ----------
             key (string): Unique name or key of the object
             value (object): The registered object
         """
@@ -125,6 +129,9 @@ class InstanceTable(Generic[T], Iterable):
             return f"{self.__class__.__name__}:\n - " + "\n - ".join(self._elements.keys())
         else:
             return f"Empty {self.__class__.__name__}"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} of {self[0].__class__}>"
 
     def __iter__(self) -> Iterator[T]:
         """Iterate over all objects in the registry"""
@@ -149,10 +156,13 @@ class InstanceTable(Generic[T], Iterable):
         the first in sorted order is returned. If the specification does not match,
         a RuntimeError is raised.
 
-        Args:
-            spec [int or str]: Index or string specification of an object
+        Parameters
+        ----------
+        spec: int, str
+            Index or string specification of an object
 
-        Returns:
+        Returns
+        -------
             Matched object
         """
         if spec is None:
@@ -335,10 +345,11 @@ class MapIndex:
         return f"(volume:{self.volume}, label:{self.label}, fragment:{self.fragment})"
 
     def __repr__(self):
-        return f"{self.__class__.__name__}{str(self)}"
+        frag = f"'{self.fragment}'" if self.fragment else self.fragment
+        return f"<{self.__class__.__name__}(volume={self.volume}, label={self.label}, fragment={frag})>"
 
     def __eq__(self, other):
-        assert isinstance(other, self.__class__)
+        assert isinstance(other, self.__class__), f'Cannot compare {self.__class__} and {other.__class__}'
         return all([
             self.volume == other.volume,
             self.label == other.label,
@@ -393,10 +404,8 @@ NZCACHE = {}
 
 
 def nonzero_coordinates(arr):
-    obj_id = id(arr)
-    if obj_id not in NZCACHE:
-        NZCACHE[obj_id] = np.c_[np.nonzero(arr > 0)]
-    return NZCACHE[obj_id]
+    # TODO: fix caching
+    return np.c_[np.nonzero(arr > 0)]
 
 
 def affine_scaling(affine):
@@ -420,7 +429,6 @@ def compare_arrays(arr1: np.ndarray, affine1: np.ndarray, arr2: np.ndarray, affi
     It is recommended to install the indexed-gzip package,
     which will further speed this up.
     """
-
     a1, a2 = arr1.squeeze(), arr2.squeeze()
 
     def homog(XYZ):
@@ -506,37 +514,74 @@ def compare_arrays(arr1: np.ndarray, affine1: np.ndarray, arr2: np.ndarray, affi
     )
 
 
-def resample_array_to_array(
-    source_data: np.ndarray,
-    source_affine: np.ndarray,
-    target_data: np.ndarray,
-    target_affine: np.ndarray
-):
+def resample_img_to_img(
+    source_img: Nifti1Image,
+    target_img: Nifti1Image,
+    interpolation: str = ""
+) -> Nifti1Image:
     """
-    Returns the source data resampled to match the target data
-    according to their affines.
+    Resamples to source image to match the target image according to target's
+    affine. (A wrapper of `nilearn.image.resample_to_img`.)
+
+    Parameters
+    ----------
+    source_img : Nifti1Image
+    target_img : Nifti1Image
+    interpolation : str, Default: "nearest" if the source image is a mask otherwise "linear".
+        Can be 'continuous', 'linear', or 'nearest'. Indicates the resample method.
+
+    Returns
+    -------
+    Nifti1Image
     """
-    from nibabel import Nifti1Image
-    from nilearn.image import resample_to_img
-    interp = "nearest" if issubclass(source_data.dtype.type, np.integer) \
-        else 'linear'
-    return np.asanyarray(resample_to_img(
-        Nifti1Image(source_data, source_affine),
-        Nifti1Image(target_data, target_affine),
-        interpolation=interp
-    ).dataobj)
+    interpolation = "nearest" if np.array_equal(np.unique(source_img.dataobj), [0, 1]) else "linear"
+    resampled_img = resample_to_img(
+        source_img=source_img,
+        target_img=target_img,
+        interpolation=interpolation
+    )
+    return resampled_img
 
 
-def connected_components(imgdata: np.ndarray):
+def connected_components(
+    imgdata: np.ndarray,
+    background: int = 0,
+    connectivity: int = 2,
+    threshold: float = 0.0,
+) -> Generator[Tuple[int, np.ndarray], None, None]:
     """
-    Provide an iterator over connected components in the array
+    Provide an iterator over connected components in the array. If the image
+    data is float (such as probability maps), it will convert to a mask and
+    then find the connected components.
+
+    Note
+    ----
+    `Uses skimage.measure.label()` to determine foreground compenents.
+
+    Parameters
+    ----------
+    imgdata : np.ndarray
+    background_value : int, Default: 0
+    connectivity : int, Default: 2
+    threshold: float, Default: 0.0
+        The threshold used to create mask from probability maps, i.e, anything
+        below set to 0 and rest to 1.
+
+    Yields
+    ------
+    Generator[Tuple[int, np.ndarray], None, None]
+        tuple of integer label of the component and component as an nd.array in
+        the shape of the original image.
     """
     from skimage import measure
-    components = measure.label(imgdata > 0)
+
+    mask = (imgdata > threshold).astype('uint8')
+    components = measure.label(mask, connectivity=connectivity, background=background)
     component_labels = np.unique(components)
     return (
         (label, (components == label).astype('uint8'))
         for label in component_labels
+        if label > 0
     )
 
 
@@ -626,11 +671,15 @@ def MI(arr1, arr2, nbins=100, normalized=True):
     """
     Compute the mutual information between two 3D arrays, which need to have the same shape.
 
-    Parameters:
-    arr1 : First 3D array
-    arr2 : Second 3D array
-    nbins : number of bins to use for computing the joint histogram (applies to intensity range)
-    normalized : Boolean, default:True
+    Parameters
+    ----------
+    arr1: np.ndarray
+        First 3D array
+    arr2: np.ndarray
+        Second 3D array
+    nbins: int
+        number of bins to use for computing the joint histogram (applies to intensity range)
+    normalized: Boolean. Default: True
         if True, the normalized MI of arrays X and Y will be returned,
         leading to a range of values between 0 and 1. Normalization is
         achieved by NMI = 2*MI(X,Y) / (H(X) + H(Y)), where  H(x) is the entropy of X
@@ -797,3 +846,23 @@ def generate_uuid(string: str):
         raise ValueError(f"Cannot build uuid for parameter type {type(string)}")
     hex_string = md5(b).hexdigest()
     return str(UUID(hex=hex_string))
+
+
+def translation_matrix(tx: float, ty: float, tz: float):
+    """Construct a 3D homoegneous translation matrix."""
+    return np.array([
+        [1, 0, 0, tx],
+        [0, 1, 0, ty],
+        [0, 0, 1, tz],
+        [0, 0, 0, 1]
+    ])
+
+
+def y_rotation_matrix(alpha: float):
+    """Construct a 3D y axis rotation matrix."""
+    return np.array([
+        [math.cos(alpha), 0, math.sin(alpha), 0],
+        [0, 1, 0, 0],
+        [-math.sin(alpha), 0, math.cos(alpha), 0],
+        [0, 0, 0, 1]
+    ])

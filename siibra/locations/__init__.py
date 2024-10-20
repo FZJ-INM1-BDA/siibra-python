@@ -16,7 +16,7 @@
 
 from .location import Location
 from .point import Point
-from .pointset import PointSet
+from .pointset import PointSet, from_points
 from .boundingbox import BoundingBox
 
 
@@ -62,8 +62,7 @@ def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
 
     # convert Points to PointSets
     loc0, loc1 = [
-        PointSet([loc], space=loc.space, sigma_mm=loc.sigma)
-        if isinstance(loc, Point) else loc
+        from_points([loc]) if isinstance(loc, Point) else loc
         for loc in [loc0, loc1]
     ]
 
@@ -73,11 +72,7 @@ def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
     if isinstance(loc0, PointSet):
         if isinstance(loc1_w, PointSet):
             points = list(dict.fromkeys([*loc0, *loc1_w]))
-            return PointSet(
-                points,
-                space=loc0.space,
-                sigma_mm=[p.sigma for p in points],
-            )
+            return from_points(points)
         if isinstance(loc1_w, BoundingBox):
             return reassign_union(loc0.boundingbox, loc1_w)
 

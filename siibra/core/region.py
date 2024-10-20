@@ -17,7 +17,8 @@
 from . import concept, structure, space as _space, parcellation as _parcellation
 from .assignment import Qualification, AnatomicalAssignment
 
-from ..locations import location, boundingbox, point, pointset
+from ..retrieval.cache import cache_user_fn
+from ..locations import location, point, pointset, boundingbox as _boundingbox
 from ..volumes import parcellationmap, volume
 from ..commons import (
     logger,
@@ -34,7 +35,7 @@ from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 import numpy as np
 import re
 import anytree
-from typing import List, Union, Iterable, Dict, Callable
+from typing import List, Union, Iterable, Dict, Callable, Tuple
 from difflib import SequenceMatcher
 from dataclasses import dataclass, field
 from ebrains_drive import BucketApiClient
@@ -84,6 +85,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         datasets: list = [],
         rgb: str = None,
         spec=None,
+        prerelease: bool = False,
     ):
         """
         Constructs a new Region object.
@@ -121,7 +123,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             modality=modality,
             publications=publications,
             datasets=datasets,
-            spec=spec
+            spec=spec,
+            prerelease=prerelease,
         )
 
         # anytree node will take care to use this appropriately
@@ -136,7 +139,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         self._str_aliases = None
         self._CACHED_REGION_SEARCHES = {}
 
-    def get_related_regions(self) -> Iterable["Qualification"]:
+    def get_related_regions(self) -> Iterable["RegionRelationAssessments"]:
         """
         Get assements on relations of this region to others defined on EBRAINS.
 
@@ -146,7 +149,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         Example
         -------
-        >>> region = siibra.get_region("monkey", "PG")^M
+        >>> region = siibra.get_region("monkey", "PG")
         >>> for assesment in region.get_related_regions():
         >>>    print(assesment)
         'PG' is homologous to 'Area PGa (IPL)'
@@ -257,6 +260,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         Parameters
         ----------
         region: Region
+
         Returns
         -------
             bool
@@ -278,7 +282,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         ----------
         regionspec: str, regex, int, Region
             - a string with a possibly inexact name (matched both against the name and the identifier key)
-            - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux)
+            - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux, see at https://docs.python.org/3/library/re.html#flags)
             - a regex applied to region names
             - a Region object
         filter_children : bool, default: False
@@ -287,10 +291,12 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             If True (requires `filter_children=True`), will return parent
             structures if all children are matched, even though the parent
             itself might not match the specification.
+
         Returns
         -------
         list[Region]
             list of regions matching to the regionspec
+
         Tip
         ---
         See example 01-003, find regions.
@@ -309,7 +315,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
                 for flag in flags or []:  # catch if flags is nullish
                     if flag not in self._accepted_flags:
-                        raise Exception(f"only accepted flag are in { self._accepted_flags }. {flag} is not within them")
+                        raise Exception(f"only accepted flag are in {self._accepted_flags}. {flag} is not within them")
                 search_regex = (f"(?{flags})" if flags else "") + expression
                 regionspec = re.compile(search_regex)
 
@@ -535,7 +541,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             # provided by 'via_space'. Now transform the affine to match the
             # desired target space.
             intermediary_result = result
-            transform = intermediary_result.boundingbox.estimate_affine(space)
+            transform = intermediary_result.get_boundingbox(clip=True, background=0.0).estimate_affine(space)
             result = volume.from_array(
                 imgdata,
                 np.dot(transform, region_img.affine),
@@ -637,18 +643,42 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             return self._ASSIGNMENT_CACHE[other, self].invert()
 
         if isinstance(other, location.Location):
-            for space in [other.space] + self.supported_spaces:
+            if self.mapped_in_space(other.space):
+                regionmap = self.get_regional_map(other.space)
+                self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(other)
+                return self._ASSIGNMENT_CACHE[self, other]
+
+            if isinstance(other, _boundingbox.BoundingBox):  # volume.intersection(bbox) gets boundingbox anyway
                 try:
-                    regionmap = self.get_regional_map(space)
-                    self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(
-                        other.warp(space)
-                    )
+                    regionbbox_otherspace = self.get_boundingbox(other.space, restrict_space=False)
+                    if regionbbox_otherspace is not None:
+                        self._ASSIGNMENT_CACHE[self, other] = regionbbox_otherspace.assign(other)
+                        return self._ASSIGNMENT_CACHE[self, other]
+                except Exception as e:
+                    logger.debug(e)
+
+            assignment_result = None
+            for targetspace in self.supported_spaces:
+                try:
+                    other_warped = other.warp(targetspace)
+                    regionmap = self.get_regional_map(targetspace)
+                    assignment_result = regionmap.assign(other_warped)
+                except SpaceWarpingFailedError:
+                    try:
+                        regionbbox_targetspace = self.get_boundingbox(
+                            targetspace, restrict_space=True
+                        )
+                        if regionbbox_targetspace is None:
+                            continue
+                        regionbbox_warped = regionbbox_targetspace.warp(other.space)
+                    except SpaceWarpingFailedError:
+                        continue
+                    assignment_result = regionbbox_warped.assign(other)
                 except Exception as e:
                     logger.debug(e)
                     continue
                 break
-            if (self, other) not in self._ASSIGNMENT_CACHE:
-                self._ASSIGNMENT_CACHE[self, other] = None
+            self._ASSIGNMENT_CACHE[self, other] = assignment_result
         else:  # other is a Region
             assert isinstance(other, Region)
             if self == other:
@@ -677,13 +707,16 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         """Prints the tree representation of the region"""
         print(self.tree2str())
 
-    def get_bounding_box(
+    def get_boundingbox(
         self,
         space: _space.Space,
         maptype: MapType = MapType.LABELLED,
         threshold_statistical=None,
+        restrict_space=True,
+        **fetch_kwargs
     ):
-        """Compute the bounding box of this region in the given space.
+        """
+        Compute the bounding box of this region in the given space.
 
         Parameters
         ----------
@@ -696,6 +729,10 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         threshold_statistical: float, or None
             if not None, masks will be preferably constructed by thresholding
             statistical maps with the given value.
+        restrict_space: bool, default: False
+            If True, it will not try to fetch maps from other spaces and warp
+            its boundingbox to requested space.
+
         Returns
         -------
         BoundingBox
@@ -705,8 +742,10 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             mask = self.get_regional_map(
                 spaceobj, maptype=maptype, threshold=threshold_statistical
             )
-            return mask.boundingbox
+            return mask.get_boundingbox(clip=True, background=0.0, **fetch_kwargs)
         except (RuntimeError, ValueError):
+            if restrict_space:
+                return None
             for other_space in self.parcellation.spaces - spaceobj:
                 try:
                     mask = self.get_regional_map(
@@ -714,13 +753,17 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                         maptype=maptype,
                         threshold=threshold_statistical,
                     )
-                    logger.warning(
-                        f"No bounding box for {self.name} defined in {spaceobj.name}, "
-                        f"will warp the bounding box from {other_space.name} instead."
-                    )
-                    bbox = boundingbox.BoundingBox.from_image(mask, space=other_space)
+                    bbox = mask.get_boundingbox(clip=True, background=0.0, **fetch_kwargs)
                     if bbox is not None:
-                        return bbox.warp(spaceobj)
+                        try:
+                            bbox_warped = bbox.warp(spaceobj)
+                        except SpaceWarpingFailedError:
+                            continue
+                        logger.debug(
+                            f"No bounding box for {self.name} defined in {spaceobj.name}, "
+                            f"warped the bounding box from {other_space.name} instead."
+                        )
+                        return bbox_warped
                 except RuntimeError:
                     continue
         logger.error(f"Could not compute bounding box for {self.name}.")
@@ -734,10 +777,12 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         ----------
         space: Space
             reference space in which the computation will be performed
+
         Returns
         -------
         PointSet
             Found centroids (as Point objects) in a PointSet
+
         Note
         ----
         A region can generally have multiple centroids if it has multiple
@@ -829,7 +874,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         return anytree.PreOrderIter(self)
 
     def intersection(self, other: "location.Location") -> "location.Location":
-        """ Use this region for filtering a location object. """
+        """Use this region for filtering a location object."""
 
         if self.supports_space(other.space):
             try:
@@ -842,17 +887,95 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         for space in self.supported_spaces:
             if space.provides_image:
-                logger.info(f"Intersect {other} with {self} in {space}")
                 try:
-                    warped = other.warp(space)
+                    volume = self.get_regional_map(space)
+                    if volume is not None:
+                        intersection = volume.intersection(other)
+                        logger.info(f"Warped {other} to {space} to find the intersection.")
+                        return intersection
                 except SpaceWarpingFailedError:
                     continue
-                assert warped is not None
-                volume = self.get_regional_map(space)
-                if volume is not None:
-                    return volume.intersection(warped).warp(other.space)
 
         return None
+
+
+@cache_user_fn
+def _get_related_regions_str(pe_id: str) -> Tuple[Tuple[str, str, str, str], ...]:
+    logger.info("LONG CALC...", pe_id)
+    return_val = []
+    region_relation_assessments = RegionRelationAssessments.translate_pes(pe_id, pe_id)
+    for asgmt in region_relation_assessments:
+        assert isinstance(asgmt, RegionRelationAssessments), f"Expecting type to be of RegionRelationAssessments, but is {type(asgmt)}"
+        assert isinstance(asgmt.assigned_structure, Region), f"Expecting assigned structure to be of type Region, but is {type(asgmt.assigned_structure)}"
+        return_val.append((
+            asgmt.assigned_structure.parcellation.id,
+            asgmt.assigned_structure.name,
+            asgmt.qualification.name,
+            asgmt.explanation
+        ))
+    return tuple(return_val)
+
+
+def get_peid_from_region(region: Region) -> str:
+    """
+    Given a region, obtain the Parcellation Entity ID.
+
+    Parameters
+    ----------
+    region : Region
+
+    Returns
+    -------
+    str
+    """
+    if region._spec:
+        region_peid = region._spec.get("ebrains", {}).get("openminds/ParcellationEntity")
+        if region_peid:
+            return region_peid
+    # In some cases (e.g. Julich Brain, PE is defined on the parent leaf nodes)
+    if region.parent and region.parent._spec:
+        parent_peid = region.parent._spec.get("ebrains", {}).get("openminds/ParcellationEntity")
+        if parent_peid:
+            return parent_peid
+    return None
+
+
+def get_related_regions(region: Region) -> Iterable["RegionRelationAssessments"]:
+    """
+    Get assements on relations of a region to others defined on EBRAINS.
+
+    Parameters
+    ----------
+    region: Region
+
+    Yields
+    ------
+    Qualification
+
+    Example
+    -------
+    >>> region = siibra.get_region("monkey", "PG")
+    >>> for assesment in siibra.core.region.get_related_regions(region):
+    >>>    print(assesment)
+    'PG' is homologous to 'Area PGa (IPL)'
+    'PG' is homologous to 'Area PGa (IPL) left'
+    'PG' is homologous to 'Area PGa (IPL) right'
+    'PG' is homologous to 'Area PGa (IPL)'
+    'PG' is homologous to 'Area PGa (IPL) left'
+    'PG' is homologous to 'Area PGa (IPL) right'
+    'PG' is homologous to 'Area PGa (IPL)'
+    'PG' is homologous to 'Area PGa (IPL) right'
+    'PG' is homologous to 'Area PGa (IPL) left'
+    """
+    logger.info("get related region called")
+    pe_id = get_peid_from_region(region)
+    if not pe_id:
+        return []
+
+    for parc_id, region_name, qual, explanation in _get_related_regions_str(pe_id):
+        parc = _parcellation.Parcellation.get_instance(parc_id)
+        found_region = parc.get_region(region_name)
+        yield RegionRelationAssessments(region, found_region, qual, explanation)
 
 
 _get_reg_relation_asmgt_types: Dict[str, Callable] = {}
@@ -870,11 +993,32 @@ def _register_region_reference_type(ebrain_type: str):
 
 
 class RegionRelationAssessments(AnatomicalAssignment[Region]):
+    """
+    A collection of methods on finding related regions and the quantification
+    of the relationship.
+    """
 
     anony_client = BucketApiClient()
 
     @staticmethod
-    def get_uuid(long_id: Union[str, Dict]):
+    def get_uuid(long_id: Union[str, Dict]) -> str:
+        """
+        Returns the uuid portion of either a fully formed openminds id, or get
+        the 'id' property first, and extract the uuid portion of the id.
+
+        Parameters
+        ----------
+        long_id: str, dict[str, str]
+
+        Returns
+        -------
+        str
+
+        Raises
+        ------
+        AssertionError
+        RuntimeError
+        """
         if isinstance(long_id, str):
             pass
         elif isinstance(long_id, dict):
@@ -888,6 +1032,22 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
 
     @staticmethod
     def parse_id_arg(_id: Union[str, List[str]]) -> List[str]:
+        """
+        Normalizes the ebrains id property. The ebrains id field can be either
+        a str or list[str]. This method normalizes it to always be list[str].
+
+        Parameters
+        ----------
+        _id: strl, list[str]
+
+        Returns
+        -------
+        list[str]
+
+        Raises
+        ------
+        RuntimeError
+        """
         if isinstance(_id, list):
             assert all(isinstance(_i, str) for _i in _id), "all instances of pev should be str"
         elif isinstance(_id, str):
@@ -898,11 +1058,34 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
 
     @classmethod
     def get_object(cls, obj: str):
+        """
+        Gets given a object (path), loads the content and serializes to json.
+        Relative to the bucket 'reference-atlas-data'.
+
+        Parameters
+        ----------
+        obj: str
+
+        Returns
+        -------
+        dict
+        """
         bucket = cls.anony_client.buckets.get_bucket("reference-atlas-data")
         return json.loads(bucket.get_file(obj).get_content())
 
     @classmethod
     def get_snapshot_factory(cls, type_str: str):
+        """
+        Factory method for given type.
+
+        Parameters
+        ----------
+        type_str: str
+
+        Returns
+        -------
+        Callable[[str|list[str]], dict]
+        """
         def get_objects(_id: Union[str, List[str]]):
             _id = cls.parse_id_arg(_id)
             with ThreadPoolExecutor() as ex:
@@ -915,7 +1098,19 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
 
     @classmethod
     def parse_relationship_assessment(cls, src: "Region", assessment):
+        """
+        Given a region, and the fetched assessment json, yield
+        RegionRelationAssignment object.
 
+        Parameters
+        ----------
+        src: Region
+        assessment: dict
+
+        Returns
+        -------
+        Iterable[RegionRelationAssessments]
+        """
         all_regions = [
             region
             for p in _parcellation.Parcellation.registry()
@@ -936,7 +1131,11 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
             ]
 
             for found_target in found_targets:
-                yield cls(query_structure=src, assigned_structure=found_target, qualification=Qualification.parse_relation_assessment(overlap))
+                yield cls(
+                    query_structure=src,
+                    assigned_structure=found_target,
+                    qualification=Qualification.parse_relation_assessment(overlap)
+                )
 
             if "https://openminds.ebrains.eu/sands/ParcellationEntity" in target.get("type"):
                 pev_uuids = [
@@ -946,28 +1145,47 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
                 ]
                 for reg in all_regions:
                     if reg in pev_uuids:
-                        yield cls(query_structure=src, assigned_structure=reg, qualification=Qualification.parse_relation_assessment(overlap))
+                        yield cls(
+                            query_structure=src,
+                            assigned_structure=reg,
+                            qualification=Qualification.parse_relation_assessment(overlap)
+                        )
 
     @classmethod
     @_register_region_reference_type("openminds/CustomAnatomicalEntity")
     def translate_cae(cls, src: "Region", _id: Union[str, List[str]]):
+        """Register how CustomAnatomicalEntity should be parsed
+
+        Parameters
+        ----------
+        src: Region
+        _id: str|list[str]
+
+        Returns
+        -------
+        Iterable[RegionRelationAssessments]
+        """
         caes = cls.get_snapshot_factory("CustomAnatomicalEntity")(_id)
         for cae in caes:
             for ass in cae.get("relationAssessment", []):
                 yield from cls.parse_relationship_assessment(src, ass)
 
     @classmethod
-    @_register_region_reference_type("openminds/ParcellationEntityVersion")
-    def translate_pevs(cls, src: "Region", _id: Union[str, List[str]]):
-        pe_uuids = [
-            uuid for uuid in
-            {
-                cls.get_uuid(pe)
-                for pev in cls.get_snapshot_factory("ParcellationEntityVersion")(_id)
-                for pe in pev.get("isVersionOf")
-            }
-        ]
-        pes = cls.get_snapshot_factory("ParcellationEntity")(pe_uuids)
+    @_register_region_reference_type("openminds/ParcellationEntity")
+    def translate_pes(cls, src: "Region", _id: Union[str, List[str]]):
+        """
+        Register how ParcellationEntity should be parsed
+
+        Parameters
+        ----------
+        src: Region
+        _id: str|list[str]
+
+        Returns
+        -------
+        Iterable[RegionRelationAssessments]
+        """
+        pes = cls.get_snapshot_factory("ParcellationEntity")(_id)
 
         all_regions = [
             region
@@ -976,29 +1194,14 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
         ]
 
         for pe in pes:
-
-            # other versions
-            has_versions = pe.get("hasVersion", [])
-            for has_version in has_versions:
-                uuid = cls.get_uuid(has_version)
-
-                # ignore if uuid is referring to src region
-                if uuid == src:
+            for region in all_regions:
+                if region is src:
                     continue
-
-                found_targets = [
-                    region
-                    for region in all_regions
-                    if region == uuid
-                ]
-                if len(found_targets) == 0:
-                    logger.warning(f"other version with uuid {uuid} not found")
-                    continue
-
-                for found_target in found_targets:
+                region_peid = get_peid_from_region(region)
+                if region_peid and (region_peid in pe.get("id")):
                     yield cls(
                         query_structure=src,
-                        assigned_structure=found_target,
+                        assigned_structure=region,
                         qualification=Qualification.OTHER_VERSION
                     )
 
@@ -1008,7 +1211,44 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
                 yield from cls.parse_relationship_assessment(src, relation)
 
     @classmethod
+    @_register_region_reference_type("openminds/ParcellationEntityVersion")
+    def translate_pevs(cls, src: "Region", _id: Union[str, List[str]]):
+        """
+        Register how ParcellationEntityVersion should be parsed
+
+        Parameters
+        ----------
+        src: Region
+        _id: str|list[str]
+
+        Returns
+        -------
+        Iterable[RegionRelationAssessments]
+        """
+        pe_uuids = [
+            uuid for uuid in
+            {
+                cls.get_uuid(pe)
+                for pev in cls.get_snapshot_factory("ParcellationEntityVersion")(_id)
+                for pe in pev.get("isVersionOf")
+            }
+        ]
+        yield from cls.translate_pes(src, pe_uuids)
+
+    @classmethod
     def parse_from_region(cls, region: "Region") -> Iterable["RegionRelationAssessments"]:
+        """
+        Main entry on how related regions should be retrieved. Given a region,
+        retrieves all RegionRelationAssessments
+
+        Parameters
+        ----------
+        region: Region
+
+        Returns
+        -------
+        Iterable[RegionRelationAssessments]
+        """
         if not region._spec:
             return None
         for ebrain_type, ebrain_ref in region._spec.get("ebrains", {}).items():

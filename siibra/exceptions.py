@@ -41,3 +41,11 @@ class SpaceWarpingFailedError(RuntimeError):
 
 class NoVolumeFound(RuntimeError):
     pass
+
+
+class WarmupRegException(Exception):
+    pass
+
+
+class ZeroVolumeBoundingBox(Exception):
+    pass

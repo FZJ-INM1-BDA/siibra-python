@@ -19,12 +19,14 @@ from . import point, pointset, location
 from ..commons import logger
 from ..exceptions import SpaceWarpingFailedError
 
+from itertools import product
 import hashlib
 import numpy as np
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 if TYPE_CHECKING:
     from ..core.structure import BrainStructure
     from nibabel import Nifti1Image
+    from ..core.space import Space
 
 
 class BoundingBox(location.Location):
@@ -35,7 +37,14 @@ class BoundingBox(location.Location):
     from the two corner points.
     """
 
-    def __init__(self, point1, point2, space=None, minsize: float = None, sigma_mm=None):
+    def __init__(
+        self,
+        point1,
+        point2,
+        space: Union[str, 'Space'] = None,
+        minsize: float = None,
+        sigma_mm=None
+    ):
         """
         Construct a new bounding box spanned by two 3D coordinates
         in the given reference space.
@@ -67,12 +76,16 @@ class BoundingBox(location.Location):
             s1, s2 = sigma_mm
         else:
             raise ValueError(f"Cannot interpret sigma_mm parameter value {sigma_mm} for bounding box")
+        self.sigma_mm = [s1, s2]
         self.minpoint = point.Point([min(xyz1[i], xyz2[i]) for i in range(3)], space, sigma_mm=s1)
         self.maxpoint = point.Point([max(xyz1[i], xyz2[i]) for i in range(3)], space, sigma_mm=s2)
         if minsize is not None:
             for d in range(3):
                 if self.shape[d] < minsize:
                     self.maxpoint[d] = self.minpoint[d] + minsize
+
+        if self.volume == 0:
+            logger.warning("Created BoundedBox's have zero volume.")
 
     @property
     def id(self) -> str:
@@ -98,24 +111,6 @@ class BoundingBox(location.Location):
     @property
     def is_planar(self) -> bool:
         return any(d == 0 for d in self.shape)
-
-    @staticmethod
-    def _determine_bounds(A, threshold=0):
-        """
-        Bounding box of nonzero values in a 3D array.
-        https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
-        """
-        x = np.any(A > threshold, axis=(1, 2))
-        y = np.any(A > threshold, axis=(0, 2))
-        z = np.any(A > threshold, axis=(0, 1))
-        nzx, nzy, nzz = [np.where(v) for v in (x, y, z)]
-        if any(len(nz[0]) == 0 for nz in [nzx, nzy, nzz]):
-            # empty array
-            return None
-        xmin, xmax = nzx[0][[0, -1]]
-        ymin, ymax = nzy[0][[0, -1]]
-        zmin, zmax = nzz[0][[0, -1]]
-        return np.array([[xmin, xmax + 1], [ymin, ymax + 1], [zmin, zmax + 1], [1, 1]])
 
     def __str__(self):
         if self.space is None:
@@ -150,10 +145,11 @@ class BoundingBox(location.Location):
             warped = other.warp(self.space)
             return other if self.minpoint <= warped <= self.maxpoint else None
         if isinstance(other, pointset.PointSet):
+            points_inside = [p for p in other if self.intersects(p)]
             result = pointset.PointSet(
-                [p for p in other if self.intersects(p)],
+                points_inside,
                 space=other.space,
-                sigma_mm=other.sigma
+                sigma_mm=[p.sigma for p in points_inside]
             )
             if len(result) == 0:
                 return None
@@ -254,6 +250,35 @@ class BoundingBox(location.Location):
             sigma_mm=[self.minpoint.sigma, self.maxpoint.sigma]
         )
 
+    @property
+    def corners(self):
+        """
+        Returns all 8 corners of the box as a pointset.
+
+        Note
+        ----
+        x0, y0, z0 = self.minpoint
+        x1, y1, z1 = self.maxpoint
+        all_corners = [
+            (x0, y0, z0),
+            (x1, y0, z0),
+            (x0, y1, z0),
+            (x1, y1, z0),
+            (x0, y0, z1),
+            (x1, y0, z1),
+            (x0, y1, z1),
+            (x1, y1, z1)
+        ]
+
+        TODO: deal with sigma. Currently, returns the mean of min and max point.
+        """
+        xs, ys, zs = zip(self.minpoint, self.maxpoint)
+        return pointset.PointSet(
+            coordinates=[[x, y, z] for x, y, z in product(xs, ys, zs)],
+            space=self.space,
+            sigma_mm=np.mean([self.minpoint.sigma, self.maxpoint.sigma])
+        )
+
     def warp(self, space):
         """Returns a new bounding box obtained by warping the
         min- and maxpoint of this one into the new target space.
@@ -266,11 +291,7 @@ class BoundingBox(location.Location):
             return self
         else:
             try:
-                return self.__class__(
-                    point1=self.minpoint.warp(spaceobj),
-                    point2=self.maxpoint.warp(spaceobj),
-                    space=spaceobj,
-                )
+                return self.corners.warp(spaceobj).boundingbox
             except ValueError:
                 raise SpaceWarpingFailedError(f"Warping {str(self)} to {spaceobj.name} not successful.")
 
@@ -291,12 +312,9 @@ class BoundingBox(location.Location):
         """
         from ..core.space import Space
         spaceobj = Space.get_instance(space)
-        return self.__class__(
-            point1=self.minpoint.transform(affine, spaceobj),
-            point2=self.maxpoint.transform(affine, spaceobj),
-            space=space,
-            sigma_mm=[self.minpoint.sigma, self.maxpoint.sigma]  # TODO: error propagation
-        )
+        result = self.corners.transform(affine, spaceobj).boundingbox
+        result.sigma_mm = [self.minpoint.sigma, self.maxpoint.sigma]  # TODO: error propagation
+        return result
 
     def shift(self, offset):
         return self.__class__(
@@ -390,3 +408,35 @@ class BoundingBox(location.Location):
 
     def __hash__(self):
         return super().__hash__()
+
+
+def _determine_bounds(array: np.ndarray, threshold=0):
+    """
+    Bounding box of nonzero values in a 3D array.
+    https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
+    """
+    x = np.any(array > threshold, axis=(1, 2))
+    y = np.any(array > threshold, axis=(0, 2))
+    z = np.any(array > threshold, axis=(0, 1))
+    nzx, nzy, nzz = [np.where(v) for v in (x, y, z)]
+    if any(len(nz[0]) == 0 for nz in [nzx, nzy, nzz]):
+        # empty array
+        return None
+    xmin, xmax = nzx[0][[0, -1]]
+    ymin, ymax = nzy[0][[0, -1]]
+    zmin, zmax = nzz[0][[0, -1]]
+    return np.array([[xmin, xmax + 1], [ymin, ymax + 1], [zmin, zmax + 1], [1, 1]])
+
+
+def from_array(array: np.ndarray, threshold=0, space: "Space" = None) -> "BoundingBox":
+    """
+    Find the bounding box of an array.
+
+    Parameters
+    ----------
+    array : np.ndarray
+    threshold : int, default: 0
+    space : Space, default: None
+    """
+    bounds = _determine_bounds(array, threshold)
+    return BoundingBox(bounds[:3, 0], bounds[:3, 1], space=space)

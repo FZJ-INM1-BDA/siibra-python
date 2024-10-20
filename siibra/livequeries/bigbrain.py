@@ -22,6 +22,7 @@ from ..commons import logger
 from ..locations import point, pointset
 from ..core import structure
 from ..retrieval import requests, cache
+from ..retrieval.datasets import GenericDataset
 
 import numpy as np
 from typing import List
@@ -37,6 +38,37 @@ class WagstylProfileLoader:
     _profiles = None
     _vertices = None
     _boundary_depths = None
+    DATASET = GenericDataset(
+        name="HIBALL workshop on cortical layers",
+        contributors=[
+            'Konrad Wagstyl',
+            'Stéphanie Larocque',
+            'Guillem Cucurull',
+            'Claude Lepage',
+            'Joseph Paul Cohen',
+            'Sebastian Bludau',
+            'Nicola Palomero-Gallagher',
+            'Lindsay B. Lewis',
+            'Thomas Funck',
+            'Hannah Spitzer',
+            'Timo Dickscheid',
+            'Paul C. Fletcher',
+            'Adriana Romero',
+            'Karl Zilles',
+            'Katrin Amunts',
+            'Yoshua Bengio',
+            'Alan C. Evans'
+        ],
+        url="https://github.com/kwagstyl/cortical_layers_tutorial/",
+        description="Cortical profiles of BigBrain staining intensities computed by Konrad Wagstyl, "
+        "as described in the publication 'Wagstyl, K., et al (2020). BigBrain 3D atlas of "
+        "cortical layers: Cortical and laminar thickness gradients diverge in sensory and "
+        "motor cortices. PLoS Biology, 18(4), e3000678. "
+        "http://dx.doi.org/10.1371/journal.pbio.3000678."
+        "The data is taken from the tutorial at "
+        "https://github.com/kwagstyl/cortical_layers_tutorial. Each vertex is "
+        "assigned to the regional map when queried."
+    )
 
     def __init__(self):
         if self._profiles is None:
@@ -77,6 +109,9 @@ class WagstylProfileLoader:
         return self._vertices.shape[0]
 
 
+cache.Warmup.register_warmup_fn()(lambda: WagstylProfileLoader._load())
+
+
 class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intensity_profile.BigBrainIntensityProfile):
 
     def __init__(self):
@@ -84,16 +119,25 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
 
     def query(self, concept: structure.BrainStructure, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
         loader = WagstylProfileLoader()
+        mesh_vertices = pointset.PointSet(loader._vertices, space='bigbrain')
+        matched = concept.intersection(mesh_vertices)  # returns a reduced PointSet with og indices as labels
+        if matched is None:
+            return []
+        assert isinstance(matched, pointset.PointSet)
+        indices = matched.labels
+        assert indices is not None
         features = []
-        matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
-        assert matched.labels is not None
         for i in matched.labels:
+            anchor = _anchor.AnatomicalAnchor(
+                location=point.Point(loader._vertices[i], space='bigbrain'),
+                region=str(concept),
+                species='Homo sapiens'
+            )
             prof = bigbrain_intensity_profile.BigBrainIntensityProfile(
-                regionname=str(concept),
+                anchor=anchor,
                 depths=loader.profile_labels,
                 values=loader._profiles[i],
-                boundaries=loader._boundary_depths[i],
-                location=point.Point(loader._vertices[i], space='bigbrain')
+                boundaries=loader._boundary_depths[i]
             )
             prof.anchor._assignments[concept] = _anchor.AnatomicalAssignment(
                 query_structure=concept,
@@ -101,6 +145,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
                 qualification=_anchor.Qualification.CONTAINED,
                 explanation=f"Surface vertex of BigBrain cortical profile was filtered using {concept}"
             )
+            prof.datasets = [WagstylProfileLoader.DATASET]
             features.append(prof)
 
         return features
@@ -114,10 +159,13 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
     def query(self, concept: structure.BrainStructure, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
 
         loader = WagstylProfileLoader()
-        matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
-        indices = matched.labels
-        if indices is None:
+        mesh_vertices = pointset.PointSet(loader._vertices, space='bigbrain')
+        matched = concept.intersection(mesh_vertices)  # returns a reduced PointSet with og indices as labels
+        if matched is None:
             return []
+        assert isinstance(matched, pointset.PointSet)
+        indices = matched.labels
+        assert indices is not None
         matched_profiles = loader._profiles[indices, :]
         boundary_depths = loader._boundary_depths[indices, :]
         # compute array of layer labels for all coefficients in profiles_left
@@ -128,17 +176,22 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
             for b in boundary_depths
         ]).reshape((-1, 200))
 
+        anchor = _anchor.AnatomicalAnchor(
+            location=pointset.PointSet(loader._vertices[indices, :], space='bigbrain'),
+            region=str(concept),
+            species='Homo sapiens'
+        )
         result = layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities(
-            regionname=str(concept),
+            anchor=anchor,
             means=[matched_profiles[layer_labels == layer].mean() for layer in range(1, 7)],
             stds=[matched_profiles[layer_labels == layer].std() for layer in range(1, 7)],
         )
-        result.anchor._location_cached = pointset.PointSet(loader._vertices[indices, :], space='bigbrain')
         result.anchor._assignments[concept] = _anchor.AnatomicalAssignment(
             query_structure=concept,
             assigned_structure=concept,
             qualification=_anchor.Qualification.CONTAINED,
             explanation=f"Surface vertices of BigBrain cortical profiles were filtered using {concept}"
         )
+        result.datasets = [WagstylProfileLoader.DATASET]
 
         return [result]

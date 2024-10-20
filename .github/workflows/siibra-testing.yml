@@ -1,116 +1,108 @@
-name: '[test] unit test'
+name: "[test] unit test"
 
-on: [push]
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  USE_CONFIG_COMMIT_KW: "[ci:usecfg]"
+
 jobs:
-  unit-tests:
+  use-custom-cfg:
     runs-on: ubuntu-latest
+    outputs:
+      USE_REF: ${{ steps.use-ref.outputs.USE_REF }}
     env:
-      # unit tests should not need tokens
-      
-      # KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
-      # KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
-      SIIBRA_LOG_LEVEL: DEBUG
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: [ '3.10', '3.9', '3.8', '3.7' ]
-
+      # see https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
+      COMMIT_MSG: ${{ github.event.head_commit.message }}
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install -U .
-        pip install -r requirements-test.txt
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Lint with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Install test dependencies
-      run:  pip install pytest pytest-cov coverage
-    - name: Run test with pytest
-      run: |
-        echo "Using github.ref: $GITHUB_REF"
-        if [[ "$GITHUB_REF" != "refs/heads/main" ]]
-        then
-          export FAST_RUN=1
-        fi
-        pytest -rx
-  
-  e2e-tests:
-    runs-on: ${{ matrix.os }}
-    env:
-      # KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
-      # KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
-      FOO: BAR
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ 'ubuntu-latest', 'windows-latest' ]
-        python-version: [ '3.10', '3.9', '3.8', '3.7' ]
+      - uses: actions/checkout@v4
+      - id: "use-ref"
+        run: |
+          SED_S_PATTERN=$(echo '${{ env.USE_CONFIG_COMMIT_KW }}' | sed 's/\[/\\[/' | sed 's/]/\\]/')
+          echo "$COMMIT_MSG" | while IFS= read -r line
+          do
+            if [[ "$line" == "${{ env.USE_CONFIG_COMMIT_KW }}"* ]]
+            then
+              echo "Found usecfg line in commit message: $line"
+              USE_REF=$(echo $line | sed "s/$SED_S_PATTERN *//")
+              echo "Use Ref: $USE_REF"
+              echo USE_REF=$USE_REF >> $GITHUB_OUTPUT
+            fi
+          done
 
-    steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Cache SIIBRA_CACHEDIR
-      uses: actions/cache@v3
-      with:
-        path: ${{ runner.temp }}
-        key: ${{ runner.os }}
-        restore-keys: |
-          ${{ runner.os }}
-          
-    - name: Install dependencies
-      shell: bash
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install -U .
-        pip install -r requirements-test.txt
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Install test dependencies
-      run:  pip install pytest pytest-cov coverage
-    - name: Run test with pytest
-      shell: bash
-      run: |
-        export SIIBRA_CACHEDIR=${{ runner.temp }}
-        echo "Using github.ref: $GITHUB_REF"
-        if [[ "$GITHUB_REF" != "refs/heads/main" ]]
-        then
-          export FAST_RUN=1
-        fi
-        pytest -rx e2e
+  lint:
+    uses: ./.github/workflows/_lint.yaml
+    with:
+      os: ubuntu-latest
+      python-version: "3.8"
 
   check-importable:
-    runs-on: ubuntu-latest
-    env:
-      KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
-      KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+    needs: "use-custom-cfg"
+    uses: ./.github/workflows/_importable.yaml
+    with:
+      os: ubuntu-20.04  # use ubuntu-latest when python 3.7 is dropped
+      python-version: ${{ matrix.python-version }}
+      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ '3.10', '3.9', '3.8', '3.7' ]
-    steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install -U .
-    
-    - name: cd to / and try to import
-      run: |
-        cd / && python -c 'import siibra'
+        python-version: ["3.12", "3.11", "3.10", "3.9", "3.8", "3.7"]
+
+  unit-tests-full:
+    if: ${{ github.event_name == 'pull_request' }}
+    needs: "use-custom-cfg"
+    uses: ./.github/workflows/_unittest.yaml
+    with:
+      os: ubuntu-20.04  # use ubuntu-latest when python 3.7 is dropped
+      python-version: ${{ matrix.python-version }}
+      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.11", "3.10", "3.9", "3.8", "3.7"]
+
+  unit-tests-fast:
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: "use-custom-cfg"
+    uses: ./.github/workflows/_unittest.yaml
+    with:
+      os: ubuntu-latest
+      python-version: "3.8"
+      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
+
+  e2e-tests-full:
+    if: ${{ github.event_name == 'pull_request' }}
+    needs: "use-custom-cfg"
+    uses: ./.github/workflows/_e2e.yaml
+    with:
+      os: ubuntu-20.04  # use ubuntu-latest when python 3.7 is dropped
+      python-version: ${{ matrix.python-version }}
+      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.11", "3.10", "3.9", "3.8", "3.7"]
+
+  e2e-tests-fast:
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: "use-custom-cfg"
+    uses: ./.github/workflows/_e2e.yaml
+    with:
+      os: ubuntu-latest
+      python-version: "3.8"
+      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
+
+  test-examples:
+    needs: 'use-custom-cfg'
+    uses: ./.github/workflows/_run_examples.yaml
+    with:
+      os: ubuntu-latest
+      python-version: "3.8"
+      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}

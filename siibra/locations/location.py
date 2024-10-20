@@ -81,11 +81,12 @@ class Location(BrainStructure):
 
     def __str__(self):
         space_str = "" if self.space is None else f" in {self.space.name}"
-        coord_str = "" if len(self) == 0 else f" [{','.join(str(l) for l in iter(self))}]"
+        coord_str = "" if len(self) == 0 else f" [{','.join(str(pt) for pt in iter(self))}]"
         return f"{self.__class__.__name__}{space_str}{coord_str}"
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}({[p.__repr__() for p in self]}), space={self.space.id}>"
+        spacespec = f"'{self.space.id}'" if self.space else None
+        return f"<{self.__class__.__name__}({[point.__repr__() for point in self]}), space={spacespec}>"
 
     def __hash__(self) -> int:
         return hash(self.__repr__())

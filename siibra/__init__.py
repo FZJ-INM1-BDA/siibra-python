@@ -33,7 +33,10 @@ from .retrieval.requests import (
     EbrainsRequest as _EbrainsRequest,
     CACHE as cache
 )
+from .retrieval.cache import Warmup, WarmupLevel
+
 from . import configuration
+from . import experimental
 from .configuration import factory
 from . import features, livequeries
 from siibra.locations import Point, PointSet
@@ -104,6 +107,14 @@ def set_feasible_download_size(maxsize_gbyte):
 
 
 def set_cache_size(maxsize_gbyte: int):
+    """
+    siibra runs maintainance on its local cache to keep it under a predetermined
+    size of 2 gigabytes. This method changes the cache size.
+
+    Parameters
+    ----------
+    maxsize_gbyte : int
+    """
     assert maxsize_gbyte >= 0
     cache.SIZE_GIB = maxsize_gbyte
     logger.info(f"Set cache size to {maxsize_gbyte} GiB.")
@@ -113,7 +124,7 @@ if "SIIBRA_CACHE_SIZE_GIB" in _os.environ:
     set_cache_size(float(_os.environ.get("SIIBRA_CACHE_SIZE_GIB")))
 
 
-def warm_cache():
+def warm_cache(level=WarmupLevel.INSTANCE):
     """
     Preload preconfigured siibra concepts.
 
@@ -122,12 +133,7 @@ def warm_cache():
     features. By preloading the instances, siibra commits all preconfigurations
     to the memory at once instead of commiting them when required.
     """
-    _ = _atlas.Atlas.registry()
-    _ = _space.Space.registry()
-    _ = _parcellation.Parcellation.registry()
-    _ = _parcellationmap.Map.registry()
-    features.warm_cache()
-    livequeries.warm_cache()
+    Warmup.warmup(level)
 
 
 def __dir__():
@@ -153,5 +159,6 @@ def __dir__():
         "__version__",
         "cache",
         "warm_cache",
-        "create_map_from_volume"
+        "set_cache_size",
+        "from_json",
     ]

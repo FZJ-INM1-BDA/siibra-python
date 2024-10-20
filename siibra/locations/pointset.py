@@ -19,18 +19,48 @@ from . import location, point, boundingbox as _boundingbox
 from ..retrieval.requests import HttpRequest
 from ..commons import logger
 
+from typing import List, Union, Tuple
 import numbers
 import json
 import numpy as np
 try:
     from sklearn.cluster import HDBSCAN
-    HAS_HDBSCAN = True
+    _HAS_HDBSCAN = True
 except ImportError:
     import sklearn
-    HAS_HDBSCAN = False
+    _HAS_HDBSCAN = False
     logger.warning(
         f"HDBSCAN is not available with your version {sklearn.__version__} of sckit-learn."
         "`PointSet.find_clusters()` will not be avaiable."
+    )
+
+
+def from_points(points: List["point.Point"], newlabels: List[Union[int, float, tuple]] = None) -> "PointSet":
+    """
+    Create a PointSet from an iterable of Points.
+
+    Parameters
+    ----------
+    points : Iterable[point.Point]
+    newlabels: List[int], optional
+        Use these labels instead of the original labels of the points.
+
+    Returns
+    -------
+    PointSet
+    """
+    if len(points) == 0:
+        return PointSet([])
+    spaces = {p.space for p in points}
+    assert len(spaces) == 1, f"PointSet can only be constructed with points from the same space.\n{spaces}"
+    coords, sigmas, labels = zip(*((p.coordinate, p.sigma, p.label) for p in points))
+    if all(lb is None for lb in set(labels)):
+        labels = None
+    return PointSet(
+        coordinates=coords,
+        space=next(iter(spaces)),
+        sigma_mm=sigmas,
+        labels=newlabels or labels
     )
 
 
@@ -38,7 +68,13 @@ class PointSet(location.Location):
     """A set of 3D points in the same reference space,
     defined by a list of coordinates."""
 
-    def __init__(self, coordinates, space=None, sigma_mm=0, labels: list = None):
+    def __init__(
+        self,
+        coordinates: Union[List[Tuple], np.ndarray],
+        space=None,
+        sigma_mm: Union[int, float, List[Union[int, float]]] = 0,
+        labels: List[Union[int, float, tuple]] = None
+    ):
         """
         Construct a 3D point set in the given reference space.
 
@@ -53,18 +89,21 @@ class PointSet(location.Location):
         labels: list of point labels (optional)
         """
         location.Location.__init__(self, space)
-        self.coordinates = coordinates
+
+        self._coordinates = coordinates
         if not isinstance(coordinates, np.ndarray):
-            self.coordinates = np.array(self.coordinates).reshape((-1, 3))
-        assert len(self.coordinates.shape) == 2
-        assert self.coordinates.shape[1] == 3
+            self._coordinates = np.array(self._coordinates).reshape((-1, 3))
+        assert len(self._coordinates.shape) == 2
+        assert self._coordinates.shape[1] == 3
+
         if isinstance(sigma_mm, numbers.Number):
             self.sigma_mm = [sigma_mm for _ in range(len(self))]
         else:
-            assert len(sigma_mm) == len(self)
+            assert len(sigma_mm) == len(self), "The number of coordinate must be equal to the number of sigmas."
             self.sigma_mm = sigma_mm
+
         if labels is not None:
-            assert len(labels) == len(self)
+            assert len(labels) == self._coordinates.shape[0]
         self.labels = labels
 
     def intersection(self, other: location.Location):
@@ -76,7 +115,10 @@ class PointSet(location.Location):
         if not isinstance(other, (point.Point, PointSet, _boundingbox.BoundingBox)):
             return other.intersection(self)
 
-        ids, points = zip(*[(i, p) for i, p in enumerate(self) if p.intersects(other)])
+        intersections = [(i, p) for i, p in enumerate(self) if p.intersects(other)]
+        if len(intersections) == 0:
+            return None
+        ids, points = zip(*intersections)
         labels = None if self.labels is None else [self.labels[i] for i in ids]
         sigma = [p.sigma for p in points]
         intersection = PointSet(
@@ -85,16 +127,19 @@ class PointSet(location.Location):
             sigma_mm=sigma,
             labels=labels
         )
-        if len(intersection) == 0:
-            return None
         return intersection[0] if len(intersection) == 1 else intersection
 
     @property
-    def sigma(self):
-        return [p.sigma for p in self]
+    def coordinates(self) -> np.ndarray:
+        return self._coordinates
 
     @property
-    def has_constant_sigma(self):
+    def sigma(self) -> List[Union[int, float]]:
+        """The list of sigmas corresponding to the points."""
+        return self.sigma_mm
+
+    @property
+    def has_constant_sigma(self) -> bool:
         return len(set(self.sigma)) == 1
 
     def warp(self, space, chunksize=1000):
@@ -155,17 +200,17 @@ class PointSet(location.Location):
         )
 
     def __getitem__(self, index: int):
-        if (index >= self.__len__()) or (index < 0):
+        if (abs(index) >= self.__len__()):
             raise IndexError(
-                f"Pointset has only {self.__len__()} points, "
-                f"but index of {index} was requested."
+                f"Pointset with {self.__len__()} points "
+                f"cannot be accessed with index {index}."
             )
-        else:
-            return point.Point(
-                self.coordinates[index, :],
-                space=self.space,
-                sigma_mm=self.sigma_mm[index]
-            )
+        return point.Point(
+            self.coordinates[index, :],
+            space=self.space,
+            sigma_mm=self.sigma_mm[index],
+            label=None if self.labels is None else self.labels[index]
+        )
 
     def __iter__(self):
         """Return an iterator over the coordinate locations."""
@@ -173,7 +218,8 @@ class PointSet(location.Location):
             point.Point(
                 self.coordinates[i, :],
                 space=self.space,
-                sigma_mm=self.sigma_mm[i]
+                sigma_mm=self.sigma_mm[i],
+                label=None if self.labels is None else self.labels[i]
             )
             for i in range(len(self))
         )
@@ -197,20 +243,22 @@ class PointSet(location.Location):
 
     @property
     def boundingbox(self):
-        """Return the bounding box of these points."""
-        XYZ = self.homogeneous[:, :3]
-        sigma_min = max(self.sigma[i] for i in XYZ.argmin(0))
-        sigma_max = max(self.sigma[i] for i in XYZ.argmax(0))
+        """
+        Return the bounding box of these points.
+        """
+        coords = self.coordinates
+        sigma_min = max(self.sigma[i] for i in coords.argmin(0))
+        sigma_max = max(self.sigma[i] for i in coords.argmax(0))
         return _boundingbox.BoundingBox(
-            point1=XYZ.min(0) - max(sigma_min, 1e-6),
-            point2=XYZ.max(0) + max(sigma_max, 1e-6),
+            point1=coords.min(0),
+            point2=coords.max(0),
             space=self.space,
             sigma_mm=[sigma_min, sigma_max]
         )
 
     @property
     def centroid(self):
-        return point.Point(self.homogeneous[:, :3].mean(0), space=self.space)
+        return point.Point(self.coordinates.mean(0), space=self.space)
 
     @property
     def volume(self):
@@ -229,7 +277,7 @@ class PointSet(location.Location):
         return np.c_[self.coordinates, np.ones(len(self))]
 
     def find_clusters(self, min_fraction=1 / 200, max_fraction=1 / 8):
-        if not HAS_HDBSCAN:
+        if not _HAS_HDBSCAN:
             raise RuntimeError(
                 f"HDBSCAN is not available with your version {sklearn.__version__} "
                 "of sckit-learn. `PointSet.find_clusters()` will not be avaiable."

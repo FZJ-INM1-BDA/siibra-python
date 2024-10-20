@@ -44,8 +44,10 @@ class GiftiMesh(_provider.VolumeProvider, srctype="gii-mesh"):
     def _url(self) -> Union[str, Dict[str, str]]:
         return self._init_url
 
-    @property
-    def boundingbox(self) -> _boundingbox.BoundingBox:
+    def get_boundingbox(self, clip=False, background=0.0, **fetch_kwargs) -> '_boundingbox.BoundingBox':
+        """
+        Bounding box calculation is not yet implemented for meshes.
+        """
         raise NotImplementedError(
             f"Bounding box access to {self.__class__.__name__} objects not yet implemented."
         )
@@ -132,21 +134,30 @@ class GiftiSurfaceLabeling(_provider.VolumeProvider, srctype="gii-label"):
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
 
-    def fetch(self, fragment: str = None, **kwargs):
+    def fetch(self, fragment: str = None, label: int = None, **kwargs):
         """Returns a 1D numpy array of label indices."""
         labels = []
-        for fragment_name, loader in self._loaders.items():
-            if fragment is not None and fragment.lower() not in fragment_name.lower():
-                continue
-            assert len(loader.data.darrays) == 1
-            labels.append(loader.data.darrays[0].data)
+        if fragment is None:
+            matched_frags = list(self._loaders.keys())
+        else:
+            matched_frags = [frg for frg in self._loaders.keys() if fragment.lower() in frg.lower()]
+            if len(matched_frags) != 1:
+                raise ValueError(
+                    f"Requested fragment '{fragment}' could not be matched uniquely "
+                    f"to [{', '.join(self._loaders)}]"
+                )
+        for frag in matched_frags:
+            assert len(self._loaders[frag].data.darrays) == 1
+            if label is not None:
+                labels.append((self._loaders[frag].data.darrays[0].data == label).astype('uint8'))
+            else:
+                labels.append(self._loaders[frag].data.darrays[0].data)
 
         return {"labels": np.hstack(labels)}
 
-    @property
-    def boundingbox(self) -> _boundingbox.BoundingBox:
+    def get_boundingbox(self, clip=False, background=0.0) -> '_boundingbox.BoundingBox':
         raise NotImplementedError(
-            f"Bounding boxes of {self.__class__.__name__} objects not defined."
+            f"Bounding box access to {self.__class__.__name__} objects not yet implemented."
         )
 
     @property

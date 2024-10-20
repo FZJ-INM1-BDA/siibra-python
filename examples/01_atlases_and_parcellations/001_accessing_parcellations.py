@@ -42,6 +42,10 @@ julich_brain = siibra.parcellations.get('julich')
 print(julich_brain.id)
 
 # %%
+# Also, you can display the doi/url of the related dataset/publication using
+print(julich_brain.urls)
+
+# %%
 # Typically however, we are only interested in the parcellations supported by
 # a given atlas. Atlases provide their own parcellation table for this
 # purpose, which includes the relevant subset of the parcellations.

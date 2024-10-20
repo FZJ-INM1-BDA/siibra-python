@@ -55,9 +55,9 @@ list_of_queries = [
 def test_serialize_query_context(feature, concept, ExCls, expected_id):
     if ExCls:
         with pytest.raises(ExCls):
-            Feature.serialize_query_context(feature, concept)
+            Feature._serialize_query_context(feature, concept)
         return
-    actual_id = Feature.serialize_query_context(feature, concept)
+    actual_id = Feature._serialize_query_context(feature, concept)
     assert actual_id == expected_id
 
 
@@ -217,10 +217,10 @@ def test_deserialize_query_context(
     ) = mock_all
     if ExCls:
         with pytest.raises(ExCls):
-            Feature.deserialize_query_context(fid)
+            Feature._deserialize_query_context(fid)
         return
 
-    F, concept, fid = Feature.deserialize_query_context(fid)
+    F, concept, fid = Feature._deserialize_query_context(fid)
 
     mock_parse_featuretype.assert_called_once()
 
@@ -245,7 +245,7 @@ def test_deserialize_query_context(
 
 
 def test_wrap_feature():
-    new_feat = Feature.wrap_livequery_feature(feature_inst, "helloworld")
+    new_feat = Feature._wrap_livequery_feature(feature_inst, "helloworld")
     assert new_feat.other == feature_inst.other
     assert new_feat.id != feature_inst.id
     assert new_feat.id == "helloworld"

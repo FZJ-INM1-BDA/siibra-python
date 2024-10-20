@@ -4,7 +4,7 @@ from siibra.features.tabular.receptor_density_fingerprint import (
 import pytest
 from e2e.util import check_duplicate
 
-all_features = ReceptorDensityFingerprint.get_instances()
+all_features = ReceptorDensityFingerprint._get_instances()
 
 
 def test_dup_id():
