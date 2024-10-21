@@ -82,7 +82,7 @@ if rtds_action_github_token:
     rtds_action_path = ""  # The path where the artifact should be extracted # Note: this is relative to the conf.py file!
     rtds_action_artifact_prefix = "sphinx-docs-built-in-github-"  # The "prefix" used in the `upload-artifact` step of the docs github action
     nbsphinx_execute = 'never'
-    run_stale_examples = False  # it will be run at github actions (since /docs/example are in gitignore) and locally but not on readthedocs.
+    run_stale_examples = True  ## testing
 else:
     # create package and class diagrams if they were not created with pyreverse and graphviz (see docs.yml)
     cwd = os.getcwd()
