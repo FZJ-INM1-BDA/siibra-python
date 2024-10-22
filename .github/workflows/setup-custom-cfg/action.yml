@@ -1,0 +1,19 @@
+name: '[siibra-cfg] setup custom config'
+author: 'Xiao Gui <xgui3783@gmail.com>'
+description: 'Setup siibra custom config for tests'
+inputs:
+  siibra-cfg-ref:
+    description: 'git ref of siibra configuration to use'
+    required: true
+runs:
+  using: composite
+  steps:
+  - uses: 'actions/checkout@v4'
+    with:
+      repository: 'fzj-inm1-bda/siibra-configurations'
+      ref: ${{ inputs.siibra-cfg-ref }}
+      path: ${{ github.workspace }}/siibra-configurations
+  - id: 'set-env'
+    run: |
+      echo "SIIBRA_USE_CONFIGURATION=${{ github.workspace }}/siibra-configurations" >> $GITHUB_ENV
+    shell: bash

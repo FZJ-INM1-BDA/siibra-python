@@ -20,7 +20,7 @@ from .. import logger
 from ..retrieval import requests
 from ..core import space as _space, structure
 from ..locations import location, point, pointset, boundingbox
-from ..commons import resample_array_to_array, siibra_tqdm
+from ..commons import resample_img_to_img, siibra_tqdm
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
 from nibabel import Nifti1Image
@@ -52,7 +52,9 @@ class Volume(location.Location):
         "neuroglancer/precompmesh",
         "neuroglancer/precompmesh/surface",
         "gii-mesh",
-        "gii-label"
+        "gii-label",
+        "freesurfer-annot",
+        "zip/freesurfer-annot",
     ]
 
     SUPPORTED_FORMATS = IMAGE_FORMATS + MESH_FORMATS
@@ -256,9 +258,8 @@ class Volume(location.Location):
             raise NotImplementedError("Filtering of points by pure mesh volumes not yet implemented.")
 
         # make sure the points are in the same physical space as this volume
-        warped = (
-            pointset.from_points([points]) if isinstance(points, point.Point) else points
-        ).warp(self.space)
+        as_pointset = pointset.from_points([points]) if isinstance(points, point.Point) else points
+        warped = as_pointset.warp(self.space)
         assert warped is not None, SpaceWarpingFailedError
 
         # get the voxel array of this volume
@@ -347,7 +348,7 @@ class Volume(location.Location):
             v1 = self.fetch(format=format, **fetch_kwargs)
             v2 = other.fetch(format=format, **fetch_kwargs)
             arr1 = np.asanyarray(v1.dataobj)
-            arr2 = resample_array_to_array(np.asanyarray(v2.dataobj), v2.affine, arr1, v1.affine)
+            arr2 = np.asanyarray(resample_img_to_img(v2, v1).dataobj)
             pointwise_min = np.minimum(arr1, arr2)
             if np.any(pointwise_min):
                 return from_array(
@@ -419,6 +420,20 @@ class Volume(location.Location):
                 f"volume are: {self.formats}"
             )
 
+        # ensure the voi is inside the template
+        voi = kwargs.get("voi", None)
+        if voi is not None and voi.space is not None:
+            assert isinstance(voi, boundingbox.BoundingBox)
+            tmplt_bbox = voi.space.get_template().get_boundingbox(clip=False)
+            intersection_bbox = voi.intersection(tmplt_bbox)
+            if intersection_bbox is None:
+                raise RuntimeError(f"voi provided ({voi}) lies out side the voxel space of the {voi.space.name} template.")
+            if intersection_bbox != voi:
+                logger.info(
+                    f"Since provided voi lies outside the template ({voi.space}) it is clipped as: {intersection_bbox}"
+                )
+                kwargs["voi"] = intersection_bbox
+
         result = None
         # try each possible format
         for fmt in possible_formats:
@@ -430,7 +445,7 @@ class Volume(location.Location):
             fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
             for try_count in range(6):
                 try:
-                    if fmt == "gii-label":
+                    if fmt in ["gii-label", "freesurfer-annot", "zip/freesurfer-annot"]:
                         tpl = self.space.get_template(variant=kwargs.get('variant'))
                         mesh = tpl.fetch(**kwargs)
                         labels = self._providers[fmt].fetch(**fwd_args)
@@ -673,6 +688,10 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
     -------
     Volume
     """
+    if len(volumes) == 1:
+        logger.debug("Only one volume supplied returning as is (kwargs are ignored).")
+        return volumes[0]
+
     assert len(volumes) > 1, "Need to supply at least two volumes to merge."
     if labels:
         assert len(volumes) == len(labels), "Need to supply as many labels as volumes."
@@ -681,7 +700,6 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
     assert all(v.space == space for v in volumes), "Cannot merge volumes from different spaces."
 
     template_img = space.get_template().fetch(**fetch_kwargs)
-    template_arr = np.asanyarray(template_img.dataobj)
     merged_array = np.zeros(template_img.shape, dtype='uint8')
 
     for i, vol in siibra_tqdm(
@@ -692,17 +710,14 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
         disable=len(volumes) < 3
     ):
         img = vol.fetch(**fetch_kwargs)
-        arr_resampled = resample_array_to_array(
-            source_data=np.asanyarray(img.dataobj),
-            source_affine=img.affine,
-            target_data=template_arr,
-            target_affine=template_img.affine
+        resampled_arr = np.asanyarray(
+            resample_img_to_img(img, template_img).dataobj
         )
-        nonzero_voxels = arr_resampled > 0
+        nonzero_voxels = resampled_arr > 0
         if labels:
             merged_array[nonzero_voxels] = labels[i]
         else:
-            merged_array[nonzero_voxels] = arr_resampled[nonzero_voxels]
+            merged_array[nonzero_voxels] = resampled_arr[nonzero_voxels]
 
     return from_array(
         data=merged_array,

@@ -19,7 +19,7 @@ from .query import LiveQuery
 from ..core import space as _space, structure
 from ..features import anchor as _anchor
 from ..features.tabular.gene_expression import GeneExpressions
-from ..commons import logger, Species, MapType
+from ..commons import logger, Species
 from ..locations import point, pointset
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
@@ -101,9 +101,6 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         """
         LiveQuery.__init__(self, **kwargs)
         gene = kwargs.get('gene')
-        self.maptype = kwargs.get("maptype", None)
-        if isinstance(self.maptype, str):
-            self.maptype = MapType[self.maptype.upper()]
 
         def parse_gene(spec):
             if isinstance(spec, str):
@@ -136,6 +133,9 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
             if points_inside[pt]:
                 measurements.append(measurement)
                 coordinates.append(pt)
+
+        if len(points_inside) == 0:
+            raise StopIteration
 
         # Build the anatomical anchor and assignment to the query concept.
         # It will be attached to the returned feature, with the set of matched

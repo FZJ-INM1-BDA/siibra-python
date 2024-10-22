@@ -67,7 +67,8 @@ class AtlasConcept:
         modality: str = "",
         publications: List[TypePublication] = [],
         datasets: List['TypeDataset'] = [],
-        spec=None
+        spec=None,
+        prerelease: bool = False,
     ):
         """
         Construct a new atlas concept base object.
@@ -94,7 +95,7 @@ class AtlasConcept:
             The preconfigured specification.
         """
         self._id = identifier
-        self.name = name
+        self.name = name if not prerelease else f"[PRERELEASE] {name}"
         self._species_cached = None if species is None \
             else Species.decode(species)  # overwritable property implementation below
         self.shortname = shortname
@@ -104,6 +105,7 @@ class AtlasConcept:
         self.datasets = datasets
         self._spec = spec
         self._CACHED_MATCHES = {}  # we cache match() function results
+        self._prerelease = prerelease
 
     @property
     def description(self):
@@ -116,12 +118,19 @@ class AtlasConcept:
 
     @property
     def LICENSE(self) -> str:
-        licenses = {ds.LICENSE for ds in self.datasets if ds.LICENSE}
-        if not licenses:
-            return "No license information is found."
-        if len(licenses) == 1:
-            return next(iter(licenses))
-        logger.info("Found multiple licenses corresponding to datasets.")
+        licenses = []
+        for ds in self.datasets:
+            if ds.LICENSE is None or ds.LICENSE == "No license information is found.":
+                continue
+            if isinstance(ds.LICENSE, str):
+                licenses.append(ds.LICENSE)
+            if isinstance(ds.LICENSE, list):
+                licenses.extend(ds.LICENSE)
+        if len(licenses) == 0:
+            logger.warning("No license information is found.")
+            return ""
+        if len(licenses) > 1:
+            logger.info("Found multiple licenses corresponding to datasets.")
         return '\n'.join(licenses)
 
     @property

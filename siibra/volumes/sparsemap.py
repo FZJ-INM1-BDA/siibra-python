@@ -20,6 +20,7 @@ from ..commons import MapIndex, logger, connected_components, siibra_tqdm
 from ..locations import boundingbox
 from ..retrieval import cache
 from ..retrieval.repositories import ZipfileConnector, GitlabConnector
+from ..exceptions import InsufficientArgumentException, ExcessiveArgumentException
 
 from os import path, rename, makedirs
 from zipfile import ZipFile, ZIP_DEFLATED
@@ -226,7 +227,8 @@ class SparseMap(parcellationmap.Map):
         description: str = "",
         modality: str = None,
         publications: list = [],
-        datasets: list = []
+        datasets: list = [],
+        prerelease: bool = False,
     ):
         parcellationmap.Map.__init__(
             self,
@@ -241,6 +243,7 @@ class SparseMap(parcellationmap.Map):
             publications=publications,
             datasets=datasets,
             volumes=volumes,
+            prerelease=prerelease,
         )
         self._sparse_index_cached = None
 
@@ -390,7 +393,7 @@ class SparseMap(parcellationmap.Map):
             assert length == 1
         except AssertionError:
             if length > 1:
-                raise parcellationmap.ExcessiveArgumentException(
+                raise ExcessiveArgumentException(
                     "One and only one of region_or_index, region, index can be defined for fetch"
                 )
             # user can provide no arguments, which assumes one and only one volume present
@@ -416,7 +419,7 @@ class SparseMap(parcellationmap.Map):
                 assert len(self) == 1
                 volidx = 0
             except AssertionError:
-                raise parcellationmap.InsufficientArgumentException(
+                raise InsufficientArgumentException(
                     f"{self.__class__.__name__} provides {len(self)} volumes. "
                     "Specify 'region' or 'index' for fetch() to identify one."
                 )
@@ -458,7 +461,7 @@ class SparseMap(parcellationmap.Map):
         """
         Assign an image volume to this sparse map.
 
-        Parameters:
+        Parameters
         -----------
         queryvolume: Volume
             the volume to be compared with maps

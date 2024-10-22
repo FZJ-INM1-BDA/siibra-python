@@ -22,6 +22,7 @@ from .. import anchor as _anchor
 from ...volumes import volume as _volume
 
 from typing import List, TYPE_CHECKING
+
 if TYPE_CHECKING:
     from ...locations.boundingbox import BoundingBox
     from ...volumes.providers import provider
@@ -31,10 +32,7 @@ class ImageAnchor(_anchor.AnatomicalAnchor):
 
     def __init__(self, volume: _volume.Volume, region: str = None):
         _anchor.AnatomicalAnchor.__init__(
-            self,
-            species=volume.space.species,
-            location=None,
-            region=region
+            self, species=volume.space.species, location=None, region=region
         )
         self.volume = volume
 
@@ -44,7 +42,9 @@ class ImageAnchor(_anchor.AnatomicalAnchor):
         Loads the bounding box only if required, since it demands image data access.
         """
         if self._location_cached is None:
-            self._location_cached = self.volume.get_boundingbox(clip=False)  # use unclipped to preseve exisiting behaviour
+            self._location_cached = self.volume.get_boundingbox(
+                clip=False
+            )  # use unclipped to preseve exisiting behaviour
         return self._location_cached
 
     @property
@@ -65,14 +65,18 @@ class Image(feature.Feature, _volume.Volume):
         providers: List["provider.VolumeProvider"],
         region: str = None,
         datasets: List = [],
-        bbox: "BoundingBox" = None
+        bbox: "BoundingBox" = None,
+        id: str = None,
+        prerelease: bool = False,
     ):
         feature.Feature.__init__(
             self,
             modality=modality,
             description=None,  # lazy implementation below!
             anchor=None,  # lazy implementation below!
-            datasets=datasets
+            datasets=datasets,
+            id=id,
+            prerelease=prerelease,
         )
 
         _volume.Volume.__init__(
@@ -81,7 +85,7 @@ class Image(feature.Feature, _volume.Volume):
             providers=providers,
             name=name,
             datasets=datasets,
-            bbox=bbox
+            bbox=bbox,
         )
 
         self._anchor_cached = ImageAnchor(self, region=region)
@@ -106,7 +110,6 @@ class Image(feature.Feature, _volume.Volume):
     def description(self):
         if self._description_cached is None:
             self._description_cached = (
-                f"Image feature with modality {self.modality} "
-                f"at {self.anchor}"
+                f"Image feature with modality {self.modality} " f"at {self.anchor}"
             )
         return self._description_cached
