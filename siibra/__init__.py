@@ -55,8 +55,13 @@ def get_search_cursor(criteria: List[AttributeCollection], find_type: Type[T]):
     return SearchResult(criteria=criteria, search_type=find_type)
 
 
-def find(criteria: List[AttributeCollection], find_type: Type[T]):
-    res = get_search_cursor(criteria, find_type)
+def find(criteria: List[AttributeCollection], Klass: Type[T]):
+    """
+    Returns all instances of type Klass where all criterion in criteria matches.
+
+    A criterion is considered matching if **any** of its
+    """
+    res = get_search_cursor(criteria, Klass)
     return res.find()
 
 

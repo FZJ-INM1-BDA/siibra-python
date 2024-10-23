@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Tuple, List, Union
+from typing import TYPE_CHECKING, Tuple, List, Union, Set, Type, Dict
 import gzip
 
 from nibabel import Nifti1Image
@@ -21,7 +21,7 @@ import numpy as np
 from nilearn.image import resample_to_img, resample_img
 from skimage import filters
 
-from .base import PostProcVolProvider, VolumeFormats
+from .base import VolumeFormats
 from ...operations import DataOp
 from ...commons.logger import siibra_tqdm, logger
 
@@ -36,15 +36,24 @@ class NiftiCodec(DataOp):
     output: Nifti1Image
     desc = "Transforms nifti to nifti"
 
-    _ALL_NIFTI_CODES = set()
+    _ALL_NIFTI_CODES: Set[Type["NiftiCodec"]] = set()
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
-        cls._ALL_NIFTI_CODES.add(cls.type)
+        cls._ALL_NIFTI_CODES.add(cls)
 
 
-@VolumeFormats.register_format_read('nii', 'image')
-class ReadNiftiFromBytes(DataOp, PostProcVolProvider):
+@VolumeFormats.register_format_read("nii", "image")
+def read_nii(_: Dict, base_retrieval_ops: List[Dict]):
+
+    return [
+        *base_retrieval_ops,
+        ReadNiftiFromBytes.generate_specs(),
+        *[t.generate_specs() for t in NiftiCodec._ALL_NIFTI_CODES],
+    ]
+
+
+class ReadNiftiFromBytes(DataOp):
     input: bytes
     output: Nifti1Image
     desc = "Reads bytes into nifti"
@@ -59,11 +68,6 @@ class ReadNiftiFromBytes(DataOp, PostProcVolProvider):
         except gzip.BadGzipFile:
             return Nifti1Image.from_bytes(input)
 
-    @classmethod
-    def on_get_retrieval_ops(cls, volume_provider: "VolumeProvider"):
-        base_retrieval_ops = super().on_get_retrieval_ops(volume_provider)
-        return [*base_retrieval_ops, ReadNiftiFromBytes.generate_specs()]
-
 
 class NiftiMask(NiftiCodec):
     desc = "Mask nifti according to spec {kwargs."
@@ -77,20 +81,23 @@ class NiftiMask(NiftiCodec):
         background_value: Union[None, float, int],
         **kwargs,
     ):
-        assert isinstance(input, Nifti1Image)
-        arr = np.asanyarray(input.dataobj)
         if lower_threshold is not None:
+            assert isinstance(input, Nifti1Image)
+            arr = np.asanyarray(input.dataobj)
             return Nifti1Image(
                 (arr > lower_threshold).astype("uint8"),
                 input.affine,
                 header=input.header,
             )
-        else:
+        if background_value is not None:
+            assert isinstance(input, Nifti1Image)
+            arr = np.asanyarray(input.dataobj)
             return Nifti1Image(
                 (arr != background_value).astype("uint8"),
                 input.affine,
                 header=input.header,
             )
+        return input
 
     @classmethod
     def generate_specs(
@@ -112,7 +119,9 @@ class NiftiExtractLabels(NiftiCodec):
     desc = "Extract a nifti with only selected labels."
     type = "codec/vol/extractlabels"
 
-    def run(self, input, *, labels: Union[List[int], str], **kwargs):
+    def run(self, input, *, labels: Union[List[int], None], **kwargs):
+        if labels is None:
+            return input
         assert isinstance(input, Nifti1Image)
         arr = np.asanyarray(input.dataobj)
         mapping = np.zeros(arr.max() + 1)
@@ -121,7 +130,7 @@ class NiftiExtractLabels(NiftiCodec):
         return Nifti1Image(mapping[arr], input.affine, dtype=input.get_data_dtype())
 
     @classmethod
-    def generate_specs(cls, *, labels: List[int], **kwargs):
+    def generate_specs(cls, *, labels: Union[List[int], None] = None, **kwargs):
         base = super().generate_specs(**kwargs)
         return {**base, "labels": labels}
 
@@ -130,7 +139,9 @@ class NiftiExtractRange(NiftiCodec):
     desc = "Extract a nifti with values only from selected range."
     type = "codec/vol/extractrange"
 
-    def run(self, input, *, range: Tuple[float, float], **kwargs):
+    def run(self, input, *, range: Union[Tuple[float, float], None], **kwargs):
+        if range is None:
+            return input
         assert isinstance(input, Nifti1Image)
         if not range:
             return input
@@ -142,7 +153,9 @@ class NiftiExtractRange(NiftiCodec):
         )
 
     @classmethod
-    def generate_specs(cls, *, range: Tuple[float, float], **kwargs):
+    def generate_specs(
+        cls, *, range: Union[Tuple[float, float], None] = None, **kwargs
+    ):
         base = super().generate_specs(**kwargs)
         return {**base, "range": range}
 
@@ -152,12 +165,14 @@ class NiftiExtractSubspace(NiftiCodec):
     type = "codec/vol/extractsubspace"
 
     def run(self, input, *, subspace: slice, **kwargs):
+        if subspace is None:
+            return input
         assert isinstance(input, Nifti1Image)
         s_ = tuple(slice(None) if isinstance(s, str) else s for s in subspace)
         return input.slicer[s_]
 
     @classmethod
-    def generate_specs(cls, *, subspace: slice, **kwargs):
+    def generate_specs(cls, *, subspace: Union[slice, None] = None, **kwargs):
         base = super().generate_specs(**kwargs)
         return {**base, "subspace": subspace}
 
@@ -170,10 +185,12 @@ class NiftiExtractVOI(NiftiCodec):
     desc = "Extract a nifti with values only from selected volume of interest according to {kwargs."
     type = "codec/vol/extractVOI"
 
-    def run(self, input, **kwargs):
+    def run(self, input, voi: Union["BoundingBox", None], **kwargs):
+        if voi is None:
+            return input
+
         from ...attributes.locations import BoundingBox
 
-        voi = kwargs.get("voi")
         assert isinstance(input, Nifti1Image)
         assert isinstance(voi, BoundingBox)
         bb_vox = voi.transform(np.linalg.inv(input.affine))
@@ -189,13 +206,15 @@ class NiftiExtractVOI(NiftiCodec):
         return result
 
     @classmethod
-    def generate_specs(cls, *, voi: "BoundingBox", **kwargs):
+    def generate_specs(cls, *, voi: Union["BoundingBox", None] = None, **kwargs):
         base = super().generate_specs(**kwargs)
         return {**base, "voi": voi}
 
 
 # TODO: Morph into run + classmethod
-class ResampleNifti(NiftiCodec):
+class ResampleNifti:
+    input: Nifti1Image
+    output: Nifti1Image
     desc = "Resample a nifti according to {kwargs."
     type = "codec/vol/resample"
 

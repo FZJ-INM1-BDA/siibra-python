@@ -45,9 +45,10 @@ class SearchResult(Generic[T]):
     opt for the criteria that is most likely to return false first (e.g. for feature, Modality)
     """
 
-    def __init__(self, criteria=None, search_type: Type[T] = None):
+    def __init__(self, criteria=None, search_type: Type[T] = None, filter_kwargs=None):
         if search_type is None:
             raise RuntimeError(f"search_type must be defined!")
+        self.filter_kwargs = filter_kwargs or {}
         self.search_type = search_type
         self.criteria = criteria or []
 
@@ -55,7 +56,8 @@ class SearchResult(Generic[T]):
     search_type: Type[T] = None
 
     def find(self) -> List[T]:
-        return SearchResult.cached_find(self.criteria, self.search_type)
+        summary_table = self.get_summary_table()
+        return summary_table["instance"].tolist()
 
     @staticmethod
     def _find_iter(criteria: List[AttributeCollection], search_type: Type[T]):
@@ -95,7 +97,7 @@ class SearchResult(Generic[T]):
                 # In case key is one of ID, name etc, prepend to avoid name collision
                 "categorizations": item.categorizations,
                 **{
-                    f"category_{categorization.key}": categorization.value
+                    f"category_{categorization.key}": str(categorization.value)
                     for categorization in item._find(Categorization)
                 },
                 "ID": item.ID,
@@ -118,10 +120,33 @@ class SearchResult(Generic[T]):
         raise NotImplementedError
 
     def get_summary_table(self):
-        return self.build_summary_table(self.find())
+        table = self.build_summary_table(
+            SearchResult.cached_find(self.criteria, self.search_type)
+        )
+        if len(self.filter_kwargs) == 0:
+            return table
+
+        search_str = " & ".join(
+            [f"`{key}` == '{value}'" for key, value in self.filter_kwargs.items()]
+        )
+        return table.query(search_str)
 
     def get_instance(self, expr=None, index=None):
         """
         Allow user to apply what was learnt from get_summary_table and get a subset of the search.
         """
-        return self.pick_instance(self.find(), expr=expr, index=index)
+        return self.pick_instance(
+            SearchResult.cached_find(self.criteria, self.search_type),
+            expr=expr,
+            index=index,
+        )
+
+    def reconfigure(self, spec=None, **kwargs):
+        filter_kwargs = {}
+        filter_kwargs.update(spec or {})
+        filter_kwargs.update(kwargs)
+        return SearchResult(
+            criteria=self.criteria,
+            search_type=self.search_type,
+            filter_kwargs=filter_kwargs,
+        )

@@ -24,7 +24,7 @@ except ImportError:
 import numpy as np
 from pandas import DataFrame
 
-from ..concepts import AtlasElement
+from ..concepts import atlas_elements, query_parameter
 from ..commons.iterable import assert_ooo
 from ..commons.string import convert_hexcolor_to_rgbtuple
 from ..commons.logger import logger, siibra_tqdm, QUIET
@@ -57,7 +57,7 @@ VALID_MAPTYPES = ("statistical", "labelled")
 
 
 @dataclass(repr=False, eq=False)
-class Map(AtlasElement):
+class Map(atlas_elements.AtlasElement):
     schema: str = "siibra/atlases/parcellationmap/v0.1"
     parcellation_id: str = None
     space_id: str = None
@@ -75,23 +75,19 @@ class Map(AtlasElement):
 
     @property
     def parcellation(self) -> "ParcellationScheme":
-        from ..factory import iter_preconfigured
+        from .. import find
 
-        return assert_ooo(
-            [
-                parc
-                for parc in iter_preconfigured(ParcellationScheme)
-                if parc.ID == self.parcellation_id
-            ]
+        query_param = query_parameter.QueryParam(
+            attributes=[_ID(value=self.parcellation_id)]
         )
+        return assert_ooo(find([query_param], ParcellationScheme))
 
     @property
     def space(self) -> "Space":
-        from ..factory import iter_preconfigured
+        from .. import find
 
-        return assert_ooo(
-            [sp for sp in iter_preconfigured(Space) if sp.ID == self.space_id]
-        )
+        query_param = query_parameter.QueryParam(attributes=[_ID(value=self.space_id)])
+        return assert_ooo(find([query_param], Space))
 
     @property
     def regionnames(self) -> List[str]:

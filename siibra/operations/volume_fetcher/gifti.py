@@ -17,7 +17,7 @@ import gzip
 from typing import TYPE_CHECKING, List, Dict
 from nibabel.gifti import gifti
 
-from .base import PostProcVolProvider, VolumeFormats
+from .base import VolumeFormats
 from ...operations import DataOp
 from ...commons.maps import _merge_giftis
 
@@ -27,12 +27,8 @@ if TYPE_CHECKING:
 
 @VolumeFormats.register_format_read("gii-mesh", "mesh")
 @VolumeFormats.register_format_read("gii-label", "mesh")
-class FreesurferAnnot(PostProcVolProvider):
-
-    @classmethod
-    def on_get_retrieval_ops(cls, volume_provider: "VolumeRecipe"):
-        base_retrieval_ops = super().on_get_retrieval_ops(volume_provider)
-        return [*base_retrieval_ops, ReadGiftiFromBytesGii.generate_specs()]
+def read_freesurfer_annot(_: Dict, base_retrieval_ops: List[Dict]):
+    return [*base_retrieval_ops, ReadGiftiFromBytesGii.generate_specs()]
 
 
 class ReadGiftiFromBytesGii(DataOp):

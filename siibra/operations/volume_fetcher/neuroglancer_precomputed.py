@@ -32,10 +32,10 @@ try:
 except ImportError:
     from typing_extensions import TypedDict
 
-from .base import PostProcVolProvider, VolumeFormats, DataOp
+from .base import VolumeFormats, DataOp
 from ...cache import fn_call_cache
 from ...commons.logger import logger
-from ...commons.conf import SiibraConf
+from ...commons.conf import PerfConf
 
 if TYPE_CHECKING:
     from ...attributes.datarecipes.volume import VolumeRecipe
@@ -68,7 +68,7 @@ class VolumeOpsKwargs(TypedDict):
     url: str = None
     bbox: "BoundingBox" = None
     resolution_mm: float = None
-    max_download_GB: float = SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB
+    max_download_GB: float = PerfConf.SIIBRA_MAX_FETCH_SIZE_GIB
     mapping: Dict[str, Mapping] = None
 
 
@@ -170,6 +170,7 @@ class Scale:
         """Test whether the resolution of this scale is sufficient to provide the given resolution."""
         return all(r <= resolution_mm for r in self.resolution_mm)
 
+    # TODO (2.0) should consider num of channel in addition to the rest
     def _estimate_nbytes(self, bbox: Union["BoundingBox", None] = None):
         """Estimate the size image array to be fetched in bytes, given a bounding box."""
         from ...attributes.locations import BoundingBox
@@ -284,7 +285,7 @@ def select_scale(
     scales: List[Scale],
     resolution_mm: Union[None, float] = None,
     bbox=None,
-    max_download_GB: float = SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB,
+    max_download_GB: float = PerfConf.SIIBRA_MAX_FETCH_SIZE_GIB,
 ) -> Scale:
     max_bytes = max_download_GB * 1024**3
 
@@ -323,6 +324,7 @@ def select_scale(
     return selected_scale
 
 
+# TODO (2.0) does not yet work with channel
 def fetch_neuroglancer(
     base_url: str = None, bbox: "BoundingBox" = None, resolution_mm: float = None
 ) -> nib.Nifti1Image:
@@ -331,64 +333,16 @@ def fetch_neuroglancer(
         scales,
         resolution_mm=resolution_mm,
         bbox=bbox,
-        max_download_GB=SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB,
+        max_download_GB=PerfConf.SIIBRA_MAX_FETCH_SIZE_GIB,
     )
     return scale.fetch(bbox=bbox)
 
 
 @VolumeFormats.register_format_read(NG_VOLUME_FORMAT_STR, "image")
-class NgVolPostProcImgProvider(PostProcVolProvider):
-
-    @classmethod
-    def _verify_image_provider(cls, volume_provider: "VolumeRecipe"):
-        assert (
-            volume_provider.format == NG_VOLUME_FORMAT_STR
-        ), f"Expected format to be {NG_VOLUME_FORMAT_STR}, but was {volume_provider.format}"
-
-    @classmethod
-    def on_post_init(cls, volume_provider: "VolumeRecipe"):
-        cls._verify_image_provider(volume_provider)
-
-        try:
-            assert volume_provider.ops[-1]["type"] == ReadNeuroglancerPrecomputed.type
-        except (IndexError, AssertionError):
-            fetch_kwarg_to_nifti_op = ReadNeuroglancerPrecomputed.generate_specs()
-            if len(volume_provider.override_ops) > 0:
-                volume_provider.override_ops.append(fetch_kwarg_to_nifti_op)
-            else:
-                volume_provider._ops.append(fetch_kwarg_to_nifti_op)
-
-    @classmethod
-    def on_append_op(cls, volume_provider: "VolumeRecipe", op: Dict):
-        from .nifti import NiftiExtractVOI
-        from ...attributes.datarecipes.volume import VolumeRecipe
-
-        cls._verify_image_provider(volume_provider)
-
-        if volume_provider.ops[-1]["type"] != ReadNeuroglancerPrecomputed.type:
-            raise RuntimeError(
-                f"neuroglancer volume must have ReadNeuroglancerPrecomputed as the final op. {volume_provider.ops[-1]['type']} was found."
-            )
-
-        fetch_op = volume_provider.pop_op()
-        if op["type"] == NiftiExtractVOI.type:
-            bbox = op["voi"]
-            op = NgPrecomputedFetchCfg.generate_specs(fetch_config={"bbox": bbox})
-        super(VolumeRecipe, volume_provider).append_op(op)
-
-        if len(volume_provider.override_ops) > 0:
-            volume_provider._ops.append(fetch_op)
-        else:
-            volume_provider._ops.append(fetch_op)
-
-    @classmethod
-    def on_get_retrieval_ops(cls, volume_provider: "VolumeRecipe"):
-        cls._verify_image_provider(volume_provider)
-        return [
-            NgPrecomputedFetchCfg.generate_specs(
-                fetch_config={"url": volume_provider.url}
-            )
-        ]
+def read_ng(conf: Dict, _: List[Dict]):
+    base_url = conf.get("url")
+    assert base_url is not None, f"Expected url to be defined in {conf} but was not"
+    return [ReadNeuroglancerPrecomputed.generate_specs(base_url=base_url)]
 
 
 class ReadNeuroglancerPrecomputed(DataOp):
@@ -424,27 +378,6 @@ class ReadNeuroglancerPrecomputed(DataOp):
             "bbox": bbox,
             "resolution_mm": resolution_mm,
         }
-
-
-# TODO deprecate
-class NgPrecomputedFetchCfg(DataOp):
-    input: Union[None, VolumeOpsKwargs]
-    output: VolumeOpsKwargs
-    desc = "Creating/Updating neuroglancer fetch config"
-    type = "volume/ngprecomp/update_cfg"
-
-    def run(self, input, url, fetch_config: VolumeOpsKwargs, **kwargs):
-        return {
-            **(input or {}),
-            **fetch_config,
-        }
-
-    @classmethod
-    def generate_specs(
-        cls, url: str = None, fetch_config: VolumeOpsKwargs = None, **kwargs
-    ):
-        base = super().generate_specs(**kwargs)
-        return {**base, "url": url, "fetch_config": fetch_config or {}}
 
 
 @fn_call_cache

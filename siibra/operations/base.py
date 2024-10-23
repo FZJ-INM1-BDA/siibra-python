@@ -37,8 +37,37 @@ from ..commons.logger import logger
 
 class DataOp:
     """
-    Base Data Operation class. type *must* be overriden (or set to None). desc *should* be overriden, or will trigger warning messages.
-    Set force=True to disable cache. User could also pass "force": True in generate_specs to manually bypass the cache.
+    Base Data Operation class.
+
+    Derived class must override the following:
+
+    - type (class attribute): explicitly set to None in the case of AbstractDataOp
+
+    Derived class should override the following:
+
+    - run (instance method)
+        - should accept input as the first positional argument
+        - must expect arguments to be passed as kwargs
+        - should gracefully handle None to be passed as arguments (noop)
+        - must allow **kwargs wildcard keyword arguments
+        - If not overriden, considered as noop
+    - generate_specs (class method)
+        - must allow keyword arguments
+        - must avoid "input" as argument key
+        - must avoid "force" as argument key
+    - input (class attribute, Type)
+        - type of input to be passed run(instance method) as the first positional argument
+        - If None, considered source DataOp
+        - Used to validate DataOp steps (NYI)
+    - output (class attribute, Type)
+        - type of output to be returned from run(instance method)
+        - Used to validate DataOp steps (NYI)
+    - desc (class attribute, str|Callable)
+        - human readable description of what this step does
+    - force (class attribute, bool)
+        - set to True to disable caching
+
+    Derived class should not override anyother attributes/methods/class methods.
     """
 
     input: None

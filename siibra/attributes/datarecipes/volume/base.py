@@ -21,8 +21,8 @@ from typing import TYPE_CHECKING, Tuple, Dict
 from ..base import DataRecipe
 from ....commons.iterable import assert_ooo
 from ....commons.logger import logger
-from ....operations.volume_fetcher import VolumeFormats
-from ....operations.volume_fetcher.base import PostProcVolProvider
+from ....operations.volume_fetcher import base as volume_base
+from ....exceptions import NotFoundException
 
 if TYPE_CHECKING:
     from ...locations import BoundingBox
@@ -82,3 +82,14 @@ class VolumeRecipe(DataRecipe):
         return assert_ooo(
             [space for space in iter_preconfigured(Space) if space.ID == self.space_id]
         )
+
+    @classmethod
+    def _generate_ops(cls, conf: Dict):
+        format = conf.get("format")
+        reader_fn = volume_base.VolumeFormats.READER_LOOKUP.get(format)
+        if reader_fn is None:
+            raise NotFoundException(
+                f"format={format} not found in registered formats: {volume_base.VolumeFormats.READER_LOOKUP.keys()}"
+            )
+        base_ops = super()._generate_ops(conf)
+        return reader_fn(conf, base_ops)

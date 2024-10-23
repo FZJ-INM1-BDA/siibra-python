@@ -27,30 +27,30 @@ if SiibraConf.KEEP_LOCAL_CACHE:
 
 
 # TODO: rename this class to avoid clash with configuration
-class SiibraConf:
-    KEEP_LOCAL_CACHE = int(os.getenv("KEEP_LOCAL_CACHE", 1))
-    MEMORY_HUNGRY = int(os.getenv("MEMORY_HUNGRY", 1))
+class PerfConf:
+    KEEP_LOCAL_CACHE = int(os.getenv("KEEP_LOCAL_CACHE", 0))
+    MEMORY_HUNGRY = int(os.getenv("MEMORY_HUNGRY", 0))
     SIIBRA_MAX_FETCH_SIZE_GIB = float(os.getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2))
 
     @staticmethod
     @contextmanager
     def override_conf(keep_local_cache=None, memory_hungry=None, max_fetch_size=None):
         old_keep_local_cache, old_memory_hungry, old_fetch_gib = (
-            SiibraConf.KEEP_LOCAL_CACHE,
-            SiibraConf.MEMORY_HUNGRY,
-            SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB,
+            PerfConf.KEEP_LOCAL_CACHE,
+            PerfConf.MEMORY_HUNGRY,
+            PerfConf.SIIBRA_MAX_FETCH_SIZE_GIB,
         )
         if keep_local_cache is not None:
-            SiibraConf.KEEP_LOCAL_CACHE = keep_local_cache
+            PerfConf.KEEP_LOCAL_CACHE = keep_local_cache
         if memory_hungry is not None:
-            SiibraConf.MEMORY_HUNGRY = memory_hungry
+            PerfConf.MEMORY_HUNGRY = memory_hungry
         if max_fetch_size is not None:
-            SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB = max_fetch_size
+            PerfConf.SIIBRA_MAX_FETCH_SIZE_GIB = max_fetch_size
         yield
         (
-            SiibraConf.KEEP_LOCAL_CACHE,
-            SiibraConf.MEMORY_HUNGRY,
-            SiibraConf.SIIBRA_MAX_FETCH_SIZE_GIB,
+            PerfConf.KEEP_LOCAL_CACHE,
+            PerfConf.MEMORY_HUNGRY,
+            PerfConf.SIIBRA_MAX_FETCH_SIZE_GIB,
         ) = (
             old_keep_local_cache,
             old_memory_hungry,

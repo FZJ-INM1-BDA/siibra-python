@@ -141,7 +141,8 @@ def bbox_bbox(bboxa: BoundingBox, bboxb: BoundingBox):
 
 def intersect(loca: Location, locb: Location):
     """
-    Get intersection between location A and location B. If the
+    Get intersection between location A and location B. If the location are in different spaces,
+    loca will be warped to locb.
     """
     value = _location_intersection_registry.get(loca, locb)
     if value is None:

@@ -8,9 +8,6 @@ import os
 from siibra.attributes.locations import BoundingBox, Point
 from siibra.attributes.datarecipes.volume import ImageRecipe
 from siibra.operations.volume_fetcher.nifti import NiftiExtractVOI
-from siibra.operations.volume_fetcher.neuroglancer_precomputed import (
-    NgPrecomputedFetchCfg,
-)
 
 
 JBA_31_ICBM152_LABELLED_URL = "https://data-proxy.ebrains.eu/api/v1/public/buckets/d-f1fe19e8-99bd-44bc-9616-a52850680777/maximum-probability-maps_MPMs_207-areas/JulichBrainAtlas_3.1_207areas_MPM_lh_MNI152.nii.gz"
@@ -108,8 +105,8 @@ def test_get_data_statledmap(jba_hoc1_lh_icbm152_stat_imgprov):
 
 
 def test_get_data_labelledmap_voi(jba31_icbm152_labelled_improv, hoc1_lh_bbox):
-    jba31_icbm152_labelled_improv.transformation_ops.append(
-        NiftiExtractVOI.generate_specs(voi=hoc1_lh_bbox)
+    jba31_icbm152_labelled_improv = jba31_icbm152_labelled_improv.reconfigure(
+        voi=hoc1_lh_bbox
     )
     data = jba31_icbm152_labelled_improv.get_data()
     assert isinstance(data, nib.Nifti1Image)
@@ -123,8 +120,8 @@ def test_get_data_labelledmap_voi(jba31_icbm152_labelled_improv, hoc1_lh_bbox):
 
 
 def test_get_data_statmap_voi(jba_hoc1_lh_icbm152_stat_imgprov, fp1_lh_bbox):
-    jba_hoc1_lh_icbm152_stat_imgprov.transformation_ops.append(
-        NiftiExtractVOI.generate_specs(voi=fp1_lh_bbox)
+    jba_hoc1_lh_icbm152_stat_imgprov = jba_hoc1_lh_icbm152_stat_imgprov.reconfigure(
+        voi=fp1_lh_bbox
     )
     data = jba_hoc1_lh_icbm152_stat_imgprov.get_data()
     assert isinstance(data, nib.Nifti1Image)
@@ -132,31 +129,15 @@ def test_get_data_statmap_voi(jba_hoc1_lh_icbm152_stat_imgprov, fp1_lh_bbox):
     assert data.dataobj.shape == (48, 29, 64)
 
 
+def test_ng_get_parameters(bb_template, bb_test_bbox):
+    bb_template_params = bb_template.get_parameters()
+    param_names = bb_template_params["param_name"].tolist()
+    assert "bbox" in param_names
+    assert "resolution_mm" in param_names
+
+
 def test_ng_nifti_extractvoi(bb_template, bb_test_bbox, tmp_nii_filename):
-    bb_template.transformation_ops.extend(
-        [
-            NiftiExtractVOI.generate_specs(voi=bb_test_bbox),
-            NgPrecomputedFetchCfg.generate_specs(
-                fetch_config={"max_download_GB": 1, "resolution_mm": 8e-2}
-            ),
-        ]
-    )
-    nii = bb_template.get_data()
-    nii.to_filename(tmp_nii_filename)
-    with open(tmp_nii_filename, "rb") as fp:
-        assert hashlib.md5(fp.read()).hexdigest() == "257d7d1549f9dbff5622f9e4147f996a"
-
-
-def test_ng_nifti_fetch_kwargs(bb_template, bb_test_bbox, tmp_nii_filename):
-    bb_template.transformation_ops.append(
-        NgPrecomputedFetchCfg.generate_specs(
-            fetch_config={
-                "max_download_GB": 1,
-                "resolution_mm": 8e-2,
-                "bbox": bb_test_bbox,
-            }
-        ),
-    )
+    bb_template = bb_template.reconfigure(bbox=bb_test_bbox, resolution_mm=8e-2)
     nii = bb_template.get_data()
     nii.to_filename(tmp_nii_filename)
     with open(tmp_nii_filename, "rb") as fp:

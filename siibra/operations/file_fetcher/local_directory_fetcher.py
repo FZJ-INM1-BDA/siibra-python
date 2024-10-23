@@ -20,7 +20,7 @@ import requests
 
 from .base import Repository
 from ..base import DataOp
-from ...commons.conf import SiibraConf
+from ...commons.conf import PerfConf
 from ...cache import CACHE
 
 
@@ -66,8 +66,8 @@ class RemoteLocalDataOp(DataOp):
             if Path(cache_filename).is_file():
                 desc += f"by reading a cached version at {cache_filename}"
                 return desc
-            if SiibraConf.KEEP_LOCAL_CACHE > self.KEEP_LOCAL_CACHE_THRESHOLD:
-                desc += f"as KEEP_LOCAL_CACHE flag is set to {SiibraConf.KEEP_LOCAL_CACHE}, higher than the threshold {self.KEEP_LOCAL_CACHE_THRESHOLD}, a local version will be saved at {cache_filename}"
+            if PerfConf.KEEP_LOCAL_CACHE > self.KEEP_LOCAL_CACHE_THRESHOLD:
+                desc += f"as KEEP_LOCAL_CACHE flag is set to {PerfConf.KEEP_LOCAL_CACHE}, higher than the threshold {self.KEEP_LOCAL_CACHE_THRESHOLD}, a local version will be saved at {cache_filename}"
             return desc
         desc += f"Reading local file at {filename}"
         return desc
@@ -84,7 +84,7 @@ class RemoteLocalDataOp(DataOp):
 
             resp = requests.get(filename)
             resp.raise_for_status()
-            if SiibraConf.KEEP_LOCAL_CACHE > self.KEEP_LOCAL_CACHE_THRESHOLD:
+            if PerfConf.KEEP_LOCAL_CACHE > self.KEEP_LOCAL_CACHE_THRESHOLD:
                 with open(cache_filename, "wb") as fp:
                     fp.write(resp.content)
             return resp.content

@@ -21,7 +21,7 @@ from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_me
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 
-from .base import PostProcVolProvider, VolumeFormats
+from .base import VolumeFormats
 from ...cache import fn_call_cache
 from ...commons.maps import arrs_to_gii
 from ...operations import DataOp
@@ -47,17 +47,19 @@ def ngvoxelmesh_to_gii(
 
 
 @VolumeFormats.register_format_read("neuroglancer/precompmesh", "mesh")
-class PostProcNgMesh(PostProcVolProvider):
+def read_freesurfer_annot(conf: Dict, _: List[Dict]):
+    base_url = conf.get("url")
+    assert base_url, f"Expected url attribute to be in {conf}, but was not"
 
-    @classmethod
-    def on_get_retrieval_ops(cls, volume_provider: "VolumeRecipe"):
-        from .gifti import MergeGifti
+    label = (conf.get("archive_options") or {}).get("label")
+    assert label, f"expected archive_options.label to be in {conf}, but was not"
 
-        label = volume_provider.archive_options.get("label")
-        return [
-            ReadNgMeshes.generate_specs(base_url=volume_provider.url, label=label),
-            MergeGifti.generate_specs(),
-        ]
+    from .gifti import MergeGifti
+
+    return [
+        ReadNgMeshes.generate_specs(base_url=base_url, label=label),
+        MergeGifti.generate_specs(),
+    ]
 
 
 class ReadNgMeshes(DataOp):

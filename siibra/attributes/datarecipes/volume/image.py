@@ -31,11 +31,8 @@ from ....operations.volume_fetcher.nifti import (
     IntersectNiftiWithNifti,
     NiftiFromPointCloud,
     ResampleNifti,
-    ReadNiftiFromBytes,
 )
 from ....operations.volume_fetcher.neuroglancer_precomputed import (
-    ReadNeuroglancerPrecomputed,
-    NgPrecomputedFetchCfg,
     NG_VOLUME_FORMAT_STR,
     fetch_ng_bbox,
 )
@@ -53,19 +50,6 @@ class ImageRecipe(VolumeRecipe):
 
     schema: str = "siibra/attr/data/image/v0.1"
     colormap: str = None  # TODO: remove
-
-    @classmethod
-    def _generate_ops(cls, conf: Dict):
-        format = conf.get("format")
-        base_url = conf.get("url")
-        if format == "neuroglancer/precomputed":
-            return [ReadNeuroglancerPrecomputed.generate_specs(base_url=base_url)]
-        if format == "nii":
-            return [
-                *super()._generate_ops(conf),
-                ReadNiftiFromBytes.generate_specs(),
-            ]
-        raise NotImplementedError(f"Cannot parse format: {format}")
 
     @property
     def boundingbox(self) -> "_boundingbox.BoundingBox":
@@ -256,30 +240,6 @@ class ImageRecipe(VolumeRecipe):
 
     def get_data(self, **kwargs) -> nib.Nifti1Image:
         return super().get_data(**kwargs)
-
-    def query(
-        self,
-        *arg,
-        bbox: "_boundingbox.BoundingBox" = None,
-        resolution_mm: float = None,
-        **kwargs,
-    ):
-        """
-        Return a copy of the image provider with the following constrains (if provided):
-
-        - bounded by bbox (works on all formats)
-        - use closest resolution_mm (only on neuroglancer precomputed format)
-        """
-        new_img_prov = replace(self)
-        if bbox is not None:
-            new_img_prov.append_op(NiftiExtractVOI.generate_specs(voi=bbox))
-        if resolution_mm is not None:
-            new_img_prov.append_op(
-                NgPrecomputedFetchCfg.generate_specs(
-                    fetch_config={"resolution_mm": resolution_mm}
-                )
-            )
-        return new_img_prov
 
 
 def from_pointcloud(

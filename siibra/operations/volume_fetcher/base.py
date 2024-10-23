@@ -1,15 +1,13 @@
-from typing import Dict, List, TYPE_CHECKING, Type
+from typing import Dict, Callable, List
 
 try:
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal
 
-if TYPE_CHECKING:
-    from ...attributes.datarecipes.volume import VolumeRecipe
-
-from ...operations.base import DataOp
 from ...commons.logger import logger
+
+RegisterFormatRead = Callable[[Dict, List[Dict]], List[Dict]]
 
 
 # TODO (ASAP) re: datarecipe rewrite, consider how to implement on_init, on_append etc
@@ -21,46 +19,32 @@ class VolumeFormats:
         "mesh": MESH_FORMATS,
         "image": IMAGE_FORMATS,
     }
-    READER_LOOKUP: Dict[str, Type["PostProcVolProvider"]] = {}
+    READER_LOOKUP: Dict[str, RegisterFormatRead] = {}
 
     @classmethod
     def register_format_read(cls, format: str, voltype: Literal["mesh", "image"]):
+        """
+        Registers image/mesh formats, and the DataOps generated based on ImageRecipe.
 
-        def outer(Cls: Type["PostProcVolProvider"]):
-            assert issubclass(
-                Cls, PostProcVolProvider
-            ), f"register_format_read must target a subclass of volume ret op"
+        The wrapped function should expect two positional arguments:
 
+        - dict of the ImageRecipe
+        - list of default DataOp specification generated (generated from .url, .archive_options etc)
+
+        The wrapped function should return a list of DataOp specifications (List[Dict])
+        """
+
+        def outer(fn: RegisterFormatRead):
             if format in cls.READER_LOOKUP:
                 logger.warning(
                     f"{format} already registered by {cls.READER_LOOKUP[format].__name__}, overriden by {Cls.__name__}"
                 )
-            cls.READER_LOOKUP[format] = Cls
+            cls.READER_LOOKUP[format] = fn
             if voltype == "mesh":
                 cls.MESH_FORMATS.append(format)
             if voltype == "image":
                 cls.IMAGE_FORMATS.append(format)
             cls.FORMAT_LOOKUP[None] = cls.IMAGE_FORMATS + cls.MESH_FORMATS
-            return Cls
+            return fn
 
         return outer
-
-
-# TODO (ASAP) remove, but consider how it should be implemented in lieu with the new datarecipe paradigm
-class PostProcVolProvider:
-
-    @classmethod
-    def on_post_init(cls, volume_provider: "VolumeRecipe"):
-        pass
-
-    @classmethod
-    def on_get_retrieval_ops(cls, volume_provider: "VolumeRecipe"):
-        from ...attributes.datarecipes.volume import VolumeRecipe
-
-        return super(VolumeRecipe, volume_provider).retrieval_ops
-
-    @classmethod
-    def on_append_op(cls, volume_provider: "VolumeRecipe", op: Dict):
-        from ...attributes.datarecipes.volume import VolumeRecipe
-
-        return super(VolumeRecipe, volume_provider).append_op(op)

@@ -1,6 +1,6 @@
 from unittest.mock import mock_open, patch, MagicMock
 from siibra.operations.file_fetcher import RemoteLocalDataOp
-from siibra.commons.conf import SiibraConf
+from siibra.commons.conf import PerfConf
 import pytest
 import requests
 
@@ -14,7 +14,7 @@ def fixture_mock_open():
 
 @pytest.fixture
 def mock_request():
-    with SiibraConf.override_conf(keep_local_cache=0):
+    with PerfConf.override_conf(keep_local_cache=0):
         with patch.object(requests, "get") as mock_get:
             mock_get.return_value = MagicMock()
             yield mock_get
