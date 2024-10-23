@@ -30,4 +30,4 @@ def test_onthefly_and_preconfig_bboxes(volume: Volume, clip_flag: bool):
             }
         )
     bbox = volume.get_boundingbox(**kwargs)
-    assert configured_bbox == bbox, f"{volume}"
+    assert configured_bbox == bbox, f" {volume}"
