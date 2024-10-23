@@ -13,7 +13,7 @@ imagefeatures = [
 volumes = list(zip(map_vols, repeat(True))) + list(zip(imagefeatures, repeat(False)))
 
 
-@pytest.mark.parametrize("volume, clip_flag", map_vols)
+@pytest.mark.parametrize("volume, clip_flag", volumes)
 def test_onthefly_and_preconfig_bboxes(volume: Volume, clip_flag: bool):
     configured_bbox = volume._boundingbox
     if configured_bbox is None:
