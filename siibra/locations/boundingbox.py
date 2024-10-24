@@ -188,12 +188,18 @@ class BoundingBox(location.Location):
                 result_minpt.append(A[dim])
                 result_maxpt.append(B[dim])
 
+        if result_minpt == result_maxpt:
+            return result_minpt
+
         bbox = BoundingBox(
             point1=point.Point(result_minpt, self.space),
             point2=point.Point(result_maxpt, self.space),
             space=self.space,
         )
-        return bbox if bbox.volume > 0 else None
+
+        if bbox.volume == 0 and sum(cmin == cmax for cmin, cmax in zip(result_minpt, result_maxpt)) == 2:
+            return None
+        return bbox
 
     def _intersect_mask(self, mask: 'Nifti1Image', threshold=0):
         """Intersect this bounding box with an image mask. Returns None if they do not intersect.
