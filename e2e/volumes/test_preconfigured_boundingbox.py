@@ -23,7 +23,6 @@ def test_onthefly_and_preconfig_bboxes(volume: Volume, clip_flag: bool):
     if "neuroglancer/precomputed" in volume.providers:
         kwargs.update(
             {
-                "clip": False,
                 "resolution_mm": -1,
                 "format": "neuroglancer/precomputed",
                 "max_bytes": 2 * 1024**3,
