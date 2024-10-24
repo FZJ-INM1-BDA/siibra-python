@@ -292,7 +292,10 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         url = AllenBrainAtlasQuery._QUERY["microarray"].format(
             probe_ids=",".join([str(id) for id in probe_ids]), donor_id=donor_id
         )
-        response = HttpRequest(url, json.loads).get()
+        try:
+            response = HttpRequest(url, json.loads).get()
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"Allen institute site produced an empty response - please try again later.\n{e}")
         if not response["success"]:
             raise Exception(
                 "Invalid response when retrieving microarray data: {}".format(url)
