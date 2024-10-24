@@ -157,6 +157,18 @@ def register_ebrains_modality():
 
 
 class EbrainsQuery(LiveQuery[Feature], generates=Feature):
+
+    @classmethod
+    def needs(cls, ac):
+        for mod in ac._find(Modality):
+            if mod == ebrains_modality:
+                return True
+
+        if len(ac._find(RegionSpec)) > 0:
+            return True
+
+        return False
+
     repo = DataproxyRepository("reference-atlas-data")
 
     _BLACKLIST = {

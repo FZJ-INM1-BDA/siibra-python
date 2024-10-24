@@ -21,10 +21,11 @@ from . import ebrains
 from .base import LiveQuery
 from ...attributes import AttributeCollection
 
-from typing import TypeVar, Type
+from typing import TypeVar, Type, List
 
 T = TypeVar("T", bound=AttributeCollection)
 
 
-def iter_livequery_clss(_type: Type[T]):
-    yield from LiveQuery.get_clss(_type)
+def iter_live(_type: Type[T], criteria: List[AttributeCollection]):
+    for inst in LiveQuery.iter_livequery_instances(_type, criteria):
+        yield from inst.generate()

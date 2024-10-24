@@ -69,7 +69,19 @@ class ProcessCellBodyDensity(DataOp):
 
 
 class CellbodyDensityAggregator(LiveQuery, generates=Feature):
-    def generate(self) -> Iterator:
+
+    @classmethod
+    def needs(cls, ac):
+        from ...atlases import Region
+
+        for mod in ac._find(Modality):
+            if mod == cell_body_density_modality:
+                return True
+        if isinstance(ac, Region):
+            return True
+        return False
+
+    def generate(self):
         from ...factory.configuration import iter_preconfigured
         from ...atlases import Region
         from ...assignment.assignment import match as ac_match

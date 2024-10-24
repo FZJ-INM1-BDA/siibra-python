@@ -22,8 +22,7 @@ from .assignment import (
     qualify as collection_qualify,
     preprocess_concept,
 )
-from ..factory.livequery import LiveQuery
-from ..factory.configuration import iter_preconfigured
+from ..factory import iter_preconfigured, iter_live
 from ..attributes import AttributeCollection
 from ..attributes.descriptions import ID, Name, Categorization
 from ..cache import fn_call_cache
@@ -62,15 +61,11 @@ class SearchResult(Generic[T]):
     @staticmethod
     def _find_iter(criteria: List[AttributeCollection], search_type: Type[T]):
 
-        from ..factory import iter_preconfigured
-
         for item in iter_preconfigured(search_type):
             if all(collection_match(cri, item) for cri in criteria):
                 yield item
 
-        for cls in LiveQuery.get_clss(search_type):
-            inst = cls(criteria)
-            yield from inst.generate()
+        yield from iter_live(search_type, criteria)
 
     @staticmethod
     @fn_call_cache
@@ -88,8 +83,19 @@ class SearchResult(Generic[T]):
     def build_summary_table(items: List[T]):
         """
         Returns a dataframe where user can inspect/evaluate how to further narrow down
-        the search result. Similar to AttributeCollection.data_recipe_table
+        the search result. Similar to AttributeCollection.data_recipe_table.
+
+        The returned dataframe, even if items were an empty list, would contain columns:
+        - name
+        - modalities
+        - categorizations
+        - ID
+        - instance
         """
+        if len(items) == 0:
+            return pd.DataFrame(
+                [], columns=["name", "modalities", "categorizations", "ID", "instance"]
+            )
         list_of_dict = [
             {
                 "name": item.name,

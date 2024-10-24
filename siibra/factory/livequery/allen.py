@@ -29,7 +29,7 @@ from ...cache import fn_call_cache, CACHE
 from ...commons.logger import logger
 from ...commons.iterable import flatmap
 from ...concepts import Feature
-from ...attributes.descriptions import register_modalities, Modality, Gene
+from ...attributes.descriptions import register_modalities, Modality, Gene, ID
 from ...attributes.locations import PointCloud
 from ...attributes.datarecipes import TabularDataRecipe, ImageRecipe
 from ...attributes.datarecipes.volume.image import intersect_ptcld_image
@@ -99,22 +99,26 @@ def add_allen_modality():
 # LiveQuery[Feature] -> the Feature annotation here is for typing
 # generates=Feature -> the declaration here is to indicate to the baseclass that this class generates Feature
 class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
-    def generate(self):
+
+    @classmethod
+    def needs(cls, ac):
+        for mod in ac._find(Modality):
+            if mod == modality_of_interest:
+                return True
+
+        if len(ac._find(Gene)) > 0:
+            return True
+
+        if isinstance(ac, Region):
+            return True
+
+        return False
+
+    def get_image_recipe(self):
         from ... import get_map
 
-        all_mods = [mod for li in self.find_attributes(Modality) for mod in li]
-        if modality_of_interest not in all_mods:
-            return
-        all_genes = [mod for li in self.find_attributes(Gene) for mod in li]
-        if len(all_genes) == 0:
-            logger.warning(
-                f"AllenLiveQueryError: expecting at least one gene, but got {len(all_genes)}."
-            )
-            return
-
-        use_query_concept: Union[ImageRecipe, None] = None
         regions = self.find_attribute_collections(Region)
-        if len(regions) > 1:
+        if len(regions) > 0:
             logger.warning(
                 f"AllenLiveQueryError: expecting one and only one Region, but got {len(regions)}."
             )
@@ -122,26 +126,33 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
             region = regions[0]
 
             map = get_map(region.parcellation.ID, "icbm 152")
-            use_query_concept = map.extract_regional_map(region)
+            return map.extract_regional_map(region)
 
         queried_image_providers = flatmap(self.find_attributes(ImageRecipe))
         if len(queried_image_providers) > 0:
-            if use_query_concept is not None:
-                logger.warning(
-                    f"Both region {region.name} and image_provider {queried_image_providers} are supplied. Ignoring supplied region"
-                )
             if len(queried_image_providers) > 1:
                 logger.warning(
                     f"Expected exactly one image_provider, but provided {len(queried_image_providers)}. Using the first one."
                 )
-            use_query_concept = queried_image_providers[0]
+            return queried_image_providers[0]
+
+    def generate(self):
+
+        all_genes = [mod for li in self.find_attributes(Gene) for mod in li]
+        if len(all_genes) == 0:
+            logger.warning(
+                f"AllenLiveQueryError: expecting at least one gene, but got {len(all_genes)}."
+            )
+            return
+
+        use_query_concept = self.get_image_recipe()
 
         if use_query_concept is None:
             return
 
         print(ALLEN_ATLAS_NOTIFICATION)
 
-        attributes = [replace(modality_of_interest)]
+        attributes = [ID(value=None), replace(modality_of_interest)]
 
         genes = [g.value for g in all_genes]
         retrieved_measurements = _retrieve_measurements(genes)

@@ -10,9 +10,20 @@ Y = TypeVar("Y", bound=Attribute)
 
 
 class LiveQuery(ABC, Generic[T]):
-    _ATTRIBUTE_COLLECTION_REGISTRY: Dict[
-        Type[V], List[Type["LiveQuery[V]"]]
-    ] = defaultdict(list)
+    """
+    Base class where AttributeCollection can be generated on-the-fly.
+
+    Deriving class is as follows:
+
+    ```
+    class DerviedLiveQuery(LiveQuery, generates=Feature): pass
+    ```
+
+    """
+
+    _ATTRIBUTE_COLLECTION_REGISTRY: Dict[Type[V], List[Type["LiveQuery[V]"]]] = (
+        defaultdict(list)
+    )
 
     def __init__(self, input: List[AttributeCollection]):
         self.input = input
@@ -21,13 +32,39 @@ class LiveQuery(ABC, Generic[T]):
         cls._ATTRIBUTE_COLLECTION_REGISTRY[generates].append(cls)
 
     @classmethod
-    def get_clss(cls, find_type: Type[V]):
+    def iter_livequery_instances(
+        cls, find_type: Type[V], criteria: List[AttributeCollection]
+    ):
         clss: List[Type[LiveQuery[V]]] = cls._ATTRIBUTE_COLLECTION_REGISTRY[find_type]
-        return clss
+        for cls in clss:
+            for criterion in criteria:
+                if not cls.needs(criterion):
+                    continue
+            yield cls(criteria)
 
     @abstractmethod
     def generate(self) -> Iterator[T]:
+        """
+        Derived classes must override this method.
+
+        siibra will call `generate()` to retrieve instances of type T, accordingly to the specifications (instance.inputs)
+        This method can be slow/heavy.
+        """
         raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def needs(cls, ac: AttributeCollection) -> bool:
+        """
+        Derived classes should override this classmethod.
+
+        siibra will use the implementation to filter LiveQuery classes that does **not** match input criteria.
+
+        This method should be quick (e.g. **not** network bound, does **not** require heavy computation).
+        Dervied class should over promise (i.e. return True), as they can still opt to return empty Iterable when
+        `generate()` is called.
+        """
+        return False
 
     def find_attributes(self, type: Type[Y]):
         """Filters for the type indicated, returns List of List of attributes.

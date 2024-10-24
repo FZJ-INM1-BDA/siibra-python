@@ -32,7 +32,8 @@ try:
 except ImportError:
     from typing_extensions import TypedDict
 
-from .base import VolumeFormats, DataOp
+from .. import base as operations_base
+from .base import VolumeFormats
 from ...cache import fn_call_cache
 from ...commons.logger import logger
 from ...commons.conf import PerfConf
@@ -345,7 +346,7 @@ def read_ng(conf: Dict, _: List[Dict]):
     return [ReadNeuroglancerPrecomputed.generate_specs(base_url=base_url)]
 
 
-class ReadNeuroglancerPrecomputed(DataOp):
+class ReadNeuroglancerPrecomputed(operations_base.DataOp):
     input: None
     output: nib.Nifti1Image
     desc = "Directly read neuroglancer volume"

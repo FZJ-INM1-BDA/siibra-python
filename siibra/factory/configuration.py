@@ -359,6 +359,10 @@ class PreconfiguredRegionQuery(LiveQuery[Region], generates=Region):
     TODO profile against dumb method
     """
 
+    @classmethod
+    def needs(cls, ac):
+        return True
+
     def generate(self):
         region_specs = [
             attr for attrs in self.find_attributes(RegionSpec) for attr in attrs
@@ -379,6 +383,11 @@ class PreconfiguredRegionQuery(LiveQuery[Region], generates=Region):
 
 
 class PreconfiguredMapQuery(LiveQuery[Map], generates=Map):
+
+    @classmethod
+    def needs(cls, ac):
+        return True
+
     def generate(self) -> Iterator[Map]:
         from ..attributes.descriptions import SpaceSpec, ParcSpec, ID, Name
         from ..concepts import QueryParam

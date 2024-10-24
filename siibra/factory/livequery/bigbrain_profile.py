@@ -55,6 +55,18 @@ def add_modified_silver_staining():
 
 
 class BigBrainProfile(LiveQuery[Feature], generates=Feature):
+
+    @classmethod
+    def needs(cls, ac):
+        for mod in ac._find(Modality):
+            if mod in modalities_of_interest:
+                return True
+
+        if len(ac._find(ImageRecipe)) > 0:
+            return True
+
+        return False
+
     def generate(self) -> Iterator[Feature]:
         requested_mods = [
             mod for mods in self.find_attributes(Modality) for mod in mods

@@ -134,6 +134,14 @@ def list_all() -> List[str]:
 
 
 class SpaceLiveQuery(LiveQuery[Space], generates=Space):
+
+    @classmethod
+    def needs(cls, ac):
+        for id in ac._find(ID):
+            if id.value.startswith(PREFIX):
+                return True
+        return False
+
     def generate(self) -> Iterator[Space]:
         ids = [
             id
@@ -176,6 +184,13 @@ class SpaceLiveQuery(LiveQuery[Space], generates=Space):
 class ParcellationLiveQuery(
     LiveQuery[ParcellationScheme], generates=ParcellationScheme
 ):
+    @classmethod
+    def needs(cls, ac):
+        for id in ac._find(ID):
+            if id.value.startswith(PREFIX):
+                return True
+        return False
+
     @staticmethod
     def populate_regions(
         structures: List[Structure],
@@ -261,6 +276,11 @@ class ParcellationLiveQuery(
 
 
 class MapLiveQuery(LiveQuery[Map], generates=Map):
+
+    @classmethod
+    def needs(cls, ac):
+        return True
+
     def generate(self) -> Iterator[Map]:
         atlas_names = None
 
