@@ -14,8 +14,18 @@ dummy_data1 = MagicMock()
 dummy_data2 = MagicMock()
 
 
+# This fixture temporarily clears production warmup fns
+# and restores them after test finishes
+@pytest.fixture(scope="session")
+def clearwarmup_cache():
+    warmup_fns = Warmup._warmup_fns
+    Warmup._warmup_fns = []
+    yield
+    Warmup._warmup_fns = warmup_fns
+
+
 @pytest.fixture
-def register_dummy1():
+def register_dummy1(clearwarmup_cache):
     wrapped_fn = Warmup.register_warmup_fn(WarmupLevel.INSTANCE)(dummy1)
     yield wrapped_fn
     Warmup.deregister_warmup_fn(dummy1)
@@ -26,7 +36,7 @@ def register_dummy1():
 
 
 @pytest.fixture
-def register_dummy2():
+def register_dummy2(clearwarmup_cache):
     wrapped_fn = Warmup.register_warmup_fn(WarmupLevel.INSTANCE)(dummy2)
     yield wrapped_fn
     Warmup.deregister_warmup_fn(dummy2)
@@ -34,7 +44,7 @@ def register_dummy2():
 
 
 @pytest.fixture
-def register_dummy_data1():
+def register_dummy_data1(clearwarmup_cache):
     wrapped_fn = Warmup.register_warmup_fn(WarmupLevel.DATA)(dummy_data1)
     yield wrapped_fn
     Warmup.deregister_warmup_fn(dummy_data1)
@@ -42,7 +52,7 @@ def register_dummy_data1():
 
 
 @pytest.fixture
-def register_dummy_data2():
+def register_dummy_data2(clearwarmup_cache):
     wrapped_fn = Warmup.register_warmup_fn(WarmupLevel.DATA)(dummy_data2)
     yield wrapped_fn
     Warmup.deregister_warmup_fn(dummy_data2)

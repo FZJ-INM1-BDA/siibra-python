@@ -20,11 +20,11 @@ from ..features.tabular import (
     receptor_density_fingerprint,
     cell_density_profile,
     layerwise_cell_density,
-    regional_timeseries_activity
+    regional_timeseries_activity,
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
-from ..locations import point, pointset
+from ..locations import point, pointset, boundingbox
 from ..retrieval import datasets, repositories
 from ..volumes import volume, sparsemap, parcellationmap
 from ..volumes.providers.provider import VolumeProvider
@@ -48,7 +48,9 @@ def build_type(type_str: str):
         @wraps(fn)
         def inner(*args, **kwargs):
             return fn(*args, **kwargs)
+
         return inner
+
     return outer
 
 
@@ -65,7 +67,9 @@ class Factory:
             )
         if "openminds/DatasetVersion" in spec.get("ebrains", {}):
             result.append(
-                datasets.EbrainsV3DatasetVersion(id=spec["ebrains"]["openminds/DatasetVersion"])
+                datasets.EbrainsV3DatasetVersion(
+                    id=spec["ebrains"]["openminds/DatasetVersion"]
+                )
             )
         if "openminds/Dataset" in spec.get("ebrains", {}):
             result.append(
@@ -78,40 +82,41 @@ class Factory:
                     contributors=pub["authors"],
                     url=pub["url"],
                     description=pub["description"],
-                    license=pub.get("license")
+                    license=pub.get("license"),
                 )
-                for pub in spec["publications"] if pub.get('name')
+                for pub in spec["publications"]
+                if pub.get("name")
             )
         return result
 
     @classmethod
     def extract_volumes(
-        cls,
-        spec,
-        space_id: str = None,
-        names: List[str] = None,
-        name_prefix: str = ""
+        cls, spec, space_id: str = None, names: List[str] = None, name_prefix: str = ""
     ):
         volume_specs = spec.get("volumes", [])
         if names:
             if len(names) != len(volume_specs) and len(names) == 1:
-                variants = [vol['variant'] for vol in volume_specs]
+                variants = [vol["variant"] for vol in volume_specs]
                 names = [f"{name_prefix}{names[0]} {var} variant" for var in variants]
         else:
             names = [f"{name_prefix} - volume {i}" for i in range(len(volume_specs))]
         for i, vspec in enumerate(volume_specs):
             if space_id:
-                if 'space' in vspec:
-                    assert vspec['space']["@id"] == space_id, "Space spec {vspec['space']} in volume field must be the same with space field in the configuration."
-                vspec['space'] = {"@id": space_id}
-            if names and vspec.get('name') is None:  # only use provided name if the volume has no specific name
-                vspec['name'] = names[i]
+                if "space" in vspec:
+                    assert (
+                        vspec["space"]["@id"] == space_id
+                    ), "Space spec {vspec['space']} in volume field must be the same with space field in the configuration."
+                vspec["space"] = {"@id": space_id}
+            if (
+                names and vspec.get("name") is None
+            ):  # only use provided name if the volume has no specific name
+                vspec["name"] = names[i]
         return list(map(cls.build_volume, volume_specs))
 
     @classmethod
     def extract_decoder(cls, spec):
         decoder_spec = spec.get("decoder", {})
-        if decoder_spec["@type"].endswith('csv'):
+        if decoder_spec["@type"].endswith("csv"):
             kwargs = {k: v for k, v in decoder_spec.items() if k != "@type"}
             return lambda b: pd.read_csv(BytesIO(b), **kwargs)
         else:
@@ -119,52 +124,52 @@ class Factory:
 
     @classmethod
     def extract_anchor(cls, spec):
-        if spec.get('region'):
-            region = spec['region']
-        elif spec.get('parcellation', {}).get('@id'):
+        if spec.get("region"):
+            region = spec["region"]
+        elif spec.get("parcellation", {}).get("@id"):
             # a parcellation is a special region,
             # and can be used if no region is found
-            region = spec['parcellation']['@id']
-        elif spec.get('parcellation', {}).get('name'):
-            region = spec['parcellation']['name']
+            region = spec["parcellation"]["@id"]
+        elif spec.get("parcellation", {}).get("name"):
+            region = spec["parcellation"]["name"]
         else:
             region = None
 
-        if 'location' in spec:
-            location = cls.from_json(spec['location'])
+        if "location" in spec:
+            location = cls.from_json(spec["location"])
         else:
             location = None
 
         if (region is None) and (location is None):
             print(spec)
-            raise RuntimeError("Spec provides neither region or location - no anchor can be extracted.")
+            raise RuntimeError(
+                "Spec provides neither region or location - no anchor can be extracted."
+            )
 
-        if 'species' in spec:
-            species = Species.decode(spec['species'])
-        elif ('ebrains' in spec):
-            species = Species.decode(spec['ebrains'])
+        if "species" in spec:
+            species = Species.decode(spec["species"])
+        elif "ebrains" in spec:
+            species = Species.decode(spec["ebrains"])
         else:
             raise ValueError(f"No species information found in spec {spec}")
 
         return anchor.AnatomicalAnchor(
-            region=region,
-            location=location,
-            species=species
+            region=region, location=location, species=species
         )
 
     @classmethod
     def extract_connector(cls, spec):
-        repospec = spec.get('repository', {})
+        repospec = spec.get("repository", {})
         spectype = repospec["@type"]
         if spectype == "siibra/repository/zippedfile/v1.0.0":
-            return repositories.ZipfileConnector(repospec['url'])
+            return repositories.ZipfileConnector(repospec["url"])
         if spectype == "siibra/repository/localfolder/v1.0.0":
-            return repositories.LocalFileRepository(repospec['folder'])
+            return repositories.LocalFileRepository(repospec["folder"])
         if spectype == "siibra/repository/gitlab/v1.0.0":
             return repositories.GitlabConnector(
-                server=repospec['server'],
-                project=repospec['project'],
-                reftag=repospec['branch']
+                server=repospec["server"],
+                project=repospec["project"],
+                reftag=repospec["branch"],
             )
 
         logger.warning(
@@ -179,7 +184,7 @@ class Factory:
         a = atlas.Atlas(
             spec["@id"],
             spec["name"],
-            species=Species.decode(spec.get('species')),
+            species=Species.decode(spec.get("species")),
             prerelease=spec.get("prerelease", False),
         )
         for space_id in spec["spaces"]:
@@ -194,8 +199,10 @@ class Factory:
         return space.Space(
             identifier=spec["@id"],
             name=spec["name"],
-            species=Species.decode(spec.get('species')),
-            volumes=cls.extract_volumes(spec, space_id=spec.get("@id"), names=[spec.get("name")]),
+            species=Species.decode(spec.get("species")),
+            volumes=cls.extract_volumes(
+                spec, space_id=spec.get("@id"), names=[spec.get("name")]
+            ),
             shortname=spec.get("shortName", ""),
             description=spec.get("description"),
             modality=spec.get("modality"),
@@ -231,18 +238,18 @@ class Factory:
         p = parcellation.Parcellation(
             identifier=spec["@id"],
             name=spec["name"],
-            species=Species.decode(spec.get('species')),
+            species=Species.decode(spec.get("species")),
             regions=regions,
             shortname=spec.get("shortName", ""),
             description=spec.get("description", ""),
-            modality=spec.get('modality', ""),
+            modality=spec.get("modality", ""),
             publications=spec.get("publications", []),
             datasets=cls.extract_datasets(spec),
             prerelease=spec.get("prerelease", False),
         )
 
         # add version object, if any is specified
-        versionspec = spec.get('@version', None)
+        versionspec = spec.get("@version", None)
         if versionspec is not None:
             version = parcellation.ParcellationVersion(
                 name=versionspec.get("name", None),
@@ -250,35 +257,44 @@ class Factory:
                 collection=versionspec.get("collectionName", None),
                 prev_id=versionspec.get("@prev", None),
                 next_id=versionspec.get("@next", None),
-                deprecated=versionspec.get("deprecated", False)
+                deprecated=versionspec.get("deprecated", False),
             )
             p.version = version
 
         return p
 
     @classmethod
-    @build_type("siibra/volume/v0.0.1")
-    def build_volume(cls, spec):
-        providers: List[volume.VolumeProvider] = []
-
-        for srctype, provider_spec in spec.get("providers", {}).items():
+    def build_volumeproviders(cls, provider_specs: Dict) -> List["VolumeProvider"]:
+        providers: List[VolumeProvider] = []
+        for srctype, provider_spec in provider_specs.items():
             for ProviderType in VolumeProvider._SUBCLASSES:
                 if srctype == ProviderType.srctype:
                     providers.append(ProviderType(provider_spec))
                     break
             else:
                 if srctype not in cls._warnings_issued:
-                    logger.warning(f"No provider defined for volume Source type {srctype}")
+                    logger.warning(
+                        f"No provider defined for volume Source type {srctype}"
+                    )
                     cls._warnings_issued.append(srctype)
-
         assert all([isinstance(p, VolumeProvider) for p in providers])
+        return providers
+
+    @classmethod
+    @build_type("siibra/volume/v0.0.1")
+    def build_volume(cls, spec):
         result = volume.Volume(
             space_spec=spec.get("space", {}),
-            providers=providers,
+            providers=cls.build_volumeproviders(spec.get("providers")),
             name=spec.get("name", ""),
             variant=spec.get("variant"),
             datasets=cls.extract_datasets(spec),
+            bbox=cls.build_boundingbox(spec),
         )
+        if result._boundingbox is not None:
+            assert (
+                result._boundingbox._space_spec == result._space_spec
+            ), "BoundingBox of a volume cannot be in a different space than the volume's space."
 
         return result
 
@@ -287,10 +303,16 @@ class Factory:
     def build_map(cls, spec):
         # maps have no configured identifier - we require the spec filename to build one
         assert "filename" in spec
-        basename = path.splitext(path.basename(spec['filename']))[0]
-        name = basename.replace('-', ' ').replace('_', ' ').replace('continuous', 'statistical')
+        basename = path.splitext(path.basename(spec["filename"]))[0]
+        name = (
+            basename.replace("-", " ")
+            .replace("_", " ")
+            .replace("continuous", "statistical")
+        )
         identifier = f"{spec['@type'].replace('/', '-')}_{basename}"
-        volumes = cls.extract_volumes(spec, space_id=spec["space"].get("@id"), name_prefix=basename)
+        volumes = cls.extract_volumes(
+            spec, space_id=spec["space"].get("@id"), name_prefix=basename
+        )
 
         if spec.get("sparsemap", {}).get("is_sparsemap"):
             Maptype = sparsemap.SparseMap
@@ -325,11 +347,11 @@ class Factory:
     @build_type("https://openminds.ebrains.eu/sands/CoordinatePoint")
     @build_type("siibra/location/point/v0.1")
     def build_point(cls, spec):
-        if spec.get('@type') == "https://openminds.ebrains.eu/sands/CoordinatePoint":
+        if spec.get("@type") == "https://openminds.ebrains.eu/sands/CoordinatePoint":
             space_id = spec["coordinateSpace"]["@id"]
             coord = list(np.float16(c["value"]) for c in spec["coordinates"])
             assert all(c["unit"]["@id"] == "id.link/mm" for c in spec["coordinates"])
-        elif spec.get('@type') == "siibra/location/point/v0.1":
+        elif spec.get("@type") == "siibra/location/point/v0.1":
             space_id = spec.get("space").get("@id")
             coord = spec.get("coordinate")
         else:
@@ -343,22 +365,32 @@ class Factory:
     @build_type("tmp/poly")
     @build_type("siibra/location/pointset/v0.1")
     def build_pointset(cls, spec):
-        if spec.get('@type') == 'tmp/poly':
+        if spec.get("@type") == "tmp/poly":
             space_id = spec["coordinateSpace"]["@id"]
             coords = []
             for coord in spec["coordinates"]:
                 assert all(c["unit"]["@id"] == "id.link/mm" for c in coord)
                 coords.append(list(np.float16(c["value"]) for c in coord))
-        elif spec.get('@type') == 'siibra/location/pointset/v0.1':
+        elif spec.get("@type") == "siibra/location/pointset/v0.1":
             space_id = spec.get("space").get("@id")
             coords = [tuple(c) for c in spec.get("coordinates")]
         return pointset.PointSet(coords, space=space_id)
 
     @classmethod
+    @build_type("siibra/location/boundingbox/v0.1")
+    def build_boundingbox(cls, spec):
+        bboxspec = spec.get("boundingbox", None)
+        if bboxspec is None:
+            return None
+        space_spec = bboxspec.get("space")
+        coords = [tuple(c) for c in bboxspec.get("coordinates")]
+        return boundingbox.BoundingBox(coords[0], coords[1], space=space_spec)
+
+    @classmethod
     @build_type("siibra/feature/fingerprint/receptor/v0.1")
     def build_receptor_density_fingerprint(cls, spec):
         return receptor_density_fingerprint.ReceptorDensityFingerprint(
-            tsvfile=spec['file'],
+            tsvfile=spec["file"],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
             id=spec.get("@id", None),
@@ -369,8 +401,8 @@ class Factory:
     @build_type("siibra/feature/fingerprint/celldensity/v0.1")
     def build_cell_density_fingerprint(cls, spec):
         return layerwise_cell_density.LayerwiseCellDensity(
-            segmentfiles=spec['segmentfiles'],
-            layerfiles=spec['layerfiles'],
+            segmentfiles=spec["segmentfiles"],
+            layerfiles=spec["layerfiles"],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
             id=spec.get("@id", None),
@@ -381,8 +413,8 @@ class Factory:
     @build_type("siibra/feature/profile/receptor/v0.1")
     def build_receptor_density_profile(cls, spec):
         return receptor_density_profile.ReceptorDensityProfile(
-            receptor=spec['receptor'],
-            tsvfile=spec['file'],
+            receptor=spec["receptor"],
+            tsvfile=spec["file"],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
             id=spec.get("@id", None),
@@ -393,9 +425,9 @@ class Factory:
     @build_type("siibra/feature/profile/celldensity/v0.1")
     def build_cell_density_profile(cls, spec):
         return cell_density_profile.CellDensityProfile(
-            section=spec['section'],
-            patch=spec['patch'],
-            url=spec['file'],
+            section=spec["section"],
+            patch=spec["patch"],
+            url=spec["file"],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
             id=spec.get("@id", None),
@@ -405,36 +437,38 @@ class Factory:
     @classmethod
     @build_type("siibra/feature/section/v0.1")
     def build_section(cls, spec):
-        vol = cls.build_volume(spec)
         kwargs = {
-            "name": spec.get('name', ""),
-            "region": spec.get('region', None),
-            "space_spec": vol._space_spec,
-            "providers": vol._providers.values(),
+            "name": spec.get("name"),
+            "region": spec.get("region", None),
+            "space_spec": spec.get("space"),
+            "providers": cls.build_volumeproviders(spec.get("providers")),
             "datasets": cls.extract_datasets(spec),
+            "bbox": cls.build_boundingbox(spec),
             "id": spec.get("@id", None),
             "prerelease": spec.get("prerelease", False),
         }
-        modality = spec.get('modality', "")
+        modality = spec.get("modality", "")
         if modality == "cell body staining":
             return sections.CellbodyStainedSection(**kwargs)
         else:
-            raise ValueError(f"No method for building image section feature type {modality}.")
+            raise ValueError(
+                f"No method for building image section feature type {modality}."
+            )
 
     @classmethod
     @build_type("siibra/feature/voi/v0.1")
     def build_volume_of_interest(cls, spec):
-        vol = cls.build_volume(spec)
         kwargs = {
-            "name": spec.get('name', ""),
-            "region": spec.get('region', None),
-            "space_spec": vol._space_spec,
-            "providers": vol._providers.values(),
+            "name": spec.get("name"),
+            "region": spec.get("region", None),
+            "space_spec": spec.get("space"),
+            "providers": cls.build_volumeproviders(spec.get("providers")),
             "datasets": cls.extract_datasets(spec),
+            "bbox": cls.build_boundingbox(spec),
             "id": spec.get("@id", None),
             "prerelease": spec.get("prerelease", False),
         }
-        modality = spec.get('modality', "")
+        modality = spec.get("modality", "")
         if modality == "cell body staining":
             return volume_of_interest.CellBodyStainedVolumeOfInterest(**kwargs)
         elif modality == "blockface":
@@ -448,25 +482,21 @@ class Factory:
                 modality="transmittance", **kwargs
             )
         elif modality == "XPCT":
-            return volume_of_interest.XPCTVolumeOfInterest(
-                modality="XPCT", **kwargs
-            )
+            return volume_of_interest.XPCTVolumeOfInterest(modality="XPCT", **kwargs)
         elif modality == "DTI":
-            return volume_of_interest.DTIVolumeOfInterest(
-                modality=modality, **kwargs
-            )
+            return volume_of_interest.DTIVolumeOfInterest(modality=modality, **kwargs)
         # elif modality == "segmentation":
         #     return volume_of_interest.SegmentedVolumeOfInterest(**kwargs)
         elif "MRI" in modality:
-            return volume_of_interest.MRIVolumeOfInterest(
-                modality=modality, **kwargs
-            )
+            return volume_of_interest.MRIVolumeOfInterest(modality=modality, **kwargs)
         elif modality == "LSFM":
             return volume_of_interest.LSFMVolumeOfInterest(
                 modality="Light Sheet Fluorescence Microscopy", **kwargs
             )
         else:
-            raise ValueError(f"No method for building image section feature type {modality}.")
+            raise ValueError(
+                f"No method for building image section feature type {modality}."
+            )
 
     @classmethod
     @build_type("siibra/feature/connectivitymatrix/v0.3")
@@ -476,10 +506,14 @@ class Factory:
         try:
             conn_cls = getattr(connectivity, modality)
         except Exception:
-            raise ValueError(f"No method for building connectivity matrix of type {modality}.")
+            raise ValueError(
+                f"No method for building connectivity matrix of type {modality}."
+            )
 
         decoder_func = cls.extract_decoder(spec)
-        repo_connector = cls.extract_connector(spec) if spec.get('repository', None) else None
+        repo_connector = (
+            cls.extract_connector(spec) if spec.get("repository", None) else None
+        )
         if repo_connector is None:
             base_url = spec.get("base_url", "")
         kwargs = {
@@ -500,13 +534,15 @@ class Factory:
         assert files_indexed_by in ["subject", "feature"]
         conn_by_file = []
         for fkey, filename in files.items():
-            kwargs.update({
-                "filename": filename,
-                "subject": fkey if files_indexed_by == "subject" else "average",
-                "feature": fkey if files_indexed_by == "feature" else None,
-                "connector": repo_connector or base_url + filename,
-                "id": spec.get("@id", None)
-            })
+            kwargs.update(
+                {
+                    "filename": filename,
+                    "subject": fkey if files_indexed_by == "subject" else "average",
+                    "feature": fkey if files_indexed_by == "feature" else None,
+                    "connector": repo_connector or base_url + filename,
+                    "id": spec.get("@id", None),
+                }
+            )
             conn_by_file.append(conn_cls(**kwargs))
         return conn_by_file
 
@@ -537,11 +573,9 @@ class Factory:
             kwargs["paradigm"] = paradigm
         timeseries_by_file = []
         for fkey, filename in files.items():
-            kwargs.update({
-                "filename": filename,
-                "subject": fkey,
-                "id": spec.get("@id", None)
-            })
+            kwargs.update(
+                {"filename": filename, "subject": fkey, "id": spec.get("@id", None)}
+            )
             timeseries_by_file.append(timeseries_cls(**kwargs))
         return timeseries_by_file
 
@@ -554,7 +588,7 @@ class Factory:
                 with open(spec, "r") as f:
                     spec = json.load(f)
                     assert "filename" not in spec
-                    spec['filename'] = fname
+                    spec["filename"] = fname
             else:
                 spec = json.loads(spec)
 
