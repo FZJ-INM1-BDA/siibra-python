@@ -76,6 +76,9 @@ bbox_ = BoundingBox(space_id="bar", minpoint=[0, 0, 0], maxpoint=[2, 2, 2])
 bbox0 = BoundingBox(space_id="foo", minpoint=[0, 0, 0], maxpoint=[2, 2, 2])
 bbox1 = BoundingBox(space_id="foo", minpoint=[1, 1, 1], maxpoint=[2, 2, 2])
 bbox2 = BoundingBox(space_id="foo", minpoint=[4, 4, 4], maxpoint=[6, 6, 6])
+bbox3 = BoundingBox(space_id="foo", minpoint=[0, 0, 0], maxpoint=[2, 2, 0])
+bbox4 = BoundingBox(space_id="foo", minpoint=[0, 0, 0], maxpoint=[0, 2, 2])
+bbox3x4 = BoundingBox(space_id="foo", minpoint=[0, 0, 0], maxpoint=[0, 2, 0])
 
 pt_bbox_args = [
     [pt0, bbox0, replace(pt0), None],
@@ -134,6 +137,12 @@ bbox_bbox_args = [
     [bbox0, bbox_, None, InvalidAttrCompException],
     [bbox0, bbox1, replace(bbox1), None],
     [bbox0, bbox2, None, None],
+    [
+        bbox3,
+        bbox4,
+        bbox3x4,
+        None,
+    ],
 ]
 
 
