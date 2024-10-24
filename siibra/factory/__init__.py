@@ -27,7 +27,7 @@ It uses factory to construct siibra-instances.
 # needed to boostrap preconfigured objects
 
 from .configuration import iter_preconfigured
-from .livequery import iter_livequery_clss
+from .livequery import iter_live
 
 # import convenient image builders
 from ..attributes.datarecipes.volume.image import (
