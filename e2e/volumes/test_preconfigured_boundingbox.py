@@ -17,7 +17,7 @@ volumes = list(zip(map_vols, repeat(True))) + list(zip(imagefeatures, repeat(Fal
 def test_onthefly_and_preconfig_bboxes(volume: Volume, clip_flag: bool):
     configured_bbox = volume._boundingbox
     if configured_bbox is None:
-        pytest.skip(f"No preconfigured BoundingBox for {volume} is found.")
+        pytest.skip(f"No preconfigured BoundingBox for {volume} is found. ")
     volume._boundingbox = None
     kwargs = {"clip": clip_flag}
     if "neuroglancer/precomputed" in volume.providers:
