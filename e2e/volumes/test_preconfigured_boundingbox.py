@@ -20,13 +20,5 @@ def test_onthefly_and_preconfig_bboxes(volume: Volume, clip_flag: bool):
         pytest.skip(f"No preconfigured BoundingBox for {volume} is found. ")
     volume._boundingbox = None
     kwargs = {"clip": clip_flag}
-    if "neuroglancer/precomputed" in volume.providers:
-        kwargs.update(
-            {
-                "resolution_mm": -1,
-                "format": "neuroglancer/precomputed",
-                "max_bytes": 2 * 1024**3,
-            }
-        )
     bbox = volume.get_boundingbox(**kwargs)
     assert configured_bbox == bbox, f" {volume}"
