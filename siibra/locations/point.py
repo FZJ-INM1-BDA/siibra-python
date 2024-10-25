@@ -18,6 +18,7 @@ from . import location, boundingbox, pointset
 
 from ..commons import logger
 from ..retrieval.requests import HttpRequest
+from ..exceptions import SpaceWarpingFailedError
 
 from urllib.parse import quote
 import re
@@ -129,7 +130,7 @@ class Point(location.Location):
         if spaceobj == self.space:
             return self
         if any(_ not in location.Location.SPACEWARP_IDS for _ in [self.space.id, spaceobj.id]):
-            raise ValueError(
+            raise SpaceWarpingFailedError(
                 f"Cannot convert coordinates between {self.space.id} and {spaceobj.id}"
             )
         url = "{server}/transform-point?source_space={src}&target_space={tgt}&x={x}&y={y}&z={z}".format(
@@ -141,9 +142,9 @@ class Point(location.Location):
             z=self.coordinate[2],
         )
         response = HttpRequest(url, lambda b: json.loads(b.decode())).get()
-        if any(map(np.isnan, response['target_point'])):
-            logger.info(f'Warping {str(self)} to {spaceobj.name} resulted in NaN')
-            return None
+        if np.any(np.isnan(response['target_point'])):
+            raise SpaceWarpingFailedError(f'Warping {str(self)} to {spaceobj.name} resulted in NaN')
+
         return self.__class__(
             coordinatespec=tuple(response["target_point"]),
             space=spaceobj.id,
