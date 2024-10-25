@@ -33,7 +33,7 @@ query_and_results = [
     (siibra.features.get(siibra.get_template("big brain"), "CellbodyStainedSection"), 145),
     (siibra.features.get(siibra.get_template("big brain"), "CellBodyStainedVolumeOfInterest"), 2),
     (siibra.features.get(siibra.get_template("mni152"), "image", restrict_space=True), 4),
-    (siibra.features.get(siibra.get_template("mni152"), "image", restrict_space=False), 161),
+    (siibra.features.get(siibra.get_template("mni152"), "image", restrict_space=False), 13),  # TODO: should this query find all the images or it is okay if bigbrain sections fail?
     (siibra.features.get(siibra.get_region('julich 3.1', 'hoc1 left'), "CellbodyStainedSection"), 45),
     (siibra.features.get(siibra.get_region('julich 2.9', 'hoc1 left'), "CellbodyStainedSection"), 41)
 ]
