@@ -297,9 +297,10 @@ class BoundingBox(location.Location):
             return self
         else:
             try:
-                return self.corners.warp(spaceobj).boundingbox
-            except ValueError:
+                warped_corners = self.corners.warp(spaceobj)
+            except SpaceWarpingFailedError:
                 raise SpaceWarpingFailedError(f"Warping {str(self)} to {spaceobj.name} not successful.")
+            return warped_corners.boundingbox
 
     def transform(self, affine: np.ndarray, space=None):
         """Returns a new bounding box obtained by transforming the
