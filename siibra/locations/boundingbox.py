@@ -115,12 +115,12 @@ class BoundingBox(location.Location):
     def __str__(self):
         if self.space is None:
             return (
-                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)}) mm "
-                f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)}) mm"
+                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)})mm "
+                f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)})mm"
             )
         else:
             return (
-                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)}) mm "
+                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)})mm "
                 f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)})mm in {self.space.name} space"
             )
 
