@@ -115,12 +115,12 @@ class BoundingBox(location.Location):
     def __str__(self):
         if self.space is None:
             return (
-                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)}) mm "
-                f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)}) mm"
+                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)})mm "
+                f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)})mm"
             )
         else:
             return (
-                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)}) mm "
+                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)})mm "
                 f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)})mm in {self.space.name} space"
             )
 
@@ -188,12 +188,18 @@ class BoundingBox(location.Location):
                 result_minpt.append(A[dim])
                 result_maxpt.append(B[dim])
 
+        if result_minpt == result_maxpt:
+            return result_minpt
+
         bbox = BoundingBox(
             point1=point.Point(result_minpt, self.space),
             point2=point.Point(result_maxpt, self.space),
             space=self.space,
         )
-        return bbox if bbox.volume > 0 else None
+
+        if bbox.volume == 0 and sum(cmin == cmax for cmin, cmax in zip(result_minpt, result_maxpt)) == 2:
+            return None
+        return bbox
 
     def _intersect_mask(self, mask: 'Nifti1Image', threshold=0):
         """Intersect this bounding box with an image mask. Returns None if they do not intersect.
@@ -291,9 +297,10 @@ class BoundingBox(location.Location):
             return self
         else:
             try:
-                return self.corners.warp(spaceobj).boundingbox
-            except ValueError:
+                warped_corners = self.corners.warp(spaceobj)
+            except SpaceWarpingFailedError:
                 raise SpaceWarpingFailedError(f"Warping {str(self)} to {spaceobj.name} not successful.")
+            return warped_corners.boundingbox
 
     def transform(self, affine: np.ndarray, space=None):
         """Returns a new bounding box obtained by transforming the

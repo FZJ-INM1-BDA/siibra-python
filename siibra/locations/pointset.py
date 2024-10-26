@@ -18,6 +18,7 @@ from . import location, point, boundingbox as _boundingbox
 
 from ..retrieval.requests import HttpRequest
 from ..commons import logger
+from ..exceptions import SpaceWarpingFailedError
 
 from typing import List, Union, Tuple
 import numbers
@@ -149,7 +150,7 @@ class PointSet(location.Location):
         if spaceobj == self.space:
             return self
         if any(_ not in location.Location.SPACEWARP_IDS for _ in [self.space.id, spaceobj.id]):
-            raise ValueError(
+            raise SpaceWarpingFailedError(
                 f"Cannot convert coordinates between {self.space.id} and {spaceobj.id}"
             )
 
@@ -177,6 +178,10 @@ class PointSet(location.Location):
                 func=lambda b: json.loads(b.decode()),
             ).data
             tgt_points.extend(list(response["target_points"]))
+
+        # TODO: consider using np.isnan(np.dot(arr, arr)). see https://stackoverflow.com/a/45011547
+        if np.any(np.isnan(response['target_points'])):
+            raise SpaceWarpingFailedError(f'Warping {str(self)} to {spaceobj.name} resulted in NaN')
 
         return self.__class__(coordinates=tuple(tgt_points), space=spaceobj, labels=self.labels)
 
