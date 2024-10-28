@@ -572,7 +572,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )]
         )
 
-    def compute_centroids(self) -> Dict[str, point.Point]:
+    def compute_centroids(self) -> Dict[str, pointset.PointSet]:
         """
         Compute a dictionary of the centroids of all regions in this map.
 
@@ -581,23 +581,19 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Dict[str, point.Point]
             Region names as keys and computed centroids as items.
         """
-        centroids = {}
-        maparr = None
+        centroids = dict()
         for regionname, indexlist in siibra_tqdm(
             self._indices.items(), unit="regions", desc="Computing centroids"
         ):
             assert len(indexlist) == 1
+            assert regionname not in centroids
             index = indexlist[0]
             if index.label == 0:
                 continue
             with QUIET:
                 mapimg = self.fetch(index=index)  # returns a mask of the region
-            maparr = np.asanyarray(mapimg.dataobj)
-            centroid_vox = np.mean(np.nonzero(maparr), axis=1)
-            assert regionname not in centroids
-            centroids[regionname] = point.Point(
-                np.dot(mapimg.affine, np.r_[centroid_vox, 1])[:3], space=self.space
-            )
+            props = _volume.ComponentSpatialProperties.compute_from_image(mapimg, self.space)
+            centroids[regionname] = pointset.from_points([c.centroid for c in props])
         return centroids
 
     def get_resampled_template(self, **fetch_kwargs) -> _volume.Volume:

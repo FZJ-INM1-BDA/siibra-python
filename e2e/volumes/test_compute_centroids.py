@@ -8,4 +8,7 @@ preconfiugres_maps = list(siibra.maps)
 
 @pytest.mark.parametrize("mp", preconfiugres_maps)
 def test_compute_centroids(mp: Map):
-    _ = mp.compute_centroids()
+    try:
+        _ = mp.compute_centroids()
+    except Exception as e:
+        pytest.fail(f"Cannot compute all centroids of the map '{mp.name}:'\n{e}")

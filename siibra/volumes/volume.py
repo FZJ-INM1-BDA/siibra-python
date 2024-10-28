@@ -20,9 +20,10 @@ from .. import logger
 from ..retrieval import requests
 from ..core import space as _space, structure
 from ..locations import location, point, pointset, boundingbox
-from ..commons import resample_img_to_img, siibra_tqdm
+from ..commons import resample_img_to_img, siibra_tqdm, affine_scaling, connected_components
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
+from dataclasses import dataclass
 from nibabel import Nifti1Image
 import numpy as np
 from typing import List, Dict, Union, Set, TYPE_CHECKING
@@ -34,6 +35,38 @@ from functools import lru_cache
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
     TypeDataset = EbrainsDataset
+
+
+@dataclass
+class ComponentSpatialProperties:
+    centroid: point.Point
+    volume: int
+
+    @staticmethod
+    def compute_from_image(
+        img: Nifti1Image,
+        space: Union[str, "_space.Space"]
+    ) -> List["ComponentSpatialProperties"]:
+        scale = affine_scaling(img.affine)
+        spatial_props: List[ComponentSpatialProperties] = []
+        for label, component in connected_components(
+            np.asanyarray(img.dataobj), connectivity=None
+        ):
+            nonzero: np.ndarray = np.c_[np.nonzero(component)]
+            spatial_props.append(
+                ComponentSpatialProperties(
+                    centroid=point.Point(
+                        np.dot(img.affine, np.r_[nonzero.mean(0), 1])[:3],
+                        space=space
+                    ),
+                    volume=nonzero.shape[0] * scale,
+                )
+            )
+
+        # sort by volume
+        spatial_props.sort(key=lambda cmp: cmp.volume, reverse=True)
+
+        return spatial_props
 
 
 class Volume(location.Location):
@@ -473,20 +506,23 @@ class Volume(location.Location):
 
         return self._FETCH_CACHE[fetch_hash]
 
-    def fetch_connected_components(self, **kwargs):
+    def fetch_connected_components(self, **fetch_kwargs):
         """
-        Provide an iterator over masks of connected components in the volume
+        Provide an generator over masks of connected components in the volume
         """
-        img = self.fetch(**kwargs)
-        from skimage import measure
-        imgdata = np.asanyarray(img.dataobj).squeeze()
-        components = measure.label(imgdata > 0)
-        component_labels = np.unique(components)
-        assert component_labels[0] == 0
-        return (
-            (label, Nifti1Image((components == label).astype('uint8'), img.affine))
-            for label in component_labels[1:]
+        img = self.fetch(**fetch_kwargs)
+        assert isinstance(img, Nifti1Image), NotImplementedError(
+            f"Connected components for type {type(img)} is not yet implemeneted."
         )
+        for label, component in connected_components(np.asanyarray(img.dataobj)):
+            yield (
+                label,
+                Nifti1Image(component, img.affine)
+            )
+
+    def compute_spatial_props(self, **fetch_kwargs) -> List[ComponentSpatialProperties]:
+        img = self.fetch(**fetch_kwargs)
+        return ComponentSpatialProperties.compute_from_image(img, self.space)
 
     def draw_samples(self, N: int, sample_size: int = 100, e: float = 1, sigma_mm=None, invert=False, **kwargs):
         """
