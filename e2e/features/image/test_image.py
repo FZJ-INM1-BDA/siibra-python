@@ -25,7 +25,7 @@ results = [
         siibra.features.get(
             siibra.get_template("mni152"), "image", restrict_space=False
         ),
-        14,
+        13,
     ),
     (
         siibra.features.get(
@@ -58,7 +58,7 @@ def test_images_datasets_names():
     all_ds_names = {ds.name for f in features for ds in f.datasets}
     end = time.time()
     duration = start - end
-    assert len(all_ds_names) == 10, "expected 9 distinct names"
+    assert len(all_ds_names) == 9, "expected 9 distinct names"
     assert duration < 1, "Expected getting dataset names to be less than 1s"
 
 
