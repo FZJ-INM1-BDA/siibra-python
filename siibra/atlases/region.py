@@ -199,7 +199,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             ),
         )
 
-        return selected_mp.extract_regional_map(self.name)
+        return selected_mp.extract_regional_map(self)
 
     def extract_mask(
         self,

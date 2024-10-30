@@ -47,7 +47,7 @@ from ..operations.image_assignment import (
     ScoredImageAssignment,
     get_intersection_scores,
 )
-from ..exceptions import SiibraTypeException
+from ..exceptions import SiibraTypeException, SiibraException, NotFoundException
 
 
 SPARSEINDEX_BASEURL = (
@@ -481,6 +481,34 @@ class SparseMap(Map):
             return SparseIndex(localcache, mode="r", inmemory=inmemory)
 
         return SparseIndex(url, mode="r")
+
+    def extract_regional_map(self, region=None, format=None):
+        if region is None:
+            raise SiibraException(
+                f"SparseMap.extract_regional_map must have region defined"
+            )
+        if isinstance(region, str):
+            region = self.get_region(region)
+        regionname = region.name
+        assert regionname in self.region_mapping, (
+            f"SparseMap.extract_regional_map must be directly defined in region mapping (most of the time, "
+            "this is a leaf region). Did you try to select a node/branch region?"
+        )
+        mappings = self.region_mapping[regionname]
+        for mapping in mappings:
+            if mapping.get("@type", "volume/ref") != "volume/ref":
+                continue
+            target = mapping.get("target")
+            if target is None:
+                raise SiibraException(
+                    f"SparseMap.extract_regional_map must have a target. But {region} does not."
+                )
+            for recipe in self.volume_recipes:
+                if target != recipe.name:
+                    continue
+                return recipe.reconfigure(subspace=mapping.get("subspace"))
+
+        raise NotFoundException(f"Cannot find regional map for {region}")
 
     def _save_sparseindex(self, filepath):
         wspind = SparseIndex(filepath, mode="w")

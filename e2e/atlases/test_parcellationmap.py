@@ -8,6 +8,13 @@ ICBM_152_SPACE_ID = (
 
 extract_regional_maps_args = [
     pytest.param(
+        "3.1",
+        "MNI 152 ICBM 2009c Nonlinear Asymmetric",
+        "labelled",
+        "frontal lobe",
+        id="jba31-mni152-frontal-lobe-labelled",
+    ),
+    pytest.param(
         "difumo 128",
         "MNI 152 ICBM 2009c Nonlinear Asymmetric",
         "statistical",

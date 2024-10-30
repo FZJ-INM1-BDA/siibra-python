@@ -15,6 +15,7 @@
 
 from dataclasses import dataclass, replace, asdict, field
 from typing import List, Set, Union, Dict
+from collections import defaultdict
 
 try:
     from typing import Literal
@@ -24,6 +25,7 @@ except ImportError:
 import numpy as np
 from pandas import DataFrame
 
+from ..exceptions import SiibraException
 from ..concepts import atlas_elements, query_parameter
 from ..commons.iterable import assert_ooo
 from ..commons.string import convert_hexcolor_to_rgbtuple
@@ -34,10 +36,10 @@ from ..attributes.datarecipes.volume import (
     ImageRecipe,
     VolumeOpsKwargs,
     Mapping,
-    SIIBRA_MAX_FETCH_SIZE_GIB,
 )
 from ..attributes.descriptions import Name, ID as _ID, SpeciesSpec
 from ..attributes.locations import BoundingBox, Point, PointCloud
+from ..operations.base import Merge
 from ..operations.image_assignment import (
     ImageAssignment,
     ScoredImageAssignment,
@@ -102,50 +104,47 @@ class Map(atlas_elements.AtlasElement):
 
     @property
     def provides_mesh(self):
+        # TODO (2.1) use VolumeFormats.Category
         return any(f in self.formats for f in VolumeFormats.MESH_FORMATS)
 
     @property
     def provides_image(self):
+        # TODO (2.1) use VolumeFormats.Category
         return any(f in self.formats for f in VolumeFormats.IMAGE_FORMATS)
 
-    def get_filtered_map(self, regions: Union[List[Region], List[str]]) -> "Map":
-        """
-        Get the submap of this Map making up the regions provided.
-
-        Raises
-        ----
-        ValueError
-            If any region not mapped in this map is requested.
-        """
-        regionnames = [r.name if isinstance(r, Region) else r for r in regions]
-        try:
-            assert all(rn in self.regionnames for rn in regionnames)
-        except AssertionError as e:
-            raise ValueError(
-                "Regions that are not mapped in this ParcellationMap are requested!"
-            ) from e
-
-        sub_mapping = {r: m for r, m in self.region_mapping.items() if r in regionnames}
-        target_attrs = {mp["target"] for mps in sub_mapping.values() for mp in mps}
-        vol_providers = [vp for vp in self.volume_recipes if vp.name in target_attrs]
-        attributes = [
-            Name(value=f"{regionnames} filtered from {self.name}"),
-            _ID(value=None),
-            self._get(SpeciesSpec),
-            *vol_providers,
-        ]
-        return replace(self, attributes=attributes, region_mapping=sub_mapping)
-
     def _select_format(self, frmt: Union[str, None] = None) -> str:
-        if frmt is None or frmt not in self.formats:
-            frmt = [f for f in VolumeFormats.FORMAT_LOOKUP[frmt] if f in self.formats][
-                0
-            ]
-        else:
-            assert frmt in self.formats, RuntimeError(
-                f"Requested format '{frmt}' is not available for this map: {self.formats}."
+
+        if frmt in self.formats:
+            return frmt
+
+        if frmt in VolumeFormats.Category:
+            for category_format in VolumeFormats.FORMAT_LOOKUP[frmt]:
+                if category_format in self.formats:
+                    return category_format
+            raise SiibraException(
+                f"Unable to find a suitable format from category {frmt}"
             )
-        return frmt
+
+        if frmt is None:
+
+            for lookup_format in VolumeFormats.FORMAT_LOOKUP[None]:
+                if lookup_format in self.formats:
+                    return lookup_format
+            raise SiibraException(
+                f"Unable to find a supported format from {self.formats}. Most likely, "
+                "this is due to readers not registered to read the formats."
+            )
+
+        raise SiibraException(
+            """
+            Unable to find a suitable format. Please either specify the category: 
+            """
+            + "\n".join(f" - {category.value}" for category in VolumeFormats.Category)
+            + """
+            Or one of the format directly:
+            """
+            + "\n".join(f" - {f}" for f in self.formats)
+        )
 
     def _extract_regional_map_volume_recipe(
         self,
@@ -200,47 +199,68 @@ class Map(atlas_elements.AtlasElement):
 
         return replace(provider, _ops=[*provider._ops, *extraction_ops])
 
-    def extract_regional_map(
-        self,
-        region: Union[str, Region, None] = None,
-        frmt: str = None,
-        bbox: "BoundingBox" = None,
-        resolution_mm: float = None,
-        max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
-        color_channel: int = None,
-    ):
-        regionname = None
-        if isinstance(region, Region):
-            regionname = region.name
-        if isinstance(region, str):
-            if region in self.regionnames:
-                regionname = region
-            else:
-                regionname = self.parcellation.get_region(region).name
-        if region is None:
-            if len(self.regionnames) != 1:
-                raise RuntimeError(
-                    """Map contains multiple regions. Please provide one of the following as region:"""
-                    + "\n".join(self.regionnames)
-                )
-            regionname = self.regionnames[0]
+    def _find_region_mappings(self, region: Region) -> List[Mapping]:
+        """
+        Returns List of Mapping from a region object. If the region is not directly mapped, will iterate over its children, and flatten the returned List.
 
-        assert (
-            regionname in self.regionnames
-        ), f"{region} parsed to {regionname}, which was not found in regionnames"
-        provider = self._extract_regional_map_volume_recipe(
-            regionname=regionname,
-            frmt=frmt,
-        )
-        additional_ops = []
-        if bbox:
-            additional_ops.append(NiftiExtractVOI.generate_specs(voi=bbox))
-        return replace(
-            provider,
+        Caller should do any sanitation/check.
+        """
+
+        # if region is already in mappings, return the mappings
+        if region.name in self.region_mapping:
+            return self.region_mapping.get(region.name) or []
+
+        # if not, iterate over all children, flatten the mappings into a single list, return
+        return [
+            cmapping
+            for c in region
+            if c is not region
+            for cmapping in self._find_region_mappings(c)
+        ]
+
+    def extract_regional_map(
+        self, region: Union[str, Region, None] = None, format: str = None
+    ):
+        """
+        Build a image recipe based on region/format provided. Providing a region instance rather than region name is more performant, and preferred.
+        """
+
+        selected_format = self._select_format(format)
+
+        if region is None:
+            region = self.parcellation
+        if isinstance(region, str):
+            region = self.parcellation.get_region(region)
+
+        all_mappings = self._find_region_mappings(region)
+        volume_mapping = [
+            m for m in all_mappings if m.get("@type", "volume/ref") == "volume/ref"
+        ]
+
+        target_volumemapping: Dict[str, List[Mapping]] = defaultdict(list)
+        for mapping in volume_mapping:
+            target_volumemapping[mapping.get("target")].append(mapping)
+
+        recipes: List[ImageRecipe] = []
+        for volrecipe in self.volume_recipes:
+            if volrecipe.format != selected_format:
+                continue
+            mappings = target_volumemapping[volrecipe.name]
+            labels = [m["label"] for m in mappings]
+            recipes.append(volrecipe.reconfigure(labels=labels))
+
+        if len(recipes) == 0:
+            raise SiibraException(f"No Image recipe found")
+        if len(recipes) == 1:
+            return recipes[0]
+
+        # TODO (2.0) what happens if Map is provides for Mesh instead of Image?
+        return ImageRecipe(
             _ops=[
-                *provider._ops,
-                *additional_ops,
+                Merge.spec_from_datarecipes(recipes),
+                MergeLabelledNiftis.generate_specs(),
             ],
+            format="nii",
         )
 
     def extract_mask(
