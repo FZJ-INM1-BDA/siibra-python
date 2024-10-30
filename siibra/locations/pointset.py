@@ -18,6 +18,7 @@ from . import location, point, boundingbox as _boundingbox
 
 from ..retrieval.requests import HttpRequest
 from ..commons import logger
+from ..exceptions import SpaceWarpingFailedError
 
 from typing import List, Union, Tuple
 import numbers
@@ -149,7 +150,7 @@ class PointSet(location.Location):
         if spaceobj == self.space:
             return self
         if any(_ not in location.Location.SPACEWARP_IDS for _ in [self.space.id, spaceobj.id]):
-            raise ValueError(
+            raise SpaceWarpingFailedError(
                 f"Cannot convert coordinates between {self.space.id} and {spaceobj.id}"
             )
 
@@ -177,6 +178,10 @@ class PointSet(location.Location):
                 func=lambda b: json.loads(b.decode()),
             ).data
             tgt_points.extend(list(response["target_points"]))
+
+        # TODO: consider using np.isnan(np.dot(arr, arr)). see https://stackoverflow.com/a/45011547
+        if np.any(np.isnan(response['target_points'])):
+            raise SpaceWarpingFailedError(f'Warping {str(self)} to {spaceobj.name} resulted in NaN')
 
         return self.__class__(coordinates=tuple(tgt_points), space=spaceobj, labels=self.labels)
 
@@ -276,7 +281,34 @@ class PointSet(location.Location):
         """Access the list of 3D point as an Nx4 array of homogeneous coordinates."""
         return np.c_[self.coordinates, np.ones(len(self))]
 
-    def find_clusters(self, min_fraction=1 / 200, max_fraction=1 / 8):
+    def find_clusters(
+        self,
+        min_fraction: float = 1 / 200,
+        max_fraction: float = 1 / 8
+    ) -> List[int]:
+        """
+        Find clusters using HDBSCAN (https://dl.acm.org/doi/10.1145/2733381)
+        implementation of scikit-learn (https://dl.acm.org/doi/10.5555/1953048.2078195).
+
+        Parameters
+        ----------
+        min_fraction: min cluster size as a fraction of total points in the PointSet
+        max_fraction: max cluster size as a fraction of total points in the PointSet
+
+        Returns
+        -------
+        List[int]
+            Returns the cluster labels found by skilearn.cluster.HDBSCAN.
+
+            Note
+            ----
+            Replaces the labels of the PointSet instance with these labels.
+
+        Raises
+        ------
+        RuntimeError
+            If a sklearn version without HDBSCAN is installed.
+        """
         if not _HAS_HDBSCAN:
             raise RuntimeError(
                 f"HDBSCAN is not available with your version {sklearn.__version__} "
@@ -289,7 +321,9 @@ class PointSet(location.Location):
             max_cluster_size=int(N * max_fraction),
         )
         if self.labels is not None:
-            logger.warn("Existing labels of PointSet will be overwritten with cluster labels.")
+            logger.warning(
+                "Existing labels of PointSet will be overwritten with cluster labels."
+            )
         self.labels = clustering.fit_predict(points)
         return self.labels
 
