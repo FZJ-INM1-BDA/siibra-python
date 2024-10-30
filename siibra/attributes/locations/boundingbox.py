@@ -157,7 +157,6 @@ def estimate_affine(bbox: BoundingBox, space_id: str):
     return affine
 
 
-@fn_call_cache
 def _determine_bounds(array: np.ndarray, threshold=0.0):
     """
     TODO move to commons_new/maps.py
@@ -179,11 +178,12 @@ def _determine_bounds(array: np.ndarray, threshold=0.0):
 
 def from_array(array: np.ndarray, threshold=0.0) -> "BoundingBox":
     """
-    Find the bounding box of a 3D array, clipped in all three dimenions inclusively by the provided threshold.
-    This method returns a BoundingBox in the voxel units of the input array.
+    Find the bounding box of a 3D array, clipped by the provided threshold in all three dimenions,
+    inclusively on the lower bound, exclusively on the upperbound (i.e. [minpoint, maxpoint) ).
+    This is done because BoundingBox natively implies a floating point precision; and applying the affine would result in
+    "physically correct" bounding box.
 
-    n.b. Whilst the minpoints and maxpoints are cast to float due to the limitation of BoundingBox, it should *not* be
-    used to infer the precision of the calculation. Downstream users should adapt the usage accordingly.
+    This method returns a BoundingBox in the voxel units of the input array.
 
     Parameters
     ----------
@@ -195,7 +195,7 @@ def from_array(array: np.ndarray, threshold=0.0) -> "BoundingBox":
         return None
     return BoundingBox(
         minpoint=bounds[:3, 0].astype("float").tolist(),
-        maxpoint=bounds[:3, 1].astype("float").tolist(),
+        maxpoint=(bounds[:3, 1] + 1).astype("float").tolist(),
         space_id=None,
     )
 

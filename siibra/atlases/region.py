@@ -19,6 +19,7 @@ from typing import Iterable, Union, TYPE_CHECKING, List, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
 from ..concepts import atlas_elements
+from ..attributes.datarecipes import ImageRecipe
 from ..attributes.descriptions import Name
 from ..attributes.locations import boundingbox, PointCloud
 from ..commons.string import get_spec, SPEC_TYPE, extract_uuid
@@ -46,13 +47,12 @@ def _get_region_boundingbox(
 ):
     from .. import get_region
 
-    region = get_region(
-        parcellation=parc_id, region=region_name
-    )  # using region_name to be able to cache
+    region = get_region(parcellation=parc_id, region=region_name)
 
     try:
-        rmap_vp = region.extract_mask(space=space_id, maptype=maptype)
-        return rmap_vp.boundingbox
+        rmap_vp = region.extract_map(space=space_id, maptype=maptype)
+        if isinstance(rmap_vp, ImageRecipe):
+            return rmap_vp.boundingbox
     except Exception:
         logger.info(f"Could not create Bounding Box from {region_name}:", exc_info=1)
 
@@ -134,7 +134,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             self.parcellation.ID, self.name, space_id, maptype
         )
 
-    def find_boundingboxes(self):
+    def find_boundingboxes(self, maptype: str = "labelled"):
         from .. import find_maps
 
         maps = find_maps(self.parcellation.ID)
@@ -145,7 +145,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
                 continue
             try:
                 bbox = _get_region_boundingbox(
-                    self.parcellation.ID, self.name, mp.space_id
+                    self.parcellation.ID, self.name, mp.space_id, maptype=maptype
                 )
                 if bbox:
                     return_result.append(bbox)

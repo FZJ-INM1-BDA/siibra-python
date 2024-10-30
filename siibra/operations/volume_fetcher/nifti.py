@@ -290,7 +290,9 @@ class MergeLabelledNiftis(DataOp):
     desc = "Merge a list of niftis."
     type = "codec/vol/merge"
 
-    def run(self, input: List[Nifti1Image], **kwargs):
+    def run(
+        self, input: List[Nifti1Image], labels=None, template_affine=None, **kwargs
+    ):
         if len(input) == 1:
             return input[0]
         elif len(input) == 0:
@@ -300,14 +302,16 @@ class MergeLabelledNiftis(DataOp):
         else:
             return self._resample_and_merge_niftis(
                 niftis=input,
-                template_affine=kwargs.get("template_affine", None),
-                labels=kwargs.get("labels", []),
+                template_affine=template_affine
+                or kwargs.get("template_affine")
+                or None,
+                labels=labels or kwargs.get("labels") or [],
             )
 
     @staticmethod
     def _resample_and_merge_niftis(
         niftis: List[Nifti1Image],
-        template_affine: Union[np.ndarray, None] = None,
+        template_affine: Union[List[List[float]], None] = None,
         labels: List[int] = [],
     ) -> Nifti1Image:
         # TODO: get header for affine and shape instead of the whole template
@@ -327,7 +331,7 @@ class MergeLabelledNiftis(DataOp):
             merged_array = np.zeros(shape, dtype=data_dtype)
             affine = niftis[0].affine
         else:
-            affine = template_affine
+            affine = np.array(template_affine)
 
         for i, img in siibra_tqdm(
             enumerate(niftis),
@@ -348,6 +352,16 @@ class MergeLabelledNiftis(DataOp):
                 merged_array[nonzero_voxels] = resampled_arr[nonzero_voxels]
 
         return Nifti1Image(dataobj=merged_array, affine=affine)
+
+    @classmethod
+    def generate_specs(
+        cls,
+        labels: List[int] = None,
+        template_affine: List[List[float]] = None,
+        **kwargs,
+    ):
+        base = super().generate_specs(**kwargs)
+        return {**base, "labels": labels, "template_affine": template_affine}
 
 
 class IntersectNiftiWithNifti(DataOp):

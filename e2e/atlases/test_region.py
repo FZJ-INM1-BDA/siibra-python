@@ -174,6 +174,8 @@ def test_get_boundingbox(space_spec):
     hoc1_r = siibra.get_region("julich 2.9", "hoc1 right")
     bbox_l = hoc1_l.get_boundingbox(space_spec)
     bbox_r = hoc1_r.get_boundingbox(space_spec)
+    assert bbox_l is not None, f"expected lh bbox to be defined"
+    assert bbox_r is not None, f"expected rh bbox to be defined"
     assert (
         bbox_l != bbox_r
     ), "Left and right hoc1 should not have the same bounding boxes"
