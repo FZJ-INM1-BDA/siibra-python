@@ -24,17 +24,19 @@ sparse_map_retrieval = [
 @pytest.fixture(scope="session")
 def freshlocal_jba29_icbm152():
     mp = siibra.get_map("2.9", "icbm 152", "statistical")
-    spi = SparseIndex("icbm152_julich2_9", mode="w")
+    with TemporaryDirectory() as dir:
+        freshlocal = str(Path(dir) / "icbm152_julich2_9")
+        spi = SparseIndex(freshlocal, mode="w")
 
-    progress = tqdm(total=len(mp.regionnames), leave=True)
-    for regionname in mp.regionnames:
-        image_provider = mp._extract_regional_map_volume_recipe(regionname)
+        progress = tqdm(total=len(mp.regionnames), leave=True)
+        for regionname in mp.regionnames:
+            image_provider = mp._extract_regional_map_volume_recipe(regionname)
 
-        spi.add_img(image_provider.get_data(), regionname)
-        progress.update(1)
-    progress.close()
-    spi.save()
-    yield SparseIndex("icbm152_julich2_9", mode="r")
+            spi.add_img(image_provider.get_data(), regionname)
+            progress.update(1)
+        progress.close()
+        spi.save()
+        yield SparseIndex(freshlocal, mode="r")
 
 
 @pytest.fixture(scope="session")

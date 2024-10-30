@@ -16,43 +16,47 @@
 """Siibra specific exceptions"""
 
 
-class ExcessiveArgumentException(ValueError):
+class SiibraException(Exception):
     pass
 
 
-class InsufficientArgumentException(ValueError):
+class ExcessiveArgumentException(ValueError, SiibraException):
     pass
 
 
-class ConflictingArgumentException(ValueError):
+class InsufficientArgumentException(ValueError, SiibraException):
     pass
 
 
-class NonUniqueError(RuntimeError):
+class ConflictingArgumentException(ValueError, SiibraException):
     pass
 
 
-class NonUniqueIndexError(NonUniqueError):
+class NonUniqueError(RuntimeError, SiibraException):
     pass
 
 
-class NoMapAvailableError(RuntimeError):
+class NonUniqueIndexError(NonUniqueError, SiibraException):
     pass
 
 
-class NoVolumeFound(RuntimeError):
+class NoMapAvailableError(RuntimeError, SiibraException):
     pass
 
 
-class WarmupRegException(Exception):
+class NoVolumeFound(RuntimeError, SiibraException):
     pass
 
 
-class AttrCompException(Exception):
+class WarmupRegException(SiibraException):
     pass
 
 
-class InvalidAttrCompException(AttrCompException):
+class AttrCompException(SiibraException):
+    pass
+
+
+class InvalidAttrCompException(AttrCompException, SiibraException):
     """
     Raised if try to signal the two Attributes do *not* match.
 
@@ -62,7 +66,7 @@ class InvalidAttrCompException(AttrCompException):
     pass
 
 
-class UnregisteredAttrCompException(AttrCompException):
+class UnregisteredAttrCompException(AttrCompException, SiibraException):
     """
     Raised if the Attributes have not been registered to match.
 
@@ -72,13 +76,17 @@ class UnregisteredAttrCompException(AttrCompException):
     pass
 
 
-class NotFoundException(Exception):
+class NotFoundException(SiibraException):
     pass
 
 
-class ExternalApiException(RuntimeError):
+class ExternalApiException(RuntimeError, SiibraException):
     pass
 
 
-class SpaceWarpingFailedError(ExternalApiException):
+class SpaceWarpingFailedError(ExternalApiException, SiibraException):
+    pass
+
+
+class SiibraTypeException(ValueError, SiibraException):
     pass
