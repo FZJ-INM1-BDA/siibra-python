@@ -106,7 +106,6 @@ class SearchResult(Generic[T]):
                     f"category_{categorization.key}": str(categorization.value)
                     for categorization in item._find(Categorization)
                 },
-                "ID": item.ID,
                 "instance": item,
             }
             for item in items

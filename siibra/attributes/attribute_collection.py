@@ -66,23 +66,29 @@ class AttributeCollection:
     def __post_init__(self):
         from .datarecipes.tabular import TabularDataRecipe
 
+        remap_types = ["csv/row-index", "csv/row-col-index", "csv/col-index"]
+
         column_row_mapping: Dict[str, RemapColRowDict] = defaultdict(
             lambda: {"column_mapping": {}, "row_mapping": {}}
         )
         for attr_mapping in self._find(AttributeMapping):
             for regionname, mappings in attr_mapping.region_mapping.items():
                 for mapping in mappings:
-                    if mapping["@type"] != "csv/row-index":
+                    if mapping["@type"] not in remap_types:
                         continue
                     target = mapping.get("target", None)
 
                     row_col_index = mapping.get("index")
-                    column_row_mapping[target]["column_mapping"][
-                        row_col_index
-                    ] = regionname
-                    column_row_mapping[target]["row_mapping"][
-                        row_col_index
-                    ] = regionname
+                    if mapping["@type"] in ["csv/row-index", "csv/row-col-index"]:
+                        column_row_mapping[target]["row_mapping"][
+                            row_col_index
+                        ] = regionname
+
+                    if mapping["@type"] in ["csv/row-col-index", "csv/col-index"]:
+                        column_row_mapping[target]["column_mapping"][
+                            row_col_index
+                        ] = regionname
+
         if len(column_row_mapping) > 0:
             for tabulardata in self._find(TabularDataRecipe):
                 remap_ops = [

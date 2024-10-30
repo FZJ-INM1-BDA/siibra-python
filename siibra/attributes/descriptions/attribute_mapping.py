@@ -50,7 +50,11 @@ VolumeRegionMapping = TypedDict(
 
 RowIndexRegionMapping = TypedDict(
     "RowIndexRegionMapping",
-    {"target": Union[str, None], "@type": Literal["csv/row-index"], "index": int},
+    {
+        "target": Union[str, None],
+        "@type": Literal["csv/row-index", "csv/row-col-index", "csv/col-index"],
+        "index": int,
+    },
 )
 
 RegionMapping = Union[VolumeRegionMapping, RowIndexRegionMapping]

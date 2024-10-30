@@ -101,10 +101,10 @@ class ZipRepository(ArchivalRepository):
 class ZipDataOp(DataOp):
     input: None
     output: bytes
-    desc = (
-        "returns bytes as the result of reading accessing zip file at {url} {filename}"
-    )
     type = "read/zip"
+
+    def desc(self, url: str, filename: str, **kwargs):
+        return f"returns bytes as the result of reading accessing zip file at '{url}' then access the file '{filename}'"
 
     def run(self, _, *, url, filename, **kwargs):
         return ZipRepository(url).get(filename)

@@ -245,6 +245,8 @@ class Map(atlas_elements.AtlasElement):
         for volrecipe in self.volume_recipes:
             if volrecipe.format != selected_format:
                 continue
+            if volrecipe.name not in target_volumemapping:
+                continue
             mappings = target_volumemapping[volrecipe.name]
             labels = [m["label"] for m in mappings]
             recipes.append(volrecipe.reconfigure(labels=labels))

@@ -29,7 +29,13 @@ from ...cache import fn_call_cache, CACHE
 from ...commons.logger import logger
 from ...commons.iterable import flatmap
 from ...concepts import Feature
-from ...attributes.descriptions import register_modalities, Modality, Gene, ID
+from ...attributes.descriptions import (
+    register_modalities,
+    Modality,
+    Gene,
+    ID,
+    RegionSpec,
+)
 from ...attributes.locations import PointCloud
 from ...attributes.datarecipes import TabularDataRecipe, ImageRecipe
 from ...attributes.datarecipes.volume.image import intersect_ptcld_image
@@ -112,16 +118,23 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
         if isinstance(ac, Region):
             return True
 
+        if len(ac._find(RegionSpec)) > 0:
+            return True
+
         return False
 
     def get_image_recipe(self):
         from ... import get_map
 
         regions = self.find_attribute_collections(Region)
-        if len(regions) > 1:
-            logger.warning(
-                f"AllenLiveQueryError: expecting one and only one Region, but got {len(regions)}."
-            )
+        for regionspec in flatmap(self.find_attributes(RegionSpec)):
+            regions = [*regions, *regionspec.decode()]
+
+        if len(regions) > 0:
+            if len(regions) > 1:
+                logger.warning(
+                    f"AllenLiveQueryError: expecting one and only one Region, but got {len(regions)}."
+                )
 
             region = regions[0]
 
@@ -137,7 +150,6 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
             return queried_image_providers[0]
 
     def generate(self):
-
         all_genes = [mod for li in self.find_attributes(Gene) for mod in li]
         if len(all_genes) == 0:
             logger.warning(
@@ -146,7 +158,6 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
             return
 
         use_query_concept = self.get_image_recipe()
-
         if use_query_concept is None:
             return
 

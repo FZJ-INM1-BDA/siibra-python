@@ -325,9 +325,11 @@ def select_scale(
     return selected_scale
 
 
-# TODO (2.0) does not yet work with channel
 def fetch_neuroglancer(
-    base_url: str = None, bbox: "BoundingBox" = None, resolution_mm: float = None
+    base_url: str = None,
+    bbox: "BoundingBox" = None,
+    resolution_mm: float = None,
+    channel: int = 0,
 ) -> nib.Nifti1Image:
     scales = get_scales(base_url)
     scale = select_scale(
@@ -336,7 +338,7 @@ def fetch_neuroglancer(
         bbox=bbox,
         max_download_GB=PerfConf.SIIBRA_MAX_FETCH_SIZE_GIB,
     )
-    return scale.fetch(bbox=bbox)
+    return scale.fetch(bbox=bbox, channel=channel)
 
 
 @VolumeFormats.register_format_read(NG_VOLUME_FORMAT_STR, VolumeFormats.Category.IMAGE)
@@ -349,8 +351,34 @@ def read_ng(conf: Dict, _: List[Dict]):
 class ReadNeuroglancerPrecomputed(operations_base.DataOp):
     input: None
     output: nib.Nifti1Image
-    desc = "Directly read neuroglancer volume"
     type = "read/neuroglancer_precomputed"
+
+    def desc(
+        self,
+        base_url: str,
+        bbox: "BoundingBox" = None,
+        resolution_mm: float = None,
+        channel: int = 0,
+        detail=False,
+        **kwargs,
+    ):
+        text = f"Read NG volume at {base_url}"
+        if not detail:
+            return text
+        text += "; "
+        if bbox is not None:
+            text += f"clipped at {str(bbox)}; "
+
+        if resolution_mm == -1:
+            text += "at the highest possible resolution; "
+        elif resolution_mm is None:
+            text += "at the lowest possible resolution; "
+        else:
+            text += f"at voxel resolution closest to {resolution_mm}mm; "
+
+        if channel != 0:
+            text += f"reading channel index {channel}"
+        return text
 
     def run(
         self,
@@ -358,10 +386,11 @@ class ReadNeuroglancerPrecomputed(operations_base.DataOp):
         base_url: str = None,
         bbox: "BoundingBox" = None,
         resolution_mm: float = None,
+        channel=0,
         **kwargs,
     ):
         assert base_url is not None
-        return fetch_neuroglancer(base_url, bbox, resolution_mm)
+        return fetch_neuroglancer(base_url, bbox, resolution_mm, channel=channel)
 
     @classmethod
     def generate_specs(
@@ -370,6 +399,7 @@ class ReadNeuroglancerPrecomputed(operations_base.DataOp):
         base_url: str = None,
         bbox: "BoundingBox" = None,
         resolution_mm: float = None,
+        channel=0,
         **kwargs,
     ):
         base = super().generate_specs(**kwargs)
@@ -378,6 +408,7 @@ class ReadNeuroglancerPrecomputed(operations_base.DataOp):
             "base_url": base_url,
             "bbox": bbox,
             "resolution_mm": resolution_mm,
+            "channel": channel,
         }
 
 

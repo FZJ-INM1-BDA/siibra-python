@@ -1,5 +1,7 @@
 import siibra
 import pytest
+from nibabel import Nifti1Image
+import numpy as np
 
 
 @pytest.fixture(scope="session")
@@ -39,8 +41,8 @@ def bigbrain_pli():
 
 
 cellbody_stainging_param = [
-    ("jba29_hoc1left_cell_body_staining", 43),
-    ("jba303_hoc1left_cell_body_staining", 0),  # jba303 has map in big brain space
+    ("jba29_hoc1left_cell_body_staining", 45),
+    ("jba303_hoc1left_cell_body_staining", 49),
     ("bigbrain_cellbody", 147),  # incl slices & reconstructed volume
     ("icbm152_t2_mri", 2),
     ("icbm152_dti", 2),
@@ -59,6 +61,18 @@ def test_cell_body_staining(fixturename, expected_len, request):
 def test_pli_channel(bigbrain_pli):
     for feat in bigbrain_pli:
         for image in feat._find(siibra.attributes.datarecipes.ImageRecipe):
-            image.fetch(color_channel=0)
-            image.fetch(color_channel=1)
-            image.fetch(color_channel=2)
+            img0 = image.reconfigure(channel=0)
+            img1 = image.reconfigure(channel=1)
+            img2 = image.reconfigure(channel=2)
+            img0data, img1data, img2data = (
+                img0.get_data(),
+                img1.get_data(),
+                img2.get_data(),
+            )
+            assert isinstance(img0data, Nifti1Image)
+            assert isinstance(img1data, Nifti1Image)
+            assert isinstance(img2data, Nifti1Image)
+
+            assert img0data.shape == img1data.shape == img2data.shape
+            assert not np.array_equal(img0data.dataobj, img1data.dataobj)
+            assert not np.array_equal(img0data.dataobj, img2data.dataobj)

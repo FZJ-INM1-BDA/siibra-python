@@ -24,6 +24,7 @@ from .attribute_qualification import (
 )
 from ..commons.logger import logger
 from ..attributes import AttributeCollection
+from ..attributes.descriptions import RegionSpec
 from ..attributes.locations import Location, BoundingBox
 from ..attributes.datarecipes import DataRecipe
 from ..concepts import AtlasElement, QueryParam
@@ -100,19 +101,26 @@ def preprocess_concept(concept: Union[AtlasElement, Location, DataRecipe]):
     ), f"Expect concept to be either AtlasElement or Location, but was {type(concept)} instead"
 
     if isinstance(concept, Region):
-        bbox = None
+        # We cannot efficiently create a copy of Region since it inherits from NodeMixin
+        # We cannot reassign/mutate region.attributes, since this is permanent
+        # Best we can do is to create a AttributeCollection with all of attributes
+
+        bboxes: List[BoundingBox] = []
         for space in concept.mapped_spaces:
             try:
-                bbox = concept.extract_mask(space=space)
+                bbox = concept.get_boundingbox(space)
                 if bbox is not None:
-                    break
-
+                    bboxes.append(bbox)
             # TODO (2.0) implement gifti extract mask
             except NotImplementedError:
                 ...
-        concept.attributes = (
-            *concept.attributes,
-            bbox,
+
+        concept = AttributeCollection(
+            attributes=[
+                RegionSpec(parcellation_id=concept.parcellation.ID, value=concept.name),
+                *concept.attributes,
+                *bboxes,
+            ]
         )
 
     if isinstance(concept, Space):
