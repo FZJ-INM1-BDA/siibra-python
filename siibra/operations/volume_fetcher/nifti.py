@@ -43,7 +43,7 @@ class NiftiCodec(DataOp):
         cls._ALL_NIFTI_CODES.add(cls)
 
 
-@VolumeFormats.register_format_read("nii", "image")
+@VolumeFormats.register_format_read("nii", VolumeFormats.Category.IMAGE)
 def read_nii(_: Dict, base_retrieval_ops: List[Dict]):
 
     return [

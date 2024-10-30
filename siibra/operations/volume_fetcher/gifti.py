@@ -25,8 +25,8 @@ if TYPE_CHECKING:
     from ...attributes.datarecipes.volume import VolumeRecipe
 
 
-@VolumeFormats.register_format_read("gii-mesh", "mesh")
-@VolumeFormats.register_format_read("gii-label", "mesh")
+@VolumeFormats.register_format_read("gii-mesh", VolumeFormats.Category.MESH)
+@VolumeFormats.register_format_read("gii-label", VolumeFormats.Category.MESH)
 def read_freesurfer_annot(_: Dict, base_retrieval_ops: List[Dict]):
     return [*base_retrieval_ops, ReadGiftiFromBytesGii.generate_specs()]
 

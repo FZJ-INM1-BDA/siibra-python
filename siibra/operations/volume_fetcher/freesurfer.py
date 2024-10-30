@@ -56,7 +56,7 @@ def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
     return result
 
 
-@VolumeFormats.register_format_read("freesurfer-annot", "mesh")
+@VolumeFormats.register_format_read("freesurfer-annot", VolumeFormats.Category.MESH)
 def read_freesurfer_annot(_: Dict, base_retrieval_ops: List[Dict]):
     return [*base_retrieval_ops, ReadGiftiFromBytesFSAAnnot.generate_specs()]
 

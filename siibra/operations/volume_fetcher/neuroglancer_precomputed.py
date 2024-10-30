@@ -339,7 +339,7 @@ def fetch_neuroglancer(
     return scale.fetch(bbox=bbox)
 
 
-@VolumeFormats.register_format_read(NG_VOLUME_FORMAT_STR, "image")
+@VolumeFormats.register_format_read(NG_VOLUME_FORMAT_STR, VolumeFormats.Category.IMAGE)
 def read_ng(conf: Dict, _: List[Dict]):
     base_url = conf.get("url")
     assert base_url is not None, f"Expected url to be defined in {conf} but was not"

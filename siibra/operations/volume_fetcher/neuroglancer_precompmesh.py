@@ -46,7 +46,9 @@ def ngvoxelmesh_to_gii(
     return arrs_to_gii({"verts": vertices, "faces": triangles})
 
 
-@VolumeFormats.register_format_read("neuroglancer/precompmesh", "mesh")
+@VolumeFormats.register_format_read(
+    "neuroglancer/precompmesh", VolumeFormats.Category.MESH
+)
 def read_freesurfer_annot(conf: Dict, _: List[Dict]):
     base_url = conf.get("url")
     assert base_url, f"Expected url attribute to be in {conf}, but was not"
