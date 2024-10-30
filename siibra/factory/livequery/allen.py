@@ -118,7 +118,7 @@ class AllenLiveQuery(LiveQuery[Feature], generates=Feature):
         from ... import get_map
 
         regions = self.find_attribute_collections(Region)
-        if len(regions) > 0:
+        if len(regions) > 1:
             logger.warning(
                 f"AllenLiveQueryError: expecting one and only one Region, but got {len(regions)}."
             )

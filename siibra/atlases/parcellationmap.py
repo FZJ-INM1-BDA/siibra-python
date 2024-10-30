@@ -261,6 +261,7 @@ class Map(atlas_elements.AtlasElement):
                 MergeLabelledNiftis.generate_specs(),
             ],
             format="nii",
+            space_id=self.space_id,
         )
 
     def extract_mask(

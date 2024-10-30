@@ -26,9 +26,13 @@ def test_gene_exp():
     assert len(features_leaf_struct) == 1
 
     # Using higher threshold should result in less gene expresssion measures
-    assert len(features_grandparent_struct[0].data[0]) > len(
-        features_leaf_struct[0].data[0]
-    )
+    assert len(features_grandparent_struct[0].data_recipes_table) == 1
+    assert len(features_leaf_struct[0].data_recipes_table) == 1
+
+    grandparent_df = features_grandparent_struct[0].get_datarecipe().get_data()
+    leaf_df = features_leaf_struct[0].get_datarecipe().get_data()
+
+    assert len(grandparent_df) > len(leaf_df)
 
 
 def test_query_w_genelist():
@@ -36,5 +40,5 @@ def test_query_w_genelist():
     p = siibra.parcellations["julich 3.0.3"]
     regions = [p.get_region(spec) for spec in ["ifg 44 left", "hoc1 left"]]
     for region in regions:
-        fts = siibra.find_features(region, "gene", gene=genes)
+        fts = siibra.find_features(region, "gene", genes=genes)
         assert len(fts) > 0
