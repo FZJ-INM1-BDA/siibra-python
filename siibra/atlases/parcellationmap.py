@@ -300,10 +300,8 @@ class Map(atlas_elements.AtlasElement):
         as_binary_mask: bool = False,
     ) -> VolumeRecipe:
         """
-        Extracts a single volume with all (sub)regions imcluded.
+        Extracts a single volume with all (sub)regions included.
         """
-        if self.maptype == "statistical" and not as_binary_mask:
-            raise ValueError("Statistical maps can only be merged as masks.")
 
         if as_binary_mask:
             return self.extract_mask(regions=self.regionnames)

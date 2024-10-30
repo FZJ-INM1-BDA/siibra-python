@@ -47,6 +47,7 @@ from ..operations.image_assignment import (
     ScoredImageAssignment,
     get_intersection_scores,
 )
+from ..exceptions import SiibraTypeException
 
 
 SPARSEINDEX_BASEURL = (
@@ -601,3 +602,8 @@ class SparseMap(Map):
                         )
                     )
         return self._convert_assignments_to_dataframe(assignments)
+
+    def extract_full_map(self, frmt=None, allow_relabeling=False, as_binary_mask=False):
+        if not as_binary_mask:
+            raise SiibraTypeException("Statistical maps can only be merged as masks.")
+        return super().extract_full_map(frmt, allow_relabeling, as_binary_mask)

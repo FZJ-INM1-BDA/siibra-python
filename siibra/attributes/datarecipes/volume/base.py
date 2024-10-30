@@ -35,17 +35,21 @@ except ImportError:
 SIIBRA_MAX_FETCH_SIZE_GIB = getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2)
 
 
-class Mapping(TypedDict):
-    """
-    Represents restrictions to apply to an image to get partial information,
-    such as labelled mask, a specific slice etc.
-    """
-
-    label: int = None
-    range: Tuple[float, float]
-    subspace: Tuple[slice, ...]
-    target: str = None
-    color: str = None
+"""
+Represents restrictions to apply to an image to get partial information,
+such as labelled mask, a specific slice etc.
+"""
+Mapping = TypedDict(
+    "Mapping",
+    {
+        "label": int,
+        "range": Tuple[float, float],
+        "subspace": Tuple[slice, ...],
+        "target": str,
+        "color": str,
+        "@type": str,
+    },
+)
 
 
 class VolumeOpsKwargs(TypedDict):
