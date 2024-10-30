@@ -55,13 +55,12 @@ class RemoteLocalDataOp(DataOp):
     input: None
     output: bytes
     type = "read/remote-local"
-    desc = "Read local/remote to bytes"
     KEEP_LOCAL_CACHE_THRESHOLD = 0
 
-    def describe(self, *, filename: str, **kwargs):
+    def desc(self, filename=None, **kwargs):
         desc = ""
         if filename.startswith("https"):
-            desc += f"Reading remote file at {filename} "
+            desc += f"Reading remote file at {filename} into bytes "
             cache_filename = CACHE.build_filename(filename)
             if Path(cache_filename).is_file():
                 desc += f"by reading a cached version at {cache_filename}"

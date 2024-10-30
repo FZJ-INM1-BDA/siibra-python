@@ -70,8 +70,14 @@ class ReadNiftiFromBytes(DataOp):
 
 
 class NiftiMask(NiftiCodec):
-    desc = "Mask nifti according to spec {kwargs."
     type = "codec/vol/mask"
+
+    def desc(self, lower_threshold=None, background_value=None, **kwargs):
+        if lower_threshold is not None:
+            return f"Mask nifti according to threshold {lower_threshold}"
+        if background_value is not None:
+            return f"Mask nifti according to background {background_value}"
+        return "lower_threshold=None, background_value=None, noop"
 
     def run(
         self,
@@ -116,8 +122,12 @@ class NiftiMask(NiftiCodec):
 
 
 class NiftiExtractLabels(NiftiCodec):
-    desc = "Extract a nifti with only selected labels."
     type = "codec/vol/extractlabels"
+
+    def desc(self, labels=None, **kwargs):
+        if labels is None:
+            return "labels=None, noop"
+        return f"Extract labels {', '.join([str(l) for l in labels])} only."
 
     def run(self, input, *, labels: Union[List[int], None], **kwargs):
         if labels is None:
@@ -136,8 +146,12 @@ class NiftiExtractLabels(NiftiCodec):
 
 
 class NiftiExtractRange(NiftiCodec):
-    desc = "Extract a nifti with values only from selected range."
     type = "codec/vol/extractrange"
+
+    def desc(self, range=None, **kwargs):
+        if range is None:
+            return "range=None, noop"
+        return f"Extract a nifti with values only from {str(range)}."
 
     def run(self, input, *, range: Union[Tuple[float, float], None], **kwargs):
         if range is None:
@@ -161,8 +175,12 @@ class NiftiExtractRange(NiftiCodec):
 
 
 class NiftiExtractSubspace(NiftiCodec):
-    desc = "Extract a nifti with values only from selected slice according to {kwargs."
     type = "codec/vol/extractsubspace"
+
+    def desc(self, subspace=None, **kwargs):
+        if subspace is None:
+            return "subspace=None, noop"
+        return f"Extract a nifti with values only from {str(subspace)}."
 
     def run(self, input, *, subspace: slice, **kwargs):
         if subspace is None:
@@ -182,8 +200,12 @@ class NiftiExtractSubspace(NiftiCodec):
 
 
 class NiftiExtractVOI(NiftiCodec):
-    desc = "Extract a nifti with values only from selected volume of interest according to {kwargs."
     type = "codec/vol/extractVOI"
+
+    def desc(self, voi=None, **kwargs):
+        if voi is None:
+            return "voi=None, noop"
+        return f"Extract VOI according {voi}"
 
     def run(self, input, voi: Union["BoundingBox", None], **kwargs):
         if voi is None:
@@ -215,7 +237,7 @@ class NiftiExtractVOI(NiftiCodec):
 class ResampleNifti:
     input: Nifti1Image
     output: Nifti1Image
-    desc = "Resample a nifti according to {kwargs."
+    desc = "Resample a nifti according to target_img."
     type = "codec/vol/resample"
 
     def run(self, input, **kwargs):
@@ -265,7 +287,7 @@ class ResampleNifti:
 class MergeLabelledNiftis(DataOp):
     input: List[Nifti1Image]
     output: Nifti1Image
-    desc = "Merge a list of niftis according to kwargs."
+    desc = "Merge a list of niftis."
     type = "codec/vol/merge"
 
     def run(self, input: List[Nifti1Image], **kwargs):
@@ -297,9 +319,12 @@ class MergeLabelledNiftis(DataOp):
 
         if template_affine is None:
             shapes = set(nii.shape for nii in niftis)
-            assert len(shapes) == 1
+            data_dtypes = set(nii.get_data_dtype() for nii in niftis)
+            assert len(shapes) == 1, f"Resampling niftis must have the same shape"
+            assert len(data_dtypes) == 1, f"Resampling niftis must have the same dtype"
             shape = next(iter(shapes))
-            merged_array = np.zeros(shape, dtype="int16")
+            data_dtype = next(iter(data_dtypes))
+            merged_array = np.zeros(shape, dtype=data_dtype)
             affine = niftis[0].affine
         else:
             affine = template_affine

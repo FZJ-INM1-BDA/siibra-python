@@ -25,7 +25,7 @@ except ImportError:
 
 from ...attributes import Attribute
 from ...cache import fn_call_cache
-from ...operations.base import DataOp
+from ...operations.base import DataOp, get_parameters, describe_operations
 from ...commons.logger import logger
 from ...operations.file_fetcher import (
     TarDataOp,
@@ -71,7 +71,6 @@ def run_steps(steps: List[Dict]):
 
 
 # TODO (2.0) convey that the ops *should* be immutable
-# TODO (ASAP) figure out how to populate ops arsed from archive_ops etc
 @dataclass
 class DataRecipe(Attribute):
     """
@@ -124,12 +123,16 @@ class DataRecipe(Attribute):
     def ops(self, value):
         raise RuntimeError("Please use reconfigure instance method")
 
+    def describe(self):
+        description = describe_operations(self.ops, detail=True)
+        return description
+
     def get_parameters(self, *arg, **kwargs):
         import pandas as pd
 
         r: List[Tuple[str, Type[DataOp]]] = []
         for op in self.ops:
-            param_names, Runner = DataOp.get_parameters(op)
+            param_names, Runner = get_parameters(op)
             for param_name in param_names:
                 r.append([param_name, Runner])
 
