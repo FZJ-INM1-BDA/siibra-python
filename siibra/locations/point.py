@@ -18,7 +18,7 @@ from . import location, boundingbox, pointset
 
 from ..commons import logger
 from ..retrieval.requests import HttpRequest
-from ..exceptions import SpaceWarpingFailedError
+from ..exceptions import SpaceWarpingFailedError, NoneCoordinateSuppliedError
 
 from urllib.parse import quote
 import re
@@ -57,13 +57,13 @@ class Point(location.Location):
                 return tuple(float(d) for d in digits)
         elif isinstance(spec, (tuple, list)) and len(spec) in [3, 4]:
             if any(v is None for v in spec):
-                raise RuntimeError("Cannot parse cooridantes containing None values.")
+                raise NoneCoordinateSuppliedError("Cannot parse cooridantes containing None values.")
             if len(spec) == 4:
                 assert spec[3] == 1
             return tuple(float(v.item()) if isinstance(v, np.ndarray) else float(v) for v in spec[:3])
         elif isinstance(spec, np.ndarray) and spec.size == 3:
             if any(np.isnan(v) for v in spec):
-                raise RuntimeError("Cannot parse cooridantes containing NaN values.")
+                raise NoneCoordinateSuppliedError("Cannot parse cooridantes containing NaN values.")
             return tuple(float(v.item()) if isinstance(v, np.ndarray) else float(v) for v in spec[:3])
         elif isinstance(spec, Point):
             return spec.coordinate
