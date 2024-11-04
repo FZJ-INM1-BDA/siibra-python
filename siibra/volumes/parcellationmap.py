@@ -585,13 +585,25 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         for regionname, indexlist in siibra_tqdm(
             self._indices.items(), unit="regions", desc="Computing centroids"
         ):
-            assert len(indexlist) == 1
             assert regionname not in centroids
-            index = indexlist[0]
-            if index.label == 0:
-                continue
+            # get the mask of the region in this map
             with QUIET:
-                mapimg = self.fetch(index=index)  # returns a mask of the region
+                if len(indexlist) >= 1:
+                    merged_volume = _volume.merge(
+                        [
+                            _volume.from_nifti(
+                                self.fetch(index=index),
+                                self.space,
+                                f"{self.name} - {index}"
+                            )
+                            for index in indexlist
+                        ],
+                        labels=[1] * len(indexlist)
+                    )
+                    mapimg = merged_volume.fetch()
+                elif len(indexlist) == 1:
+                    index = indexlist[0]
+                    mapimg = self.fetch(index=index)  # returns a mask of the region
             props = _volume.ComponentSpatialProperties.compute_from_image(mapimg, self.space)
             centroids[regionname] = pointset.from_points([c.centroid for c in props])
         return centroids
