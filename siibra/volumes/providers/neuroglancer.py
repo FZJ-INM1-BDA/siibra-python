@@ -532,8 +532,8 @@ class NeuroglancerScale:
         # determine the remaining offset from the "chunk mosaic" to the
         # exact bounding box requested, to cut off undesired borders
         data_min = np.array([gx0, gy0, gz0]) * self.chunk_sizes
-        x0, y0, z0 = (np.array(tuple(bbox_.minpoint)) - data_min).astype("int")
-        xd, yd, zd = np.array(bbox_.shape).astype("int")
+        x0, y0, z0 = (np.array(bbox_.minpoint) - data_min).astype("int")
+        xd, yd, zd = np.ceil((np.array(bbox_.maxpoint))).astype(int) - np.floor((np.array(bbox_.minpoint))).astype(int)  # TODO: consider 0.5 voxel shift
         offset = tuple(bbox_.minpoint)
 
         # build the nifti image
