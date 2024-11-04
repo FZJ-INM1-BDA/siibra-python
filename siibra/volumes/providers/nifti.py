@@ -188,17 +188,16 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
             result = loader()
 
         if voi is not None:
-            vox_offset = result.header.get_data_offset()
-            zoom_xyz = np.array(result.header.get_zooms())  # voxel dimensions in mm
+            zoom_xyz = np.array(result.header.get_zooms())  # voxel dimensions in xyzt_units
             bb_vox = voi.transform(np.linalg.inv(result.affine))
-            x0, y0, z0 = np.floor((np.array(bb_vox.minpoint.coordinate) - vox_offset) / zoom_xyz).astype(int)
-            x1, y1, z1 = np.ceil((np.array(bb_vox.maxpoint.coordinate) - vox_offset) / zoom_xyz).astype(int)
+            x0, y0, z0 = np.floor(np.array(bb_vox.minpoint.coordinate) / zoom_xyz).astype(int)
+            x1, y1, z1 = np.ceil(np.array(bb_vox.maxpoint.coordinate) / zoom_xyz).astype(int)
             shift = np.identity(4)
             shift[:3, -1] = bb_vox.minpoint
             result = nib.Nifti1Image(
                 dataobj=result.dataobj[x0:x1, y0:y1, z0:z1],
                 affine=np.dot(result.affine, shift),
-                dtype=result.get_data_dtype()
+                dtype=result.header.get_data_dtype(),
             )
 
         if label is not None:
