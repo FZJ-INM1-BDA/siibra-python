@@ -537,11 +537,11 @@ class NeuroglancerScale:
         offset = tuple(bbox_.minpoint)
 
         # build the nifti image
-        trans = np.identity(4)[[2, 1, 0, 3], :]  # zyx -> xyz
         shift = np.c_[np.identity(4)[:, :3], np.r_[offset, 1]]
         return nib.Nifti1Image(
-            data_zyx[z0: z0 + zd, y0: y0 + yd, x0: x0 + xd],
-            np.dot(self.affine, np.dot(shift, trans)),
+            np.swapaxes(data_zyx[z0: z0 + zd, y0: y0 + yd, x0: x0 + xd], 0, 2),
+            np.dot(self.affine, np.dot(shift, np.identity(4))),
+            dtype=self.volume.dtype,
         )
 
 
