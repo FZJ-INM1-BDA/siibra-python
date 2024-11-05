@@ -12,6 +12,7 @@ concurrency:
 
 env:
   USE_CONFIG_COMMIT_KW: "[ci:usecfg]"
+  SIIBRA_LOG_LEVEL: "INFO_WO_PROGRESS_BARS"
 
 jobs:
   use-custom-cfg:

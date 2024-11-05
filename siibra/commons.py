@@ -35,6 +35,7 @@ except ImportError:
     # support python 3.7
     from typing_extensions import TypedDict
 
+logging.addLevelName(21, "INFO_WO_PROGRESS_BARS")
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
 formatter = logging.Formatter("[{name}:{levelname}] {message}", style="{")
@@ -297,7 +298,7 @@ def siibra_tqdm(iterable: Iterable[T] = None, *args, **kwargs):
     return tqdm(
         iterable,
         *args,
-        disable=kwargs.pop("disable", False) or (logger.level > 20),
+        disable=kwargs.pop("disable", False) or (logger.level > logging.INFO),
         **kwargs
     )
 
