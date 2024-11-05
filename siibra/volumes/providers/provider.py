@@ -28,7 +28,7 @@ VolumeData = Union[Nifti1Image, Dict]
 
 class VolumeProvider(ABC):
 
-    _SUBCLASSES = []
+    _SUBCLASSES: List[VolumeProvider] = []
 
     def __init_subclass__(cls, srctype: str) -> None:
         cls.srctype = srctype

@@ -238,7 +238,7 @@ class TestParcellation(unittest.TestCase):
 
 
 @pytest.mark.parametrize('space_id,parc_id,map_type', [
-    ('waxholm', 'v4', 'labelled')
+    ('waxholm', 'waxholm v4', 'labelled')
 ])
 def test_should_be_able_to_fetch_map(space_id, parc_id, map_type):
 
