@@ -38,23 +38,45 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class ComponentSpatialProperties:
+class SpatialProperties:
+    """
+    Centroid and nonzero volume of an image.
+    """
     centroid: point.Point
     volume: int
 
     @staticmethod
     def compute_from_image(
         img: Nifti1Image,
-        space: Union[str, "_space.Space"]
-    ) -> List["ComponentSpatialProperties"]:
+        space: Union[str, "_space.Space"],
+        split_components: bool = True
+
+    ) -> List["SpatialProperties"]:
+        """
+        Find the center in its (non-zero) voxel space and volume of an iamge.
+
+        Parameters
+        ----------
+        img: Nifti1Image
+        space: str, Space
+        split_components: bool, default: True
+            If True, finds the spatial properties for each connected component
+            found by skimage.measure.label.
+        """
         scale = affine_scaling(img.affine)
-        spatial_props: List[ComponentSpatialProperties] = []
-        for label, component in connected_components(
-            np.asanyarray(img.dataobj), connectivity=None
-        ):
+        if split_components:
+            iter_components = lambda img: connected_components(
+                np.asanyarray(img.dataobj),
+                connectivity=None
+            )
+        else:
+            iter_components = lambda img: [(0, np.asanyarray(img.dataobj))]
+
+        spatial_props: List[SpatialProperties] = []
+        for _, component in iter_components(img):
             nonzero: np.ndarray = np.c_[np.nonzero(component)]
             spatial_props.append(
-                ComponentSpatialProperties(
+                SpatialProperties(
                     centroid=point.Point(
                         np.dot(img.affine, np.r_[nonzero.mean(0), 1])[:3],
                         space=space
@@ -520,9 +542,9 @@ class Volume(location.Location):
                 Nifti1Image(component, img.affine)
             )
 
-    def compute_spatial_props(self, **fetch_kwargs) -> List[ComponentSpatialProperties]:
+    def compute_spatial_props(self, **fetch_kwargs) -> List[SpatialProperties]:
         img = self.fetch(**fetch_kwargs)
-        return ComponentSpatialProperties.compute_from_image(img, self.space)
+        return SpatialProperties.compute_from_image(img, self.space)
 
     def draw_samples(self, N: int, sample_size: int = 100, e: float = 1, sigma_mm=None, invert=False, **kwargs):
         """

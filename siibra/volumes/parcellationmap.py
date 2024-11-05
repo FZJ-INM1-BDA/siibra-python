@@ -604,7 +604,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 elif len(indexlist) == 1:
                     index = indexlist[0]
                     mapimg = self.fetch(index=index)  # returns a mask of the region
-            props = _volume.ComponentSpatialProperties.compute_from_image(mapimg, self.space)
+            props = _volume.SpatialProperties.compute_from_image(mapimg, self.space)
             centroids[regionname] = pointset.from_points([c.centroid for c in props])
         return centroids
 
