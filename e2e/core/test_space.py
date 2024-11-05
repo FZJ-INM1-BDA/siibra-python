@@ -25,7 +25,7 @@ voi_params = [
 ]
 
 
-@pytest.mark.parametrize("space, format, shape, kwargs", voi_params)
+@pytest.mark.parametrize("space_spec, format, shape, kwargs", voi_params)
 def test_voi_fetching(
     space_spec: str, format: str, shape: Tuple[int, int, int], kwargs
 ):
