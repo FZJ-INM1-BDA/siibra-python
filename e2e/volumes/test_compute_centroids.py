@@ -5,10 +5,17 @@ from siibra.volumes import Map
 from siibra.exceptions import NoneCoordinateSuppliedError
 
 preconfiugres_maps = list(siibra.maps)
+BLACKLIST = {
+    siibra.get_map('julich 1.18', 'mni15', 'statistical'): "SKIP: fails since there are volumes that cannot be fetched."
+}
 
 
 @pytest.mark.parametrize("mp", preconfiugres_maps)
 def test_compute_centroids(mp: Map):
+    if mp in BLACKLIST.keys():
+        pytest.skip(
+            f"{BLACKLIST[mp]} Map: {mp.name}"
+        )
     if not mp.provides_image:
         pytest.skip(
             f"Currently, centroid computation for meshes is not implemented. Skipping '{mp.name}'"
