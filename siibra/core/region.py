@@ -18,12 +18,11 @@ from . import concept, structure, space as _space, parcellation as _parcellation
 from .assignment import Qualification, AnatomicalAssignment
 
 from ..retrieval.cache import cache_user_fn
-from ..locations import location, point, pointset, boundingbox as _boundingbox
+from ..locations import location, pointset, boundingbox as _boundingbox
 from ..volumes import parcellationmap, volume
 from ..commons import (
     logger,
     MapType,
-    affine_scaling,
     create_key,
     clear_name,
     InstanceTable,
@@ -37,7 +36,6 @@ import re
 import anytree
 from typing import List, Union, Iterable, Dict, Callable, Tuple
 from difflib import SequenceMatcher
-from dataclasses import dataclass, field
 from ebrains_drive import BucketApiClient
 import json
 from functools import wraps, reduce
@@ -47,19 +45,6 @@ from concurrent.futures import ThreadPoolExecutor
 REGEX_TYPE = type(re.compile("test"))
 
 THRESHOLD_STATISTICAL_MAPS = None
-
-
-@dataclass
-class SpatialPropCmpt:
-    centroid: point.Point
-    volume: int
-
-
-@dataclass
-class SpatialProp:
-    cog: SpatialPropCmpt = None
-    components: List[SpatialPropCmpt] = field(default_factory=list)
-    space: _space.Space = None
 
 
 class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
@@ -790,7 +775,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         """
         props = self.spatial_props(space)
         return pointset.PointSet(
-            [c.centroid for c in props.components],
+            [c.centroid for c in props],
             space=space
         )
 
@@ -799,7 +784,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         space: _space.Space,
         maptype: MapType = MapType.LABELLED,
         threshold_statistical=None,
-    ) -> SpatialProp:
+    ):
         """
         Compute spatial properties for connected components of this region in the given space.
 
@@ -822,49 +807,22 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         Dict
             Dictionary of region's spatial properties
         """
-        from skimage import measure
-
         if not isinstance(space, _space.Space):
             space = _space.Space.get_instance(space)
 
-        result = SpatialProp(space=space)
-
-        if not self.mapped_in_space(space):
-            logger.warning(
+        # build binary mask of the image
+        try:
+            region_vol = self.get_regional_map(
+                space, maptype=maptype, threshold=threshold_statistical
+            )
+        except NoMapAvailableError:
+            raise ValueError(
                 f"Spatial properties of {self.name} cannot be computed in {space.name}. "
                 "This region is only mapped in these spaces: "
                 f"{', '.join(s.name for s in self.supported_spaces)}"
             )
-            return result
 
-        # build binary mask of the image
-        pimg = self.get_regional_map(
-            space, maptype=maptype, threshold=threshold_statistical
-        ).fetch()
-
-        # determine scaling factor from voxels to cube mm
-        scale = affine_scaling(pimg.affine)
-
-        # compute properties of labelled volume
-        A = np.asarray(pimg.get_fdata(), dtype=np.int32).squeeze()
-        C = measure.label(A)
-
-        # compute spatial properties of each connected component
-        for label in range(1, C.max() + 1):
-            nonzero = np.c_[np.nonzero(C == label)]
-            result.components.append(
-                SpatialPropCmpt(
-                    centroid=point.Point(
-                        np.dot(pimg.affine, np.r_[nonzero.mean(0), 1])[:3], space=space
-                    ),
-                    volume=nonzero.shape[0] * scale,
-                )
-            )
-
-        # sort by volume
-        result.components.sort(key=lambda cmp: cmp.volume, reverse=True)
-
-        return result
+        return region_vol.compute_spatial_props()
 
     def __iter__(self):
         """

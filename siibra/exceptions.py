@@ -49,3 +49,7 @@ class WarmupRegException(Exception):
 
 class ZeroVolumeBoundingBox(Exception):
     pass
+
+
+class NoneCoordinateSuppliedError(ValueError):
+    pass
