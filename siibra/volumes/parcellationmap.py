@@ -572,9 +572,17 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )]
         )
 
-    def compute_centroids(self) -> Dict[str, pointset.PointSet]:
+    def compute_centroids(self, split_components: bool = True) -> Dict[str, pointset.PointSet]:
         """
-        Compute a dictionary of the centroids of all regions in this map.
+        Compute a dictionary of all regions in this map to their centroids.
+        By default, the regional masks will be split to connected components
+        and each point in the PointSet corresponds to a region component.
+
+        Parameters
+        ----------
+        split_components: bool, default: True
+            If True, finds the spatial properties for each connected component
+            found by skimage.measure.label.
 
         Returns
         -------
@@ -604,7 +612,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 elif len(indexlist) == 1:
                     index = indexlist[0]
                     mapimg = self.fetch(index=index)  # returns a mask of the region
-            props = _volume.SpatialProperties.compute_from_image(mapimg, self.space)
+            props = _volume.ComponentSpatialProperties.compute_from_image(
+                img=mapimg,
+                space=self.space,
+                split_components=split_components,
+            )
             centroids[regionname] = pointset.from_points([c.centroid for c in props])
         return centroids
 

@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class SpatialProperties:
+class ComponentSpatialProperties:
     """
     Centroid and nonzero volume of an image.
     """
@@ -51,9 +51,10 @@ class SpatialProperties:
         space: Union[str, "_space.Space"],
         split_components: bool = True
 
-    ) -> List["SpatialProperties"]:
+    ) -> List["ComponentSpatialProperties"]:
         """
-        Find the center in its (non-zero) voxel space and volume of an iamge.
+        Find the center of an image in its (non-zero) voxel space and and its
+        volume.
 
         Parameters
         ----------
@@ -72,11 +73,11 @@ class SpatialProperties:
         else:
             iter_components = lambda img: [(0, np.asanyarray(img.dataobj))]
 
-        spatial_props: List[SpatialProperties] = []
+        spatial_props: List[ComponentSpatialProperties] = []
         for _, component in iter_components(img):
             nonzero: np.ndarray = np.c_[np.nonzero(component)]
             spatial_props.append(
-                SpatialProperties(
+                ComponentSpatialProperties(
                     centroid=point.Point(
                         np.dot(img.affine, np.r_[nonzero.mean(0), 1])[:3],
                         space=space
@@ -547,9 +548,24 @@ class Volume(location.Location):
                 Nifti1Image(component, img.affine)
             )
 
-    def compute_spatial_props(self, **fetch_kwargs) -> List[SpatialProperties]:
-        img = self.fetch(**fetch_kwargs)
-        return SpatialProperties.compute_from_image(img, self.space)
+    def compute_spatial_props(self, split_components: bool = True, **fetch_kwargs) -> List[ComponentSpatialProperties]:
+        """
+        Find the center of this volume in its (non-zero) voxel space and and its
+        volume.
+
+        Parameters
+        ----------
+        split_components: bool, default: True
+            If True, finds the spatial properties for each connected component
+            found by skimage.measure.label.
+        """
+        assert self.provides_image, NotImplementedError("Spatial properties can currently on be calculated for images.")
+        img = self.fetch(format="image", **fetch_kwargs)
+        return ComponentSpatialProperties.compute_from_image(
+            img=img,
+            space=self.space,
+            split_components=split_components
+        )
 
     def draw_samples(self, N: int, sample_size: int = 100, e: float = 1, sigma_mm=None, invert=False, **kwargs):
         """
