@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ from ..tabular.tabular import Tabular
 
 from .. import anchor as _anchor
 
-from ...commons import logger, QUIET
+from ...commons import logger, QUIET, siibra_tqdm
 from ...core import region as _region
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
@@ -57,7 +57,9 @@ class RegionalConnectivity(Feature, Compoundable):
         description: str = "",
         datasets: list = [],
         subject: str = "average",
-        feature: str = None
+        feature: str = None,
+        id: str = None,
+        prerelease: bool = False,
     ):
         """
         Construct a parcellation-averaged connectivity matrix.
@@ -91,6 +93,8 @@ class RegionalConnectivity(Feature, Compoundable):
             description=description,
             anchor=anchor,
             datasets=datasets,
+            id=id,
+            prerelease=prerelease
         )
         self.cohort = cohort.upper()
         if isinstance(connector, str) and connector:
@@ -116,7 +120,7 @@ class RegionalConnectivity(Feature, Compoundable):
 
     @property
     def name(self):
-        return f"{super().name} with cohort {self.cohort} - {self.feature or self.subject}"
+        return f"{self.feature or self.subject} - " + super().name + f" cohort: {self.cohort}"
 
     @property
     def data(self) -> pd.DataFrame:
@@ -131,6 +135,45 @@ class RegionalConnectivity(Feature, Compoundable):
         if self._matrix is None:
             self._load_matrix()
         return self._matrix.copy()
+
+    @classmethod
+    def _merge_elements(
+        cls,
+        elements: List["RegionalConnectivity"],
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor,
+    ):
+        assert len({f.cohort for f in elements}) == 1
+        merged = cls(
+            cohort=elements[0].cohort,
+            regions=elements[0].regions,
+            connector=elements[0]._connector,
+            decode_func=elements[0]._decode_func,
+            filename="",
+            subject="average",
+            feature="average",
+            description=description,
+            modality=modality,
+            anchor=anchor,
+            **{"paradigm": "averaged (by siibra)"} if getattr(elements[0], "paradigm", None) else {}
+        )
+        if isinstance(elements[0]._connector, HttpRequest):
+            getter = lambda elm: elm._connector.get()
+        else:
+            getter = lambda elm: elm._connector.get(elm._filename, decode_func=elm._decode_func)
+        all_arrays = [
+            getter(elm)
+            for elm in siibra_tqdm(
+                elements,
+                total=len(elements),
+                desc=f"Averaging {len(elements)} connectivity matrices"
+            )
+        ]
+        merged._matrix = elements[0]._arraylike_to_dataframe(
+            np.stack(all_arrays).mean(0)
+        )
+        return merged
 
     def _plot_matrix(
         self, regions: List[str] = None,
@@ -179,6 +222,7 @@ class RegionalConnectivity(Feature, Compoundable):
                 **kwargs
             )
         elif backend == "plotly":
+            kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             from plotly.express import imshow
             return imshow(matrix, *args, x=regions, y=regions, **kwargs)
         else:

@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ from .query import LiveQuery
 from ..core import space as _space, structure
 from ..features import anchor as _anchor
 from ..features.tabular.gene_expression import GeneExpressions
-from ..commons import logger, Species, MapType
+from ..commons import logger, Species
 from ..locations import point, pointset
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
@@ -101,9 +101,6 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         """
         LiveQuery.__init__(self, **kwargs)
         gene = kwargs.get('gene')
-        self.maptype = kwargs.get("maptype", None)
-        if isinstance(self.maptype, str):
-            self.maptype = MapType[self.maptype.upper()]
 
         def parse_gene(spec):
             if isinstance(spec, str):
@@ -136,6 +133,9 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
             if points_inside[pt]:
                 measurements.append(measurement)
                 coordinates.append(pt)
+
+        if len(points_inside) == 0:
+            raise StopIteration
 
         # Build the anatomical anchor and assignment to the query concept.
         # It will be attached to the returned feature, with the set of matched
@@ -292,7 +292,10 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         url = AllenBrainAtlasQuery._QUERY["microarray"].format(
             probe_ids=",".join([str(id) for id in probe_ids]), donor_id=donor_id
         )
-        response = HttpRequest(url, json.loads).get()
+        try:
+            response = HttpRequest(url, json.loads).get()
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"Allen institute site produced an empty response - please try again later.\n{e}")
         if not response["success"]:
             raise Exception(
                 "Invalid response when retrieving microarray data: {}".format(url)

@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,6 +22,7 @@ from ..commons import logger
 from ..locations import point, pointset
 from ..core import structure
 from ..retrieval import requests, cache
+from ..retrieval.datasets import GenericDataset
 
 import numpy as np
 from typing import List
@@ -37,6 +38,37 @@ class WagstylProfileLoader:
     _profiles = None
     _vertices = None
     _boundary_depths = None
+    DATASET = GenericDataset(
+        name="HIBALL workshop on cortical layers",
+        contributors=[
+            'Konrad Wagstyl',
+            'Stéphanie Larocque',
+            'Guillem Cucurull',
+            'Claude Lepage',
+            'Joseph Paul Cohen',
+            'Sebastian Bludau',
+            'Nicola Palomero-Gallagher',
+            'Lindsay B. Lewis',
+            'Thomas Funck',
+            'Hannah Spitzer',
+            'Timo Dickscheid',
+            'Paul C. Fletcher',
+            'Adriana Romero',
+            'Karl Zilles',
+            'Katrin Amunts',
+            'Yoshua Bengio',
+            'Alan C. Evans'
+        ],
+        url="https://github.com/kwagstyl/cortical_layers_tutorial/",
+        description="Cortical profiles of BigBrain staining intensities computed by Konrad Wagstyl, "
+        "as described in the publication 'Wagstyl, K., et al (2020). BigBrain 3D atlas of "
+        "cortical layers: Cortical and laminar thickness gradients diverge in sensory and "
+        "motor cortices. PLoS Biology, 18(4), e3000678. "
+        "http://dx.doi.org/10.1371/journal.pbio.3000678."
+        "The data is taken from the tutorial at "
+        "https://github.com/kwagstyl/cortical_layers_tutorial. Each vertex is "
+        "assigned to the regional map when queried."
+    )
 
     def __init__(self):
         if self._profiles is None:
@@ -113,6 +145,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
                 qualification=_anchor.Qualification.CONTAINED,
                 explanation=f"Surface vertex of BigBrain cortical profile was filtered using {concept}"
             )
+            prof.datasets = [WagstylProfileLoader.DATASET]
             features.append(prof)
 
         return features
@@ -159,5 +192,6 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
             qualification=_anchor.Qualification.CONTAINED,
             explanation=f"Surface vertices of BigBrain cortical profiles were filtered using {concept}"
         )
+        result.datasets = [WagstylProfileLoader.DATASET]
 
         return [result]

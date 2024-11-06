@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -107,6 +107,14 @@ def set_feasible_download_size(maxsize_gbyte):
 
 
 def set_cache_size(maxsize_gbyte: int):
+    """
+    siibra runs maintainance on its local cache to keep it under a predetermined
+    size of 2 gigabytes. This method changes the cache size.
+
+    Parameters
+    ----------
+    maxsize_gbyte : int
+    """
     assert maxsize_gbyte >= 0
     cache.SIZE_GIB = maxsize_gbyte
     logger.info(f"Set cache size to {maxsize_gbyte} GiB.")
@@ -150,5 +158,7 @@ def __dir__():
         "vocabularies",
         "__version__",
         "cache",
-        "warm_cache"
+        "warm_cache",
+        "set_cache_size",
+        "from_json",
     ]

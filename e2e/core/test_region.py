@@ -17,8 +17,8 @@ regions = [
 @pytest.mark.parametrize("region", regions)
 def test_region_spatial_props(region: Region):
     props = region.spatial_props("mni152")
-    for idx, cmp in enumerate(props.components, start=1):
-        assert cmp.volume >= props.components[idx - 1].volume
+    for idx, cmp in enumerate(props, start=1):
+        assert cmp.volume >= props[idx - 1].volume
 
 
 regions_of_concern = [

@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,7 +35,7 @@ class LayerwiseBigBrainIntensities(
         "'Wagstyl, K., et al (2020). BigBrain 3D atlas of "
         "cortical layers: Cortical and laminar thickness gradients diverge in sensory and "
         "motor cortices. PLoS Biology, 18(4), e3000678. "
-        "http://dx.doi.org/10.1371/journal.pbio.3000678'."
+        "http://dx.doi.org/10.1371/journal.pbio.3000678."
         "The data is taken from the tutorial at "
         "https://github.com/kwagstyl/cortical_layers_tutorial. Each vertex is "
         "assigned to the regional map when queried."

@@ -1,4 +1,4 @@
-# Copyright 2018-2023
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@ import os
 import re
 from enum import Enum
 from nibabel import Nifti1Image
+from nilearn.image import resample_to_img
 import logging
 from tqdm import tqdm
 import numpy as np
@@ -34,6 +35,7 @@ except ImportError:
     # support python 3.7
     from typing_extensions import TypedDict
 
+logging.addLevelName(21, "INFO_WO_PROGRESS_BARS")
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
 formatter = logging.Formatter("[{name}:{levelname}] {message}", style="{")
@@ -50,7 +52,7 @@ SIIBRA_LOG_LEVEL = os.getenv("SIIBRA_LOG_LEVEL", "INFO")
 SIIBRA_USE_CONFIGURATION = os.getenv("SIIBRA_USE_CONFIGURATION")
 SIIBRA_USE_LOCAL_SNAPSPOT = os.getenv("SIIBRA_USE_LOCAL_SNAPSPOT")
 SKIP_CACHEINIT_MAINTENANCE = os.getenv("SKIP_CACHEINIT_MAINTENANCE")
-SIIBRA_MAX_FETCH_SIZE_GIB = os.getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2)
+SIIBRA_MAX_FETCH_SIZE_GIB = float(os.getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2))
 
 with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
     __version__ = fp.read().strip()
@@ -102,9 +104,11 @@ class InstanceTable(Generic[T], Iterable):
         self._dataframe_cached = None
 
     def add(self, key: str, value: T) -> None:
-        """Add a key/value pair to the registry.
+        """
+        Add a key/value pair to the registry.
 
-        Args:
+        Parameters
+        ----------
             key (string): Unique name or key of the object
             value (object): The registered object
         """
@@ -153,10 +157,13 @@ class InstanceTable(Generic[T], Iterable):
         the first in sorted order is returned. If the specification does not match,
         a RuntimeError is raised.
 
-        Args:
-            spec [int or str]: Index or string specification of an object
+        Parameters
+        ----------
+        spec: int, str
+            Index or string specification of an object
 
-        Returns:
+        Returns
+        -------
             Matched object
         """
         if spec is None:
@@ -291,7 +298,7 @@ def siibra_tqdm(iterable: Iterable[T] = None, *args, **kwargs):
     return tqdm(
         iterable,
         *args,
-        disable=kwargs.pop("disable", False) or (logger.level > 20),
+        disable=kwargs.pop("disable", False) or (logger.level > logging.INFO),
         **kwargs
     )
 
@@ -508,26 +515,33 @@ def compare_arrays(arr1: np.ndarray, affine1: np.ndarray, arr2: np.ndarray, affi
     )
 
 
-def resample_array_to_array(
-    source_data: np.ndarray,
-    source_affine: np.ndarray,
-    target_data: np.ndarray,
-    target_affine: np.ndarray
-) -> np.ndarray:
+def resample_img_to_img(
+    source_img: Nifti1Image,
+    target_img: Nifti1Image,
+    interpolation: str = ""
+) -> Nifti1Image:
     """
-    Returns the source data resampled to match the target data
-    according to their affines.
+    Resamples to source image to match the target image according to target's
+    affine. (A wrapper of `nilearn.image.resample_to_img`.)
+
+    Parameters
+    ----------
+    source_img : Nifti1Image
+    target_img : Nifti1Image
+    interpolation : str, Default: "nearest" if the source image is a mask otherwise "linear".
+        Can be 'continuous', 'linear', or 'nearest'. Indicates the resample method.
+
+    Returns
+    -------
+    Nifti1Image
     """
-    from nibabel import Nifti1Image
-    from nilearn.image import resample_to_img
-    interp = "nearest" if issubclass(source_data.dtype.type, np.integer) \
-        else 'linear'
+    interpolation = "nearest" if np.array_equal(np.unique(source_img.dataobj), [0, 1]) else "linear"
     resampled_img = resample_to_img(
-        Nifti1Image(source_data, source_affine),
-        Nifti1Image(target_data, target_affine),
-        interpolation=interp
+        source_img=source_img,
+        target_img=target_img,
+        interpolation=interpolation
     )
-    return np.asanyarray(resampled_img.dataobj)
+    return resampled_img
 
 
 def connected_components(
@@ -658,11 +672,15 @@ def MI(arr1, arr2, nbins=100, normalized=True):
     """
     Compute the mutual information between two 3D arrays, which need to have the same shape.
 
-    Parameters:
-    arr1 : First 3D array
-    arr2 : Second 3D array
-    nbins : number of bins to use for computing the joint histogram (applies to intensity range)
-    normalized : Boolean, default:True
+    Parameters
+    ----------
+    arr1: np.ndarray
+        First 3D array
+    arr2: np.ndarray
+        Second 3D array
+    nbins: int
+        number of bins to use for computing the joint histogram (applies to intensity range)
+    normalized: Boolean. Default: True
         if True, the normalized MI of arrays X and Y will be returned,
         leading to a range of values between 0 and 1. Normalization is
         achieved by NMI = 2*MI(X,Y) / (H(X) + H(Y)), where  H(x) is the entropy of X

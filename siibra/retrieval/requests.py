@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ import json
 from zipfile import ZipFile
 import requests
 import os
-from nibabel import Nifti1Image, GiftiImage, streamlines
+from nibabel import Nifti1Image, GiftiImage, streamlines, freesurfer
 from skimage import io as skimage_io
 import gzip
 from io import BytesIO
@@ -48,6 +48,34 @@ if TYPE_CHECKING:
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
+
+def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
+    """
+    Helper method to provide BytesIO to methods that only takes file path and
+    cannot handle BytesIO normally (e.g., `nibabel.freesurfer.read_annot()`).
+
+    Writes the bytes to a temporary file on cache and reads with the
+    original function.
+
+    Parameters
+    ----------
+    function : Callable
+    suffix : str
+        Must match the suffix expected by the function provided.
+    bytesio : BytesIO
+
+    Returns
+    -------
+    Return type of the provided function.
+    """
+    tempfile = CACHE.build_filename(f"temp_{suffix}") + suffix
+    with open(tempfile, "wb") as bf:
+        bf.write(bytesio.getbuffer())
+    result = function(tempfile)
+    os.remove(tempfile)
+    return result
+
+
 DECODERS = {
     ".nii": lambda b: Nifti1Image.from_bytes(b),
     ".gii": lambda b: GiftiImage.from_bytes(b),
@@ -59,6 +87,7 @@ DECODERS = {
     ".zip": lambda b: ZipFile(BytesIO(b)),
     ".png": lambda b: skimage_io.imread(BytesIO(b)),
     ".npy": lambda b: np.load(BytesIO(b)),
+    ".annot": lambda b: read_as_bytesio(freesurfer.read_annot, '.annot', BytesIO(b)),
 }
 
 

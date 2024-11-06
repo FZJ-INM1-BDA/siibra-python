@@ -1,4 +1,4 @@
-# Copyright 2018-2023
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,9 +20,10 @@ from .. import logger
 from ..retrieval import requests
 from ..core import space as _space, structure
 from ..locations import location, point, pointset, boundingbox
-from ..commons import resample_array_to_array, siibra_tqdm
+from ..commons import resample_img_to_img, siibra_tqdm, affine_scaling, connected_components
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
+from dataclasses import dataclass
 from nibabel import Nifti1Image
 import numpy as np
 from typing import List, Dict, Union, Set, TYPE_CHECKING
@@ -34,6 +35,61 @@ from functools import lru_cache
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
     TypeDataset = EbrainsDataset
+
+
+@dataclass
+class ComponentSpatialProperties:
+    """
+    Centroid and nonzero volume of an image.
+    """
+    centroid: point.Point
+    volume: int
+
+    @staticmethod
+    def compute_from_image(
+        img: Nifti1Image,
+        space: Union[str, "_space.Space"],
+        split_components: bool = True
+
+    ) -> List["ComponentSpatialProperties"]:
+        """
+        Find the center of an image in its (non-zero) voxel space and and its
+        volume.
+
+        Parameters
+        ----------
+        img: Nifti1Image
+        space: str, Space
+        split_components: bool, default: True
+            If True, finds the spatial properties for each connected component
+            found by skimage.measure.label.
+        """
+        scale = affine_scaling(img.affine)
+        if split_components:
+            iter_components = lambda img: connected_components(
+                np.asanyarray(img.dataobj),
+                connectivity=None
+            )
+        else:
+            iter_components = lambda img: [(0, np.asanyarray(img.dataobj))]
+
+        spatial_props: List[ComponentSpatialProperties] = []
+        for _, component in iter_components(img):
+            nonzero: np.ndarray = np.c_[np.nonzero(component)]
+            spatial_props.append(
+                ComponentSpatialProperties(
+                    centroid=point.Point(
+                        np.dot(img.affine, np.r_[nonzero.mean(0), 1])[:3],
+                        space=space
+                    ),
+                    volume=nonzero.shape[0] * scale,
+                )
+            )
+
+        # sort by volume
+        spatial_props.sort(key=lambda cmp: cmp.volume, reverse=True)
+
+        return spatial_props
 
 
 class Volume(location.Location):
@@ -52,7 +108,9 @@ class Volume(location.Location):
         "neuroglancer/precompmesh",
         "neuroglancer/precompmesh/surface",
         "gii-mesh",
-        "gii-label"
+        "gii-label",
+        "freesurfer-annot",
+        "zip/freesurfer-annot",
     ]
 
     SUPPORTED_FORMATS = IMAGE_FORMATS + MESH_FORMATS
@@ -75,18 +133,20 @@ class Volume(location.Location):
         name: str = "",
         variant: str = None,
         datasets: List['TypeDataset'] = [],
+        bbox: "boundingbox.BoundingBox" = None
     ):
         self._name = name
         self._space_spec = space_spec
         self.variant = variant
         self._providers: Dict[str, _provider.VolumeProvider] = {}
         self.datasets = datasets
+        self._boundingbox = bbox
         for provider in providers:
             srctype = provider.srctype
             assert srctype not in self._providers
             self._providers[srctype] = provider
         if len(self._providers) == 0:
-            logger.debug(f"No provider for volume {self}")
+            logger.debug(f"No provider for volume {name}")
 
     def __hash__(self):
         return super().__hash__()
@@ -140,8 +200,11 @@ class Volume(location.Location):
         RuntimeError
             If the volume provider does not have a bounding box calculator.
         """
+        if self._boundingbox is not None and len(fetch_kwargs) == 0:
+            return self._boundingbox
+
         fmt = fetch_kwargs.get("format")
-        if fmt in self._providers:
+        if (fmt is not None) and (fmt not in self.formats):
             raise ValueError(
                 f"Requested format {fmt} is not available as provider of "
                 "this volume. See `volume.formats` for possible options."
@@ -157,7 +220,7 @@ class Volume(location.Location):
                     bbox.minpoint._space_cached = self.space
                     bbox.maxpoint._space_cached = self.space
             except NotImplementedError as e:
-                print(str(e))
+                logger.info(e)
                 continue
             return bbox
         raise RuntimeError(f"No bounding box specified by any volume provider of {str(self)}")
@@ -251,9 +314,8 @@ class Volume(location.Location):
             raise NotImplementedError("Filtering of points by pure mesh volumes not yet implemented.")
 
         # make sure the points are in the same physical space as this volume
-        warped = (
-            pointset.from_points([points]) if isinstance(points, point.Point) else points
-        ).warp(self.space)
+        as_pointset = pointset.from_points([points]) if isinstance(points, point.Point) else points
+        warped = as_pointset.warp(self.space)
         assert warped is not None, SpaceWarpingFailedError
 
         # get the voxel array of this volume
@@ -342,7 +404,7 @@ class Volume(location.Location):
             v1 = self.fetch(format=format, **fetch_kwargs)
             v2 = other.fetch(format=format, **fetch_kwargs)
             arr1 = np.asanyarray(v1.dataobj)
-            arr2 = resample_array_to_array(np.asanyarray(v2.dataobj), v2.affine, arr1, v1.affine)
+            arr2 = np.asanyarray(resample_img_to_img(v2, v1).dataobj)
             pointwise_min = np.minimum(arr1, arr2)
             if np.any(pointwise_min):
                 return from_array(
@@ -414,6 +476,20 @@ class Volume(location.Location):
                 f"volume are: {self.formats}"
             )
 
+        # ensure the voi is inside the template
+        voi = kwargs.get("voi", None)
+        if voi is not None and voi.space is not None:
+            assert isinstance(voi, boundingbox.BoundingBox)
+            tmplt_bbox = voi.space.get_template().get_boundingbox(clip=False)
+            intersection_bbox = voi.intersection(tmplt_bbox)
+            if intersection_bbox is None:
+                raise RuntimeError(f"voi provided ({voi}) lies out side the voxel space of the {voi.space.name} template.")
+            if intersection_bbox != voi:
+                logger.info(
+                    f"Since provided voi lies outside the template ({voi.space}) it is clipped as: {intersection_bbox}"
+                )
+                kwargs["voi"] = intersection_bbox
+
         result = None
         # try each possible format
         for fmt in possible_formats:
@@ -425,7 +501,7 @@ class Volume(location.Location):
             fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
             for try_count in range(6):
                 try:
-                    if fmt == "gii-label":
+                    if fmt in ["gii-label", "freesurfer-annot", "zip/freesurfer-annot"]:
                         tpl = self.space.get_template(variant=kwargs.get('variant'))
                         mesh = tpl.fetch(**kwargs)
                         labels = self._providers[fmt].fetch(**fwd_args)
@@ -458,19 +534,37 @@ class Volume(location.Location):
 
         return self._FETCH_CACHE[fetch_hash]
 
-    def fetch_connected_components(self, **kwargs):
+    def fetch_connected_components(self, **fetch_kwargs):
         """
-        Provide an iterator over masks of connected components in the volume
+        Provide an generator over masks of connected components in the volume
         """
-        img = self.fetch(**kwargs)
-        from skimage import measure
-        imgdata = np.asanyarray(img.dataobj).squeeze()
-        components = measure.label(imgdata > 0)
-        component_labels = np.unique(components)
-        assert component_labels[0] == 0
-        return (
-            (label, Nifti1Image((components == label).astype('uint8'), img.affine))
-            for label in component_labels[1:]
+        img = self.fetch(**fetch_kwargs)
+        assert isinstance(img, Nifti1Image), NotImplementedError(
+            f"Connected components for type {type(img)} is not yet implemeneted."
+        )
+        for label, component in connected_components(np.asanyarray(img.dataobj)):
+            yield (
+                label,
+                Nifti1Image(component, img.affine)
+            )
+
+    def compute_spatial_props(self, split_components: bool = True, **fetch_kwargs) -> List[ComponentSpatialProperties]:
+        """
+        Find the center of this volume in its (non-zero) voxel space and and its
+        volume.
+
+        Parameters
+        ----------
+        split_components: bool, default: True
+            If True, finds the spatial properties for each connected component
+            found by skimage.measure.label.
+        """
+        assert self.provides_image, NotImplementedError("Spatial properties can currently on be calculated for images.")
+        img = self.fetch(format="image", **fetch_kwargs)
+        return ComponentSpatialProperties.compute_from_image(
+            img=img,
+            space=self.space,
+            split_components=split_components
         )
 
     def draw_samples(self, N: int, sample_size: int = 100, e: float = 1, sigma_mm=None, invert=False, **kwargs):
@@ -668,6 +762,10 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
     -------
     Volume
     """
+    if len(volumes) == 1:
+        logger.debug("Only one volume supplied returning as is (kwargs are ignored).")
+        return volumes[0]
+
     assert len(volumes) > 1, "Need to supply at least two volumes to merge."
     if labels:
         assert len(volumes) == len(labels), "Need to supply as many labels as volumes."
@@ -676,7 +774,6 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
     assert all(v.space == space for v in volumes), "Cannot merge volumes from different spaces."
 
     template_img = space.get_template().fetch(**fetch_kwargs)
-    template_arr = np.asanyarray(template_img.dataobj)
     merged_array = np.zeros(template_img.shape, dtype='uint8')
 
     for i, vol in siibra_tqdm(
@@ -687,17 +784,14 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
         disable=len(volumes) < 3
     ):
         img = vol.fetch(**fetch_kwargs)
-        arr_resampled = resample_array_to_array(
-            source_data=np.asanyarray(img.dataobj),
-            source_affine=img.affine,
-            target_data=template_arr,
-            target_affine=template_img.affine
+        resampled_arr = np.asanyarray(
+            resample_img_to_img(img, template_img).dataobj
         )
-        nonzero_voxels = arr_resampled > 0
+        nonzero_voxels = resampled_arr > 0
         if labels:
             merged_array[nonzero_voxels] = labels[i]
         else:
-            merged_array[nonzero_voxels] = arr_resampled[nonzero_voxels]
+            merged_array[nonzero_voxels] = resampled_arr[nonzero_voxels]
 
     return from_array(
         data=merged_array,

@@ -1,4 +1,4 @@
-# Copyright 2018-2022
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -268,7 +268,8 @@ class SparseMap(parcellationmap.Map):
         description: str = "",
         modality: str = None,
         publications: list = [],
-        datasets: list = []
+        datasets: list = [],
+        prerelease: bool = False,
     ):
         parcellationmap.Map.__init__(
             self,
@@ -283,6 +284,7 @@ class SparseMap(parcellationmap.Map):
             publications=publications,
             datasets=datasets,
             volumes=volumes,
+            prerelease=prerelease,
         )
         self._sparse_index_cached = None
 
@@ -422,7 +424,7 @@ class SparseMap(parcellationmap.Map):
         """
         Assign an image volume to this sparse map.
 
-        Parameters:
+        Parameters
         -----------
         queryvolume: Volume
             the volume to be compared with maps

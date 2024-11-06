@@ -1,0 +1,38 @@
+name: Check Importable
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      python-version:
+        required: true
+        type: string
+      use-cfg:
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  check-importable:
+    runs-on: ${{ inputs.os }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - if: ${{ inputs.use-cfg != '' }}
+      uses: './.github/workflows/setup-custom-cfg'
+      with:
+        siibra-cfg-ref: ${{ inputs.use-cfg }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -U .
+    
+    - name: cd to / and try to import
+      run: |
+        cd / && python -c 'import siibra'

@@ -52,7 +52,7 @@ pprint(props)
 # covered in more detail in :ref:`locations`. For now, we just acknowledge
 # that this minimizes misinterpretation of the coordinates, since a siibra
 # Point is explicitly linked to its space.
-centroid = props.components[0].centroid
+centroid = props[0].centroid
 print(centroid)
 centroid.space.name
 

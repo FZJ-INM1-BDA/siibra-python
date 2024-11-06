@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ from ..feature import Compoundable
 from .. import anchor as _anchor
 
 import pandas as pd
-from typing import Union, Dict, Tuple
+from typing import Union, Dict, Tuple, List
 from textwrap import wrap
 import numpy as np
 
@@ -56,7 +56,9 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         values: Union[list, np.ndarray] = None,
         unit: str = None,
         boundary_positions: Dict[Tuple[int, int], float] = None,
-        datasets: list = []
+        datasets: list = [],
+        id: str = None,
+        prerelease: bool = False,
     ):
         """Initialize profile.
 
@@ -96,21 +98,23 @@ class CorticalProfile(tabular.Tabular, Compoundable):
             description=description,
             anchor=anchor,
             data=None,  # lazy loader below
-            datasets=datasets
+            datasets=datasets,
+            id=id,
+            prerelease=prerelease,
         )
 
     def _check_sanity(self):
         # check plausibility of the profile
-        assert isinstance(self._depths, (list, np.ndarray))
-        assert isinstance(self._values, (list, np.ndarray))
-        assert len(self._values) == len(self._depths)
-        assert all(0 <= d <= 1 for d in self._depths)
+        assert isinstance(self._depths, (list, np.ndarray)), "Some depths are not valid"
+        assert isinstance(self._values, (list, np.ndarray)), "Some values are not valid"
+        assert len(self._values) == len(self._depths), "There exist uneven number of depths and values"
+        assert all(0 <= d <= 1 for d in self._depths), "Some depths is not between 0 and 1"
         if self.boundaries_mapped:
-            assert all(0 <= d <= 1 for d in self.boundary_positions.values())
+            assert all(0 <= d <= 1 for d in self.boundary_positions.values()), "Some boundary positions are not between 0 and 1"
             assert all(
                 layerpair in self.BOUNDARIES
                 for layerpair in self.boundary_positions.keys()
-            )
+            ), "Some value in BOUNDARIES are not mapped in boundary_positions"
 
     @property
     def unit(self) -> str:
@@ -159,8 +163,32 @@ class CorticalProfile(tabular.Tabular, Compoundable):
     def data(self):
         """Return a pandas Series representing the profile."""
         self._check_sanity()
-        return pd.DataFrame(
-            self._values, index=self._depths, columns=[f"{self.modality} ({self.unit})"]
+        iscompound = len(self._values.shape) > 1 and self._values.shape[1] == 2
+        if iscompound:
+            columns = [f"{self.modality} mean ({self.unit})", "std"]
+        else:
+            columns = [f"{self.modality} ({self.unit})"]
+        return pd.DataFrame(self._values, index=self._depths, columns=columns)
+
+    @classmethod
+    def _merge_elements(
+        cls,
+        elements: List["CorticalProfile"],
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor,
+    ):
+        assert all(np.array_equal(elements[0]._depths, f._depths) for f in elements)
+        assert len({f.unit for f in elements}) == 1
+        values_stacked = np.stack([f._values for f in elements])
+        return CorticalProfile(
+            description=description,
+            modality=modality,
+            anchor=anchor,
+            depths=np.stack([f._depths for f in elements]).mean(0),
+            values=np.stack([values_stacked.mean(0), values_stacked.std(0)]).T,
+            unit=elements[0].unit,
+            boundary_positions=None,
         )
 
     def plot(self, *args, backend="matplotlib", **kwargs):
@@ -180,12 +208,17 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
         layercolor = kwargs.pop("layercolor", "gray")
 
+        iscompound = len(self._values.shape) > 1 and self._values.shape[1] == 2
+        ymax = max(
+            0,
+            sum(self._values.max(axis=0)) if iscompound else self._values.max()
+        )
         if backend == "matplotlib":
             kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
             kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
             kwargs["grid"] = kwargs.get("grid", True)
-            kwargs["ylim"] = kwargs.get("ylim", (0, max(self._values)))
-            axs = self.data.plot(*args, **kwargs, backend=backend)
+            axs = self.data.iloc[:, 0].plot(*args, **kwargs, backend=backend)
+            axs.set_ylim(kwargs.get("ylim", (0, ymax)))
 
             if self.boundaries_mapped:
                 bvals = list(self.boundary_positions.values())
@@ -201,14 +234,22 @@ class CorticalProfile(tabular.Tabular, Compoundable):
                         axs.axvspan(d1, d2, color=layercolor, alpha=0.3)
 
             axs.set_title(axs.get_title(), fontsize="medium")
+
+            if iscompound:
+                axs.set_ylabel(f"average {kwargs['ylabel']} \u00b1 std")
+                av = self.data.values[:, 0]
+                std = self.data.values[:, 1]
+                axs.fill_between(self.data.index.values, av - std, av + std, alpha=0.5)
+
             return axs
+
         elif backend == "plotly":
             kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             kwargs["labels"] = {
                 "index": kwargs.pop("xlabel", None) or kwargs.pop("index", "Cortical depth"),
                 "value": kwargs.pop("ylabel", None) or kwargs.pop("value", self.unit)
             }
-            fig = self.data.plot(*args, **kwargs, backend=backend)
+            fig = self.data.iloc[:, 0].plot(*args, **kwargs, backend=backend)
             if self.boundaries_mapped:
                 bvals = list(self.boundary_positions.values())
                 for i, (d1, d2) in enumerate(list(zip(bvals[:-1], bvals[1:]))):
@@ -219,12 +260,29 @@ class CorticalProfile(tabular.Tabular, Compoundable):
                     )
             fig.update_layout(
                 showlegend=False,
-                yaxis_range=(0, max(self._values)),
+                yaxis_range=(0, ymax),
                 title=dict(
                     automargin=True, yref="container", xref="container",
                     pad=dict(t=40), xanchor="left", yanchor="top"
                 )
             )
+            if iscompound:
+                from plotly.graph_objects import Scatter
+                x = self.data.index.values
+                av = self.data.values[:, 0]
+                std = self.data.values[:, 1]
+                fig.update_layout(yaxis_title=f"average {kwargs['labels']['value']} &plusmn; std")
+                fig.add_traces(
+                    Scatter(
+                        x=np.concatenate((x, x[::-1])),  # x, then x reversed
+                        y=np.concatenate((av + std, (av - std)[::-1])),  # upper, then lower reversed
+                        fill='toself',
+                        fillcolor='rgba(0,100,80,0.5)',
+                        line=dict(color='rgba(255,255,255,0)'),
+                        hoverinfo="skip",
+                        showlegend=False
+                    )
+                )
             return fig
         else:
             return self.data.plot(*args, **kwargs, backend=backend)
@@ -254,3 +312,11 @@ class CorticalProfile(tabular.Tabular, Compoundable):
                 f"'_values' not available for {self.__class__.__name__}."
             )
         return self._values_cached
+
+    @property
+    def name(self):
+        if hasattr(self, "receptor"):
+            return super().name + f": {self.receptor}"
+        if hasattr(self, "location"):
+            return super().name + f": {self.location.coordinate}"
+        return super().name

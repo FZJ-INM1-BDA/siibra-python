@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,14 +44,18 @@ class Tabular(feature.Feature):
         modality: str,
         anchor: _anchor.AnatomicalAnchor,
         data: pd.DataFrame,  # sample x feature dimension
-        datasets: list = []
+        datasets: list = [],
+        id: str = None,
+        prerelease: bool = False,
     ):
         feature.Feature.__init__(
             self,
             modality=modality,
             description=description,
             anchor=anchor,
-            datasets=datasets
+            datasets=datasets,
+            id=id,
+            prerelease=prerelease
         )
         self._data_cached = data
 
