@@ -125,14 +125,14 @@ class LocalFileRepository(RepositoryConnector):
         self._folder = pathlib.Path(folder)
         assert pathlib.Path.is_dir(self._folder)
 
-    def _build_url(self, folder: str, filename: str):
-        return pathlib.Path.joinpath(self._folder, folder, filename)
+    def _build_url(self, folder: str, filename: str) -> str:
+        return pathlib.Path.joinpath(self._folder, folder, filename).as_posix()
 
     def get_loader(self, filename, folder="", decode_func=None):
         """Get a lazy loader for a file, for loading data
         only once loader.data is accessed."""
         filepath = self._build_url(folder, filename)
-        if not filepath.is_file():
+        if not pathlib.Path(filepath).is_file():
             raise RuntimeError(f"No file is found in {filepath}")
         return FileLoader(filepath, decode_func)
 
@@ -148,7 +148,7 @@ class LocalFileRepository(RepositoryConnector):
     def __str__(self):
         return f"{self.__class__.__name__} at {self._folder}"
 
-    def __eq__(self, other):
+    def __eq__(self, other: "LocalFileRepository"):
         return self._folder == other._folder
 
 
