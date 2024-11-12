@@ -20,28 +20,23 @@ from ..commons import MapIndex, logger, connected_components, siibra_tqdm
 from ..locations import boundingbox
 from ..retrieval.cache import CACHE
 from ..retrieval.requests import HttpRequest, FileLoader
-from ..exceptions import (
-    InsufficientArgumentException, ExcessiveArgumentException
-)
 
 from os import path, makedirs
-from typing import Dict, Union, TYPE_CHECKING, List
+from typing import Dict, List
 from nilearn import image
 import numpy as np
-
-if TYPE_CHECKING:
-    from ..core.region import Region
 
 
 class SparseIndex:
 
     # Precomputed sparse indices are stored in an EBRAINS data proxy
-    _DATAPROXY_BASEURL = "https://data-proxy.ebrains.eu/api/v1/buckets/reference-atlas-data/sparse-indices/"
+    _BUCKET = "https://data-proxy.ebrains.eu/api/v1/buckets/reference-atlas-data/"
+    _DATAPROXY_BASEURL = _BUCKET + "sparse-indices/sparse-indices-siibra_python_v1.0/"
 
     _SUFFIXES = {
-        "probs": ".sparseindex.probs.txt.gz",
-        "bboxes": ".sparseindex.bboxes.txt.gz",
-        "voxels": ".sparseindex.voxels.nii.gz"
+        "probs": ".sparseindex_v1.probs.txt.gz",
+        "bboxes": ".sparseindex_v1.bboxes.txt.gz",
+        "voxels": ".sparseindex_v1.voxels.nii.gz"
     }
 
     def __init__(self):
@@ -130,9 +125,9 @@ class SparseIndex:
         filepath_or_url: str
             Path/url to the SparseIndex files
             (eg. https://url_to_files/basefilename):
-            - basefilename.sparseindex.probs.txt.gz
-            - basefilename.sparseindex.bboxes.txt.gz
-            - basefilename.sparseindex.voxels.nii.gz
+            - basefilename.sparseindex_v1.probs.txt.gz
+            - basefilename.sparseindex_v1.bboxes.txt.gz
+            - basefilename.sparseindex_v1.voxels.nii.gz
 
         Returns
         -------
@@ -149,7 +144,7 @@ class SparseIndex:
         else:
             request = HttpRequest
 
-        result = cls.__init__()
+        result = cls()
 
         voxels = request(voxelfile).get()
         result.voxels = np.asanyarray(voxels.dataobj)
@@ -189,9 +184,9 @@ class SparseIndex:
         ----------
         base_filename: str
             The files that will be created as:
-            - base_filename.sparseindex.probs.txt.gz
-            - base_filename.sparseindex.bboxes.txt.gz
-            - base_filename.sparseindex.voxels.nii.gz
+            - base_filename.sparseindex_v1.probs.txt.gz
+            - base_filename.sparseindex_v1.bboxes.txt.gz
+            - base_filename.sparseindex_v1.voxels.nii.gz
 
         folder: str, default=""
         """
@@ -227,7 +222,7 @@ class SparseIndex:
     @classmethod
     def from_sparsemap(cls, sparsemap: "SparseMap") -> "SparseIndex":
         with provider.SubvolumeProvider.UseCaching():
-            spind = cls.__init__()
+            spind = cls()
             for img in siibra_tqdm(
                 sparsemap.fetch_iter(), total=len(sparsemap), unit="maps",
                 desc="Fetching volumetric maps and computing SparseIndex"
@@ -320,84 +315,6 @@ class SparseMap(parcellationmap.Map):
     @property
     def shape(self):
         return self.sparse_index.shape
-
-    def fetch(
-        self,
-        region_or_index: Union[MapIndex, str, 'Region'] = None,
-        *,
-        index: MapIndex = None,
-        region: Union[str, 'Region'] = None,
-        **kwargs
-    ):
-        """
-        Recreate a particular volumetric map from the sparse
-        representation.
-
-        Parameters
-        ----------
-        region_or_index: str, Region, MapIndex
-            Lazy match the specification.
-        index : MapIndex
-            The index to be fetched.
-        region: str, Region
-            Region name specification. If given, will be used to decode the map
-            index of a particular region.
-
-        Returns
-        -------
-        An image or mesh
-        """
-        if kwargs.get('format') in ['mesh'] + _volume.Volume.MESH_FORMATS:
-            # a mesh is requested, this is not handled by the sparse map
-            return super().fetch(region_or_index, index=index, region=region, **kwargs)
-
-        try:
-            length = len([arg for arg in [region_or_index, region, index] if arg is not None])
-            assert length == 1
-        except AssertionError:
-            if length > 1:
-                raise ExcessiveArgumentException(
-                    "One and only one of region_or_index, region, index can be defined for fetch"
-                )
-            # user can provide no arguments, which assumes one and only one volume present
-
-        if isinstance(region_or_index, MapIndex):
-            index = region_or_index
-
-        from ..core.region import Region
-        if isinstance(region_or_index, (str, Region)):
-            region = region_or_index
-
-        volidx = None
-        if index is not None:
-            assert isinstance(index, MapIndex)
-            volidx = index.volume
-        if region is not None:
-            index = self.get_index(region)
-            assert index is not None
-            volidx = index.volume
-
-        if volidx is None:
-            try:
-                assert len(self) == 1
-                volidx = 0
-            except AssertionError:
-                raise InsufficientArgumentException(
-                    f"{self.__class__.__name__} provides {len(self)} volumes. "
-                    "Specify 'region' or 'index' for fetch() to identify one."
-                )
-
-        assert isinstance(volidx, int)
-        x, y, z, v = self.sparse_index.mapped_voxels(volidx)
-        result = np.zeros(self.shape, dtype=np.float32)
-        result[x, y, z] = v
-        volume = _volume.from_array(
-            data=result,
-            affine=self.affine,
-            space=self.space,
-            name=f"Sparse map of {region} from {self.parcellation} in {self.space}"
-        )
-        return volume.fetch()
 
     def _read_voxel(self, x, y, z):
         spind = self.sparse_index
