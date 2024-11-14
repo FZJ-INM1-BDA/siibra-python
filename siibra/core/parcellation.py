@@ -19,8 +19,13 @@ from ..commons import logger, MapType, Species
 from ..volumes import parcellationmap
 from ..exceptions import NoMapMatchingValues
 
-from typing import Union, List, Dict, TYPE_CHECKING, Literal
 import re
+from typing import Union, List, Dict, TYPE_CHECKING
+try:
+    from typing import Literal
+except ImportError:
+    # support python 3.7
+    from typing_extensions import Literal
 
 
 if TYPE_CHECKING:
