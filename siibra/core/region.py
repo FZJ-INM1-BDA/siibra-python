@@ -123,6 +123,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         )
         self._supported_spaces = None  # computed on 1st call of self.supported_spaces
         self._str_aliases = None
+        self.find = lru_cache(maxsize=3)(self.find)
 
     def get_related_regions(self) -> Iterable["RegionRelationAssessments"]:
         """
@@ -167,8 +168,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
     def species(self):
         # lazy request of the root parcellation's species
         if self._species_cached is None:
-            if self.parcellation is None:
-                return None
             self._species_cached = self.parcellation.species
         return self._species_cached
 
@@ -255,7 +254,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         """
         return region == self or region in self.descendants
 
-    @lru_cache(maxsize=3)
     def find(
         self,
         regionspec,

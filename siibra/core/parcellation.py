@@ -341,14 +341,14 @@ def find_regions(
     find_topmost=False
 ):
     """
-    Find regions that match the given region specification in the subtree
-    headed by each parcellation in the registry.
+    Find regions matching the given region specification across all parcellation
+    instances in the registery.
 
     Parameters
     ----------
     regionspec: str, regex, Region
         - a string with a possibly inexact name (matched both against the name and the identifier key)
-        - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux)
+        - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux) (see https://docs.python.org/3/library/re.html#flags)
         - a regex applied to region names
         - a Region object
     filter_children : bool, default: True
