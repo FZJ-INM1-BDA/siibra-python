@@ -788,8 +788,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         """
         Compute spatial properties for connected components of this region in the given space.
 
-        TODO: this should go to the Volume class and just be called from here.
-
         Parameters
         ----------
         space: Space
