@@ -1,3 +1,18 @@
+# Copyright 2018-2024
+# Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from typing import Optional, TYPE_CHECKING
 from urllib.parse import quote_plus
 from numpy import int32
@@ -73,11 +88,17 @@ def encode_url(
     *,
     root_url=default_root_url,
     external_url: str = None,
+    location: "Point" = None,
     feature: "Feature" = None,
     ignore_warning=False,
     query_params={},
 ):
+    from siibra.locations import Point
     overlay_url = None
+    encoded_position = None
+    if location:
+        assert isinstance(location, Point), "currently, location only supports Point"
+        encoded_position = ".".join([encode_number(int(p * 1e6)) for p in location])
     if external_url:
         assert any(
             [external_url.startswith(prefix) for prefix in supported_prefix]
@@ -109,19 +130,19 @@ def encode_url(
         return_url = return_url + f"/f:{sanitize_id(feature.id)}"
 
     if region is None:
-        return return_url + nav_string.format(encoded_nav="0.0.0", **zoom_kwargs)
+        return return_url + nav_string.format(encoded_nav=encoded_position or "0.0.0", **zoom_kwargs)
 
     return_url = f"{return_url}/rn:{get_hash(region.name)}"
 
     try:
         result_props = region.spatial_props(space, maptype="labelled")
         if len(result_props.components) == 0:
-            return return_url + nav_string.format(encoded_nav="0.0.0", **zoom_kwargs)
+            return return_url + nav_string.format(encoded_nav=encoded_position or "0.0.0", **zoom_kwargs)
     except Exception as e:
         print(f"Cannot get_spatial_props {str(e)}")
         if not ignore_warning:
             raise e
-        return return_url + nav_string.format(encoded_nav="0.0.0", **zoom_kwargs)
+        return return_url + nav_string.format(encoded_nav=encoded_position or "0.0.0", **zoom_kwargs)
 
     centroid = result_props.components[0].centroid
 
@@ -129,7 +150,7 @@ def encode_url(
         [encode_number(math.floor(val * 1e6)) for val in centroid]
     )
     return_url = return_url + nav_string.format(
-        encoded_nav=encoded_centroid, **zoom_kwargs
+        encoded_nav=encoded_position or encoded_centroid, **zoom_kwargs
     )
     return return_url
 

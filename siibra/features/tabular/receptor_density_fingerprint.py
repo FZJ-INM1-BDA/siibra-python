@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,7 +42,9 @@ class ReceptorDensityFingerprint(
         self,
         tsvfile: str,
         anchor: _anchor.AnatomicalAnchor,
-        datasets: list = []
+        datasets: list = [],
+        id: str = None,
+        prerelease: bool = False,
     ):
         """ Generate a receptor fingerprint from a URL to a .tsv file
         formatted according to the structure used by Palomero-Gallagher et al.
@@ -54,6 +56,8 @@ class ReceptorDensityFingerprint(
             anchor=anchor,
             data=None,  # lazy loading below
             datasets=datasets,
+            id=id,
+            prerelease=prerelease,
         )
         self._loader = requests.HttpRequest(tsvfile)
 
@@ -170,10 +174,11 @@ class ReceptorDensityFingerprint(
                             self.data["mean"] + self.data["std"]
                         ]
                     ),
-                    "cat":
-                        len(self.data) * ["mean"] +\
-                        len(self.data) * ["mean - std"] +\
-                        len(self.data) * ["mean + std"]
+                    "cat": (
+                        len(self.data) * ["mean"]
+                        + len(self.data) * ["mean - std"]
+                        + len(self.data) * ["mean + std"]
+                    )
                 }
             )
             return line_polar(

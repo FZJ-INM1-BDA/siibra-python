@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,6 +38,7 @@ class Space(AtlasConcept, configuration_folder="spaces"):
         modality: str = "",
         publications: list = [],
         datasets: list = [],
+        prerelease: bool = False,
     ):
         """
         Constructs a new parcellation object.
@@ -75,6 +76,7 @@ class Space(AtlasConcept, configuration_folder="spaces"):
             modality=modality,
             publications=publications,
             datasets=datasets,
+            prerelease=prerelease,
         )
         self.volumes = volumes
         for v in self.volumes:
@@ -115,7 +117,10 @@ class Space(AtlasConcept, configuration_folder="spaces"):
                 f"'{candidates[0].variant}' is chosen, but you might specify another with the 'variant' parameter."
             )
 
-        return candidates[0]
+        template = candidates[0]
+        if len(template.datasets) == 0:
+            template.datasets = self.datasets
+        return template
 
     @property
     def provides_mesh(self):

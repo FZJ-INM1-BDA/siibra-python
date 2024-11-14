@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,7 @@ VolumeData = Union[Nifti1Image, Dict]
 
 class VolumeProvider(ABC):
 
-    _SUBCLASSES = []
+    _SUBCLASSES: List[VolumeProvider] = []
 
     def __init_subclass__(cls, srctype: str) -> None:
         cls.srctype = srctype

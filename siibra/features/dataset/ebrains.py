@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -85,6 +85,6 @@ class EbrainsDataFeature(feature.Feature, category="other"):
             return False
         return self._dataset == o._dataset
 
-    def _export(self, fh: ZipFile):
-        super()._export(fh)
+    def _to_zip(self, fh: ZipFile):
+        super()._to_zip(fh)
         fh.writestr("doi.md", DOI_TMPL.format(doi=self.url))

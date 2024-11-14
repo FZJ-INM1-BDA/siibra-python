@@ -1,4 +1,4 @@
-# Copyright 2018-2023
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -81,6 +81,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         modality: str = None,
         publications: list = [],
         datasets: list = [],
+        prerelease: bool = False,
     ):
         """
         Constructs a new parcellation object.
@@ -117,7 +118,8 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             description=description,
             publications=publications,
             datasets=datasets,
-            modality=modality
+            modality=modality,
+            prerelease=prerelease,
         )
         self._species_cached = Species.decode(species)
         self._id = identifier
@@ -271,7 +273,11 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
 
         # if there exist an exact match of region spec to region name, return
         if isinstance(regionspec, str):
-            exact_match = [region for region in self if hasattr(region, "name") and region.name == regionspec]
+            exact_match = [
+                region
+                for region in self
+                if region.name == regionspec or region.key == regionspec
+            ]
             if len(exact_match) == 1:
                 return exact_match[0]
             if len(exact_match) > 1:

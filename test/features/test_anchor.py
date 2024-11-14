@@ -33,4 +33,4 @@ def test_region_region_spec(region, teardown):
         elif isinstance(region, str):
             mock_find_regions.assert_called_once_with(region, species)
         else:
-            assert False, f"Cannot have region as neither str or Region"
+            assert False, "Cannot have region as neither str or Region"

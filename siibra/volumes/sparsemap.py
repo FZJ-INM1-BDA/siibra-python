@@ -1,4 +1,4 @@
-# Copyright 2018-2022
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +20,7 @@ from ..commons import MapIndex, logger, connected_components, siibra_tqdm
 from ..locations import boundingbox
 from ..retrieval import cache
 from ..retrieval.repositories import ZipfileConnector, GitlabConnector
+from ..exceptions import InsufficientArgumentException, ExcessiveArgumentException
 
 from os import path, rename, makedirs
 from zipfile import ZipFile, ZIP_DEFLATED
@@ -226,7 +227,8 @@ class SparseMap(parcellationmap.Map):
         description: str = "",
         modality: str = None,
         publications: list = [],
-        datasets: list = []
+        datasets: list = [],
+        prerelease: bool = False,
     ):
         parcellationmap.Map.__init__(
             self,
@@ -241,6 +243,7 @@ class SparseMap(parcellationmap.Map):
             publications=publications,
             datasets=datasets,
             volumes=volumes,
+            prerelease=prerelease,
         )
         self._sparse_index_cached = None
 
@@ -255,7 +258,7 @@ class SparseMap(parcellationmap.Map):
             if spind is None:
                 logger.info("Downloading precomputed SparseIndex...")
                 gconn = GitlabConnector(self._GITLAB_SERVER, self._GITLAB_PROJECT, "main")
-                zip_fname = f"{self.name.replace(' ', '_')}_index.zip"
+                zip_fname = f"{self.name.replace(' ', '_').replace('statistical', 'continuous')}_index.zip"
                 try:
                     assert zip_fname in gconn.search_files(), f"{zip_fname} is not in {gconn}."
                     zipfile = gconn.get_loader(zip_fname).url
@@ -390,7 +393,7 @@ class SparseMap(parcellationmap.Map):
             assert length == 1
         except AssertionError:
             if length > 1:
-                raise parcellationmap.ExcessiveArgumentException(
+                raise ExcessiveArgumentException(
                     "One and only one of region_or_index, region, index can be defined for fetch"
                 )
             # user can provide no arguments, which assumes one and only one volume present
@@ -416,7 +419,7 @@ class SparseMap(parcellationmap.Map):
                 assert len(self) == 1
                 volidx = 0
             except AssertionError:
-                raise parcellationmap.InsufficientArgumentException(
+                raise InsufficientArgumentException(
                     f"{self.__class__.__name__} provides {len(self)} volumes. "
                     "Specify 'region' or 'index' for fetch() to identify one."
                 )
@@ -450,27 +453,29 @@ class SparseMap(parcellationmap.Map):
 
     def _assign_volume(
         self,
-        imgdata: np.ndarray,
-        imgaffine: np.ndarray,
+        queryvolume: "_volume.Volume",
         minsize_voxel: int,
         lower_threshold: float,
         split_components: bool = True
     ) -> List[parcellationmap.AssignImageResult]:
         """
-        Assign an image volume to this parcellation map.
+        Assign an image volume to this sparse map.
 
-        Parameters:
+        Parameters
         -----------
-        imgdata: np.ndarray
-            the image to be compared with maps
-        imgaffine: np.ndarray
-            affine matrix mapping voxels of the image to physical coordinates in the map space
+        queryvolume: Volume
+            the volume to be compared with maps
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
             Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
+        split_components: bool, default: True
+            Whether to split the query volume into disjoint components.
         """
+        queryimg = queryvolume.fetch()
+        imgdata = np.asanyarray(queryimg.dataobj)
+        imgaffine = queryimg.affine
         assignments = []
 
         # resample query image into this image's voxel space, if required

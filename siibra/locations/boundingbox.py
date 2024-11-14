@@ -1,4 +1,4 @@
-# Copyright 2018-2023
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,7 @@ from . import point, pointset, location
 from ..commons import logger
 from ..exceptions import SpaceWarpingFailedError
 
+from itertools import product
 import hashlib
 import numpy as np
 from typing import TYPE_CHECKING, Union
@@ -75,12 +76,16 @@ class BoundingBox(location.Location):
             s1, s2 = sigma_mm
         else:
             raise ValueError(f"Cannot interpret sigma_mm parameter value {sigma_mm} for bounding box")
+        self.sigma_mm = [s1, s2]
         self.minpoint = point.Point([min(xyz1[i], xyz2[i]) for i in range(3)], space, sigma_mm=s1)
         self.maxpoint = point.Point([max(xyz1[i], xyz2[i]) for i in range(3)], space, sigma_mm=s2)
         if minsize is not None:
             for d in range(3):
                 if self.shape[d] < minsize:
                     self.maxpoint[d] = self.minpoint[d] + minsize
+
+        if self.volume == 0:
+            logger.warning("Created BoundedBox's have zero volume.")
 
     @property
     def id(self) -> str:
@@ -110,12 +115,12 @@ class BoundingBox(location.Location):
     def __str__(self):
         if self.space is None:
             return (
-                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)}) mm "
-                f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)}) mm"
+                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)})mm "
+                f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)})mm"
             )
         else:
             return (
-                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)}) mm "
+                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)})mm "
                 f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)})mm in {self.space.name} space"
             )
 
@@ -140,10 +145,11 @@ class BoundingBox(location.Location):
             warped = other.warp(self.space)
             return other if self.minpoint <= warped <= self.maxpoint else None
         if isinstance(other, pointset.PointSet):
+            points_inside = [p for p in other if self.intersects(p)]
             result = pointset.PointSet(
-                [p for p in other if self.intersects(p)],
+                points_inside,
                 space=other.space,
-                sigma_mm=other.sigma
+                sigma_mm=[p.sigma for p in points_inside]
             )
             if len(result) == 0:
                 return None
@@ -182,12 +188,18 @@ class BoundingBox(location.Location):
                 result_minpt.append(A[dim])
                 result_maxpt.append(B[dim])
 
+        if result_minpt == result_maxpt:
+            return result_minpt
+
         bbox = BoundingBox(
             point1=point.Point(result_minpt, self.space),
             point2=point.Point(result_maxpt, self.space),
             space=self.space,
         )
-        return bbox if bbox.volume > 0 else None
+
+        if bbox.volume == 0 and sum(cmin == cmax for cmin, cmax in zip(result_minpt, result_maxpt)) == 2:
+            return None
+        return bbox
 
     def _intersect_mask(self, mask: 'Nifti1Image', threshold=0):
         """Intersect this bounding box with an image mask. Returns None if they do not intersect.
@@ -244,6 +256,35 @@ class BoundingBox(location.Location):
             sigma_mm=[self.minpoint.sigma, self.maxpoint.sigma]
         )
 
+    @property
+    def corners(self):
+        """
+        Returns all 8 corners of the box as a pointset.
+
+        Note
+        ----
+        x0, y0, z0 = self.minpoint
+        x1, y1, z1 = self.maxpoint
+        all_corners = [
+            (x0, y0, z0),
+            (x1, y0, z0),
+            (x0, y1, z0),
+            (x1, y1, z0),
+            (x0, y0, z1),
+            (x1, y0, z1),
+            (x0, y1, z1),
+            (x1, y1, z1)
+        ]
+
+        TODO: deal with sigma. Currently, returns the mean of min and max point.
+        """
+        xs, ys, zs = zip(self.minpoint, self.maxpoint)
+        return pointset.PointSet(
+            coordinates=[[x, y, z] for x, y, z in product(xs, ys, zs)],
+            space=self.space,
+            sigma_mm=np.mean([self.minpoint.sigma, self.maxpoint.sigma])
+        )
+
     def warp(self, space):
         """Returns a new bounding box obtained by warping the
         min- and maxpoint of this one into the new target space.
@@ -256,13 +297,10 @@ class BoundingBox(location.Location):
             return self
         else:
             try:
-                return self.__class__(
-                    point1=self.minpoint.warp(spaceobj),
-                    point2=self.maxpoint.warp(spaceobj),
-                    space=spaceobj,
-                )
-            except ValueError:
+                warped_corners = self.corners.warp(spaceobj)
+            except SpaceWarpingFailedError:
                 raise SpaceWarpingFailedError(f"Warping {str(self)} to {spaceobj.name} not successful.")
+            return warped_corners.boundingbox
 
     def transform(self, affine: np.ndarray, space=None):
         """Returns a new bounding box obtained by transforming the
@@ -281,12 +319,9 @@ class BoundingBox(location.Location):
         """
         from ..core.space import Space
         spaceobj = Space.get_instance(space)
-        return self.__class__(
-            point1=self.minpoint.transform(affine, spaceobj),
-            point2=self.maxpoint.transform(affine, spaceobj),
-            space=space,
-            sigma_mm=[self.minpoint.sigma, self.maxpoint.sigma]  # TODO: error propagation
-        )
+        result = self.corners.transform(affine, spaceobj).boundingbox
+        result.sigma_mm = [self.minpoint.sigma, self.maxpoint.sigma]  # TODO: error propagation
+        return result
 
     def shift(self, offset):
         return self.__class__(

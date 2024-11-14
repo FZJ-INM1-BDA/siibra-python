@@ -1,4 +1,4 @@
-# Copyright 2018-2023
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ from ..commons import (
     MapIndex,
     MapType,
     compare_arrays,
-    resample_array_to_array,
+    resample_img_to_img,
     connected_components,
     clear_name,
     create_key,
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class Assignment:
+class MapAssignment:
     input_structure: int
     centroid: Union[Tuple[np.ndarray], point.Point]
     volume: int
@@ -57,7 +57,7 @@ class Assignment:
 
 
 @dataclass
-class AssignImageResult(CompareMapsResult, Assignment):
+class AssignImageResult(CompareMapsResult, MapAssignment):
     pass
 
 
@@ -76,6 +76,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         modality: str = None,
         publications: list = [],
         datasets: list = [],
+        prerelease: bool = False,
     ):
         """
         Constructs a new parcellation object.
@@ -120,8 +121,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             description=description,
             publications=publications,
             datasets=datasets,
-            modality=modality
+            modality=modality,
+            prerelease=prerelease,
         )
+        self._space_spec = space_spec
+        self._parcellation_spec = parcellation_spec
 
         # Since the volumes might include 4D arrays, where the actual
         # volume index points to a z coordinate, we create subvolume
@@ -154,15 +158,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         duplicates = {x for x in all_indices if x in seen or seen.add(x)}
         if len(duplicates) > 0:
             logger.warning(f"Non unique indices encountered in {self}: {duplicates}")
-
-        self._space_spec = space_spec
-        self._parcellation_spec = parcellation_spec
         self._affine_cached = None
-        for v in self.volumes:
-            # allow the providers to query their parcellation map if needed
-            for p in v._providers.values():
-                p.parcellation_map = self
-            v._space_spec = space_spec
 
     @property
     def species(self) -> Species:
@@ -516,10 +512,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             raise RuntimeError("The map cannot be merged since there are no multiple volumes or fragments.")
 
         # initialize empty volume according to the template
-        template = self.space.get_template().fetch(**kwargs)
-        result_data = np.zeros_like(np.asanyarray(template.dataobj))
-        result_affine = template.affine
-        voxelwise_max = np.zeros_like(result_data)
+        template_img = self.space.get_template().fetch(**kwargs)
+        result_arr = np.zeros_like(np.asanyarray(template_img.dataobj))
+        result_affine = template_img.affine
+        voxelwise_max = np.zeros_like(result_arr)
         interpolation = 'nearest' if self.is_labelled else 'linear'
         next_labelindex = 1
         region_indices = defaultdict(list)
@@ -536,13 +532,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             ):
                 mapindex = MapIndex(volume=volidx, fragment=frag)
                 img = self.fetch(mapindex)
-                if np.linalg.norm(result_affine - img.affine) > 1e-14:
-                    logger.debug(f"Compression requires to resample volume {volidx} ({interpolation})")
-                    img_data = resample_array_to_array(
-                        img.get_fdata(), img.affine, result_data, result_affine
-                    )
+                if np.allclose(img.affine, result_affine):
+                    img_data = np.asanyarray(img.dataobj)
                 else:
-                    img_data = img.get_fdata()
+                    logger.debug(f"Compression requires to resample volume {volidx} ({interpolation})")
+                    img_data = np.asanyarray(
+                        resample_img_to_img(img, template_img).dataobj
+                    )
 
                 if self.is_labelled:
                     labels = set(np.unique(img_data)) - {0}
@@ -561,7 +557,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         update_voxels = (img_data > voxelwise_max)
                     else:
                         update_voxels = (img_data == label)
-                    result_data[update_voxels] = next_labelindex
+                    result_arr[update_voxels] = next_labelindex
                     voxelwise_max[update_voxels] = img_data[update_voxels]
                     next_labelindex += 1
 
@@ -572,36 +568,56 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             parcellation_spec=self._parcellation_spec,
             indices=region_indices,
             volumes=[_volume.from_array(
-                result_data, result_affine, self._space_spec, name=self.name + " compressed"
+                result_arr, result_affine, self._space_spec, name=self.name + " compressed"
             )]
         )
 
-    def compute_centroids(self) -> Dict[str, point.Point]:
+    def compute_centroids(self, split_components: bool = True) -> Dict[str, pointset.PointSet]:
         """
-        Compute a dictionary of the centroids of all regions in this map.
+        Compute a dictionary of all regions in this map to their centroids.
+        By default, the regional masks will be split to connected components
+        and each point in the PointSet corresponds to a region component.
+
+        Parameters
+        ----------
+        split_components: bool, default: True
+            If True, finds the spatial properties for each connected component
+            found by skimage.measure.label.
 
         Returns
         -------
         Dict[str, point.Point]
             Region names as keys and computed centroids as items.
         """
-        centroids = {}
-        maparr = None
+        centroids = dict()
         for regionname, indexlist in siibra_tqdm(
             self._indices.items(), unit="regions", desc="Computing centroids"
         ):
-            assert len(indexlist) == 1
-            index = indexlist[0]
-            if index.label == 0:
-                continue
-            with QUIET:
-                mapimg = self.fetch(index=index)  # returns a mask of the region
-            maparr = np.asanyarray(mapimg.dataobj)
-            centroid_vox = np.mean(np.where(maparr == 1), axis=1)
             assert regionname not in centroids
-            centroids[regionname] = point.Point(
-                np.dot(mapimg.affine, np.r_[centroid_vox, 1])[:3], space=self.space
+            # get the mask of the region in this map
+            with QUIET:
+                if len(indexlist) >= 1:
+                    merged_volume = _volume.merge(
+                        [
+                            _volume.from_nifti(
+                                self.fetch(index=index),
+                                self.space,
+                                f"{self.name} - {index}"
+                            )
+                            for index in indexlist
+                        ],
+                        labels=[1] * len(indexlist)
+                    )
+                    mapimg = merged_volume.fetch()
+                elif len(indexlist) == 1:
+                    index = indexlist[0]
+                    mapimg = self.fetch(index=index)  # returns a mask of the region
+            props = _volume.ComponentSpatialProperties.compute_from_image(
+                img=mapimg,
+                space=self.space,
+                split_components=split_components,
             )
+            centroids[regionname] = pointset.from_points([c.centroid for c in props])
         return centroids
 
     def get_resampled_template(self, **fetch_kwargs) -> _volume.Volume:
@@ -808,7 +824,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         minsize_voxel=1,
         lower_threshold=0.0,
         **kwargs
-    ) -> List[Union[Assignment, AssignImageResult]]:
+    ) -> List[Union[MapAssignment, AssignImageResult]]:
         """
         For internal use only. Returns a dataclass, which provides better static type checking.
         """
@@ -821,10 +837,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if isinstance(item, pointset.PointSet):
             return self._assign_points(item, lower_threshold)
         if isinstance(item, _volume.Volume):
-            image = item.fetch()
             return self._assign_volume(
-                imgdata=np.asanyarray(image.dataobj),
-                imgaffine=image.affine,
+                queryvolume=item,
                 lower_threshold=lower_threshold,
                 minsize_voxel=minsize_voxel,
                 **kwargs
@@ -840,7 +854,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         minsize_voxel=1,
         lower_threshold=0.0,
         **kwargs
-    ):
+    ) -> "pd.DataFrame":
         """Assign an input Location to brain regions.
 
         The input is assumed to be defined in the same coordinate space
@@ -863,7 +877,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         Returns
         -------
-        assignments: pandas.DataFrame
+        pandas.DataFrame
             A table of associated regions and their scores per component found
             in the input image, or per coordinate provided. The scores are:
 
@@ -880,11 +894,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 masks as the ratio between the volume of their intersection and
                 the volume of the input image signal component (NaN for exact
                 coordinates)
-        components: Nifti1Image or None
-            If the input was an image, this is a labelled volume mapping the
-            detected components in the input image, where pixel values correspond
-            to the "component" column of the assignment table. If the input was
-            a Point or PointSet, returns None.
         """
 
         assignments = self._assign(item, minsize_voxel, lower_threshold, **kwargs)
@@ -956,7 +965,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         "input containedness": a.intersection_over_second,
                     }
                 }
-            elif isinstance(a, Assignment):
+            elif isinstance(a, MapAssignment):
                 item_to_append = {
                     **item_to_append,
                     **{
@@ -980,11 +989,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             .dropna(axis='columns', how='all')
         )
 
-    def _assign_points(self, points: pointset.PointSet, lower_threshold: float) -> List[Assignment]:
+    def _assign_points(self, points: pointset.PointSet, lower_threshold: float) -> List[MapAssignment]:
         """
         assign a PointSet to this parcellation map.
 
-        Parameters:
+        Parameters
         -----------
         lower_threshold: float, default: 0
             Lower threshold on values in the statistical map. Values smaller than
@@ -1014,7 +1023,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     if value > lower_threshold:
                         position = pts_warped[pointindex].coordinate
                         assignments.append(
-                            Assignment(
+                            MapAssignment(
                                 input_structure=pointindex,
                                 centroid=tuple(np.array(position).round(2)),
                                 volume=vol,
@@ -1029,7 +1038,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # of the coordinates.
         for pointindex, pt in siibra_tqdm(
             enumerate(points.warp(self.space.id)),
-            total=len(points), desc="Warping points",
+            total=len(points), desc="Assigning points",
         ):
             sigma_vox = pt.sigma / scaling
             if sigma_vox < 3:
@@ -1041,7 +1050,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 for _, vol, frag, value in values:
                     if value > lower_threshold:
                         assignments.append(
-                            Assignment(
+                            MapAssignment(
                                 input_structure=pointindex,
                                 centroid=tuple(pt),
                                 volume=vol,
@@ -1050,7 +1059,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                             )
                         )
             else:
-                logger.info(
+                logger.debug(
                     f"Assigning uncertain coordinate {tuple(pt)} to {len(self)} maps."
                 )
                 kernel = create_gaussian_kernel(sigma_vox, 3)
@@ -1061,13 +1070,17 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 shift[:3, -1] = xyz_vox[:3, 0] - r
                 # build niftiimage with the Gaussian blob,
                 # then recurse into this method with the image input
-                W = _volume.from_array(
+                gaussian_kernel = _volume.from_array(
                     data=kernel,
                     affine=np.dot(self.affine, shift),
                     space=self.space,
                     name=f"Gaussian kernel of {pt}"
                 )
-                for entry in self._assign(W, lower_threshold=lower_threshold):
+                for entry in self._assign(
+                    item=gaussian_kernel,
+                    lower_threshold=lower_threshold,
+                    split_components=False
+                ):
                     entry.input_structure = pointindex
                     entry.centroid = tuple(pt)
                     assignments.append(entry)
@@ -1075,8 +1088,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def _assign_volume(
         self,
-        imgdata: np.ndarray,
-        imgaffine: np.ndarray,
+        queryvolume: "_volume.Volume",
         lower_threshold: float,
         split_components: bool = True,
         **kwargs
@@ -1084,55 +1096,65 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         Assign an image volume to this parcellation map.
 
-        Parameters:
+        Parameters
         -----------
-        imgdata: np.ndarray
-            the image to be compared with maps
-        imgaffine: np.ndarray
-            affine matrix mapping voxels of the image to physical coordinates in the map space
+        queryvolume: Volume
+            the volume to be compared with maps
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
             Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
+        split_components: bool, default: True
+            Whether to split the query volume into disjoint components.
         """
         # TODO: split_components is not known to `assign`
-        # TODO: `minsize_voxel` is not used here. Consider the implementation again.
-        logger.debug(f"The keywords {[k for k in kwargs]} are not passed on during volume assignment.")
+        # TODO: `minsize_voxel` is not used here. Consider the implementation of `assign` again.
+        if kwargs:
+            logger.info(f"The keywords {[k for k in kwargs]} are not passed on during volume assignment.")
+
+        assert queryvolume.space == self.space, ValueError("Assigned volume must be in the same space as the map.")
+
+        if split_components:
+            iter_components = lambda arr: connected_components(arr)
+        else:
+            iter_components = lambda arr: [(0, arr)]
+
+        queryimg = queryvolume.fetch()
         assignments = []
-
-        iter_func = lambda arr: connected_components(arr) \
-            if split_components else lambda arr: [(1, arr)]
-
+        all_indices = [
+            index
+            for regionindices in self._indices.values()
+            for index in regionindices
+        ]
         with QUIET and provider.SubvolumeProvider.UseCaching():
-            all_indices = [
-                index
-                for regionindices in self._indices.values()
-                for index in regionindices
-            ]
             for index in siibra_tqdm(
                 all_indices,
-                desc=f"Assigning to {len(all_indices)} maps",
+                desc=f"Assigning {queryvolume} to {self}",
                 disable=len(all_indices) < 5,
-                unit=" map"
+                unit="map",
+                leave=False
             ):
-                vol_img = self.fetch(index=index)
-                vol_data = np.asanyarray(vol_img.dataobj)
-                for mode, voxelmask in iter_func(imgdata):
-                    position = np.array(np.where(voxelmask)).T.mean(0)
-                    if index.label is None:
-                        targetdata = vol_data
-                    else:
-                        targetdata = (vol_data == index.label).astype('uint8')
+                region_map = self.fetch(index=index)
+                region_map_arr = np.asanyarray(region_map.dataobj)
+                # the shape and affine are checked by `nilearn.image.resample_to_img()`
+                # and returns the original data if resampling is not necessary.
+                queryimgarr_res = np.asanyarray(
+                    resample_img_to_img(queryimg, region_map).dataobj
+                )
+                for compmode, voxelmask in iter_components(queryimgarr_res):
                     scores = compare_arrays(
-                        voxelmask, imgaffine,
-                        targetdata, vol_img.affine
+                        voxelmask,
+                        region_map.affine,  # after resampling, both should have the same affine
+                        region_map_arr,
+                        region_map.affine
                     )
+                    component_position = np.array(np.where(voxelmask)).T.mean(0)
                     if scores.intersection_over_union > lower_threshold:
                         assignments.append(
                             AssignImageResult(
-                                input_structure=mode,
-                                centroid=tuple(position.round(2)),
+                                input_structure=compmode,
+                                centroid=tuple(component_position.round(2)),
                                 volume=index.volume,
                                 fragment=index.fragment,
                                 map_value=index.label,
@@ -1153,7 +1175,7 @@ def from_volume(
     """
     Add a custom labelled parcellation map to siibra from a labelled NIfTI file.
 
-    Parameters:
+    Parameters
     ------------
     name: str
         Human-readable name of the parcellation.
@@ -1196,7 +1218,7 @@ def from_volume(
         if unnamed_labels:
             logger.warning(
                 f"The following labels appear in the NIfTI volume {vol_idx}, but not in "
-                f"the specified regions: {', '.join(str(l) for l in unnamed_labels)}. "
+                f"the specified regions: {', '.join(str(lb) for lb in unnamed_labels)}. "
                 "They will be removed from the nifti volume."
             )
             for label in unnamed_labels:

@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,6 +56,8 @@ class LayerwiseCellDensity(
         layerfiles: list,
         anchor: _anchor.AnatomicalAnchor,
         datasets: list = [],
+        id: str = None,
+        prerelease: bool = False,
     ):
         tabular.Tabular.__init__(
             self,
@@ -63,7 +65,9 @@ class LayerwiseCellDensity(
             modality="Cell body density",
             anchor=anchor,
             datasets=datasets,
-            data=None  # lazy loading below
+            data=None,  # lazy loading below
+            id=id,
+            prerelease=prerelease,
         )
         self.unit = "# detected cells/0.1mm3"
         self._filepairs = list(zip(segmentfiles, layerfiles))

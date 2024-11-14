@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -43,7 +43,7 @@ class CellDensityProfile(
 
     BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR = 1.931
 
-    _filter_attrs = cortical_profile.CorticalProfile._filter_attrs + ["section", "patch"]
+    _filter_attrs = cortical_profile.CorticalProfile._filter_attrs + ["location"]
 
     @classmethod
     def CELL_READER(cls, b):
@@ -69,7 +69,9 @@ class CellDensityProfile(
         patch: int,
         url: str,
         anchor: _anchor.AnatomicalAnchor,
-        datasets: list = []
+        datasets: list = [],
+        id: str = None,
+        prerelease: bool = False,
     ):
         """
         Generate a cell density profile from a URL to a cloud folder
@@ -79,9 +81,11 @@ class CellDensityProfile(
             self,
             description=self.DESCRIPTION,
             modality="Segmented cell body density",
-            unit="detected cells / 0.1mm3",
+            unit="cells / 0.1mm3",
             anchor=anchor,
             datasets=datasets,
+            id=id,
+            prerelease=prerelease,
         )
         self._step = 0.01
         self._url = url
@@ -94,6 +98,10 @@ class CellDensityProfile(
         self._depth_image = None
         self.section = section
         self.patch = patch
+
+    @property
+    def location(self):
+        return self.anchor.location
 
     @property
     def shape(self):
@@ -230,7 +238,7 @@ class CellDensityProfile(
 
     @property
     def _depths(self):
-        return [d + self._step / 2 for d in np.arange(0, 1, self._step)]
+        return np.arange(0, 1, self._step) + self._step / 2
 
     @property
     def _values(self):
@@ -242,7 +250,7 @@ class CellDensityProfile(
                 densities.append(self.density_image[mask].mean())
             else:
                 densities.append(np.NaN)
-        return densities
+        return np.asanyarray(densities)
 
     @property
     def key(self):

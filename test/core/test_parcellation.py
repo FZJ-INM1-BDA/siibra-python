@@ -1,13 +1,19 @@
 import unittest
 from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType, find_regions
 from siibra.core.region import Region
-from siibra.commons import Species
+from siibra.commons import Species, MapIndex
 from uuid import uuid4
 from parameterized import parameterized
 from unittest.mock import patch, MagicMock
 import inspect
 from typing import Tuple, Union, NamedTuple
 from itertools import product, starmap
+import pytest
+
+from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType
+from siibra.core.region import Region
+from siibra.commons import Species
+import siibra
 
 correct_json = {
     "name": "foobar",
@@ -258,42 +264,12 @@ class TestParcellation(unittest.TestCase):
         self.parc.children = [region_parent]
         self.assertIs(self.parc.get_region(regionspec, find_topmost, allow_tuple), result)
 
+@pytest.mark.parametrize('space_id,parc_id,map_type', [
+    ('waxholm', 'waxholm v4', 'labelled')
+])
+def test_should_be_able_to_fetch_map(space_id, parc_id, map_type):
 
-# all_parcs = [p for p in parcellations]
+    space = siibra.spaces[space_id]
+    parc = siibra.parcellations[parc_id]
 
-# @pytest.mark.parametrize('parc', all_parcs)
-# def test_parc_to_model(parc: Parcellation):
-#     model = parc.to_model()
-#     import re
-#     assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
-
-# all_parc_models = [parc.to_model() for parc in all_parcs]
-# all_regions = [
-#     (pev, bav)
-#     for model in all_parc_models
-#     for bav in model.brain_atlas_versions
-#     for pev in bav.has_terminology_version.has_entity_version]
-
-# @pytest.mark.parametrize('pev_id_dict,bav', all_regions)
-# def test_parc_regions(pev_id_dict,bav):
-#     filtered_pev = [pev for pev in bav.has_terminology_version.has_entity_version if pev.get("@id") == pev_id_dict.get("@id")]
-#     if len(filtered_pev) == 1:
-#         assert True
-#     else:
-#         pytest.xfail(f"PEV with id {pev_id_dict.get('@id')} has multiple instances.")
-
-# fetch_map_param = [
-#     ('rat', 'waxholm', 'v4', 'labelled')
-# ]
-
-# @pytest.mark.parametrize('atlas_id,space_id,parc_id,map_type', fetch_map_param)
-# def test_should_be_able_to_fetch_map(atlas_id,space_id,parc_id,map_type):
-
-#     atlas = siibra.atlases[atlas_id]
-#     space = atlas.spaces[space_id]
-#     parc = atlas.parcellations[parc_id]
-
-#     parc.get_map(space, map_type)
-
-
-parc_has_ebrains_doi = [("human", "julich brain 2.9")]
+    parc.get_map(space, map_type)

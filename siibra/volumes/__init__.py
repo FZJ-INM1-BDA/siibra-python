@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,8 +21,3 @@ from .volume import from_array, from_file, from_pointset, from_nifti, Volume
 from ..commons import logger
 from typing import List, Union
 import numpy as np
-
-
-def warm_cache():
-    """Preload preconfigured parcellation maps."""
-    _ = Map.registry()

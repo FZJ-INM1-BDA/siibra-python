@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,3 +17,4 @@
 from .neuroglancer import NeuroglancerProvider, NeuroglancerMesh
 from .nifti import NiftiProvider
 from .gifti import GiftiSurfaceLabeling, GiftiMesh
+from .freesurfer import ZippedFreesurferAnnot, FreesurferAnnot

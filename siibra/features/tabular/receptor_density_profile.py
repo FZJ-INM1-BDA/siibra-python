@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,7 +41,9 @@ class ReceptorDensityProfile(
         receptor: str,
         tsvfile: str,
         anchor: _anchor.AnatomicalAnchor,
-        datasets: list = []
+        datasets: list = [],
+        id: str = None,
+        prerelease: bool = False,
     ):
         """Generate a receptor density profile from a URL to a .tsv file
         formatted according to the structure used by Palomero-Gallagher et al.
@@ -52,6 +54,8 @@ class ReceptorDensityProfile(
             modality="Receptor density",
             anchor=anchor,
             datasets=datasets,
+            id=id,
+            prerelease=prerelease
         )
         self.receptor = receptor
         self._data_cached = None
@@ -71,10 +75,6 @@ class ReceptorDensityProfile(
     @property
     def receptor_fullname(self):
         return vocabularies.RECEPTOR_SYMBOLS[self.receptor]['receptor']['name']
-
-    @property
-    def name(self):
-        return super().name + f" for {self.receptor}"
 
     @property
     def neurotransmitter(self):

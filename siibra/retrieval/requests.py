@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,7 @@
 # limitations under the License.
 """Request files with decoders, lazy loading, and caching."""
 
-from .cache import CACHE
+from .cache import CACHE, cache_user_fn
 from .exceptions import EbrainsAuthenticationError
 from ..commons import (
     logger,
@@ -30,29 +30,51 @@ import json
 from zipfile import ZipFile
 import requests
 import os
-from nibabel import Nifti1Image, GiftiImage, streamlines
+from nibabel import Nifti1Image, GiftiImage, streamlines, freesurfer
 from skimage import io as skimage_io
 import gzip
 from io import BytesIO
 import urllib.parse
 import pandas as pd
 import numpy as np
-from typing import List, Callable, Any, TYPE_CHECKING
+from typing import List, Callable, TYPE_CHECKING
 from enum import Enum
 from functools import wraps
 from time import sleep
 import sys
-import platform
-
-if platform.system() == "Linux":
-    from filelock import FileLock as Lock
-else:
-    from filelock import SoftFileLock as Lock
-
+from filelock import FileLock as Lock
 if TYPE_CHECKING:
     from .repositories import GitlabConnector
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
+
+
+def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
+    """
+    Helper method to provide BytesIO to methods that only takes file path and
+    cannot handle BytesIO normally (e.g., `nibabel.freesurfer.read_annot()`).
+
+    Writes the bytes to a temporary file on cache and reads with the
+    original function.
+
+    Parameters
+    ----------
+    function : Callable
+    suffix : str
+        Must match the suffix expected by the function provided.
+    bytesio : BytesIO
+
+    Returns
+    -------
+    Return type of the provided function.
+    """
+    tempfile = CACHE.build_filename(f"temp_{suffix}") + suffix
+    with open(tempfile, "wb") as bf:
+        bf.write(bytesio.getbuffer())
+    result = function(tempfile)
+    os.remove(tempfile)
+    return result
+
 
 DECODERS = {
     ".nii": lambda b: Nifti1Image.from_bytes(b),
@@ -65,6 +87,7 @@ DECODERS = {
     ".zip": lambda b: ZipFile(BytesIO(b)),
     ".png": lambda b: skimage_io.imread(BytesIO(b)),
     ".npy": lambda b: np.load(BytesIO(b)),
+    ".annot": lambda b: read_as_bytesio(freesurfer.read_annot, '.annot', BytesIO(b)),
 }
 
 
@@ -539,10 +562,11 @@ class GitlabProxyEnum(Enum):
         if SIIBRA_USE_LOCAL_SNAPSPOT:
             logger.info(f"Using localsnapshot at {SIIBRA_USE_LOCAL_SNAPSPOT}")
             return [LocalFileRepository(SIIBRA_USE_LOCAL_SNAPSPOT)]
-        return [
-            GitlabConnector(server[0], server[1], "master", archive_mode=True)
-            for server in servers
-        ]
+        else:
+            return [
+                GitlabConnector(server[0], server[1], "master", archive_mode=True)
+                for server in servers
+            ]
 
     @try_all_connectors()
     def search_files(
@@ -574,27 +598,21 @@ class GitlabProxy(HttpRequest):
         self,
         flavour: GitlabProxyEnum,
         instance_id=None,
-        postprocess: Callable[["GitlabProxy", Any], Any] = (
-            lambda proxy, obj: obj
-            if hasattr(proxy, "instance_id") and proxy.instance_id
-            else {"results": obj}
-        ),
     ):
         if flavour not in GitlabProxyEnum:
             raise RuntimeError("Can only proxy enum members")
 
         self.flavour = flavour
         self.folder = self.folder_dict[flavour]
-        self.postprocess = postprocess
         self.instance_id = instance_id
-        self._cached_files = None
+        self.get = cache_user_fn(self.get)
 
     def get(self):
         if self.instance_id:
-            return self.postprocess(
-                self, self.flavour.get(f"{self.folder}/{self.instance_id}.json")
-            )
-        return self.postprocess(self, self.flavour.get(f"{self.folder}/_all.json"))
+            return self.flavour.get(f"{self.folder}/{self.instance_id}.json")
+        return {
+            "results": self.flavour.get(f"{self.folder}/_all.json")
+        }
 
 
 class MultiSourceRequestException(Exception):

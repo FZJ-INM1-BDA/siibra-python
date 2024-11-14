@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from ..commons import logger, __version__, SIIBRA_USE_CONFIGURATION, siibra_tqdm
-from ..retrieval.repositories import GitlabConnector, RepositoryConnector
+from ..retrieval.repositories import GitlabConnector, RepositoryConnector, GithubConnector
 from ..retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
 from ..retrieval.requests import SiibraHttpRequestError
 
@@ -35,16 +35,20 @@ class Configuration:
     """
 
     CONFIG_REPOS = [
-        ("https://jugit.fz-juelich.de", 3484),
-        ("https://gitlab.ebrains.eu", 93),
+        (GithubConnector, "FZJ-INM1-BDA", "siibra-configurations"),
+        (GitlabConnector, "https://gitlab.ebrains.eu", 892)
+    ]
+    CONFIG_CONNECTORS: List[RepositoryConnector] = [
+        conn(
+            server_or_owner,
+            project_or_repo,
+            reftag="siibra-{}".format(__version__),
+            skip_branchtest=True
+        )
+        for conn, server_or_owner, project_or_repo in CONFIG_REPOS
     ]
 
-    CONFIGURATIONS: List[RepositoryConnector] = [
-        GitlabConnector(server, project, "siibra-{}".format(__version__), skip_branchtest=True)
-        for server, project in CONFIG_REPOS
-    ]
-
-    CONFIGURATION_EXTENSIONS = []
+    CONFIG_EXTENSIONS = []
 
     _cleanup_funcs = []
 
@@ -65,7 +69,7 @@ class Configuration:
         self.spec_loaders = defaultdict(list)
 
         # retrieve json spec loaders from the default configuration
-        for connector in self.CONFIGURATIONS:
+        for connector in self.CONFIG_CONNECTORS:
             try:
                 for folder in self.get_folders(connector):
                     loaders = connector.get_loaders(folder, suffix='.json')
@@ -74,7 +78,7 @@ class Configuration:
                 break
             except (ConnectionError, SiibraHttpRequestError):
                 logger.error(f"Cannot load configuration from {str(connector)}")
-                *_, last = self.CONFIGURATIONS
+                *_, last = self.CONFIG_CONNECTORS
                 if connector is last:
                     raise NoSiibraConfigMirrorsAvailableException(
                         "Tried all mirrors, none available."
@@ -83,7 +87,7 @@ class Configuration:
             raise RuntimeError("Cannot pull any default siibra configuration.")
 
         # add additional spec loaders from extension configurations
-        for connector in self.CONFIGURATION_EXTENSIONS:
+        for connector in self.CONFIG_EXTENSIONS:
             try:
                 for folder in self.get_folders(connector):
                     self.spec_loaders[folder].extend(
@@ -110,7 +114,7 @@ class Configuration:
         if not isinstance(conn, RepositoryConnector):
             raise RuntimeError("Configuration needs to be an instance of RepositoryConnector or a valid str")
         logger.info(f"Using custom configuration from {str(conn)}")
-        cls.CONFIGURATIONS = [conn]
+        cls.CONFIG_CONNECTORS = [conn]
         # call registered cleanup functions
         for func in cls._cleanup_funcs:
             func()
@@ -121,11 +125,11 @@ class Configuration:
             conn = RepositoryConnector._from_url(conn)
         if not isinstance(conn, RepositoryConnector):
             raise RuntimeError("conn needs to be an instance of RepositoryConnector or a valid str")
-        if conn in cls.CONFIGURATION_EXTENSIONS:
+        if conn in cls.CONFIG_EXTENSIONS:
             logger.warning(f"The configuration {str(conn)} is already registered.")
         else:
             logger.info(f"Extending configuration with {str(conn)}")
-            cls.CONFIGURATION_EXTENSIONS.append(conn)
+            cls.CONFIG_EXTENSIONS.append(conn)
             # call registered cleanup functions
             for func in cls._cleanup_funcs:
                 func()

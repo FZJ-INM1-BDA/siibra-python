@@ -31,14 +31,14 @@ def test_get_hoc1_left_density():
     assert (
         len(features) == 1
     ), "expect only 1 result from getting hoc1 left receptor, but got {len(features)}"
-    expected_substrings = ["receptor density", "Area hOc1"]
+    expected_substrings = ["receptor density"]
     assert all(
-        s in features[0].name for s in expected_substrings
+        s in features[0].name.lower() for s in expected_substrings
     ), f"name of fetched receptor unexpected. '{features[0].name}' was expected to contain {', '.join(expected_substrings)}"
 
 
 regions_has_receptor = ["hOc1", "hOc2", "44"]
-fingerprints = siibra.features.molecular.ReceptorDensityFingerprint.get_instances()
+fingerprints = siibra.features.molecular.ReceptorDensityFingerprint._get_instances()
 
 
 def test_no_receptor_data():
@@ -62,7 +62,7 @@ def test_get_region_receptor(region_spec: str):
     ), f"expect at least one receptor query matching {region_spec}, but had none."
 
 
-profiles = siibra.features.molecular.ReceptorDensityProfile.get_instances()
+profiles = siibra.features.molecular.ReceptorDensityProfile._get_instances()
 
 
 def test_receptor_density_profile_shape():

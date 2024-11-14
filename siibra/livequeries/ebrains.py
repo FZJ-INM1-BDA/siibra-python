@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ from . import query
 
 from ..commons import logger, siibra_tqdm
 from ..features import anchor as _anchor
-from ..retrieval import requests, datasets
+from ..retrieval import requests, datasets, cache
 from ..core import parcellation, region
 
 from collections import defaultdict
@@ -140,3 +140,6 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
                 f"Its version history is: {curr.version_history}"
             )
             yield curr
+
+
+cache.Warmup.register_warmup_fn(cache.WarmupLevel.DATA)(lambda: EbrainsFeatureQuery.loader.data)

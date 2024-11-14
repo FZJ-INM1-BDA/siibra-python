@@ -1,4 +1,4 @@
-# Copyright 2018-2023
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +21,10 @@ from ..core.structure import BrainStructure
 import numpy as np
 from abc import abstractmethod
 
+from typing import TYPE_CHECKING, Union, Dict
+if TYPE_CHECKING:
+    from siibra.core.space import Space
+
 
 class Location(BrainStructure):
     """
@@ -42,15 +46,19 @@ class Location(BrainStructure):
     _MASK_MEMO = {}  # cache region masks for Location._assign_region()
     _ASSIGNMENT_CACHE = {}  # caches assignment results, see Region.assign()
 
-    def __init__(self, space):
-        self._space_spec = space
+    def __init__(self, spacespec: Union[str, Dict[str, str], "Space"]):
+        self._space_spec = spacespec
         self._space_cached = None
 
     @property
     def space(self):
         if self._space_cached is None:
             from ..core.space import Space
-            self._space_cached = Space.get_instance(self._space_spec)
+            if isinstance(self._space_spec, dict):
+                spec = self._space_spec.get("@id") or self._space_spec.get("name")
+                self._space_cached = Space.get_instance(spec)
+            else:
+                self._space_cached = Space.get_instance(self._space_spec)
         return self._space_cached
 
     @abstractmethod
@@ -81,11 +89,12 @@ class Location(BrainStructure):
 
     def __str__(self):
         space_str = "" if self.space is None else f" in {self.space.name}"
-        coord_str = "" if len(self) == 0 else f" [{','.join(str(l) for l in iter(self))}]"
+        coord_str = "" if len(self) == 0 else f" [{','.join(str(pt) for pt in iter(self))}]"
         return f"{self.__class__.__name__}{space_str}{coord_str}"
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}({[p.__repr__() for p in self]}), space={self.space.id}>"
+        spacespec = f"'{self.space.id}'" if self.space else None
+        return f"<{self.__class__.__name__}({[point.__repr__() for point in self]}), space={spacespec}>"
 
     def __hash__(self) -> int:
         return hash(self.__repr__())

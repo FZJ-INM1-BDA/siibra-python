@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,14 +44,18 @@ class Tabular(feature.Feature):
         modality: str,
         anchor: _anchor.AnatomicalAnchor,
         data: pd.DataFrame,  # sample x feature dimension
-        datasets: list = []
+        datasets: list = [],
+        id: str = None,
+        prerelease: bool = False,
     ):
         feature.Feature.__init__(
             self,
             modality=modality,
             description=description,
             anchor=anchor,
-            datasets=datasets
+            datasets=datasets,
+            id=id,
+            prerelease=prerelease
         )
         self._data_cached = data
 
@@ -59,8 +63,8 @@ class Tabular(feature.Feature):
     def data(self):
         return self._data_cached.copy()
 
-    def _export(self, fh: ZipFile):
-        super()._export(fh)
+    def _to_zip(self, fh: ZipFile):
+        super()._to_zip(fh)
         fh.writestr("tabular.csv", self.data.to_csv())
 
     def plot(self, *args, backend="matplotlib", **kwargs):
@@ -97,19 +101,24 @@ class Tabular(feature.Feature):
             kwargs["width"] = kwargs.get("width", 0.95)
             kwargs["ylabel"] = kwargs.get(
                 "ylabel",
-                f"{kwargs['y']}{yerr_label} {self.unit if hasattr(self, 'unit') else ''}"
+                f"{kwargs['y']}{yerr_label}" + f"\n{self.unit}" if hasattr(self, 'unit') else ""
             )
             kwargs["grid"] = kwargs.get("grid", True)
             kwargs["legend"] = kwargs.get("legend", False)
+            xticklabel_rotation = kwargs.get("xticklabel_rotation", 60)
             ax = self.data.plot(*args, backend=backend, **kwargs)
             ax.set_title(ax.get_title(), fontsize="medium")
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
+            ax.set_xticklabels(
+                ax.get_xticklabels(),
+                rotation=xticklabel_rotation,
+                ha='center' if xticklabel_rotation % 90 == 0 else 'right'
+            )
             plt.tight_layout()
             return ax
         elif backend == "plotly":
             kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             kwargs["error_y"] = kwargs.get("error_y", 'std' if 'std' in self.data.columns else None)
-            error_y_label = f" &plusmn; {kwargs.get('error_y')}" if kwargs.get('error_y') else ''
+            error_y_label = f" &plusmn; {kwargs.get('error_y')}<br>" if kwargs.get('error_y') else ''
             kwargs["labels"] = {
                 "index": kwargs.pop("xlabel", None) or kwargs.pop("index", ""),
                 "value": kwargs.pop("ylabel", None) or kwargs.pop(

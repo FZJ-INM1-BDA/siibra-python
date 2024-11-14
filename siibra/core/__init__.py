@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2024
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,10 +14,3 @@
 # limitations under the License.
 """:ref:`Main siibra concepts<mainconcepts>`"""
 from . import atlas, parcellation, space
-
-
-def warm_cache():
-    """Preload preconfigured siibra core concepts."""
-    _ = atlas.Atlas.registry()
-    _ = space.Space.registry()
-    _ = parcellation.Parcellation.registry()
