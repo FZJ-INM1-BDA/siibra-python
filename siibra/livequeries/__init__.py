@@ -17,3 +17,4 @@
 from .allen import AllenBrainAtlasQuery
 from .bigbrain import LayerwiseBigBrainIntensityQuery, BigBrainProfileQuery
 from .ebrains import EbrainsFeatureQuery
+from .cortical_profile_sampler import CorticalProfileSampler

@@ -13,15 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import contour
-from . import patch
-from ..locations import point, pointset
-from ..volumes import volume
+from . import location, Contour
+from . import point, pointset
+from ..volumes import volume, Patch
 
 import numpy as np
 
 
-class Plane3D:
+class Plane(location.Location):
     """
     A 3D plane in reference space.
     This shall eventually be derived from siibra.Location
@@ -175,7 +174,7 @@ class Plane3D:
 
             # finish the current contour.
             result.append(
-                contour.Contour(np.array(points), labels=labels, space=self.space)
+                Contour(np.array(points), labels=labels, space=self.space)
             )
             if len(face_indices) > 0:
                 # prepare to process another contour segment
@@ -237,7 +236,7 @@ class Plane3D:
         err = (self.project_points(corners).coordinates - corners.coordinates).sum()
         if err > 1e-5:
             print(f"WARNING: patch coordinates were not exactly in-plane (error={err}).")
-        return patch.Patch(self.project_points(corners))
+        return Patch(self.project_points(corners))
 
     @classmethod
     def from_image(cls, image: volume.Volume):
@@ -254,3 +253,12 @@ class Plane3D:
         )
         points = voxels.transform(im_lowres.affine, space=image.space)
         return cls(points[0], points[1], points[2])
+
+    def warp(self, space):
+        raise NotImplementedError
+
+    def transform(self, affine: np.ndarray, space=None):
+        raise NotImplementedError
+
+    def __eq__(self):
+        raise NotImplementedError

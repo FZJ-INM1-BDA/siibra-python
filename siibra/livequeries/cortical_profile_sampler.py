@@ -13,20 +13,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import contour
-from ..locations import point
-from ..core import parcellation
+from .query import LiveQuery
+from ..commons import logger
+from ..locations import point, Contour
+from ..core.concept import get_registry
+from ..features.tabular import CorticalProfileSample
 
 import numpy as np
 
 
-class CorticalProfileSampler:
+class CorticalProfileSampler(LiveQuery, args=[], FeatureType=CorticalProfileSample):
     """Samples cortical profiles from the cortical layer maps."""
 
     def __init__(self):
-        self.layermap = parcellation.Parcellation.get_instance(
-            "cortical layers"
-        ).get_map(space="bigbrain", maptype="labelled")
+        pass
+
+    @property
+    def layermap(self):
+        return get_registry('Map').get(
+            parcellation="cortical layers",
+            space="bigbrain",
+            maptype="labelled",
+        )
 
     def query(self, query_point: point.Point):
         q = query_point.warp(self.layermap.space)
@@ -42,7 +50,7 @@ class CorticalProfileSampler:
 
         best_vertex = best_match[1]
         hemisphere = "left" if "left" in best_match[0] else "right"
-        print(f"Best match is vertex #{best_match[1]} in {best_match[0]}.")
+        logger.info(f"Best match is vertex #{best_match[1]} in {best_match[0]}.")
 
         profile = [
             (_, self.layermap.fetch(region=_, format="mesh")["verts"][best_vertex])
@@ -50,7 +58,7 @@ class CorticalProfileSampler:
             if hemisphere in _
         ]
 
-        return contour.Contour(
+        return Contour(
             [p[1] for p in profile],
             space=self.layermap.space,
             labels=[p[0] for p in profile],
