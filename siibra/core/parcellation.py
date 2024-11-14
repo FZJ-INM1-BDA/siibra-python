@@ -17,8 +17,9 @@ from . import region
 
 from ..commons import logger, MapType, Species
 from ..volumes import parcellationmap
+from ..exceptions import NoMapMatchingValues
 
-from typing import Union, List, Dict, TYPE_CHECKING
+from typing import Union, List, Dict, TYPE_CHECKING, Literal
 import re
 
 
@@ -146,7 +147,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
     def get_map(
         self,
         space: Union[str, "Space"],
-        maptype: Union[str, MapType] = MapType.LABELLED,
+        maptype: Union[Literal['labelled', 'statistical'], MapType] = MapType.LABELLED,
         spec: str = ""
     ):
         """
@@ -177,8 +178,9 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             A ParcellationMap representing the volumetric map or
             a SparseMap representing the list of statistical maps.
         """
-        if not isinstance(maptype, MapType):
+        if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
+        assert isinstance(maptype, MapType), "Possible values of `maptype` are `MapType`s, 'labelled', 'statistical'."
 
         candidates = [
             m for m in parcellationmap.Map.registry()
@@ -187,13 +189,13 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             and m.parcellation.matches(self)
         ]
         if len(candidates) == 0:
-            raise ValueError(f"No '{maptype}' map in '{space}' available for {str(self)}")
+            raise NoMapMatchingValues(f"No '{maptype}' map in '{space}' available for {str(self)}")
         if len(candidates) > 1:
             spec_candidates = [
                 c for c in candidates if all(w.lower() in c.name.lower() for w in spec.split())
             ]
             if len(spec_candidates) == 0:
-                raise ValueError(f"'{spec}' does not match any options from {[c.name for c in candidates]}.")
+                raise NoMapMatchingValues(f"'{spec}' does not match any options from {[c.name for c in candidates]}.")
             if len(spec_candidates) > 1:
                 logger.warning(
                     f"Multiple maps are available in this specification of space, parcellation, and map type.\n"
