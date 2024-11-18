@@ -400,6 +400,8 @@ class Volume(location.Location):
         elif isinstance(other, boundingbox.BoundingBox):
             return self.get_boundingbox(clip=True, background=0.0, **fetch_kwargs).intersection(other)
         elif isinstance(other, Volume):
+            if self.space != other.space:
+                raise NotImplementedError("Cannot intersect volumes from different spaces. Try comparing their boudning boxes.")
             format = fetch_kwargs.pop('format', 'image')
             v1 = self.fetch(format=format, **fetch_kwargs)
             v2 = other.fetch(format=format, **fetch_kwargs)
