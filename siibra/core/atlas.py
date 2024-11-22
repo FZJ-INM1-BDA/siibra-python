@@ -197,27 +197,29 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
 
     def find_regions(
         self,
-        regionspec,
-        all_versions=False,
-        filter_children=True,
-        **kwargs
+        regionspec: str,
+        all_versions: bool = False,
+        filter_children: bool = True,
+        find_topmost: bool = False
     ):
         """
-        Find regions with the given specification in all
-        parcellations offered by the atlas. Additional kwargs
-        are passed on to Parcellation.find().
+        Find regions with the given specification in all parcellations offered
+        by the atlas.
 
         Parameters
         ----------
-        regionspec: str, regex, int, Region, MapIndex
+        regionspec: str, regex
             - a string with a possibly inexact name (matched both against the name and the identifier key)
             - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux, see at https://docs.python.org/3/library/re.html#flags)
             - a regex applied to region names
-            - a Region object
         all_versions : Bool, default: False
             If True, matched regions for all versions of a parcellation are returned.
         filter_children : bool, default: True
             If False, children of matched parents will be returned.
+        find_topmost : bool, default: False
+            If True (requires `filter_children=True`), will return parent
+            structures if all children are matched, even though the parent
+            itself might not match the specification.
 
         Returns
         -------
@@ -225,9 +227,13 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
             list of regions matching to the regionspec
         """
         result = []
-        for p in self._parcellation_ids:
-            parcobj = _parcellation.Parcellation.get_instance(p)
-            if parcobj.is_newest_version or all_versions:
-                match = parcobj.find(regionspec, filter_children=filter_children, **kwargs)
-                result.extend(match)
+        for p in self.parcellations:
+            if p.is_newest_version or all_versions:
+                result.extend(
+                    p.find(
+                        regionspec=regionspec,
+                        filter_children=filter_children,
+                        find_topmost=find_topmost
+                    )
+                )
         return result

@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, PropertyMock, MagicMock, call
+from unittest.mock import patch, PropertyMock, MagicMock
 from parameterized import parameterized
 
 import siibra
@@ -229,34 +229,34 @@ class TestAtlas(unittest.TestCase):
 
     @parameterized.expand(
         product(
-            ["str-input", 3, Region("hello world")], product([True, False], repeat=3)
+            ["str-input", Region("hello world")], product([True, False], repeat=3)
         )
     )
     def test_find_regions(self, regionspec, bool_flags):
         all_versions, filter_children, _ = bool_flags
-        with patch.object(Parcellation, "get_instance") as get_instance_mock:
-            parc1 = MockParc(True)
+        find_topmost = False  # adds parents if children is matched but parent is not. works only if filter_children is True.
+        with patch.object(Atlas, "parcellations", new_callable=PropertyMock) as parcellations_mock:
+            parc1 = MockParc(is_newest_version=True)
             parc1.find.return_value = [MockObj(), MockObj(), MockObj()]
-            parc2 = MockParc(False)
+            parc2 = MockParc(is_newest_version=False)
             parc2.find.return_value = [MockObj(), MockObj(), MockObj()]
-            parc3 = MockParc(True)
+            parc3 = MockParc(is_newest_version=True)
             parc3.find.return_value = [MockObj(), MockObj(), MockObj()]
-            parc4 = MockParc(True)
+            parc4 = MockParc(is_newest_version=True)
             parc4.find.return_value = []
 
-            get_instance_mock.side_effect = [parc1, parc2, parc3, *repeat(parc4, 35)]
+            parcellations_mock.return_value = [parc1, parc2, parc3, *repeat(parc4, 35)]
 
             actual_result = self.atlas.find_regions(
                 regionspec, all_versions, filter_children
             )
 
-            get_instance_mock.assert_has_calls(
-                [call(pid) for pid in human_atlas_json.get("parcellations")]
-            )
+            parcellations_mock.assert_called_once()
+
             for p in [parc1, parc2, parc3]:
                 if all_versions or p.is_newest_version:
                     p.find.assert_called_once_with(
-                        regionspec, filter_children=filter_children
+                        regionspec=regionspec, filter_children=filter_children, find_topmost=find_topmost
                     )
 
             self.assertTrue(isinstance(p, MockObj) for p in actual_result)
