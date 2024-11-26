@@ -37,6 +37,34 @@ from typing import Union, Dict, Tuple
 import json
 
 
+def get_affine_from_ng_transfrom(transform_nm: np.ndarray, resolution_nm: np.ndarray) -> np.ndarray:
+    """
+    transfrorm.json stored with neuroglancer precomputed images and meshes
+    are meant to be used for neuroglancer viewers and hence they are not
+    representative of the affine in other tools. This method convertes them
+    into a standard affine, that is, converts to mm from nm and shifts back
+    half a voxel in each axis.
+
+    Parameters
+    ----------
+    transform_nm: np.ndarray
+        Transform array created for dispalying an image correctly from
+        neuroglancer precomputed format in neuroglancer viewer.
+    resolution_nm: np.ndarray
+        The voxel resolution in nanometers.
+
+    Returns
+    -------
+    np.ndarray
+        Standard affine in mm
+    """
+    scaling = np.diag(np.r_[resolution_nm, 1.0])
+    affine = np.dot(transform_nm, scaling)
+    affine[:3, :] /= 1e6
+    affine[:3, 3] += (resolution_nm * 0.5 / 1e6)
+    return affine
+
+
 class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/precomputed"):
 
     def __init__(self, url: Union[str, Dict[str, str]]):
@@ -246,7 +274,11 @@ class NeuroglancerVolume:
         self._io: PrecomputedIO = None
 
     @property
-    def transform_nm(self):
+    def transform_nm(self) -> np.ndarray:
+        """
+        This is the transformation matrix created to cater neuroglancer viewer
+        for a neuroglancer precomputed images.
+        """
         if self._transform_nm is not None:
             return self._transform_nm
         try:
@@ -445,10 +477,7 @@ class NeuroglancerScale:
 
     @property
     def affine(self):
-        scaling = np.diag(np.r_[self.res_nm, 1.0])
-        affine = np.dot(self.volume.transform_nm, scaling)
-        affine[:3, :] /= 1e6
-        return affine
+        return get_affine_from_ng_transfrom(self.volume.transform_nm, self.res_nm)
 
     def _point_to_lower_chunk_idx(self, xyz):
         return (
@@ -533,7 +562,7 @@ class NeuroglancerScale:
         # exact bounding box requested, to cut off undesired borders
         data_min = np.array([gx0, gy0, gz0]) * self.chunk_sizes
         x0, y0, z0 = (np.array(bbox_.minpoint) - data_min).astype("int")
-        xd, yd, zd = np.ceil((np.array(bbox_.maxpoint))).astype(int) - np.floor((np.array(bbox_.minpoint))).astype(int)  # TODO: consider 0.5 voxel shift
+        xd, yd, zd = np.ceil((np.array(bbox_.maxpoint))).astype(int) - np.floor((np.array(bbox_.minpoint))).astype(int)
         offset = tuple(bbox_.minpoint)
 
         # build the nifti image
