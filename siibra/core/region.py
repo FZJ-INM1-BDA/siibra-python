@@ -427,7 +427,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         space: Union[str, _space.Space],
         maptype: MapType = SIIBRA_DEFAULT_MAPTYPE,
         threshold: float = SIIBRA_DEFAULT_MAP_THRESHOLD,
-        via_space: Union[str, _space.Space] = None
     ) -> volume.Volume:
         """
         Attempts to build a binary mask of this region in the given space,
@@ -442,30 +441,14 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         threshold: float, optional
             When fetching a statistical map, use this threshold to convert
             it to a binary mask
-        via_space: Space or str
-            If specified, fetch the map in this space first, and then perform
-            a linear warping from there to the requested space.
 
-            Tip
-            ---
-                You might want to use this if a map in the requested space
-                is not available.
-
-            Note
-            ----
-                This linear warping is an affine approximation of the
-                nonlinear deformation, computed from the warped corner points
-                of the bounding box (see siibra.locations.BoundingBox.estimate_affine()).
-                It does not require voxel resampling, just replaces the affine
-                matrix, but is less accurate than a full nonlinear warping,
-                which is currently not supported in siibra-python for images.
         Returns
         -------
         Volume (use fetch() to get a NiftiImage)
         """
         # check for a cached object
 
-        getmap_hash = hash(f"{self.id}{space}{maptype}{threshold}{via_space}")
+        getmap_hash = hash(f"{self.id}{space}{maptype}{threshold}")
         if getmap_hash in self._GETMAP_CACHE:
             return self._GETMAP_CACHE[getmap_hash]
 
@@ -475,64 +458,33 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         # prepare space instances
         if isinstance(space, str):
             space = _space.Space.get_instance(space)
-        fetch_space = space if via_space is None else via_space
-        if isinstance(fetch_space, str):
-            fetch_space = _space.Space.get_instance(fetch_space)
 
         result = None  # try to replace this with the actual regionmap volume
 
         # see if we find a map supporting the requested region
         for m in parcellationmap.Map.registry():
             if (
-                m.space.matches(fetch_space)
+                m.space.matches(space)
                 and m.parcellation == self.parcellation
                 and m.provides_image
                 and m.maptype == maptype
                 and self.name in m.regions
             ):
-                region_img = m.fetch(region=self, format='image')
-                imgdata = np.asanyarray(region_img.dataobj)
-                if maptype == MapType.STATISTICAL:  # compute thresholded statistical map, default is 0.0
-                    logger.info(f"Thresholding statistical map at {threshold}")
-                    imgdata = (imgdata > threshold).astype('uint8')
-                    name = f"Statistical mask of {self} on {fetch_space}{f' thresholded by {threshold}' if threshold else ''}"
-                else:  # compute region mask from labelled parcellation map
-                    name = f"Mask of {self} in {m.parcellation} on {fetch_space}"
-                result = volume.from_array(
-                    data=imgdata,
-                    affine=region_img.affine,
-                    space=fetch_space,
-                    name=name,
-                )
-            if result is not None:
-                break
+                result = m.get_volume(region=self)
 
         if result is None:
             # No region map available. Then see if we can build a map from the child regions
-            if (len(self.children) > 0) and all(c.mapped_in_space(fetch_space) for c in self.children):
+            if (len(self.children) > 0) and all(c.mapped_in_space(space) for c in self.children):
                 logger.debug(f"Building regional map of {self.name} in {self.parcellation} from {len(self.children)} child regions.")
                 child_volumes = [
-                    child.get_regional_map(fetch_space, maptype, threshold, via_space)
+                    child.get_regional_map(space, maptype, threshold)
                     for child in self.children
                 ]
                 result = volume.merge(child_volumes)
                 result._name = f"Subtree {'mask' if maptype == MapType.LABELLED else 'statistical map of'} built from {self.name}"
 
         if result is None:
-            raise NoMapAvailableError(f"Cannot build region map for {self.name} from {str(maptype)} maps in {fetch_space}")
-
-        if via_space is not None:
-            # the map volume is taken from an intermediary reference space
-            # provided by 'via_space'. Now transform the affine to match the
-            # desired target space.
-            intermediary_result = result
-            transform = intermediary_result.get_boundingbox(clip=True, background=0.0).estimate_affine(space)
-            result = volume.from_array(
-                imgdata,
-                np.dot(transform, region_img.affine),
-                space,
-                f"{result.name} fetched from {fetch_space} and linearly corrected to match {space}"
-            )
+            raise NoMapAvailableError(f"Cannot build region map for {self.name} from {str(maptype)} maps in {space}")
 
         while len(self._GETMAP_CACHE) > self._GETMAP_CACHE_MAX_ENTRIES:
             self._GETMAP_CACHE.pop(next(iter(self._GETMAP_CACHE)))
