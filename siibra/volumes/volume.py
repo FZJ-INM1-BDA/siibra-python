@@ -21,7 +21,7 @@ from ..retrieval import requests
 from ..core import space as _space, structure
 from ..locations import location, point, pointset, boundingbox
 from ..commons import resample_img_to_img, siibra_tqdm, affine_scaling, connected_components
-from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
+from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError, ConflictingArgumentException
 
 from dataclasses import dataclass
 from nibabel import Nifti1Image
@@ -620,6 +620,49 @@ class Volume(location.Location):
         points = pointset.PointSet(voxels, space=None, labels=list(range(len(voxels)))).transform(img.affine, space=self.space)
         points.sigma_mm = [sigma_mm for _ in points]
         return points
+
+
+class FilteredVolume(Volume):
+
+    def __init__(
+        self,
+        parent_volume: Volume,
+        label: int = None,
+        fragment: str = None
+    ):
+        name = parent_volume.name
+        if label:
+            name += f" - label: {label}"
+        if fragment:
+            name += f" - fragment: {fragment}"
+        Volume.__init__(
+            self,
+            space_spec=parent_volume._space_spec,
+            providers=list(parent_volume._providers.values()),
+            name=name
+        )
+        self.fragment = fragment
+        self.label = label
+
+    def fetch(
+        self,
+        format: str = None,
+        **kwargs
+    ):
+        
+        if "fragment" in kwargs:
+            assert kwargs.get("fragment") == self.fragment, ConflictingArgumentException(f"This volume refined to fetch fragment '{self.fragment}' only.")
+        else:
+            kwargs["fragment"] = self.fragment
+        if "label" in kwargs:
+            assert kwargs.get("label") == self.label, ConflictingArgumentException(f"This volume refined to fetch label '{self.label}' only.")
+        else:
+            kwargs["label"] = self.label
+
+        return super().fetch(
+            format=format,
+            **kwargs
+        )
 
 
 class Subvolume(Volume):
