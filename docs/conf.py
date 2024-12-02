@@ -13,7 +13,7 @@
 import os
 import sys
 from sphinx_gallery.sorting import FileNameSortKey
-import sphinx_rtd_theme  # this import must be kept to make sphinx_rtd_theme function
+import sphinx_book_theme  # this import must be kept to make sphinx_rtd_theme function
 import sphinx_autopackagesummary  # this import must be kept to make autopackagesummary function
 
 os.environ['SIIBRA_LOG_LEVEL'] = "ERROR"
@@ -23,7 +23,7 @@ print("Path:", sys.path)
 # -- Project information -----------------------------------------------------
 
 project = "siibra-python"
-copyright = "2020-2023, Forschungszentrum Juelich GmbH"
+copyright = "2020-2024, Forschungszentrum Juelich GmbH"
 author = "Big Data Analytics Group, Institute of Neuroscience and Medicine, Forschungszentrum Juelich GmbH"
 language = 'en'
 
@@ -63,7 +63,6 @@ extensions = [
     "sphinx_autopackagesummary",  # auto generation of API doc for nested Python packages; uses `autosummary`
     "autoapi.extension",  # "autodoc" style doc wo needing to load/run/import the project
     "IPython.sphinxext.ipython_console_highlighting",  # enables ipython syntax highlighting
-    "sphinx_rtd_theme",  # readthedocs theme. Requires import or a clone in _static
     "m2r2",  # converts a markdown file including rst markups to a valid rst format
     "sphinxcontrib.jquery",  # work around for jQuery not being loaded automatically dependency removal from sphinx 7
     "sphinx.ext.graphviz",  # to allow drawing diagrams
@@ -162,25 +161,22 @@ sphinx_gallery_conf = {
     "run_stale_examples": run_stale_examples
 }
 
-html_theme_options = {
-    'logo_only': True,
-    'display_version': True,
-    'prev_next_buttons_location': "bottom",
-    'style_external_links': False,
-    'vcs_pageview_mode': '',
-    'style_nav_header_background': 'white',
-    # Toc options
-    'collapse_navigation': True,
-    'sticky_navigation': True,
-    'navigation_depth': 3,
-    'includehidden': True,
-    'titles_only': False
-}
-
 # -- Options for HTML output -------------------------------------------------
-html_theme = "sphinx_rtd_theme"
+html_theme = "sphinx_book_theme"
 html_show_sourcelink = False
 html_show_sphinx = True
-html_logo = "_static/siibra-python.jpeg"
+# html_logo = "_static/siibra-python.jpeg"  # overriden by logo in html_theme_options
 html_favicon = "_static/siibra_favicon.ico"
 html_permalinks = False
+
+html_theme_options = {
+    "logo": {
+        "image_light": "_static/iibra-python.jpeg",
+        "image_dark": "_static/iibra-python.jpeg",
+    },
+    'repository_url': "https://github.com/FZJ-INM1-BDA/siibra-python",
+    'use_repository_button': True,
+    "extra_footer": "<div>This software code is funded from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 945539 (Human Brain Project SGA3).</div>",
+    'collapse_navigation': True,
+    'max_navbar_depth': 2,
+}

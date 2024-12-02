@@ -7,23 +7,22 @@ siibra - Software interface for interacting with brain atlases
   :end-before: intro-end
 
 .. toctree::
-   :maxdepth: 3
-   :hidden:
+   :maxdepth: 2
 
-   start
+   installation
+   concepts
    step-by-step
+   howtocite
    api
+
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Development
+   
    create_preconfiguration
    developer
    contribute
-   acknowledgements
-   howtocite
+   
 
-..
-    Indices and tables
-    ------------------
-
-    * :ref:`genindex`
-    * :ref:`modindex`
-    * :ref:`search`
 
