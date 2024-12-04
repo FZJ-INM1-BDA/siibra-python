@@ -37,12 +37,11 @@ from typing import Union, Dict, Tuple
 import json
 
 
-def get_affine_from_ng_transfrom(transform_nm: np.ndarray, resolution_nm: np.ndarray) -> np.ndarray:
+def shift_ng_transfrom(transform_nm: np.ndarray, resolution_nm: np.ndarray) -> np.ndarray:
     """
     transfrorm.json stored with neuroglancer precomputed images and meshes
     are meant to be used for neuroglancer viewers and hence they are not
-    representative of the affine in other tools. This method convertes them
-    into a standard affine, that is, converts to mm from nm and shifts back
+    representative of the affine in other tools. This method shifts back
     half a voxel in each axis.
 
     Parameters
@@ -56,12 +55,11 @@ def get_affine_from_ng_transfrom(transform_nm: np.ndarray, resolution_nm: np.nda
     Returns
     -------
     np.ndarray
-        Standard affine in mm
+        Standard affine in nm
     """
     scaling = np.diag(np.r_[resolution_nm, 1.0])
     affine = np.dot(transform_nm, scaling)
-    affine[:3, :] /= 1e6
-    affine[:3, 3] += (resolution_nm * 0.5 / 1e6)
+    affine[:3, 3] += (resolution_nm * 0.5)
     return affine
 
 
@@ -477,7 +475,9 @@ class NeuroglancerScale:
 
     @property
     def affine(self):
-        return get_affine_from_ng_transfrom(self.volume.transform_nm, self.res_nm)
+        affine_ = shift_ng_transfrom(self.volume.transform_nm, self.res_nm)
+        affine_[:3, :] /= 1e6
+        return affine_
 
     def _point_to_lower_chunk_idx(self, xyz):
         return (
@@ -581,7 +581,7 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
 
     @staticmethod
     def _fragmentinfo(url: str) -> Dict[str, Union[str, np.ndarray, Dict]]:
-        """ Prepare basic mesh fragment information from url. """
+        """Prepare basic mesh fragment information from url."""
         return {
             "url": url,
             "transform_nm": np.array(requests.HttpRequest(f"{url}/transform.json").data),
@@ -618,7 +618,9 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
         for name, spec in self._meshes.items():
             mesh_key = spec.get('info', {}).get('mesh')
             meshurl = f"{spec['url']}/{mesh_key}/{str(meshindex)}:0"
-            transform = spec.get('transform_nm')
+            resolution_nm = np.array(spec["info"]["scales"][0]["resolution"]).squeeze()
+            transform = shift_ng_transfrom(spec.get('transform_nm'), resolution_nm)
+            transform[:3, :] /= 1e6
             try:
                 meshinfo = requests.HttpRequest(url=meshurl, func=requests.DECODERS['.json']).data
             except requests.SiibraHttpRequestError:
