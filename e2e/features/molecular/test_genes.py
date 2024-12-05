@@ -61,3 +61,14 @@ def test_gene_exp_w_parent_structures():
 
     # grandparent area should contain more measurements
     assert len(features_grandparent_struct[0].data) > len(features_leaf_struct[0].data)
+
+
+@skip_if_allen_api_unavailable
+def test_no_probes_found_in_concept():
+    bbox = siibra.locations.BoundingBox([-75,-110,-75], [-74,-109, -74], space='mni152')
+    features = siibra.features.get(
+        bbox,
+        siibra.features.molecular.GeneExpressions,
+        gene=siibra.vocabularies.GENE_NAMES.G0S2
+    )
+    assert features == []
