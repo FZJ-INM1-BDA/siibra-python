@@ -249,8 +249,11 @@ class PointSet(location.Location):
     @property
     def boundingbox(self):
         """
-        Return the bounding box of these points.
+        Return the bounding box of these points, or None in the
+        special case of an empty PointSet.
         """
+        if len(self.coordinates) == 0:
+            return None
         coords = self.coordinates
         # TODO this needs a more precise treatment of the sigmas
         sigma_min = max(self.sigma[i] for i in coords.argmin(0))
