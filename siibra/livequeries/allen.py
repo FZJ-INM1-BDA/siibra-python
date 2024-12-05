@@ -32,6 +32,8 @@ import json
 
 BASE_URL = "http://api.brain-map.org/api/v2/data"
 
+LOCATION_PRECISION_MM = 2.  # the assumed spatial precision of the probe locations in MNI space
+
 
 class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions):
     """
@@ -127,15 +129,12 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         coordinates = []
         points_inside = dict()
         for measurement in self:
-            pt = point.Point(measurement['mni_xyz'], space=mnispace)
+            pt = point.Point(measurement['mni_xyz'], space=mnispace, sigma_mm=LOCATION_PRECISION_MM)
             if pt not in points_inside:  # cache redundant intersection tests
                 points_inside[pt] = pt in concept
             if points_inside[pt]:
                 measurements.append(measurement)
                 coordinates.append(pt)
-
-        if len(points_inside) == 0:
-            raise StopIteration
 
         # Build the anatomical anchor and assignment to the query concept.
         # It will be attached to the returned feature, with the set of matched

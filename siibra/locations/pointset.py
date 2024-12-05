@@ -252,6 +252,7 @@ class PointSet(location.Location):
         Return the bounding box of these points.
         """
         coords = self.coordinates
+        # TODO this needs a more precise treatment of the sigmas
         sigma_min = max(self.sigma[i] for i in coords.argmin(0))
         sigma_max = max(self.sigma[i] for i in coords.argmax(0))
         return _boundingbox.BoundingBox(
