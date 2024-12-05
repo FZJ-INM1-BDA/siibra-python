@@ -628,8 +628,23 @@ class FilteredVolume(Volume):
         self,
         parent_volume: Volume,
         label: int = None,
-        fragment: str = None
+        fragment: str = None,
+        threshold: float = None,
     ):
+        """
+        A prescribed Volume to fetch specified label and fragment.
+        If threshold is defined, a mask of the values above the threshold.
+
+        Parameters
+        ----------
+        parent_volume : Volume
+        label : int, default: None
+            Get the mask of value equal to label.
+        fragment : str, default None
+            If a volume is fragmented, get a specified one.
+        threshold : float, default None
+            Provide a float value to threshold the image.
+        """
         name = parent_volume.name
         if label:
             name += f" - label: {label}"
@@ -643,13 +658,13 @@ class FilteredVolume(Volume):
         )
         self.fragment = fragment
         self.label = label
+        self.threshold = threshold
 
     def fetch(
         self,
         format: str = None,
         **kwargs
     ):
-        
         if "fragment" in kwargs:
             assert kwargs.get("fragment") == self.fragment, ConflictingArgumentException(f"This volume refined to fetch fragment '{self.fragment}' only.")
         else:
@@ -659,10 +674,20 @@ class FilteredVolume(Volume):
         else:
             kwargs["label"] = self.label
 
-        return super().fetch(
-            format=format,
-            **kwargs
-        )
+        result = super().fetch(format=format, **kwargs)
+
+        if self.threshold is not None:
+            assert self.label is None
+            if not isinstance(result, Nifti1Image):
+                raise NotImplementedError(f"Cannot threshold meshes.")
+            imgdata = np.asanyarray(result.dataobj)
+            return Nifti1Image(
+                dataobj=(imgdata > self.threshold).astype("uint8"),
+                affine=result.affine,
+                dtype="uint8"
+            )
+
+        return result
 
 
 class Subvolume(Volume):
@@ -790,7 +815,7 @@ def from_pointset(
 
 def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volume:
     """
-    Merge a list of volumes in the same space into a single volume.
+    Merge a list of nifti volumes in the same space into a single volume.
 
     Note
     ----
@@ -818,8 +843,14 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
     space = volumes[0].space
     assert all(v.space == space for v in volumes), "Cannot merge volumes from different spaces."
 
+    if len(labels) > 0:
+        dtype = 'int32'
+    elif FilteredVolume in {type(v) for v in volumes}:
+        dtype = 'uint8'
+    else:
+        dtype = volumes[0].fetch().dataobj.dtype
     template_img = space.get_template().fetch(**fetch_kwargs)
-    merged_array = np.zeros(template_img.shape, dtype='uint8')
+    merged_array = np.zeros(template_img.shape, dtype=dtype)
 
     for i, vol in siibra_tqdm(
         enumerate(volumes),

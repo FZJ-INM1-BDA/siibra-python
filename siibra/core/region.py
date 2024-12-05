@@ -26,8 +26,6 @@ from ..commons import (
     create_key,
     clear_name,
     InstanceTable,
-    SIIBRA_DEFAULT_MAPTYPE,
-    SIIBRA_DEFAULT_MAP_THRESHOLD
 )
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
@@ -421,15 +419,15 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 )
 
         return self._CACHED_MATCHES[regionspec]
-
-    def get_regional_map(
+    
+    def get_regional_mask(
         self,
         space: Union[str, _space.Space],
-        maptype: MapType = SIIBRA_DEFAULT_MAPTYPE,
-        threshold: float = SIIBRA_DEFAULT_MAP_THRESHOLD,
-    ) -> volume.Volume:
+        maptype: MapType = MapType.LABELLED,
+        threshold: float = None,
+    ) -> volume.FilteredVolume:
         """
-        Attempts to build a binary mask of this region in the given space,
+        Get a binary mask of this region in the given space,
         using the specified MapTypes.
 
         Parameters
@@ -438,7 +436,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             The requested reference space
         maptype: MapType, default: SIIBRA_DEFAULT_MAPTYPE
             The type of map to be used ('labelled' or 'statistical')
-        threshold: float, optional
+        threshold: float, default: None
             When fetching a statistical map, use this threshold to convert
             it to a binary mask
 
@@ -446,20 +444,67 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         -------
         Volume (use fetch() to get a NiftiImage)
         """
-        # check for a cached object
+        if isinstance(maptype, str):
+            maptype = MapType[maptype.upper()]
+        
+        try:
+            regional_map =  self.get_regional_map(space=space, maptype=maptype)
+            if maptype == MapType.LABELLED:
+                assert threshold is None, f"threshold can only be set for {MapType.STATISTICAL} maps."
+                result = regional_map
+            if maptype == MapType.STATISTICAL:
+                result = volume.FilteredVolume(
+                    parent_volume=regional_map,
+                    threshold=0.0 if threshold is None else threshold
+                )
+        except NoMapAvailableError:
+            # This region is not mapped directly in any map in the registry.
+            # Try building a map from the child regions
+            if (len(self.children) > 0) and all(c.mapped_in_space(space) for c in self.children):
+                logger.debug(f"Extracting regional mask of {self.name} in {self.parcellation} from {len(self.children)} child regions.")
+                child_volumes = [
+                    child.get_regional_mask(space=space, maptype=maptype, threshold=threshold)
+                    for child in self.children
+                ]
+                result = volume.FilteredVolume(
+                    volume.merge(child_volumes),
+                    label=1
+                )
+                result._name = f"Subtree {'mask' if maptype == MapType.LABELLED else 'statistical map of'} built from {self.name}"
+        return result
 
-        getmap_hash = hash(f"{self.id}{space}{maptype}{threshold}")
-        if getmap_hash in self._GETMAP_CACHE:
-            return self._GETMAP_CACHE[getmap_hash]
 
+    def get_regional_map(
+        self,
+        space: Union[str, _space.Space],
+        maptype: MapType = MapType.LABELLED,
+    ) -> Union[volume.FilteredVolume, volume.Volume]:
+        """
+        Get a volume reprsenting this region in the given space and MapType.
+
+        Note
+        ----
+        If a region is not mapped in any of the `Map`s in the registry, then
+        siibra will get the maps of its children recursively and merge them.
+        If no map is available this way as well, an exception is raised.
+
+        Parameters
+        ----------
+        space: Space or str
+            The requested reference space
+        maptype: MapType, default: SIIBRA_DEFAULT_MAPTYPE
+            The type of map to be used ('labelled' or 'statistical')
+
+        Returns
+        -------
+        Volume (use fetch() to get a NiftiImage)
+        """
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
 
-        # prepare space instances
+        # prepare space instance
         if isinstance(space, str):
             space = _space.Space.get_instance(space)
-
-        result = None  # try to replace this with the actual regionmap volume
 
         # see if we find a map supporting the requested region
         for m in parcellationmap.Map.registry():
@@ -470,26 +515,13 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 and m.maptype == maptype
                 and self.name in m.regions
             ):
-                result = m.get_volume(region=self)
+                return m.get_volume(region=self)
+        else:
+            raise NoMapAvailableError(
+                f"{self.name} is not mapped in {space} as a {str(maptype)} map."
+                " Please try getting the children or getting the mask."
+            )
 
-        if result is None:
-            # No region map available. Then see if we can build a map from the child regions
-            if (len(self.children) > 0) and all(c.mapped_in_space(space) for c in self.children):
-                logger.debug(f"Building regional map of {self.name} in {self.parcellation} from {len(self.children)} child regions.")
-                child_volumes = [
-                    child.get_regional_map(space, maptype, threshold)
-                    for child in self.children
-                ]
-                result = volume.merge(child_volumes)
-                result._name = f"Subtree {'mask' if maptype == MapType.LABELLED else 'statistical map of'} built from {self.name}"
-
-        if result is None:
-            raise NoMapAvailableError(f"Cannot build region map for {self.name} from {str(maptype)} maps in {space}")
-
-        while len(self._GETMAP_CACHE) > self._GETMAP_CACHE_MAX_ENTRIES:
-            self._GETMAP_CACHE.pop(next(iter(self._GETMAP_CACHE)))
-        self._GETMAP_CACHE[getmap_hash] = result
-        return result
 
     def mapped_in_space(self, space, recurse: bool = True) -> bool:
         """
@@ -550,7 +582,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             return len(self.find(other)) > 0
         else:
             try:
-                regionmap = self.get_regional_map(space=other.space)
+                regionmap = self.get_regional_mask(space=other.space)
                 return regionmap.__contains__(other)
             except NoMapAvailableError:
                 return False
@@ -581,7 +613,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         if isinstance(other, location.Location):
             if self.mapped_in_space(other.space):
-                regionmap = self.get_regional_map(other.space)
+                regionmap = self.get_regional_mask(other.space)
                 self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(other)
                 return self._ASSIGNMENT_CACHE[self, other]
 
@@ -598,7 +630,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             for targetspace in self.supported_spaces:
                 try:
                     other_warped = other.warp(targetspace)
-                    regionmap = self.get_regional_map(targetspace)
+                    regionmap = self.get_regional_mask(targetspace)
                     assignment_result = regionmap.assign(other_warped)
                 except SpaceWarpingFailedError:
                     try:
@@ -676,7 +708,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         """
         spaceobj = _space.Space.get_instance(space)
         try:
-            mask = self.get_regional_map(
+            mask = self.get_regional_mask(
                 spaceobj, maptype=maptype, threshold=threshold_statistical
             )
             return mask.get_boundingbox(clip=True, background=0.0, **fetch_kwargs)
@@ -685,7 +717,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 return None
             for other_space in self.parcellation.spaces - spaceobj:
                 try:
-                    mask = self.get_regional_map(
+                    mask = self.get_regional_mask(
                         other_space,
                         maptype=maptype,
                         threshold=threshold_statistical,
@@ -777,7 +809,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         # build binary mask of the image
         try:
-            region_vol = self.get_regional_map(
+            region_vol = self.get_regional_mask(
                 space, maptype=maptype, threshold=threshold_statistical
             )
         except NoMapAvailableError:
@@ -803,7 +835,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         if self.supports_space(other.space):
             try:
-                volume = self.get_regional_map(other.space)
+                volume = self.get_regional_mask(other.space)
                 if volume is not None:
                     return volume.intersection(other)
             except NotImplementedError:
@@ -813,7 +845,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         for space in self.supported_spaces:
             if space.provides_image:
                 try:
-                    volume = self.get_regional_map(space)
+                    volume = self.get_regional_mask(space)
                     if volume is not None:
                         intersection = volume.intersection(other)
                         logger.info(f"Warped {other} to {space} to find the intersection.")

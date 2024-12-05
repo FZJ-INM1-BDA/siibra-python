@@ -88,7 +88,7 @@ print(f"{len(profiles)} intensity profiles found.")
 # object and the link to the custome region is not directly known to siibra.
 # However, siibra circumvents this by comparing volumes of these regions to
 # assign a link between them.
-volume = region.get_regional_map('mni152')
+volume = region.get_regional_mask('mni152')
 receptor_density = siibra.features.get(
     volume,
     siibra.features.molecular.ReceptorDensityFingerprint

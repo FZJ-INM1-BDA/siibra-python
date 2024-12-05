@@ -366,9 +366,6 @@ class MapType(Enum):
     STATISTICAL = 2
 
 
-SIIBRA_DEFAULT_MAPTYPE = MapType.LABELLED
-SIIBRA_DEFAULT_MAP_THRESHOLD = 0.0
-
 REMOVE_FROM_NAME = [
     "hemisphere",
     " -",
