@@ -324,7 +324,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         *,
         index: MapIndex = None,
         **kwargs,
-    ) -> _volume.Volume:
+    ) -> Union[_volume.Volume, _volume.FilteredVolume]:
         try:
             length = len([arg for arg in [region, index] if arg is not None])
             assert length == 1
