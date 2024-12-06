@@ -16,8 +16,9 @@
 
 from .location import Location
 from .point import Point
-from .pointset import PointSet, from_points
+from .pointset import PointSet, from_points, Contour
 from .boundingbox import BoundingBox
+from .plane import Plane
 
 
 def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':

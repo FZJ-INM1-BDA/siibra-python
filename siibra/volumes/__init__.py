@@ -16,7 +16,7 @@
 
 from .parcellationmap import Map
 from .providers import provider
-from .volume import from_array, from_file, from_pointset, from_nifti, Volume
+from .volume import from_array, from_file, from_pointset, from_nifti, Volume, Patch
 
 from ..commons import logger
 from typing import List, Union

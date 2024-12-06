@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from . import tabular
-from ..feature import Compoundable
+from ..feature import Compoundable, Feature
 
 from .. import anchor as _anchor
 
@@ -320,3 +320,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         if hasattr(self, "location"):
             return super().name + f": {self.location.coordinate}"
         return super().name
+
+
+class CorticalProfileSample(Feature, category='cellular'):
+    pass
