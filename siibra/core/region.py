@@ -449,19 +449,22 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         
         try:
             regional_map =  self.get_regional_map(space=space, maptype=maptype)
+            name = f"Mask of '{self.name} ({self.parcellation})' in '{regional_map.space}'"
+            name += "" if threshold is None else f" - threshold: {threshold}"
             if maptype == MapType.LABELLED:
                 assert threshold is None, f"threshold can only be set for {MapType.STATISTICAL} maps."
                 result = regional_map
             if maptype == MapType.STATISTICAL:
+                threshold = 0.0 if threshold is None else threshold
                 result = volume.FilteredVolume(
                     parent_volume=regional_map,
-                    threshold=0.0 if threshold is None else threshold
+                    threshold=threshold
                 )
         except NoMapAvailableError:
             # This region is not mapped directly in any map in the registry.
             # Try building a map from the child regions
             if (len(self.children) > 0) and all(c.mapped_in_space(space) for c in self.children):
-                logger.debug(f"Extracting regional mask of {self.name} in {self.parcellation} from {len(self.children)} child regions.")
+                logger.info(f"{self.name} is not mapped in {space}. Merging the masks of its {len(self.children)} child regions.")
                 child_volumes = [
                     child.get_regional_mask(space=space, maptype=maptype, threshold=threshold)
                     for child in self.children
@@ -470,7 +473,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                     volume.merge(child_volumes),
                     label=1
                 )
-                result._name = f"Subtree {'mask' if maptype == MapType.LABELLED else 'statistical map of'} built from {self.name}"
+                threshold_info = "" if threshold is None else f"(threshold: {threshold}) "
+                name += f"(built by merging the mask {threshold_info}of its decendants)"
+        result._name = name
         return result
 
 
@@ -478,7 +483,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         self,
         space: Union[str, _space.Space],
         maptype: MapType = MapType.LABELLED,
-    ) -> Union[volume.FilteredVolume, volume.Volume]:
+    ) -> Union[volume.FilteredVolume, volume.Volume, volume.Subvolume]:
         """
         Get a volume reprsenting this region in the given space and MapType.
 
@@ -711,7 +716,12 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             mask = self.get_regional_mask(
                 spaceobj, maptype=maptype, threshold=threshold_statistical
             )
-            return mask.get_boundingbox(clip=True, background=0.0, **fetch_kwargs)
+            clip = fetch_kwargs.pop("clip", True)
+            return mask.get_boundingbox(
+                clip=clip,
+                background=0.0,
+                **fetch_kwargs
+            )
         except (RuntimeError, ValueError):
             if restrict_space:
                 return None

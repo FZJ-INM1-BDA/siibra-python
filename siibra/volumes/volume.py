@@ -650,6 +650,8 @@ class FilteredVolume(Volume):
             name += f" - label: {label}"
         if fragment:
             name += f" - fragment: {fragment}"
+        if threshold:
+            name += f" - threshold: {threshold}"
         Volume.__init__(
             self,
             space_spec=parent_volume._space_spec,
@@ -666,11 +668,11 @@ class FilteredVolume(Volume):
         **kwargs
     ):
         if "fragment" in kwargs:
-            assert kwargs.get("fragment") == self.fragment, ConflictingArgumentException(f"This volume refined to fetch fragment '{self.fragment}' only.")
+            assert kwargs.get("fragment") == self.fragment, f"This is a filtered volume that can only fetch fragment '{self.fragment}'."
         else:
             kwargs["fragment"] = self.fragment
         if "label" in kwargs:
-            assert kwargs.get("label") == self.label, ConflictingArgumentException(f"This volume refined to fetch label '{self.label}' only.")
+            assert kwargs.get("label") == self.label, f"This is a filtered volume that can only fetch label '{self.label}' only."
         else:
             kwargs["label"] = self.label
 
@@ -688,6 +690,25 @@ class FilteredVolume(Volume):
             )
 
         return result
+    
+    def get_boundingbox(
+        self,
+        clip: bool = True,
+        background: float = 0.0,
+        **fetch_kwargs
+    ) -> "boundingbox.BoundingBox":
+        # NOTE: since some providers enable different simpllified ways to create a
+        # bounding box without fetching the image, the correct kwargs must be
+        # forwarded since FilteredVolumes enforce their specs to be fetched.
+        if "fragment" in fetch_kwargs:
+            assert fetch_kwargs.get("fragment") == self.fragment, f"This is a filtered volume that can only fetch fragment '{self.fragment}'."
+        else:
+            fetch_kwargs["fragment"] = self.fragment
+        if "label" in fetch_kwargs:
+            assert fetch_kwargs.get("label") == self.label, f"This is a filtered volume that can only fetch label '{self.label}' only."
+        else:
+            fetch_kwargs["label"] = self.label
+        return super().get_boundingbox(clip=clip, background=background, **fetch_kwargs)
 
 
 class Subvolume(Volume):
@@ -702,7 +723,8 @@ class Subvolume(Volume):
             providers=[
                 _provider.SubvolumeProvider(p, z=z)
                 for p in parent_volume._providers.values()
-            ]
+            ],
+            name=parent_volume.name + f" - z: {z}"
         )
 
 

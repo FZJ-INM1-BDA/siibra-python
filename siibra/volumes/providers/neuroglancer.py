@@ -128,7 +128,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
                 label = None
             if label is not None:
                 result = nib.Nifti1Image(
-                    (result.get_fdata() == label).astype('uint8'),
+                    (np.asanyarray(result.dataobj) == label).astype('uint8'),
                     result.affine
                 )
 
@@ -326,7 +326,7 @@ class NeuroglancerVolume:
     ):
         # the caller has to make sure voi is defined in the correct reference space
         scale = self._select_scale(resolution_mm=resolution_mm, bbox=voi, max_bytes=max_bytes)
-        return scale.fetch(voi=voi)
+        return scale.fetch(voi=voi, **kwargs)
 
     def get_shape(self, resolution_mm=None, max_bytes: float = MAX_BYTES):
         scale = self._select_scale(resolution_mm=resolution_mm, max_bytes=max_bytes)

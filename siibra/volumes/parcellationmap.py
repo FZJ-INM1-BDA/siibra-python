@@ -324,7 +324,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         *,
         index: MapIndex = None,
         **kwargs,
-    ) -> Union[_volume.Volume, _volume.FilteredVolume]:
+    ) -> Union[_volume.Volume, _volume.FilteredVolume, _volume.Subvolume]:
         try:
             length = len([arg for arg in [region, index] if arg is not None])
             assert length == 1
@@ -350,7 +350,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 )
                 labels = list(range(len(self.volumes)))
                 merged_volume = _volume.merge(self.volumes, labels, **kwargs)
-                return merged_volume.fetch()
+                return merged_volume
             else:
                 raise exceptions.NoVolumeFound("Map provides no volumes.")
 
@@ -369,6 +369,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             raise IndexError(
                 f"{self} provides {len(self)} mapped volumes, but #{mapindex.volume} was requested."
             )
+        if mapindex.label is None and mapindex.fragment is None:
+            return self.volumes[mapindex.volume]
 
         return _volume.FilteredVolume(
             parent_volume=self.volumes[mapindex.volume],
@@ -419,7 +421,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         -------
         An image or mesh
         """
-        vol = self.get_volume(region=region, index=index)
+        vol = self.get_volume(region=region, index=index, **fetch_kwargs)
         return vol.fetch(**fetch_kwargs)
 
     def fetch_iter(self, **kwargs):
@@ -523,7 +525,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 disable=(len(self.fragments) == 1 or self.fragments is None)
             ):
                 mapindex = MapIndex(volume=volidx, fragment=frag)
-                img = self.fetch(mapindex)
+                img = self.fetch(index=mapindex)
                 if np.allclose(img.affine, result_affine):
                     img_data = np.asanyarray(img.dataobj)
                 else:

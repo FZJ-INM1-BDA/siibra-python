@@ -24,6 +24,12 @@ import nibabel as nib
 import os
 import numpy as np
 
+def extract_label_mask(nii: nib.Nifti1Image, label: int):
+    return nib.Nifti1Image(
+        (np.asanyarray(nii.dataobj) == label).astype('uint8'),
+        nii.affine,
+        dtype='uint8'
+    )
 
 class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
 
@@ -82,14 +88,11 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
         fetch_kwargs:
             Not used
         """
-        if fetch_kwargs:
-            logger.warning(
-                "`volume.fetch()` keyword arguments supplied. Nifti volumes"
-                " cannot pass them for bounding box calculation."
-            )
         bbox = None
         for loader in self._img_loaders.values():
             img = loader()
+            if fetch_kwargs.get("label"):
+                img = extract_label_mask(img, fetch_kwargs.get("label"))
             if len(img.shape) > 3:
                 logger.warning(
                     f"N-D NIfTI volume has shape {img.shape}, but "
@@ -107,7 +110,7 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
             bbox = next_bbox if bbox is None else bbox.union(next_bbox)
         return bbox
 
-    def _merge_fragments(self) -> nib.Nifti1Image:
+    def _merge_fragments(self, **fetch_kwargs) -> nib.Nifti1Image:
         bbox = self.get_boundingbox(clip=False, background=0.0)
         num_conflicts = 0
         result = None
@@ -201,11 +204,7 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
             )
 
         if label is not None:
-            result = nib.Nifti1Image(
-                (result.get_fdata() == label).astype('uint8'),
-                result.affine,
-                dtype='uint8'
-            )
+            result = extract_label_mask(result, label)
 
         return result
 
