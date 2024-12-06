@@ -16,14 +16,76 @@
 from . import cortical_profile
 
 from .. import anchor as _anchor
-from ...commons import PolyLine, logger, create_key
+from ...commons import logger
 from ...retrieval import requests
 
 from skimage.draw import polygon
 from skimage.transform import resize
-from io import BytesIO
 import numpy as np
 import pandas as pd
+
+from io import BytesIO
+from typing import Union, Tuple, Iterable
+
+
+def cell_reader(bytes_buffer: bytes):
+    return pd.read_csv(BytesIO(bytes_buffer[2:]), delimiter=" ", header=0).astype(
+        {"layer": int, "label": int}
+    )
+
+
+def layer_reader(bytes_buffer: bytes):
+    return pd.read_csv(BytesIO(bytes_buffer[2:]), delimiter=" ", header=0, index_col=0)
+
+
+def poly_srt(poly):
+    return poly[poly[:, 0].argsort(), :]
+
+
+def poly_rev(poly):
+    return poly[poly[:, 0].argsort()[::-1], :]
+
+
+class PolyLine:
+    """Simple polyline representation which allows equidistant sampling."""
+
+    def __init__(self, pts):
+        self.pts = pts
+        self.lengths = [
+            np.sqrt(np.sum((pts[i, :] - pts[i - 1, :]) ** 2))
+            for i in range(1, pts.shape[0])
+        ]
+
+    def length(self):
+        return sum(self.lengths)
+
+    def sample(self, d: Union[Iterable[float], np.ndarray, float]):
+        # if d is interable, we assume a list of sample positions
+        try:
+            iter(d)
+        except TypeError:
+            positions = [d]
+        else:
+            positions = d
+
+        samples = []
+        for s_ in positions:
+            s = min(max(s_, 0), 1)
+            target_distance = s * self.length()
+            current_distance = 0
+            for i, length in enumerate(self.lengths):
+                current_distance += length
+                if current_distance >= target_distance:
+                    p1 = self.pts[i, :]
+                    p2 = self.pts[i + 1, :]
+                    r = (target_distance - current_distance + length) / length
+                    samples.append(p1 + (p2 - p1) * r)
+                    break
+
+        if len(samples) == 1:
+            return samples[0]
+        else:
+            return np.array(samples)
 
 
 class CellDensityProfile(
@@ -44,24 +106,6 @@ class CellDensityProfile(
     BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR = 1.931
 
     _filter_attrs = cortical_profile.CorticalProfile._filter_attrs + ["location"]
-
-    @classmethod
-    def CELL_READER(cls, b):
-        return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0).astype(
-            {"layer": int, "label": int}
-        )
-
-    @classmethod
-    def LAYER_READER(cls, b):
-        return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0, index_col=0)
-
-    @staticmethod
-    def poly_srt(poly):
-        return poly[poly[:, 0].argsort(), :]
-
-    @staticmethod
-    def poly_rev(poly):
-        return poly[poly[:, 0].argsort()[::-1], :]
 
     def __init__(
         self,
@@ -89,9 +133,9 @@ class CellDensityProfile(
         )
         self._step = 0.01
         self._url = url
-        self._cell_loader = requests.HttpRequest(url, self.CELL_READER)
+        self._cell_loader = requests.HttpRequest(url, cell_reader)
         self._layer_loader = requests.HttpRequest(
-            url.replace("segments", "layerinfo"), self.LAYER_READER
+            url.replace("segments", "layerinfo"), layer_reader
         )
         self._density_image = None
         self._layer_mask = None
@@ -105,47 +149,49 @@ class CellDensityProfile(
 
     @property
     def shape(self):
-        return tuple(self.cells[["y", "x"]].max().astype("int") + 1)
+        """(y,x)"""
+        return tuple(np.ceil(self.cells[["y", "x"]].max()).astype("int"))
 
-    def boundary_annotation(self, boundary):
+    def boundary_annotation(self, boundary: Tuple[int, int]) -> np.ndarray:
         """Returns the annotation of a specific layer boundary."""
-        y1, x1 = self.shape
+        shape_y, shape_x = self.shape
 
         # start of image patch
         if boundary == (-1, 0):
-            return np.array([[0, 0], [x1, 0]])
+            return np.array([[0, 0], [shape_x, 0]])
 
         # end of image patch
         if boundary == (7, 8):
-            return np.array([[0, y1], [x1, y1]])
+            return np.array([[0, shape_y], [shape_x, shape_y]])
 
         # retrieve polygon
         basename = "{}_{}.json".format(
             *(self.LAYERS[layer] for layer in boundary)
         ).replace("0_I", "0")
-        url = self._url.replace("segments.txt", basename)
-        poly = self.poly_srt(np.array(requests.HttpRequest(url).get()["segments"]))
+        poly_url = self._url.replace("segments.txt", basename)
+        poly = poly_srt(np.array(requests.HttpRequest(poly_url).get()["segments"]))
 
-        # ensure full width
+        # ensure full width and trim to the image shape
         poly[0, 0] = 0
-        poly[-1, 0] = x1
+        poly[poly[:, 0] > shape_x, 0] = shape_x
+        poly[poly[:, 1] > shape_y, 1] = shape_y
 
         return poly
 
-    def layer_annotation(self, layer):
+    def layer_annotation(self, layer: int) -> np.ndarray:
         return np.vstack(
             (
                 self.boundary_annotation((layer - 1, layer)),
-                self.poly_rev(self.boundary_annotation((layer, layer + 1))),
+                poly_rev(self.boundary_annotation((layer, layer + 1))),
                 self.boundary_annotation((layer - 1, layer))[0, :],
             )
         )
 
     @property
-    def layer_mask(self):
+    def layer_mask(self) -> np.ndarray:
         """Generates a layer mask from boundary annotations."""
         if self._layer_mask is None:
-            self._layer_mask = np.zeros(np.array(self.shape).astype("int") + 1)
+            self._layer_mask = np.zeros(np.array(self.shape, dtype=int) + 1, dtype="int")
             for layer in range(1, 8):
                 pl = self.layer_annotation(layer)
                 X, Y = polygon(pl[:, 0], pl[:, 1])
@@ -153,20 +199,20 @@ class CellDensityProfile(
         return self._layer_mask
 
     @property
-    def depth_image(self):
+    def depth_image(self) -> np.ndarray:
         """Cortical depth image from layer boundary polygons by equidistant sampling."""
 
         if self._depth_image is None:
-
+            logger.info("Calculating cell densities from cell and layer data...")
             # compute equidistant cortical depth image from inner and outer contour
             scale = 0.1
-            D = np.zeros((np.array(self.density_image.shape) * scale).astype("int") + 1)
+            depth_arr = np.zeros(np.ceil(np.array(self.shape) * scale).astype("int") + 1)
 
             # determine sufficient stepwidth for profile sampling
             # to match downscaled image resolution
-            vstep, hstep = 1.0 / np.array(D.shape) / 2.0
+            vstep, hstep = 1.0 / np.array(depth_arr.shape) / 2.0
             vsteps = np.arange(0, 1 + vstep, vstep)
-            hsteps = np.arange(0, 1 + vstep, hstep)
+            hsteps = np.arange(0, 1 + hstep, hstep)
 
             # build straight profiles between outer and inner cortical boundary
             s0 = PolyLine(self.boundary_annotation((0, 1)) * scale).sample(hsteps)
@@ -175,16 +221,16 @@ class CellDensityProfile(
 
             # write sample depths to their location in the depth image
             for prof in profiles:
-                XY = prof.sample(vsteps).astype("int")
-                D[XY[:, 1], XY[:, 0]] = vsteps
+                prof_samples_as_index = prof.sample(vsteps).astype("int")
+                depth_arr[prof_samples_as_index[:, 1], prof_samples_as_index[:, 0]] = vsteps
 
             # fix wm region, account for rounding error
             XY = self.layer_annotation(7) * scale
-            D[polygon(XY[:, 1] - 1, XY[:, 0])] = 1
-            D[-1, :] = 1
+            depth_arr[polygon(XY[:, 1] - 1, XY[:, 0])] = 1
+            depth_arr[-1, :] = 1
 
             # rescale depth image to original patch size
-            self._depth_image = resize(D, self.density_image.shape)
+            self._depth_image = resize(depth_arr, self.density_image.shape)
 
         return self._depth_image
 
@@ -200,7 +246,7 @@ class CellDensityProfile(
         return self._boundary_positions
 
     @property
-    def density_image(self):
+    def density_image(self) -> np.ndarray:
         if self._density_image is None:
             logger.debug("Computing density image for", self._url)
             # we integrate cell counts into 2D bins
@@ -209,9 +255,7 @@ class CellDensityProfile(
             counts, xedges, yedges = np.histogram2d(
                 self.cells.y,
                 self.cells.x,
-                bins=(np.array(self.layer_mask.shape) / pixel_size_micron + 0.5).astype(
-                    "int"
-                ),
+                bins=np.round(np.array(self.shape) / pixel_size_micron).astype("int"),
             )
 
             # rescale the counts from count / pixel_size**2  to count / 0.1mm^3,
@@ -229,11 +273,11 @@ class CellDensityProfile(
         return self._density_image
 
     @property
-    def cells(self):
+    def cells(self) -> pd.DataFrame:
         return self._cell_loader.get()
 
     @property
-    def layers(self):
+    def layers(self) -> pd.DataFrame:
         return self._layer_loader.get()
 
     @property
@@ -242,6 +286,7 @@ class CellDensityProfile(
 
     @property
     def _values(self):
+        # TODO: release a dataset update instead of on the fly computation
         densities = []
         delta = self._step / 2.0
         for d in self._depths:
@@ -249,16 +294,5 @@ class CellDensityProfile(
             if np.sum(mask) > 0:
                 densities.append(self.density_image[mask].mean())
             else:
-                densities.append(np.NaN)
+                densities.append(np.nan)
         return np.asanyarray(densities)
-
-    @property
-    def key(self):
-        assert len(self.species) == 1
-        return create_key("{}_{}_{}_{}_{}".format(
-            self.id,
-            self.species[0]['name'],
-            self.regionspec,
-            self.section,
-            self.patch
-        ))
