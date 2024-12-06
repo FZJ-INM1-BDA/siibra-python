@@ -119,7 +119,7 @@ def test_boundingbox(space):
     bbox_r = hoc1_r.get_boundingbox(space)
     assert bbox_l != bbox_r, "Left and right hoc1 should not have the same bounding boxes"
 
-    v_l = hoc1_l.get_regional_map(space)
-    v_r = hoc1_r.get_regional_map(space)
+    v_l = hoc1_l.get_regional_mask(space)
+    v_r = hoc1_r.get_regional_mask(space)
     assert bbox_l == v_l.get_boundingbox(clip=True, background=0.0), "Boundingbox of regional mask should be the same as bouding mask of the regions"
     assert bbox_r == v_r.get_boundingbox(clip=True, background=0.0), "Boundingbox of regional mask should be the same as bouding mask of the regions"
