@@ -19,7 +19,8 @@ from .requests import (
     EbrainsRequest,
     SiibraHttpRequestError,
     find_suitiable_decoder,
-    DECODERS
+    DECODERS,
+    FileLoader
 )
 from .cache import CACHE
 
@@ -124,34 +125,16 @@ class LocalFileRepository(RepositoryConnector):
         self._folder = pathlib.Path(folder)
         assert pathlib.Path.is_dir(self._folder)
 
-    def _build_url(self, folder: str, filename: str):
-        return pathlib.Path.joinpath(self._folder, folder, filename)
-
-    class FileLoader:
-        """
-        Just a loads a local file, but mimics the behaviour
-        of cached http requests used in other connectors.
-        """
-        def __init__(self, file_url, decode_func):
-            self.url = file_url
-            self.func = decode_func
-            self.cached = True
-
-        @property
-        def data(self):
-            with open(self.url, 'rb') as f:
-                return self.func(f.read())
+    def _build_url(self, folder: str, filename: str) -> str:
+        return pathlib.Path.joinpath(self._folder, folder, filename).as_posix()
 
     def get_loader(self, filename, folder="", decode_func=None):
         """Get a lazy loader for a file, for loading data
         only once loader.data is accessed."""
-        url = self._build_url(folder, filename)
-        if url is None:
-            raise RuntimeError(f"Cannot build url for ({folder}, {filename})")
-        if decode_func is None:
-            return self.FileLoader(url, lambda b: self._decode_response(b, filename))
-        else:
-            return self.FileLoader(url, decode_func)
+        filepath = self._build_url(folder, filename)
+        if not pathlib.Path(filepath).is_file():
+            raise RuntimeError(f"No file is found in {filepath}")
+        return FileLoader(filepath, decode_func)
 
     def search_files(self, folder="", suffix=None, recursive=False):
         results = []
@@ -165,7 +148,7 @@ class LocalFileRepository(RepositoryConnector):
     def __str__(self):
         return f"{self.__class__.__name__} at {self._folder}"
 
-    def __eq__(self, other):
+    def __eq__(self, other: "LocalFileRepository"):
         return self._folder == other._folder
 
 
