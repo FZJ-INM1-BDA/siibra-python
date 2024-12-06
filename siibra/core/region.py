@@ -29,7 +29,6 @@ from ..commons import (
 )
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
-import numpy as np
 import re
 import anytree
 from typing import List, Union, Iterable, Dict, Callable, Tuple
@@ -419,12 +418,12 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 )
 
         return self._CACHED_MATCHES[regionspec]
-    
+
     def get_regional_mask(
         self,
         space: Union[str, _space.Space],
         maptype: MapType = MapType.LABELLED,
-        threshold: float = None,
+        threshold: float = 0.0,
     ) -> volume.FilteredVolume:
         """
         Get a binary mask of this region in the given space,
@@ -436,9 +435,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             The requested reference space
         maptype: MapType, default: SIIBRA_DEFAULT_MAPTYPE
             The type of map to be used ('labelled' or 'statistical')
-        threshold: float, default: None
+        threshold: float, default: 0.0
             When fetching a statistical map, use this threshold to convert
-            it to a binary mask
+            it to a binary mask.
 
         Returns
         -------
@@ -446,22 +445,28 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         """
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
-        
+
+        threshold_info = "" if maptype == MapType.LABELLED else f"(threshold: {threshold}) "
+        name = f"Mask {threshold_info}of '{self.name} ({self.parcellation})' in "
         try:
-            regional_map =  self.get_regional_map(space=space, maptype=maptype)
+            regional_map = self.get_regional_map(space=space, maptype=maptype)
             if maptype == MapType.LABELLED:
-                assert threshold is None, f"threshold can only be set for {MapType.STATISTICAL} maps."
+                assert threshold == 0.0, f"threshold can only be set for {MapType.STATISTICAL} maps."
                 result = regional_map
+                result._boundingbox = None
             if maptype == MapType.STATISTICAL:
                 result = volume.FilteredVolume(
                     parent_volume=regional_map,
-                    threshold=0.0 if threshold is None else threshold
+                    threshold=threshold
                 )
+                if threshold == 0.0:
+                    result._boundingbox = regional_map._boundingbox
+            name += f"'{result.space}'"
         except NoMapAvailableError:
             # This region is not mapped directly in any map in the registry.
             # Try building a map from the child regions
             if (len(self.children) > 0) and all(c.mapped_in_space(space) for c in self.children):
-                logger.debug(f"Extracting regional mask of {self.name} in {self.parcellation} from {len(self.children)} child regions.")
+                logger.info(f"{self.name} is not mapped in {space}. Merging the masks of its {len(self.children)} child regions.")
                 child_volumes = [
                     child.get_regional_mask(space=space, maptype=maptype, threshold=threshold)
                     for child in self.children
@@ -470,15 +475,15 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                     volume.merge(child_volumes),
                     label=1
                 )
-                result._name = f"Subtree {'mask' if maptype == MapType.LABELLED else 'statistical map of'} built from {self.name}"
+                name += f"'{result.space}' (built by merging the mask {threshold_info} of its decendants)"
+        result._name = name
         return result
-
 
     def get_regional_map(
         self,
         space: Union[str, _space.Space],
         maptype: MapType = MapType.LABELLED,
-    ) -> Union[volume.FilteredVolume, volume.Volume]:
+    ) -> Union[volume.FilteredVolume, volume.Volume, volume.Subvolume]:
         """
         Get a volume reprsenting this region in the given space and MapType.
 
@@ -521,7 +526,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 f"{self.name} is not mapped in {space} as a {str(maptype)} map."
                 " Please try getting the children or getting the mask."
             )
-
 
     def mapped_in_space(self, space, recurse: bool = True) -> bool:
         """
@@ -680,10 +684,10 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         self,
         space: _space.Space,
         maptype: MapType = MapType.LABELLED,
-        threshold_statistical=None,
-        restrict_space=True,
+        threshold_statistical: float = 0.0,
+        restrict_space: bool = True,
         **fetch_kwargs
-    ):
+    ) -> Union[_boundingbox.BoundingBox, None]:
         """
         Compute the bounding box of this region in the given space.
 
@@ -695,9 +699,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             Type of map to build ('labelled' will result in a binary mask,
             'statistical' attempts to build a statistical mask, possibly by
             elementwise maximum of statistical maps of children)
-        threshold_statistical: float, or None
-            if not None, masks will be preferably constructed by thresholding
-            statistical maps with the given value.
+        threshold_statistical: float, default: 0.0
+            When masking a statistical map, use this threshold to convert
+            it to a binary mask before finding its bounding box.
         restrict_space: bool, default: False
             If True, it will not try to fetch maps from other spaces and warp
             its boundingbox to requested space.
@@ -711,7 +715,11 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             mask = self.get_regional_mask(
                 spaceobj, maptype=maptype, threshold=threshold_statistical
             )
-            return mask.get_boundingbox(clip=True, background=0.0, **fetch_kwargs)
+            return mask.get_boundingbox(
+                clip=True,
+                background=0.0,
+                **fetch_kwargs
+            )
         except (RuntimeError, ValueError):
             if restrict_space:
                 return None
@@ -742,7 +750,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         self,
         space: _space.Space,
         maptype: MapType = MapType.LABELLED,
-        threshold_statistical=None,
+        threshold_statistical: float = 0.0,
         split_components: bool = True,
         **fetch_kwargs,
     ) -> pointset.PointSet:
@@ -753,6 +761,13 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         ----------
         space: Space
             reference space in which the computation will be performed
+        maptype: MapType, default: MapType.LABELLED
+            Type of map to build ('labelled' will result in a binary mask,
+            'statistical' attempts to build a statistical mask, possibly by
+            elementwise maximum of statistical maps of children)
+        threshold_statistical: float, default: 0.0
+            When masking a statistical map, use this threshold to convert
+            it to a binary mask before finding its centroids.
 
         Returns
         -------
@@ -780,7 +795,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         self,
         space: _space.Space,
         maptype: MapType = MapType.LABELLED,
-        threshold_statistical=None,
+        threshold_statistical: float = 0.0,
         split_components: bool = True,
         **fetch_kwargs,
     ):
@@ -795,7 +810,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             Type of map to build ('labelled' will result in a binary mask,
             'statistical' attempts to build a statistical mask, possibly by
             elementwise maximum of statistical maps of children)
-        threshold_statistical: float, or None
+        threshold_statistical: float, default: 0.0
             if not None, masks will be preferably constructed by thresholding
             statistical maps with the given value.
 

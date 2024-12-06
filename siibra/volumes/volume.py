@@ -21,7 +21,7 @@ from ..retrieval import requests
 from ..core import space as _space, structure
 from ..locations import location, point, pointset, boundingbox
 from ..commons import resample_img_to_img, siibra_tqdm, affine_scaling, connected_components
-from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError, ConflictingArgumentException
+from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
 from dataclasses import dataclass
 from nibabel import Nifti1Image
@@ -200,9 +200,22 @@ class Volume(location.Location):
         RuntimeError
             If the volume provider does not have a bounding box calculator.
         """
-        if self._boundingbox is not None and len(fetch_kwargs) == 0:
-            return self._boundingbox
+        # if self._boundingbox is not None and len(fetch_kwargs) == 0:
+        #     return self._boundingbox
 
+        if not self.provides_image:
+            raise NotImplementedError("Bounding box calculation of meshes is not implemented yet.")
+
+        if clip:  # clippin requires fetching the image
+            img = self.fetch(**fetch_kwargs)
+            assert isinstance(img, Nifti1Image)
+            return boundingbox.from_array(
+                array=np.asanyarray(img.dataobj),
+                background=background,
+            ).transform(img.affine, space=self.space)
+
+        # if clipping is not required, providers migth have methods of creating
+        # bounding boxes without fetching the image
         fmt = fetch_kwargs.get("format")
         if (fmt is not None) and (fmt not in self.formats):
             raise ValueError(
@@ -212,15 +225,15 @@ class Volume(location.Location):
         providers = [self._providers[fmt]] if fmt else self._providers.values()
         for provider in providers:
             try:
+                assert clip is False
                 bbox = provider.get_boundingbox(
-                    clip=clip, background=background, **fetch_kwargs
+                    background=background, **fetch_kwargs
                 )
-                if bbox.space is None:  # provider does usually not know the space!
+                if bbox.space is None:  # provider do not know the space!
                     bbox._space_cached = self.space
                     bbox.minpoint._space_cached = self.space
                     bbox.maxpoint._space_cached = self.space
-            except NotImplementedError as e:
-                logger.info(e)
+            except NotImplementedError:
                 continue
             return bbox
         raise RuntimeError(f"No bounding box specified by any volume provider of {str(self)}")
@@ -650,6 +663,8 @@ class FilteredVolume(Volume):
             name += f" - label: {label}"
         if fragment:
             name += f" - fragment: {fragment}"
+        if threshold:
+            name += f" - threshold: {threshold}"
         Volume.__init__(
             self,
             space_spec=parent_volume._space_spec,
@@ -666,11 +681,11 @@ class FilteredVolume(Volume):
         **kwargs
     ):
         if "fragment" in kwargs:
-            assert kwargs.get("fragment") == self.fragment, ConflictingArgumentException(f"This volume refined to fetch fragment '{self.fragment}' only.")
+            assert kwargs.get("fragment") == self.fragment, f"This is a filtered volume that can only fetch fragment '{self.fragment}'."
         else:
             kwargs["fragment"] = self.fragment
         if "label" in kwargs:
-            assert kwargs.get("label") == self.label, ConflictingArgumentException(f"This volume refined to fetch label '{self.label}' only.")
+            assert kwargs.get("label") == self.label, f"This is a filtered volume that can only fetch label '{self.label}' only."
         else:
             kwargs["label"] = self.label
 
@@ -679,7 +694,7 @@ class FilteredVolume(Volume):
         if self.threshold is not None:
             assert self.label is None
             if not isinstance(result, Nifti1Image):
-                raise NotImplementedError(f"Cannot threshold meshes.")
+                raise NotImplementedError("Cannot threshold meshes.")
             imgdata = np.asanyarray(result.dataobj)
             return Nifti1Image(
                 dataobj=(imgdata > self.threshold).astype("uint8"),
@@ -688,6 +703,21 @@ class FilteredVolume(Volume):
             )
 
         return result
+
+    def get_boundingbox(
+        self,
+        clip: bool = True,
+        background: float = 0.0,
+        **fetch_kwargs
+    ) -> "boundingbox.BoundingBox":
+        # NOTE: since some providers enable different simpllified ways to create a
+        # bounding box without fetching the image, the correct kwargs must be
+        # forwarded since FilteredVolumes enforce their specs to be fetched.
+        return super().get_boundingbox(
+            clip=clip,
+            background=background,
+            **fetch_kwargs
+        )
 
 
 class Subvolume(Volume):
@@ -702,7 +732,8 @@ class Subvolume(Volume):
             providers=[
                 _provider.SubvolumeProvider(p, z=z)
                 for p in parent_volume._providers.values()
-            ]
+            ],
+            name=parent_volume.name + f" - z: {z}"
         )
 
 
