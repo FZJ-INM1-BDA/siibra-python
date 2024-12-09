@@ -18,7 +18,7 @@ selected_regions = [
 @pytest.mark.parametrize("region, space", selected_regions)
 def test_region_intersection_with_its_own_volume(region, space):
     assert isinstance(region, Region)
-    volume = region.get_regional_map(space)
+    volume = region.get_regional_mask(space)
     intersection = region.intersection(volume)
     assert isinstance(intersection, Volume)
     assert np.all(

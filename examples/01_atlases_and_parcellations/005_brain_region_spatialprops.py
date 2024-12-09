@@ -61,6 +61,6 @@ centroid.space.name
 # which gives us a Nifti1Image object as provided by
 # `nibabel <https://nipy.org/nibabel/>`_, and which we can directly visualize
 # using plotting functions like the ones in `nilearn <https://nilearn.github.io/stable/index.html>`_:
-mask = v1_left.get_regional_map(space, maptype="labelled")
+mask = v1_left.get_regional_mask(space, maptype="labelled")
 from nilearn import plotting
 plotting.plot_roi(mask.fetch(), title=f"Mask of {v1_left.name} in {space.name}")
