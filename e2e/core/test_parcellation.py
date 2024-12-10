@@ -1,5 +1,6 @@
 import siibra
 import pytest
+from siibra.core.parcellation import Parcellation
 
 args = [
     ("waxholm v3", "neocortex", lambda region: region.name == "neocortex"),
@@ -23,3 +24,16 @@ def test_get_region(parc_spec, reg_spec, validator):
             siibra.get_region(parc_spec, reg_spec)
 
     raise e("Should be either Exception or callable")
+
+
+def test_parc_id_uniqueness():
+    parcs = {p.name: p.id for p in siibra.parcellations}
+    assert len(set(parcs.values())) == len(parcs)
+
+
+@pytest.mark.parametrize("parcellation", list(siibra.parcellations))
+def test_region_id_uniqueness(parcellation: Parcellation):
+    ids = set()
+    for region in parcellation:
+        assert region.id not in ids, f"'{region.id}' has a duplicate in {parcellation.name}."
+        ids.add(region.id)
