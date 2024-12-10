@@ -11,14 +11,18 @@ def skip_if_allen_api_unavailable(test_func):
         try:
             return test_func(*args, **kwargs)
         except JSONDecodeError:
-            pytest.skip(
+            pytest.xfail(
                 f"Skipping test {test_func.__name__} due to JSONDecodeError since Allen API sent a malformed JSON"
             )
         except RuntimeError as e:
             if str(e) == "Allen institute site unavailable - please try again later.":
-                pytest.skip("Skipping since Allen Institute API is unavailable.")
+                pytest.xfail("Skipping since Allen Institute API is unavailable.")
             else:
                 raise e
+        except siibra.livequeries.allen.InvalidAllenAPIResponseException as e:
+            pytest.xfail(
+                f"Skipping test {test_func.__name__} due to invalid response from Allen API."
+            )
 
     return wrapper
 
