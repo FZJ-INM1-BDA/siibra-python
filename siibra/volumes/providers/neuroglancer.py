@@ -37,30 +37,35 @@ from typing import Union, Dict, Tuple
 import json
 
 
-def shift_ng_transfrom(transform_nm: np.ndarray, resolution_nm: np.ndarray) -> np.ndarray:
-    """
-    transfrorm.json stored with neuroglancer precomputed images and meshes
-    are meant to be used for neuroglancer viewers and hence they are not
-    representative of the affine in other tools. This method shifts back
-    half a voxel in each axis.
+def shift_ng_transfrom(
+    transform_nm: np.ndarray, scale_resolution_nm: np.ndarray, max_resolution_nm: np.ndarray
+) -> np.ndarray:
+        """
+        Helper method to get nifti standard affine.
 
-    Parameters
-    ----------
-    transform_nm: np.ndarray
-        Transform array created for dispalying an image correctly from
-        neuroglancer precomputed format in neuroglancer viewer.
-    resolution_nm: np.ndarray
-        The voxel resolution in nanometers.
+        transfrorm.json stored with neuroglancer precomputed images and meshes
+        are meant to be used for neuroglancer viewers and hence they are not
+        representative of the affine in other tools. This method shifts back
+        half a voxel in each axis.
+        (see https://neuroglancer-scripts.readthedocs.io/en/latest/neuroglancer-info.html#different-conventions-for-coordinate-transformations)
 
-    Returns
-    -------
-    np.ndarray
-        Standard affine in nm
-    """
-    scaling = np.diag(np.r_[resolution_nm, 1.0])
-    affine = np.dot(transform_nm, scaling)
-    affine[:3, 3] += (resolution_nm * 0.5)
-    return affine
+        Parameters
+        ----------
+        transform_nm: np.ndarray
+            Transform array created for dispalying an image correctly from
+            neuroglancer precomputed format in neuroglancer viewer.
+        max_resolution_nm: np.ndarray
+            The voxel resolution of the highest level of resolution.
+
+        Returns
+        -------
+        np.ndarray
+            Standard affine in nm
+        """
+        scaling = np.diag(np.r_[scale_resolution_nm, 1.0])
+        affine = np.dot(transform_nm, scaling)
+        affine[:3, 3] += (max_resolution_nm * 0.5)
+        return affine
 
 
 class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/precomputed"):
@@ -409,7 +414,6 @@ class NeuroglancerVolume:
             )
         return scale
 
-
 class NeuroglancerScale:
     """One scale of a NeuroglancerVolume."""
 
@@ -475,7 +479,11 @@ class NeuroglancerScale:
 
     @property
     def affine(self):
-        affine_ = shift_ng_transfrom(self.volume.transform_nm, self.res_nm)
+        affine_ = shift_ng_transfrom(
+            transform_nm=self.volume.transform_nm,
+            scale_resolution_nm=self.res_nm,
+            max_resolution_nm=self.volume.scales[0].res_nm[0],
+        )
         affine_[:3, :] /= 1e6
         return affine_
 
@@ -619,7 +627,11 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
             mesh_key = spec.get('info', {}).get('mesh')
             meshurl = f"{spec['url']}/{mesh_key}/{str(meshindex)}:0"
             resolution_nm = np.array(spec["info"]["scales"][0]["resolution"]).squeeze()
-            transform = shift_ng_transfrom(spec.get('transform_nm'), resolution_nm)
+            transform = shift_ng_transfrom(
+                transform_nm=spec.get('transform_nm'),
+                scale_resolution_nm=resolution_nm,
+                max_resolution_nm=resolution_nm
+            )
             transform[:3, :] /= 1e6
             try:
                 meshinfo = requests.HttpRequest(url=meshurl, func=requests.DECODERS['.json']).data
