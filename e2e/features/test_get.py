@@ -32,8 +32,8 @@ def test_feature_unique(Cls: siibra.features.Feature):
 
 selected_ids = [
     "lq0::EbrainsDataFeature::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::https://nexus.humanbrainproject.org/v0/data/minds/core/dataset/v1.0.0/3ff328fa-f48f-474b-bd81-b5ee7ca230b6",
-    "cf0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS)::acc39db40e08a9ce23d05bf75a4ce172::94768ccf7d23b640453fb56b4562c2d2",  # 2279 BigBrain Intensity Profile features
-    "lq0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS)::acc39db40e08a9ce23d05bf75a4ce172--3f5eae673d7380faa8b546bba118a7f3",  # BigBrain Intensity Profile: (-17.51020050048828, -42.08150100708008, 7.886569976806641)
+    "cf0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::acc39db40e08a9ce23d05bf75a4ce172::23248ffe54b72ff78507f14188341394",  # 2113 BigBrain Intensity Profile features
+    "lq0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::acc39db40e08a9ce23d05bf75a4ce172--b0407c6870ca6224499ea7ef0c437682",  # BigBrain Intensity Profile: (-3.9280800819396973, -51.83000183105469, 0.4418570101261139)
     "cf0::CellDensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS)::f2cd6b97-e42d-41af-a01b-5caf2d692e28::599f219267d5bdc3c5c04ddf31f36748",  # 10 Cell Density Profile features
     "f2cd6b97-e42d-41af-a01b-5caf2d692e28--5fc6ebfcbdf43c1c9fb36263eda160d2",  # Cell Density Profile: (19.09100914001465, -64.9000015258789, -0.36307409405708313)
     "cf0::ReceptorDensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS)::e715e1f7-2079-45c4-a67f-f76b102acfce::48ce018be081dafb160287031fbe08c3",  # 16 Receptor Density Profile features
