@@ -483,10 +483,7 @@ class Feature:
                 f"objects linked to {str(concept)}{argstr}"
             )
             q = QueryType(**kwargs)
-            try:
-                features = q.query(concept)
-            except StopIteration:
-                continue
+            features = q.query(concept)
             live_instances.extend(
                 Feature._wrap_livequery_feature(f, Feature._serialize_query_context(f, concept))
                 for f in features

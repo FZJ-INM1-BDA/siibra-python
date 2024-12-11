@@ -16,13 +16,13 @@
 from . import cortical_profile
 from .. import anchor as _anchor
 from . import tabular
+from ..tabular.cell_density_profile import cell_reader, layer_reader
 
 from ... import commons
 from ...retrieval import requests
 
 import pandas as pd
 import numpy as np
-from io import BytesIO
 
 
 class LayerwiseCellDensity(
@@ -39,16 +39,6 @@ class LayerwiseCellDensity(
         "detected cells in that layer with the area covered by the layer. Therefore, each profile contains 6 measurement points. "
         "The cortical depth is estimated from the measured layer thicknesses."
     )
-
-    @classmethod
-    def CELL_READER(cls, b):
-        return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0).astype(
-            {"layer": int, "label": int}
-        )
-
-    @classmethod
-    def LAYER_READER(cls, b):
-        return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0, index_col=0)
 
     def __init__(
         self,
@@ -77,8 +67,8 @@ class LayerwiseCellDensity(
         density_dict = {}
         for i, (cellfile, layerfile) in enumerate(self._filepairs):
             try:
-                cells = requests.HttpRequest(cellfile, func=self.CELL_READER).data
-                layers = requests.HttpRequest(layerfile, func=self.LAYER_READER).data
+                cells = requests.HttpRequest(cellfile, func=cell_reader).data
+                layers = requests.HttpRequest(layerfile, func=layer_reader).data
             except requests.SiibraHttpRequestError as e:
                 print(str(e))
                 commons.logger.error(f"Skipping to bootstrap a {self.__class__.__name__} feature, cannot access file resource.")
@@ -103,12 +93,3 @@ class LayerwiseCellDensity(
             )
             self._data_cached.index.name = 'layer'
         return self._data_cached
-
-    @property
-    def key(self):
-        assert len(self.species) == 1
-        return commons.create_key("{}_{}_{}".format(
-            self.dataset_id,
-            self.species[0]['name'],
-            self.regionspec
-        ))

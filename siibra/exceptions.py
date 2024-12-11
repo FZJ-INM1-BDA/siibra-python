@@ -53,3 +53,7 @@ class ZeroVolumeBoundingBox(Exception):
 
 class NoneCoordinateSuppliedError(ValueError):
     pass
+
+
+class NoMapMatchingValues(ValueError):
+    pass

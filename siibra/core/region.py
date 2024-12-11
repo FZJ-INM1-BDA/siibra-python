@@ -754,7 +754,14 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         logger.error(f"Could not compute bounding box for {self.name}.")
         return None
 
-    def compute_centroids(self, space: _space.Space) -> pointset.PointSet:
+    def compute_centroids(
+        self,
+        space: _space.Space,
+        maptype: MapType = MapType.LABELLED,
+        threshold_statistical=None,
+        split_components: bool = True,
+        **fetch_kwargs,
+    ) -> pointset.PointSet:
         """
         Compute the centroids of the region in the given space.
 
@@ -773,7 +780,13 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         A region can generally have multiple centroids if it has multiple
         connected components in the map.
         """
-        props = self.spatial_props(space)
+        props = self.spatial_props(
+            space=space,
+            maptype=maptype,
+            threshold_statistical=threshold_statistical,
+            split_components=split_components,
+            **fetch_kwargs,
+        )
         return pointset.PointSet(
             [c.centroid for c in props],
             space=space
@@ -784,6 +797,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         space: _space.Space,
         maptype: MapType = MapType.LABELLED,
         threshold_statistical=None,
+        split_components: bool = True,
+        **fetch_kwargs,
     ):
         """
         Compute spatial properties for connected components of this region in the given space.
@@ -802,8 +817,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         Returns
         -------
-        Dict
-            Dictionary of region's spatial properties
+        List
+            List of region's component spatial properties
         """
         if not isinstance(space, _space.Space):
             space = _space.Space.get_instance(space)
@@ -820,7 +835,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 f"{', '.join(s.name for s in self.supported_spaces)}"
             )
 
-        return region_vol.compute_spatial_props()
+        return region_vol.compute_spatial_props(
+            split_components=split_components, **fetch_kwargs
+        )
 
     def __iter__(self):
         """

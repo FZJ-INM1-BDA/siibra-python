@@ -562,7 +562,7 @@ class Volume(location.Location):
             found by skimage.measure.label.
         """
         assert self.provides_image, NotImplementedError("Spatial properties can currently on be calculated for images.")
-        img = self.fetch(format="image", **fetch_kwargs)
+        img = self.fetch(format=fetch_kwargs.pop("format", "image"), **fetch_kwargs)
         return ComponentSpatialProperties.compute_from_image(
             img=img,
             space=self.space,

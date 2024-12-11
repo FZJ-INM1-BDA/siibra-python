@@ -572,7 +572,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )]
         )
 
-    def compute_centroids(self, split_components: bool = True) -> Dict[str, pointset.PointSet]:
+    def compute_centroids(self, split_components: bool = True, **fetch_kwargs) -> Dict[str, pointset.PointSet]:
         """
         Compute a dictionary of all regions in this map to their centroids.
         By default, the regional masks will be split to connected components
@@ -589,6 +589,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Dict[str, point.Point]
             Region names as keys and computed centroids as items.
         """
+        assert self.provides_image, "Centroid computation for meshes is not supported yet."
         centroids = dict()
         for regionname, indexlist in siibra_tqdm(
             self._indices.items(), unit="regions", desc="Computing centroids"
@@ -600,7 +601,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     merged_volume = _volume.merge(
                         [
                             _volume.from_nifti(
-                                self.fetch(index=index),
+                                self.fetch(index=index, **fetch_kwargs),
                                 self.space,
                                 f"{self.name} - {index}"
                             )
@@ -611,7 +612,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     mapimg = merged_volume.fetch()
                 elif len(indexlist) == 1:
                     index = indexlist[0]
-                    mapimg = self.fetch(index=index)  # returns a mask of the region
+                    mapimg = self.fetch(index=index, **fetch_kwargs)  # returns a mask of the region
             props = _volume.ComponentSpatialProperties.compute_from_image(
                 img=mapimg,
                 space=self.space,

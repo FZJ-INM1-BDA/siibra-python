@@ -24,13 +24,19 @@ from ..locations import point, pointset
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
 
-from typing import Iterable
+from typing import List
 from xml.etree import ElementTree
 import numpy as np
 import json
 
 
 BASE_URL = "http://api.brain-map.org/api/v2/data"
+
+LOCATION_PRECISION_MM = 2.  # the assumed spatial precision of the probe locations in MNI space
+
+
+class InvalidAllenAPIResponseException(Exception):
+    pass
 
 
 class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions):
@@ -117,7 +123,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
 
         self.genes = parse_gene(gene)
 
-    def query(self, concept: structure.BrainStructure) -> Iterable[GeneExpressions]:
+    def query(self, concept: structure.BrainStructure) -> List[GeneExpressions]:
 
         mnispace = _space.Space.registry().get('mni152')
 
@@ -125,17 +131,15 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         # Record matched instances and their locations.
         measurements = []
         coordinates = []
-        points_inside = dict()
         for measurement in self:
-            pt = point.Point(measurement['mni_xyz'], space=mnispace)
-            if pt not in points_inside:  # cache redundant intersection tests
-                points_inside[pt] = pt in concept
-            if points_inside[pt]:
+            pt = point.Point(measurement['mni_xyz'], space=mnispace, sigma_mm=LOCATION_PRECISION_MM)
+            if pt in concept:
                 measurements.append(measurement)
                 coordinates.append(pt)
 
-        if len(points_inside) == 0:
-            raise StopIteration
+        if len(coordinates) == 0:
+            logger.info(f"No probes found that lie within {concept}")
+            return []
 
         # Build the anatomical anchor and assignment to the query concept.
         # It will be attached to the returned feature, with the set of matched
@@ -153,7 +157,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         )]
         anchor._last_matched_concept = concept
 
-        yield GeneExpressions(
+        return [GeneExpressions(
             anchor=anchor,
             genes=[m['gene'] for m in measurements],
             levels=[m['expression_level'] for m in measurements],
@@ -167,7 +171,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
                 "probe_id": [m['probe_id'] for m in measurements],
                 "donor_name": [m['donor_name'] for m in measurements],
             }
-        )
+        )]
 
     def __iter__(self):
 
@@ -261,7 +265,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         url = AllenBrainAtlasQuery._QUERY["specimen"].format(specimen_id=specimen_id)
         response = HttpRequest(url).get()
         if not response["success"]:
-            raise Exception(
+            raise InvalidAllenAPIResponseException(
                 "Invalid response when retrieving specimen information: {}".format(url)
             )
         # we ask for 1 specimen, so list should have length 1
@@ -278,7 +282,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         return specimen
 
     @classmethod
-    def _retrieve_microarray(cls, donor_id: str, probe_ids: str) -> Iterable[GeneExpressions]:
+    def _retrieve_microarray(cls, donor_id: str, probe_ids: str):
         """
         Retrieve microarray data for several probes of a given donor, and
         compute the MRI position of the corresponding tissue block in the ICBM
@@ -297,7 +301,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         except json.JSONDecodeError as e:
             raise RuntimeError(f"Allen institute site produced an empty response - please try again later.\n{e}")
         if not response["success"]:
-            raise Exception(
+            raise InvalidAllenAPIResponseException(
                 "Invalid response when retrieving microarray data: {}".format(url)
             )
 
