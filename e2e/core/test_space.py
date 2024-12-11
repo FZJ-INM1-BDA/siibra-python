@@ -19,9 +19,9 @@ def test_has_desc(space: siibra.core.space.Space):
 
 voi_params = [
     ("mni152", "nii", (57, 56, 57), {}),
-    ("mni152", "neuroglancer/precomputed", (29, 29, 29), {}),
+    ("mni152", "neuroglancer/precomputed", (29, 28, 29), {}),
     ("mni152", "neuroglancer/precomputed", (57, 56, 57), {"resolution_mm": 1.0}),
-    ("bigbrain", "neuroglancer/precomputed", (42, 44, 42), {}),
+    ("bigbrain", "neuroglancer/precomputed", (42, 45, 42), {}),
 ]
 
 
