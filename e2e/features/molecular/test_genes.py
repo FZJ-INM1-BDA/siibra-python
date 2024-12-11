@@ -5,7 +5,7 @@ from functools import wraps
 import siibra
 
 
-def skip_if_allen_api_unavailable(test_func):
+def xfail_if_allen_api_unavailable(test_func):
     @wraps(test_func)
     def wrapper(*args, **kwargs):
         try:
@@ -21,7 +21,7 @@ def skip_if_allen_api_unavailable(test_func):
                 raise e
         except siibra.livequeries.allen.InvalidAllenAPIResponseException as e:
             pytest.xfail(
-                f"Skipping test {test_func.__name__} due to invalid response from Allen API."
+                f"Skipping test {test_func.__name__} due to invalid response from Allen API:\n{e}"
             )
 
     return wrapper
@@ -38,7 +38,7 @@ test_params = [
 
 
 @pytest.mark.parametrize("parc_spec, region_spec, gene", test_params)
-@skip_if_allen_api_unavailable
+@xfail_if_allen_api_unavailable
 def test_genes(parc_spec: str, region_spec: str, gene: Union[str, List[str]]):
     parc = siibra.parcellations[parc_spec]
     region = parc.get_region(region_spec)
@@ -49,7 +49,7 @@ def test_genes(parc_spec: str, region_spec: str, gene: Union[str, List[str]]):
     ), "expecting all features to be of type GeneExpression"
 
 
-@skip_if_allen_api_unavailable
+@xfail_if_allen_api_unavailable
 def test_gene_exp_w_parent_structures():
     kwargs = {"gene": "MAOA"}
     features_grandparent_struct = siibra.features.get(
@@ -67,7 +67,7 @@ def test_gene_exp_w_parent_structures():
     assert len(features_grandparent_struct[0].data) > len(features_leaf_struct[0].data)
 
 
-@skip_if_allen_api_unavailable
+@xfail_if_allen_api_unavailable
 def test_no_probes_found_in_concept():
     bbox = siibra.locations.BoundingBox(
         [-75, -110, -75],
