@@ -51,7 +51,8 @@ def from_points(points: List["point.Point"], newlabels: List[Union[int, float, t
     PointSet
     """
     if len(points) == 0:
-        raise EmptyPointSetError(f"Cannot create a PointSet without any coordinates.")
+        raise EmptyPointSetError("Cannot create a PointSet without any points.")
+
     spaces = {p.space for p in points}
     assert len(spaces) == 1, f"PointSet can only be constructed with points from the same space.\n{spaces}"
     coords, sigmas, labels = zip(*((p.coordinate, p.sigma, p.label) for p in points))
