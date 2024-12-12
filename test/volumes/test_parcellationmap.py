@@ -274,7 +274,7 @@ class TestMap(unittest.TestCase):
     def test_fetch(self, args, kwargs, indices, mock_fetch_idx, volumes, expected_meshindex):
 
         region_arg = args[0] if len(args) > 0 else None
-        
+
         region_kwarg = kwargs.get("region")
         index_kwarg = kwargs.get("index")
 
