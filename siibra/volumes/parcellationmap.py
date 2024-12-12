@@ -335,7 +335,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 )
         mapindex = None
         if region is not None:
-            assert isinstance(region, (str, _region.Region))
+            try:
+                assert isinstance(region, (str, _region.Region))
+            except AssertionError:
+                raise TypeError(f"Please provide a region name or region instance, not a {type(region)}")
             mapindex = self.get_index(region)
         if index is not None:
             assert isinstance(index, MapIndex)
