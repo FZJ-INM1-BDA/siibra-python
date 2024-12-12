@@ -131,7 +131,7 @@ class SiibraHttpRequestError(Exception):
         Exception.__init__(self)
 
     def __str__(self):
-        return f"{self.msg}\n\tStatus code: {self.status_code}\n\tUrl: {self.url:76.76}"
+        return f"{self.msg}\n\tStatus code: {self.status_code}\n\tUrl: {self.url}"
 
 
 class HttpRequest:

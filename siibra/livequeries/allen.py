@@ -21,23 +21,40 @@ from ..features import anchor as _anchor
 from ..features.tabular.gene_expression import GeneExpressions
 from ..commons import logger, Species
 from ..locations import point, pointset
-from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
 
 from typing import List
 from xml.etree import ElementTree
 import numpy as np
 import json
-
+import requests
 
 BASE_URL = "http://api.brain-map.org/api/v2/data"
 
 LOCATION_PRECISION_MM = 2.  # the assumed spatial precision of the probe locations in MNI space
 
-
 class InvalidAllenAPIResponseException(Exception):
     pass
 
+
+def allen_api_request(url: str):
+    try:
+        response = requests.get(url).json()
+    except json.JSONDecodeError:
+        raise RuntimeError(f"Allen institute site produced an empty response - please try again later.\n{url}")
+    
+    if not response["success"]:
+        raise InvalidAllenAPIResponseException(
+            f"Invalid response when retrieving data: {url}"
+        )
+
+    # When the Allen site is not available, they still send a status code 200.
+    if "site unavailable" in response.decode().lower():
+        raise RuntimeError(
+            "Allen institute site unavailable - please try again later."
+        )
+
+    return response
 
 class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions):
     """
@@ -217,12 +234,8 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
             url = AllenBrainAtlasQuery._QUERY["multiple_gene_probe"].format(
                 start_row=start_row, num_rows=num_rows, genes=','.join([f"'{g['symbol']}'" for g in genes])
             )
-            response = HttpRequest(url).get()
-            if "site unavailable" in response.decode().lower():
-                # When the Allen site is not available, they still send a status code 200.
-                raise RuntimeError(
-                    "Allen institute site unavailable - please try again later."
-                )
+            response = allen_api_request(url)
+
             root = ElementTree.fromstring(response)
             num_probes = int(root.attrib["num_rows"])
             total_probes = int(root.attrib["total_rows"])
@@ -242,7 +255,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
             AllenBrainAtlasQuery.factors = {}
             while True:
                 factors_url = AllenBrainAtlasQuery._QUERY["factors"].format(start_row=start_row, num_rows=num_rows)
-                response = HttpRequest(factors_url).get()
+                response = allen_api_request(factors_url)
                 AllenBrainAtlasQuery.factors.update({
                     item["id"]: {
                         "race": item["race_only"],
@@ -263,11 +276,8 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         Retrieves information about a human specimen.
         """
         url = AllenBrainAtlasQuery._QUERY["specimen"].format(specimen_id=specimen_id)
-        response = HttpRequest(url).get()
-        if not response["success"]:
-            raise InvalidAllenAPIResponseException(
-                "Invalid response when retrieving specimen information: {}".format(url)
-            )
+        response = allen_api_request(url)
+
         # we ask for 1 specimen, so list should have length 1
         assert len(response["msg"]) == 1
         specimen = response["msg"][0]
@@ -296,14 +306,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         url = AllenBrainAtlasQuery._QUERY["microarray"].format(
             probe_ids=",".join([str(id) for id in probe_ids]), donor_id=donor_id
         )
-        try:
-            response = HttpRequest(url, json.loads).get()
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"Allen institute site produced an empty response - please try again later.\n{e}")
-        if not response["success"]:
-            raise InvalidAllenAPIResponseException(
-                "Invalid response when retrieving microarray data: {}".format(url)
-            )
+        response = allen_api_request(url)
 
         probes, samples = [response["msg"][n] for n in ["probes", "samples"]]
 

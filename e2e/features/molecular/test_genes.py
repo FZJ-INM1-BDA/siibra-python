@@ -15,7 +15,7 @@ def xfail_if_allen_api_unavailable(test_func):
                 f"Skipping test {test_func.__name__} due to JSONDecodeError since Allen API sent a malformed JSON"
             )
         except RuntimeError as e:
-            if str(e) == "Allen institute site unavailable - please try again later.":
+            if str(e).startswith("Allen institute site produced an empty response - please try again later."):
                 pytest.xfail("Skipping since Allen Institute API is unavailable.")
             else:
                 raise e
