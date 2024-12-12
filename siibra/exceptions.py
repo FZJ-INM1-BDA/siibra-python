@@ -57,3 +57,7 @@ class NoneCoordinateSuppliedError(ValueError):
 
 class NoMapMatchingValues(ValueError):
     pass
+
+
+class EmptyPointSetError(ValueError):
+    pass

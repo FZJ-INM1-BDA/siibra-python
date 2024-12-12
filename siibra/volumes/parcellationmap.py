@@ -615,7 +615,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 space=self.space,
                 split_components=split_components,
             )
-            centroids[regionname] = pointset.from_points([c.centroid for c in props])
+            try:
+                centroids[regionname] = pointset.from_points([c.centroid for c in props])
+            except exceptions.EmptyPointSetError:
+                centroids[regionname] = None
         return centroids
 
     def get_resampled_template(self, **fetch_kwargs) -> _volume.Volume:

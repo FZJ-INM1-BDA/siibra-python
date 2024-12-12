@@ -21,7 +21,7 @@ from ..retrieval import requests
 from ..core import space as _space, structure
 from ..locations import location, point, pointset, boundingbox
 from ..commons import resample_img_to_img, siibra_tqdm, affine_scaling, connected_components
-from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
+from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError, EmptyPointSetError
 
 from dataclasses import dataclass
 from nibabel import Nifti1Image
@@ -404,8 +404,9 @@ class Volume(location.Location):
         fetch actual image data. Any additional arguments are passed to fetch.
         """
         if isinstance(other, (pointset.PointSet, point.Point)):
-            points_inside = self._points_inside(other, keep_labels=False, **fetch_kwargs)
-            if len(points_inside) == 0:
+            try:
+                points_inside = self._points_inside(other, keep_labels=False, **fetch_kwargs)
+            except EmptyPointSetError:
                 return None  # BrainStructure.intersects checks for not None
             if isinstance(other, point.Point):  # preserve the type
                 return points_inside[0]
