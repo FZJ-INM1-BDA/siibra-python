@@ -19,7 +19,7 @@ from .providers import provider as _provider
 from .. import logger
 from ..retrieval import requests
 from ..core import space as _space, structure
-from ..locations import location, point, pointset, boundingbox
+from ..locations import point, pointset, boundingbox
 from ..commons import resample_img_to_img, siibra_tqdm, affine_scaling, connected_components
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
@@ -92,7 +92,7 @@ class ComponentSpatialProperties:
         return spatial_props
 
 
-class Volume(location.Location):
+class Volume(structure.BrainStructure):
     """
     A volume is a specific mesh or 3D array,
     which can be accessible via multiple providers in different formats.
@@ -390,14 +390,6 @@ class Volume(location.Location):
             newlabels=None if keep_labels else inside
         )
 
-    def union(self, other: location.Location):
-        if isinstance(other, Volume):
-            return merge([self, other])
-        else:
-            raise NotImplementedError(
-                f"There are no union method for {(self.__class__.__name__, other.__class__.__name__)}"
-            )
-
     def intersection(self, other: structure.BrainStructure, **fetch_kwargs) -> structure.BrainStructure:
         """
         Compute the intersection of a location with this volume. This will
@@ -435,15 +427,6 @@ class Volume(location.Location):
                 return other.intersection(self)
             except NoMapAvailableError:
                 return None
-
-    def transform(self, affine: np.ndarray, space=None):
-        raise NotImplementedError("Volume transformation is not yet implemented.")
-
-    def warp(self, space):
-        if self.space.matches(space):
-            return self
-        else:
-            raise SpaceWarpingFailedError('Warping of full volumes is not yet supported.')
 
     def fetch(
         self,
