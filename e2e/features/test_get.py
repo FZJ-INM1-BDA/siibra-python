@@ -67,7 +67,7 @@ def test_querying_with_volume():
     # Use features with location anchors only. Because hybrid ones will also
     # employ sementic links between regions, potentially changing the result.
     region = siibra.get_region("julich 2.9", "ca1")
-    volume = region.get_regional_map('mni152')
+    volume = region.get_regional_mask('mni152')
     profiles_region = siibra.features.get(region, "BigBrainIntensityProfile")[0]
     profiles_volume = siibra.features.get(volume, "BigBrainIntensityProfile")[0]
     # the ids will be diffent but the content has to be the same. Even the order.
