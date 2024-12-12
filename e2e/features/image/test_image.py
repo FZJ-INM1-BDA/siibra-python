@@ -1,7 +1,11 @@
-import siibra
-import pytest
-from siibra.features.image.image import Image
+from typing import Union
 import time
+import pytest
+
+import siibra
+from siibra.core.structure import BrainStructure
+from siibra.core.space import Space
+from siibra.features.image.image import Image
 
 PRERELEASE_FEATURES_W_NO_DATASET = [
     "The Enriched Connectome - Block face images of full sagittal human brain sections (blockface)",
@@ -31,20 +35,23 @@ def test_images_datasets_names():
 # Update this as new configs are added
 
 query_and_results = [
-    (siibra.features.get(siibra.get_template("big brain"), "CellbodyStainedSection"), 145),
-    (siibra.features.get(siibra.get_template("big brain"), "CellBodyStainedVolumeOfInterest"), 2),
-    (siibra.features.get(siibra.get_template("mni152"), "image", restrict_space=True), 4),
-    (siibra.features.get(siibra.get_template("mni152"), "image", restrict_space=False), 13),  # TODO: should this query find all the images or it is okay if bigbrain sections fail?
-    (siibra.features.get(siibra.get_region('julich 3.1', 'hoc1 left'), "CellbodyStainedSection"), 45),
-    (siibra.features.get(siibra.get_region('julich 2.9', 'hoc1 left'), "CellbodyStainedSection"), 41)
+    (siibra.spaces["bigbrain"], "CellbodyStainedSection", 145),
+    (siibra.spaces["bigbrain"], "image", 157),
+    (siibra.spaces["bigbrain"], "CellBodyStainedVolumeOfInterest", 2),
+    (siibra.spaces["mni152"], "image", 4),
+    (siibra.spaces["colin27"], "image", 0),
+    (siibra.get_region('julich 3.1', 'hoc1 left'), "CellbodyStainedSection", 45),
+    (siibra.get_region('julich 2.9', 'hoc1 left'), "CellbodyStainedSection", 41)
 ]
 
 
-@pytest.mark.parametrize("query_results, result_len", query_and_results)
+@pytest.mark.parametrize("query_concept, feature_type, result_len", query_and_results)
 def test_image_query_results(
-    query_results: Image,
+    query_concept: Union[BrainStructure, Space],
+    feature_type: str,
     result_len: int
 ):
+    query_results = siibra.features.get(query_concept, feature_type)
     assert len(query_results) == result_len
 
 

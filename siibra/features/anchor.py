@@ -156,18 +156,17 @@ class AnatomicalAnchor:
         else:
             return region + separator + location
 
-    def assign(self, concept: BrainStructure, restrict_space: bool = False) -> AnatomicalAssignment:
+    def assign(self, concept: Union[BrainStructure, Space]) -> AnatomicalAssignment:
         """
         Match this anchor to a query concept. Assignments are cached at runtime,
         so repeated assignment with the same concept will be cheap.
         """
-        if (
-            restrict_space
-            and self.location is not None
-            and isinstance(concept, Location)
-            and not self.location.space.matches(concept.space)
-        ):
-            return []
+        if isinstance(concept, Space):
+            if self.location is not None and self.location.space.matches(concept):
+                return [AnatomicalAssignment(concept, self.location, Qualification.CONTAINED)]
+            else:
+                return []
+
         if concept not in self._assignments:
             assignments: List[AnatomicalAssignment] = []
             if self.location is not None:
@@ -184,8 +183,8 @@ class AnatomicalAnchor:
             else None
         return self._assignments[concept]
 
-    def matches(self, concept: BrainStructure, restrict_space: bool = False) -> bool:
-        return len(self.assign(concept, restrict_space)) > 0
+    def matches(self, concept: Union[BrainStructure, Space]) -> bool:
+        return len(self.assign(concept)) > 0
 
     def represented_parcellations(self) -> List[Parcellation]:
         """
