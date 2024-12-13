@@ -32,6 +32,8 @@ region mask to filter the probes.
 # %%
 import siibra
 from nilearn import plotting
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
+# sphinx_gallery_failing_thumbnail = False
 
 # %%
 # We select a brain region and query for expression levels of GABARAPL2.
@@ -54,6 +56,6 @@ print(space)
 # Plot the locations of the probes that were found, together with the region
 # mask of V1.
 all_coords = [p.coordinate for p in features[0].anchor.location]
-mask = region.get_regional_map(space)
+mask = region.get_regional_mask(space)
 display = plotting.plot_roi(mask.fetch())
 display.add_markers(all_coords, marker_size=5)

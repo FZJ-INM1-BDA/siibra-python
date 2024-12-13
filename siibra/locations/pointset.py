@@ -18,7 +18,7 @@ from . import location, point, boundingbox as _boundingbox
 
 from ..retrieval.requests import HttpRequest
 from ..commons import logger
-from ..exceptions import SpaceWarpingFailedError
+from ..exceptions import SpaceWarpingFailedError, EmptyPointSetError
 
 from typing import List, Union, Tuple
 import numbers
@@ -51,7 +51,8 @@ def from_points(points: List["point.Point"], newlabels: List[Union[int, float, t
     PointSet
     """
     if len(points) == 0:
-        return PointSet([])
+        raise EmptyPointSetError("Cannot create a PointSet without any points.")
+
     spaces = {p.space for p in points}
     assert len(spaces) == 1, f"PointSet can only be constructed with points from the same space.\n{spaces}"
     coords, sigmas, labels = zip(*((p.coordinate, p.sigma, p.label) for p in points))
@@ -90,6 +91,9 @@ class PointSet(location.Location):
         labels: list of point labels (optional)
         """
         location.Location.__init__(self, space)
+
+        if len(coordinates) == 0:
+            raise EmptyPointSetError(f"Cannot create a {self.__class__.__name__} without any coordinates.")
 
         self._coordinates = coordinates
         if not isinstance(coordinates, np.ndarray):
