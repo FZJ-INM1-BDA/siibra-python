@@ -37,6 +37,37 @@ from typing import Union, Dict, Tuple
 import json
 
 
+def shift_ng_transfrom(
+    transform_nm: np.ndarray, scale_resolution_nm: np.ndarray, max_resolution_nm: np.ndarray
+) -> np.ndarray:
+        """
+        Helper method to get nifti standard affine.
+
+        transfrorm.json stored with neuroglancer precomputed images and meshes
+        are meant to be used for neuroglancer viewers and hence they are not
+        representative of the affine in other tools. This method shifts back
+        half a voxel in each axis.
+        (see https://neuroglancer-scripts.readthedocs.io/en/latest/neuroglancer-info.html#different-conventions-for-coordinate-transformations)
+
+        Parameters
+        ----------
+        transform_nm: np.ndarray
+            Transform array created for dispalying an image correctly from
+            neuroglancer precomputed format in neuroglancer viewer.
+        max_resolution_nm: np.ndarray
+            The voxel resolution of the highest level of resolution.
+
+        Returns
+        -------
+        np.ndarray
+            Standard affine in nm
+        """
+        scaling = np.diag(np.r_[scale_resolution_nm, 1.0])
+        affine = np.dot(transform_nm, scaling)
+        affine[:3, 3] += (max_resolution_nm * 0.5)
+        return affine
+
+
 class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/precomputed"):
 
     def __init__(self, url: Union[str, Dict[str, str]]):
@@ -234,7 +265,11 @@ class NeuroglancerVolume:
         self._io: PrecomputedIO = None
 
     @property
-    def transform_nm(self):
+    def transform_nm(self) -> np.ndarray:
+        """
+        This is the transformation matrix created to cater neuroglancer viewer
+        for a neuroglancer precomputed images.
+        """
         if self._transform_nm is not None:
             return self._transform_nm
         try:
@@ -367,7 +402,6 @@ class NeuroglancerVolume:
             )
         return scale
 
-
 class NeuroglancerScale:
     """One scale of a NeuroglancerVolume."""
 
@@ -433,10 +467,13 @@ class NeuroglancerScale:
 
     @property
     def affine(self):
-        scaling = np.diag(np.r_[self.res_nm, 1.0])
-        affine = np.dot(self.volume.transform_nm, scaling)
-        affine[:3, :] /= 1e6
-        return affine
+        affine_ = shift_ng_transfrom(
+            transform_nm=self.volume.transform_nm,
+            scale_resolution_nm=self.res_nm,
+            max_resolution_nm=self.volume.scales[0].res_nm[0],
+        )
+        affine_[:3, :] /= 1e6
+        return affine_
 
     def _point_to_lower_chunk_idx(self, xyz):
         return (
@@ -521,7 +558,7 @@ class NeuroglancerScale:
         # exact bounding box requested, to cut off undesired borders
         data_min = np.array([gx0, gy0, gz0]) * self.chunk_sizes
         x0, y0, z0 = (np.array(bbox_.minpoint) - data_min).astype("int")
-        xd, yd, zd = np.ceil((np.array(bbox_.maxpoint))).astype(int) - np.floor((np.array(bbox_.minpoint))).astype(int)  # TODO: consider 0.5 voxel shift
+        xd, yd, zd = np.ceil((np.array(bbox_.maxpoint))).astype(int) - np.floor((np.array(bbox_.minpoint))).astype(int)
         offset = tuple(bbox_.minpoint)
 
         # build the nifti image
@@ -540,7 +577,7 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
 
     @staticmethod
     def _fragmentinfo(url: str) -> Dict[str, Union[str, np.ndarray, Dict]]:
-        """ Prepare basic mesh fragment information from url. """
+        """Prepare basic mesh fragment information from url."""
         return {
             "url": url,
             "transform_nm": np.array(requests.HttpRequest(f"{url}/transform.json").data),
@@ -577,7 +614,13 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
         for name, spec in self._meshes.items():
             mesh_key = spec.get('info', {}).get('mesh')
             meshurl = f"{spec['url']}/{mesh_key}/{str(meshindex)}:0"
-            transform = spec.get('transform_nm')
+            resolution_nm = np.array(spec["info"]["scales"][0]["resolution"]).squeeze()
+            transform = shift_ng_transfrom(
+                transform_nm=spec.get('transform_nm'),
+                scale_resolution_nm=resolution_nm,
+                max_resolution_nm=resolution_nm
+            )
+            transform[:3, :] /= 1e6
             try:
                 meshinfo = requests.HttpRequest(url=meshurl, func=requests.DECODERS['.json']).data
             except requests.SiibraHttpRequestError:
