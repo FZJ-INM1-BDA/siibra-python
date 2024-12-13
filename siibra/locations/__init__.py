@@ -16,7 +16,7 @@
 
 from .location import Location
 from .point import Point
-from .pointset import PointCloud, from_points
+from .pointcloud import PointCloud, from_points
 from .boundingbox import BoundingBox
 
 

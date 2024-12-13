@@ -14,7 +14,7 @@
 # limitations under the License.
 """A box defined by two farthest corner coordinates on a specific space."""
 
-from . import point, pointset, location
+from . import point, pointcloud, location
 
 from ..commons import logger
 from ..exceptions import SpaceWarpingFailedError
@@ -144,11 +144,11 @@ class BoundingBox(location.Location):
         if isinstance(other, point.Point):
             warped = other.warp(self.space)
             return other if self.minpoint <= warped <= self.maxpoint else None
-        if isinstance(other, pointset.PointCloud):
+        if isinstance(other, pointcloud.PointCloud):
             points_inside = [p for p in other if self.intersects(p)]
             if len(points_inside) == 0:
                 return None
-            result = pointset.PointCloud(
+            result = pointcloud.PointCloud(
                 points_inside,
                 space=other.space,
                 sigma_mm=[p.sigma for p in points_inside]
@@ -240,7 +240,7 @@ class BoundingBox(location.Location):
             )
         else:
             return self._intersect_bbox(
-                pointset
+                pointcloud
                 .PointCloud(XYZ, space=self.space, sigma_mm=voxel_size.max())
                 .boundingbox
             )
@@ -259,7 +259,7 @@ class BoundingBox(location.Location):
     @property
     def corners(self):
         """
-        Returns all 8 corners of the box as a pointset.
+        Returns all 8 corners of the box as a pointcloud.
 
         Note
         ----
@@ -279,7 +279,7 @@ class BoundingBox(location.Location):
         TODO: deal with sigma. Currently, returns the mean of min and max point.
         """
         xs, ys, zs = zip(self.minpoint, self.maxpoint)
-        return pointset.PointCloud(
+        return pointcloud.PointCloud(
             coordinates=[[x, y, z] for x, y, z in product(xs, ys, zs)],
             space=self.space,
             sigma_mm=np.mean([self.minpoint.sigma, self.maxpoint.sigma])
@@ -360,7 +360,7 @@ class BoundingBox(location.Location):
         x1, y1, z1 = self.maxpoint
 
         # set of 8 corner points in source space
-        corners1 = pointset.PointCloud(
+        corners1 = pointcloud.PointCloud(
             [
                 (x0, y0, z0),
                 (x0, y0, z1),

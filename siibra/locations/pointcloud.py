@@ -211,7 +211,7 @@ class PointCloud(location.Location):
     def __getitem__(self, index: int):
         if (abs(index) >= self.__len__()):
             raise IndexError(
-                f"Pointset with {self.__len__()} points "
+                f"pointcloud with {self.__len__()} points "
                 f"cannot be accessed with index {index}."
             )
         return point.Point(

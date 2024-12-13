@@ -32,7 +32,7 @@ from ..commons import (
     generate_uuid
 )
 from ..core import concept, space, parcellation, region as _region
-from ..locations import location, point, pointset
+from ..locations import location, point, pointcloud
 
 import numpy as np
 from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
@@ -569,7 +569,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )]
         )
 
-    def compute_centroids(self, split_components: bool = True, **fetch_kwargs) -> Dict[str, pointset.PointCloud]:
+    def compute_centroids(self, split_components: bool = True, **fetch_kwargs) -> Dict[str, pointcloud.PointCloud]:
         """
         Compute a dictionary of all regions in this map to their centroids.
         By default, the regional masks will be split to connected components
@@ -616,7 +616,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 split_components=split_components,
             )
             try:
-                centroids[regionname] = pointset.from_points([c.centroid for c in props])
+                centroids[regionname] = pointcloud.from_points([c.centroid for c in props])
             except exceptions.EmptyPointCloudError:
                 centroids[regionname] = None
         return centroids
@@ -761,7 +761,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             np.unravel_index(np.random.choice(len(p), numpoints, p=p), W.shape)
         ).T
         XYZ = np.dot(mask.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
-        return pointset.PointCloud(XYZ, space=self.space)
+        return pointcloud.PointCloud(XYZ, space=self.space)
 
     def to_sparse(self):
         """
@@ -832,10 +832,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         if isinstance(item, point.Point):
             return self._assign_points(
-                pointset.PointCloud([item], item.space, sigma_mm=item.sigma),
+                pointcloud.PointCloud([item], item.space, sigma_mm=item.sigma),
                 lower_threshold
             )
-        if isinstance(item, pointset.PointCloud):
+        if isinstance(item, pointcloud.PointCloud):
             return self._assign_points(item, lower_threshold)
         if isinstance(item, _volume.Volume):
             return self._assign_volume(
@@ -990,7 +990,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             .dropna(axis='columns', how='all')
         )
 
-    def _assign_points(self, points: pointset.PointCloud, lower_threshold: float) -> List[MapAssignment]:
+    def _assign_points(self, points: pointcloud.PointCloud, lower_threshold: float) -> List[MapAssignment]:
         """
         assign a PointCloud to this parcellation map.
 

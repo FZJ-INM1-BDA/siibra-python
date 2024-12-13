@@ -21,7 +21,7 @@ from .. import anchor as _anchor
 
 from ...commons import logger, QUIET, siibra_tqdm
 from ...core import region as _region
-from ...locations import pointset
+from ...locations import pointcloud
 from ...retrieval.repositories import RepositoryConnector
 from ...retrieval.requests import HttpRequest
 
@@ -440,7 +440,7 @@ class RegionalConnectivity(Feature, Compoundable):
                 found = [r for r in region if r.name in all_centroids]
             assert len(found) > 0
             result.append(
-                tuple(pointset.PointCloud(
+                tuple(pointcloud.PointCloud(
                     [all_centroids[r.name] for r in found], space=space
                 ).centroid)
             )

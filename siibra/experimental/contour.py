@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..locations import point, pointset, boundingbox
+from ..locations import point, pointcloud, boundingbox
 
 import numpy as np
 
 
-class Contour(pointset.PointCloud):
+class Contour(pointcloud.PointCloud):
     """
     A PointCloud that represents a contour line.
     The only difference is that the point order is relevant,
@@ -28,7 +28,7 @@ class Contour(pointset.PointCloud):
     """
 
     def __init__(self, coordinates, space=None, sigma_mm=0, labels: list = None):
-        pointset.PointCloud.__init__(self, coordinates, space, sigma_mm, labels)
+        pointcloud.PointCloud.__init__(self, coordinates, space, sigma_mm, labels)
 
     def crop(self, voi: boundingbox.BoundingBox):
         """
@@ -45,7 +45,7 @@ class Contour(pointset.PointCloud):
         cropped = self.intersection(voi)
 
         if cropped is not None and not isinstance(cropped, point.Point):
-            assert isinstance(cropped, pointset.PointCloud)
+            assert isinstance(cropped, pointcloud.PointCloud)
             # Identifiy contour splits are by discontinuouities ("jumps")
             # of their labels, which denote positions in the original contour
             jumps = np.diff([self.labels.index(lb) for lb in cropped.labels])

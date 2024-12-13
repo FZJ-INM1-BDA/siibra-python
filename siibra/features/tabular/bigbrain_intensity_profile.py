@@ -65,7 +65,7 @@ class BigBrainIntensityProfile(
 
     @classmethod
     def _merge_anchors(cls, anchors: List['AnatomicalAnchor']):
-        from ...locations.pointset import from_points
+        from ...locations.pointcloud import from_points
         from ...features.anchor import AnatomicalAnchor
 
         location = from_points([anchor.location for anchor in anchors])

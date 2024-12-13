@@ -24,7 +24,7 @@ from ..features.tabular import (
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
-from ..locations import point, pointset, boundingbox
+from ..locations import point, pointcloud, boundingbox
 from ..retrieval import datasets, repositories
 from ..volumes import volume, sparsemap, parcellationmap
 from ..volumes.providers.provider import VolumeProvider
@@ -363,18 +363,18 @@ class Factory:
 
     @classmethod
     @build_type("tmp/poly")
-    @build_type("siibra/location/pointset/v0.1")
-    def build_pointset(cls, spec):
+    @build_type("siibra/location/pointcloud/v0.1")
+    def build_pointcloud(cls, spec):
         if spec.get("@type") == "tmp/poly":
             space_id = spec["coordinateSpace"]["@id"]
             coords = []
             for coord in spec["coordinates"]:
                 assert all(c["unit"]["@id"] == "id.link/mm" for c in coord)
                 coords.append(list(np.float16(c["value"]) for c in coord))
-        elif spec.get("@type") == "siibra/location/pointset/v0.1":
+        elif spec.get("@type") == "siibra/location/pointcloud/v0.1":
             space_id = spec.get("space").get("@id")
             coords = [tuple(c) for c in spec.get("coordinates")]
-        return pointset.PointCloud(coords, space=space_id)
+        return pointcloud.PointCloud(coords, space=space_id)
 
     @classmethod
     @build_type("siibra/location/boundingbox/v0.1")
