@@ -203,7 +203,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
                 found = [r for r in region if r.name in all_centroids]
             assert len(found) > 0
             result.append(
-                tuple(pointset.PointSet(
+                tuple(pointset.PointCloud(
                     [all_centroids[r.name] for r in found], space=space
                 ).centroid)
             )

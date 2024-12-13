@@ -115,7 +115,7 @@ class Point(location.Location):
     def intersection(self, other: location.Location) -> "Point":
         if isinstance(other, Point):
             return self if self == other else None
-        elif isinstance(other, pointset.PointSet):
+        elif isinstance(other, pointset.PointCloud):
             return self if self in other else None
         else:
             return self if other.intersection(self) else None
@@ -190,7 +190,7 @@ class Point(location.Location):
         return super().__hash__()
 
     def __eq__(self, other: 'Point'):
-        if isinstance(other, pointset.PointSet):
+        if isinstance(other, pointset.PointCloud):
             return other == self  # implemented at pointset
         if not isinstance(other, Point):
             return False

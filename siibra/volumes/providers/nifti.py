@@ -229,7 +229,7 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
 
         Returns:
         --------
-        PointSet
+        PointCloud
         """
 
         from skimage.feature.peak import peak_local_max
@@ -243,7 +243,7 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
             min_distance=dist,
         )
         return (
-            pointset.PointSet(
+            pointset.PointCloud(
                 [np.dot(img.affine, [x, y, z, 1])[:3] for x, y, z in voxels],
                 space=self.space,
             ),

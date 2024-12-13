@@ -18,17 +18,17 @@ from ..locations import point, pointset, boundingbox
 import numpy as np
 
 
-class Contour(pointset.PointSet):
+class Contour(pointset.PointCloud):
     """
-    A PointSet that represents a contour line.
+    A PointCloud that represents a contour line.
     The only difference is that the point order is relevant,
     and consecutive points are thought as being connected by an edge.
 
-    In fact, PointSet assumes order as well, but no connections between points.
+    In fact, PointCloud assumes order as well, but no connections between points.
     """
 
     def __init__(self, coordinates, space=None, sigma_mm=0, labels: list = None):
-        pointset.PointSet.__init__(self, coordinates, space, sigma_mm, labels)
+        pointset.PointCloud.__init__(self, coordinates, space, sigma_mm, labels)
 
     def crop(self, voi: boundingbox.BoundingBox):
         """
@@ -45,7 +45,7 @@ class Contour(pointset.PointSet):
         cropped = self.intersection(voi)
 
         if cropped is not None and not isinstance(cropped, point.Point):
-            assert isinstance(cropped, pointset.PointSet)
+            assert isinstance(cropped, pointset.PointCloud)
             # Identifiy contour splits are by discontinuouities ("jumps")
             # of their labels, which denote positions in the original contour
             jumps = np.diff([self.labels.index(lb) for lb in cropped.labels])

@@ -144,16 +144,16 @@ class BoundingBox(location.Location):
         if isinstance(other, point.Point):
             warped = other.warp(self.space)
             return other if self.minpoint <= warped <= self.maxpoint else None
-        if isinstance(other, pointset.PointSet):
+        if isinstance(other, pointset.PointCloud):
             points_inside = [p for p in other if self.intersects(p)]
             if len(points_inside) == 0:
                 return None
-            result = pointset.PointSet(
+            result = pointset.PointCloud(
                 points_inside,
                 space=other.space,
                 sigma_mm=[p.sigma for p in points_inside]
             )
-            return result[0] if len(result) == 1 else result  # if PointSet has single point return as a Point
+            return result[0] if len(result) == 1 else result  # if PointCloud has single point return as a Point
 
         return other.intersection(self)
 
@@ -241,7 +241,7 @@ class BoundingBox(location.Location):
         else:
             return self._intersect_bbox(
                 pointset
-                .PointSet(XYZ, space=self.space, sigma_mm=voxel_size.max())
+                .PointCloud(XYZ, space=self.space, sigma_mm=voxel_size.max())
                 .boundingbox
             )
 
@@ -279,7 +279,7 @@ class BoundingBox(location.Location):
         TODO: deal with sigma. Currently, returns the mean of min and max point.
         """
         xs, ys, zs = zip(self.minpoint, self.maxpoint)
-        return pointset.PointSet(
+        return pointset.PointCloud(
             coordinates=[[x, y, z] for x, y, z in product(xs, ys, zs)],
             space=self.space,
             sigma_mm=np.mean([self.minpoint.sigma, self.maxpoint.sigma])
@@ -360,7 +360,7 @@ class BoundingBox(location.Location):
         x1, y1, z1 = self.maxpoint
 
         # set of 8 corner points in source space
-        corners1 = pointset.PointSet(
+        corners1 = pointset.PointCloud(
             [
                 (x0, y0, z0),
                 (x0, y0, z1),

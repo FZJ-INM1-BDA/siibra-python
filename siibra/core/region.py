@@ -747,7 +747,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         threshold_statistical: float = 0.0,
         split_components: bool = True,
         **fetch_kwargs,
-    ) -> pointset.PointSet:
+    ) -> pointset.PointCloud:
         """
         Compute the centroids of the region in the given space.
 
@@ -765,8 +765,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         Returns
         -------
-        PointSet
-            Found centroids (as Point objects) in a PointSet
+        PointCloud
+            Found centroids (as Point objects) in a PointCloud
 
         Note
         ----
@@ -780,7 +780,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             split_components=split_components,
             **fetch_kwargs,
         )
-        return pointset.PointSet(
+        return pointset.PointCloud(
             [c.centroid for c in props],
             space=space
         )

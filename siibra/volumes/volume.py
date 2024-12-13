@@ -21,7 +21,7 @@ from ..retrieval import requests
 from ..core import space as _space, structure
 from ..locations import point, pointset, boundingbox
 from ..commons import resample_img_to_img, siibra_tqdm, affine_scaling, connected_components
-from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError, EmptyPointSetError
+from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError, EmptyPointCloudError
 
 from dataclasses import dataclass
 from nibabel import Nifti1Image
@@ -288,7 +288,7 @@ class Volume(structure.BrainStructure):
 
     def evaluate_points(
         self,
-        points: Union['point.Point', 'pointset.PointSet'],
+        points: Union['point.Point', 'pointset.PointCloud'],
         outside_value: Union[int, float] = 0,
         **fetch_kwargs
     ) -> np.ndarray:
@@ -307,7 +307,7 @@ class Volume(structure.BrainStructure):
 
         Parameters
         ----------
-        points: PointSet
+        points: PointCloud
         outside_value: int, float. Default: 0
         fetch_kwargs: dict
             Any additional arguments are passed to the `fetch()` call for
@@ -355,11 +355,11 @@ class Volume(structure.BrainStructure):
 
     def _points_inside(
         self,
-        points: Union['point.Point', 'pointset.PointSet'],
+        points: Union['point.Point', 'pointset.PointCloud'],
         keep_labels: bool = True,
         outside_value: Union[int, float] = 0,
         **fetch_kwargs
-    ) -> 'pointset.PointSet':
+    ) -> 'pointset.PointCloud':
         """
         Reduce a pointset to the points which fall inside nonzero pixels of
         this map.
@@ -367,18 +367,18 @@ class Volume(structure.BrainStructure):
 
         Paramaters
         ----------
-        points: PointSet
+        points: PointCloud
         keep_labels: bool
-            If False, the returned PointSet will be labeled with their indices
-            in the original PointSet.
+            If False, the returned PointCloud will be labeled with their indices
+            in the original PointCloud.
         fetch_kwargs: dict
             Any additional arguments are passed to the `fetch()` call for
             retrieving the image data.
 
         Returns
         -------
-        PointSet
-            A new PointSet containing only the points inside the volume.
+        PointCloud
+            A new PointCloud containing only the points inside the volume.
             Labels reflect the indices of the original points if `keep_labels`
             is False.
         """
@@ -395,10 +395,10 @@ class Volume(structure.BrainStructure):
         Compute the intersection of a location with this volume. This will
         fetch actual image data. Any additional arguments are passed to fetch.
         """
-        if isinstance(other, (pointset.PointSet, point.Point)):
+        if isinstance(other, (pointset.PointCloud, point.Point)):
             try:
                 points_inside = self._points_inside(other, keep_labels=False, **fetch_kwargs)
-            except EmptyPointSetError:
+            except EmptyPointCloudError:
                 return None  # BrainStructure.intersects checks for not None
             if isinstance(other, point.Point):  # preserve the type
                 return points_inside[0]
@@ -593,7 +593,7 @@ class Volume(structure.BrainStructure):
             samples.extend(list(pts[inside, :][choice, :]))
             if len(samples) > N:
                 break
-        voxels = pointset.PointSet(
+        voxels = pointset.PointCloud(
             np.random.permutation(samples)[:N, :],
             space=None
         )
@@ -614,7 +614,7 @@ class Volume(structure.BrainStructure):
         img = self.fetch(**kwargs)
         array = np.asanyarray(img.dataobj)
         voxels = skimage_feature.peak_local_max(array, min_distance=mindist)
-        points = pointset.PointSet(voxels, space=None, labels=list(range(len(voxels)))).transform(img.affine, space=self.space)
+        points = pointset.PointCloud(voxels, space=None, labels=list(range(len(voxels)))).transform(img.affine, space=self.space)
         points.sigma_mm = [sigma_mm for _ in points]
         return points
 
@@ -766,7 +766,7 @@ def from_array(
 
 
 def from_pointset(
-    points: pointset.PointSet,
+    points: pointset.PointCloud,
     label: int = None,
     target: Volume = None,
     normalize=True,
@@ -778,7 +778,7 @@ def from_pointset(
 
     Parameters
     ----------
-    points: pointset.PointSet
+    points: pointset.PointCloud
     label: int, default: None
         If None, finds the KDE for all points. Otherwise, selects the points
         labelled with this integer value.

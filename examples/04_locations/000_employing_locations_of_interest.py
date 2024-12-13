@@ -38,8 +38,8 @@ point_uncertain = siibra.Point((27.75, -32.0, 63.725), space='mni152', sigma_mm=
 point_uncertain
 
 # %%
-# We can create a PointSet from several points or a set of coordinates.
-siibra.PointSet(
+# We can create a PointCloud from several points or a set of coordinates.
+siibra.PointCloud(
     [(27.75, -32.0, 63.725), (27.75, -32.0, 63.725)],
     space='mni152',
     sigma_mm=[0.0, 3.]
@@ -54,7 +54,7 @@ print(point.warp('colin27'))
 
 # %%
 # To explore further, let us first create a random pointset
-ptset = siibra.PointSet(
+ptset = siibra.PointCloud(
     np.array([
         np.random.randn(10000) * 3 - 27.75,
         np.random.randn(10000) * 3 - 32.0,

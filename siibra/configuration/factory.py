@@ -374,7 +374,7 @@ class Factory:
         elif spec.get("@type") == "siibra/location/pointset/v0.1":
             space_id = spec.get("space").get("@id")
             coords = [tuple(c) for c in spec.get("coordinates")]
-        return pointset.PointSet(coords, space=space_id)
+        return pointset.PointCloud(coords, space=space_id)
 
     @classmethod
     @build_type("siibra/location/boundingbox/v0.1")

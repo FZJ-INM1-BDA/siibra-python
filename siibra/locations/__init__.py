@@ -16,7 +16,7 @@
 
 from .location import Location
 from .point import Point
-from .pointset import PointSet, from_points
+from .pointset import PointCloud, from_points
 from .boundingbox import BoundingBox
 
 
@@ -36,11 +36,11 @@ def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
     Returns
     -------
     Location
-        - Point U Point = PointSet
-        - Point U PointSet = PointSet
-        - PointSet U PointSet = PointSet
+        - Point U Point = PointCloud
+        - Point U PointCloud = PointCloud
+        - PointCloud U PointCloud = PointCloud
         - BoundingBox U BoundingBox = BoundingBox
-        - BoundingBox U PointSet = BoundingBox
+        - BoundingBox U PointCloud = BoundingBox
         - BoundingBox U Point = BoundingBox
         - WholeBrain U Location = NotImplementedError
         (all operations are commutative)
@@ -53,14 +53,14 @@ def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
     # location that has its own union method since it is not a part of locations
     # module and to avoid importing Volume here.
     if not all(
-        isinstance(loc, (Point, PointSet, BoundingBox)) for loc in [loc0, loc1]
+        isinstance(loc, (Point, PointCloud, BoundingBox)) for loc in [loc0, loc1]
     ):
         try:
             return loc1.union(loc0)
         except Exception:
             raise NotImplementedError(f"There are no union method for {(loc0.__class__.__name__, loc1.__class__.__name__)}")
 
-    # convert Points to PointSets
+    # convert Points to PointClouds
     loc0, loc1 = [
         from_points([loc]) if isinstance(loc, Point) else loc
         for loc in [loc0, loc1]
@@ -69,8 +69,8 @@ def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
     # adopt the space of the first location
     loc1_w = loc1.warp(loc0.space)
 
-    if isinstance(loc0, PointSet):
-        if isinstance(loc1_w, PointSet):
+    if isinstance(loc0, PointCloud):
+        if isinstance(loc1_w, PointCloud):
             points = list(dict.fromkeys([*loc0, *loc1_w]))
             return from_points(points)
         if isinstance(loc1_w, BoundingBox):
