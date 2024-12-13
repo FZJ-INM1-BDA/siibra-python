@@ -20,10 +20,21 @@ os.environ['SIIBRA_LOG_LEVEL'] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
 
+def is_allen_api_microarray_service_available():
+    import requests
+    
+    # see https://community.brain-map.org/t/human-brain-atlas-api/2876
+    microarray_test_url = "http://api.brain-map.org/api/v2/data/query.json?criteria= service::human_microarray_expression[probes$eq1023146,1023147][donors$eq15496][structures$eq9148]"
+    try:
+        response = requests.get(microarray_test_url).json()
+    except requests.RequestException:
+        return False
+    return response["success"]
+
 # -- Project information -----------------------------------------------------
 
 project = "siibra-python"
-copyright = "2020-2023, Forschungszentrum Juelich GmbH"
+copyright = "2020-2024, Forschungszentrum Juelich GmbH"
 author = "Big Data Analytics Group, Institute of Neuroscience and Medicine, Forschungszentrum Juelich GmbH"
 language = 'en'
 
@@ -159,8 +170,17 @@ sphinx_gallery_conf = {
     "within_subsection_order": FileNameSortKey,
     "remove_config_comments": True,
     "show_signature": True,
-    "run_stale_examples": run_stale_examples
+    "show_memory": True,
+    "run_stale_examples": run_stale_examples,
 }
+
+if not is_allen_api_microarray_service_available():
+    sphinx_gallery_conf.update({
+        "expected_failing_examples": [
+            "../examples/03_data_features/000_matchings.py",
+            "../examples/03_data_features/004_gene_expressions.py",
+        ]
+    })
 
 html_theme_options = {
     'logo_only': True,

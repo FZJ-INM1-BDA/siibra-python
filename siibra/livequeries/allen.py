@@ -35,6 +35,10 @@ BASE_URL = "http://api.brain-map.org/api/v2/data"
 LOCATION_PRECISION_MM = 2.  # the assumed spatial precision of the probe locations in MNI space
 
 
+class InvalidAllenAPIResponseException(Exception):
+    pass
+
+
 class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions):
     """
     Interface to Allen Human Brain Atlas microarray data.
@@ -261,7 +265,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         url = AllenBrainAtlasQuery._QUERY["specimen"].format(specimen_id=specimen_id)
         response = HttpRequest(url).get()
         if not response["success"]:
-            raise Exception(
+            raise InvalidAllenAPIResponseException(
                 "Invalid response when retrieving specimen information: {}".format(url)
             )
         # we ask for 1 specimen, so list should have length 1
@@ -297,7 +301,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         except json.JSONDecodeError as e:
             raise RuntimeError(f"Allen institute site produced an empty response - please try again later.\n{e}")
         if not response["success"]:
-            raise Exception(
+            raise InvalidAllenAPIResponseException(
                 "Invalid response when retrieving microarray data: {}".format(url)
             )
 

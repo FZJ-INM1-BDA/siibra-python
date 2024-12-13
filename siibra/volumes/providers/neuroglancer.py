@@ -128,26 +128,20 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
                 label = None
             if label is not None:
                 result = nib.Nifti1Image(
-                    (result.get_fdata() == label).astype('uint8'),
-                    result.affine
+                    (np.asanyarray(result.dataobj) == label).astype('uint8'),
+                    result.affine,
+                    dtype='uint8',
                 )
 
         return result
 
-    def get_boundingbox(self, clip=False, background=0, **fetch_kwargs) -> "_boundingbox.BoundingBox":
+    def get_boundingbox(self, **fetch_kwargs) -> "_boundingbox.BoundingBox":
         """
         Return the bounding box in physical coordinates of the union of
         fragments in this neuroglancer volume.
 
         Parameters
         ----------
-        clip: bool, default: True
-            Whether to clip the background of the volume.
-        background: float, default: 0.0
-            The background value to clip.
-            Note
-            ----
-            To use it, clip must be True.
         fetch_kwargs:
             key word arguments that are used for fetchin volumes,
             such as voi or resolution_mm.
@@ -159,23 +153,17 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
                     f"N-D Neuroglancer volume has shape {frag.shape}, but "
                     f"bounding box considers only {frag.shape[:3]}"
                 )
-            if clip:
-                img = frag.fetch(**fetch_kwargs)
-                next_bbox = _boundingbox.from_array(
-                    np.asanyarray(img.dataobj), threshold=background, space=None
-                ).transform(img.affine)  # use the affine of the image matching fetch_kwargs
+            resolution_mm = fetch_kwargs.get("resolution_mm")
+            if resolution_mm is None:
+                affine = frag.affine
+                shape = frag.shape[:3]
             else:
-                resolution_mm = fetch_kwargs.get("resolution_mm")
-                if resolution_mm is None:
-                    affine = frag.affine
-                    shape = frag.shape[:3]
-                else:
-                    scale = frag._select_scale(resolution_mm=resolution_mm)
-                    affine = scale.affine
-                    shape = scale.size[:3]
-                next_bbox = _boundingbox.BoundingBox(
-                    (0, 0, 0), shape, space=None
-                ).transform(affine)
+                scale = frag._select_scale(resolution_mm=resolution_mm)
+                affine = scale.affine
+                shape = scale.size[:3]
+            next_bbox = _boundingbox.BoundingBox(
+                (0, 0, 0), shape, space=None
+            ).transform(affine)
             bbox = next_bbox if bbox is None else bbox.union(next_bbox)
         return bbox
 
@@ -326,7 +314,7 @@ class NeuroglancerVolume:
     ):
         # the caller has to make sure voi is defined in the correct reference space
         scale = self._select_scale(resolution_mm=resolution_mm, bbox=voi, max_bytes=max_bytes)
-        return scale.fetch(voi=voi)
+        return scale.fetch(voi=voi, **kwargs)
 
     def get_shape(self, resolution_mm=None, max_bytes: float = MAX_BYTES):
         scale = self._select_scale(resolution_mm=resolution_mm, max_bytes=max_bytes)

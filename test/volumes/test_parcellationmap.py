@@ -273,30 +273,33 @@ class TestMap(unittest.TestCase):
     ])
     def test_fetch(self, args, kwargs, indices, mock_fetch_idx, volumes, expected_meshindex):
 
-        region_index_arg = args[0] if len(args) > 0 else None
+        region_arg = args[0] if len(args) > 0 else None
+
         region_kwarg = kwargs.get("region")
         index_kwarg = kwargs.get("index")
 
         expected_error = None
 
-        len_arg = len([arg for arg in [region_index_arg, region_kwarg, index_kwarg] if arg is not None])
+        len_arg = len([arg for arg in [region_arg, region_kwarg, index_kwarg] if arg is not None])
 
-        index = index_kwarg or (region_index_arg if isinstance(region_index_arg, MapIndex) else None)
-        region = region_kwarg or (region_index_arg if isinstance(region_index_arg, (str, Region)) else None)
-
-        if len_arg == 0 and len(volumes) != 1:
-            expected_error = NoVolumeFound
-        elif len_arg > 1:
-            expected_error = ExcessiveArgumentException
-        elif (
-            index is not None
-            and index.fragment is not None
-            and kwargs.get("fragment") is not None
-            and index.fragment != kwargs.get("fragment")
-        ):
-            expected_error = ConflictingArgumentException
-        elif len(volumes) == 0:
-            expected_error = IndexError
+        index = index_kwarg
+        region = region_kwarg or (region_arg if isinstance(region_arg, (str, Region)) else None)
+        if "region" in kwargs or isinstance(region_arg, MapIndex):
+            expected_error = TypeError
+        else:
+            if len_arg == 0 and len(volumes) != 1:
+                expected_error = NoVolumeFound
+            elif len_arg > 1:
+                expected_error = ExcessiveArgumentException
+            elif (
+                index is not None
+                and index.fragment is not None
+                and kwargs.get("fragment") is not None
+                and index.fragment != kwargs.get("fragment")
+            ):
+                expected_error = ConflictingArgumentException
+            elif len(volumes) == 0:
+                expected_error = IndexError
 
         mock_map_index = MapIndex(0, 0)
         if index is None:
@@ -343,9 +346,8 @@ class TestMap(unittest.TestCase):
                     fragment=expected_fragment_kwarg,
                     label=expected_label_kwarg
                 )
-            except AssertionError:
-                import pdb
-                pdb.set_trace()
+            except AssertionError as e:
+                print(e)
             self.assertIs(actual_fetch_result, selected_volume.fetch.return_value)
 
     @parameterized.expand(

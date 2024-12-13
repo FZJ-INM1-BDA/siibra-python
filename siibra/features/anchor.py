@@ -19,7 +19,7 @@ from ..commons import Species, logger
 from ..core.structure import BrainStructure
 from ..core.assignment import AnatomicalAssignment, Qualification
 from ..locations.location import Location
-from ..core.parcellation import Parcellation
+from ..core.parcellation import Parcellation, find_regions
 from ..core.region import Region
 from ..core.space import Space
 from ..exceptions import SpaceWarpingFailedError
@@ -126,13 +126,13 @@ class AnatomicalAnchor:
             # decode the region specification into a dict of region objects and assignment qualifications
             regions = {
                 region: Qualification.EXACT
-                for region in Parcellation.find_regions(self._regionspec)
+                for region in find_regions(self._regionspec, filter_children=True, find_topmost=False)
                 if region.species in self.species
             }
             # add more regions from possible aliases of the region spec
             for alt_species, aliases in self.region_aliases.items():
                 for alias_regionspec, qualificationspec in aliases.items():
-                    for r in Parcellation.find_regions(alias_regionspec):
+                    for r in find_regions(alias_regionspec, filter_children=True, find_topmost=False):
                         if r.species != alt_species:
                             continue
                         if r not in regions:
@@ -156,18 +156,17 @@ class AnatomicalAnchor:
         else:
             return region + separator + location
 
-    def assign(self, concept: BrainStructure, restrict_space: bool = False) -> AnatomicalAssignment:
+    def assign(self, concept: Union[BrainStructure, Space]) -> AnatomicalAssignment:
         """
         Match this anchor to a query concept. Assignments are cached at runtime,
         so repeated assignment with the same concept will be cheap.
         """
-        if (
-            restrict_space
-            and self.location is not None
-            and isinstance(concept, Location)
-            and not self.location.space.matches(concept.space)
-        ):
-            return []
+        if isinstance(concept, Space):
+            if self.location is not None and self.location.space.matches(concept):
+                return [AnatomicalAssignment(concept, self.location, Qualification.CONTAINED)]
+            else:
+                return []
+
         if concept not in self._assignments:
             assignments: List[AnatomicalAssignment] = []
             if self.location is not None:
@@ -184,8 +183,8 @@ class AnatomicalAnchor:
             else None
         return self._assignments[concept]
 
-    def matches(self, concept: BrainStructure, restrict_space: bool = False) -> bool:
-        return len(self.assign(concept, restrict_space)) > 0
+    def matches(self, concept: Union[BrainStructure, Space]) -> bool:
+        return len(self.assign(concept)) > 0
 
     def represented_parcellations(self) -> List[Parcellation]:
         """
