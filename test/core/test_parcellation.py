@@ -1,7 +1,4 @@
 import unittest
-from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType, find_regions
-from siibra.core.region import Region
-from siibra.commons import Species, MapIndex
 from uuid import uuid4
 from parameterized import parameterized
 from unittest.mock import patch, MagicMock
@@ -10,11 +7,11 @@ from typing import Tuple, Union, NamedTuple
 from itertools import product, starmap
 import pytest
 
-from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType
+from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType, find_regions
 from siibra.core.region import Region
 from siibra.commons import Species
-import siibra
 from siibra.exceptions import NoMapMatchingValues
+import siibra
 
 correct_json = {
     "name": "foobar",
@@ -266,6 +263,7 @@ class TestParcellation(unittest.TestCase):
     def test_get_region(self, regionspec, find_topmost, allow_tuple, result):
         self.parc.children = [region_parent]
         self.assertIs(self.parc.get_region(regionspec, find_topmost, allow_tuple), result)
+
 
 @pytest.mark.parametrize('space_id,parc_id,map_type', [
     ('waxholm', 'waxholm v4', 'labelled')
