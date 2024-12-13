@@ -24,7 +24,7 @@ def xfail_if_allen_api_unavailable(test_func):
             pytest.xfail(
                 f"Skipping test {test_func.__name__} due to invalid response from Allen API:\n{e}"
             )
-        except RequestException as e:
+        except (RequestException, siibra.retrieval.requests.SiibraHttpRequestError) as e:
             pytest.xfail(
                 f"Skipping test {test_func.__name__} due to request error from Allen API:\n{e}"
             )

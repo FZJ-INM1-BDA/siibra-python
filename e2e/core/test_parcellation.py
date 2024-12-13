@@ -64,5 +64,5 @@ def test_region_id_uniqueness(parcellation: Parcellation):
                 pytest.xfail(f"'{region.id}' in {parcellation.name} is expected to fail.")
             duplicates.add(region.id)
         ids.add(region)
-    
+
     assert len(duplicates) == 0, f"Folowing regions a duplicate IDs in {parcellation.name}:\n{duplicates}"
