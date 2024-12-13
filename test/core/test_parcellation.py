@@ -1,4 +1,7 @@
 import unittest
+from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType, find_regions
+from siibra.core.region import Region
+from siibra.commons import Species, MapIndex
 from uuid import uuid4
 from parameterized import parameterized
 from unittest.mock import patch, MagicMock
@@ -35,6 +38,15 @@ class DummyParcellation:
     def __init__(self, children) -> None:
         self.children = children
         self.parent = None
+        for c in children:
+            c.parent = self
+        self.find = MagicMock()
+
+
+class DummyRegion:
+    def __init__(self, root, children) -> None:
+        self.children = children
+        self.root = root
         for c in children:
             c.parent = self
         self.find = MagicMock()
@@ -203,27 +215,43 @@ class TestParcellation(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (True,),
-            (False,),
+            (True, ),
+            (False, ),
         ]
     )
-    def test_find_regions(self, parents_only):
-        Parcellation._CACHED_REGION_SEARCHES = {}
+    def test_find_regions(self, filter_children):
+        find_topmost = False  # adds parents if children is matched but parent is not. works only if filter_children is True.
         with patch.object(Parcellation, "registry") as parcellation_registry_mock:
             parc1 = DummyParcellation([])
             parc2 = DummyParcellation([])
-            parc3 = DummyParcellation([parc1, parc2])
+            parc3 = DummyParcellation([])
+            parc3.children = [
+                DummyRegion(parc3, []),
+                DummyRegion(parc3, []),
+                DummyRegion(parc3, []),
+                DummyRegion(parc3, []),
+            ]
 
-            for p in [parc1, parc2, parc3]:
-                p.find.return_value = [p]
             parcellation_registry_mock.return_value = [parc1, parc2, parc3]
 
-            result = Parcellation.find_regions("fooz", parents_only)
+            for p in [parc1, parc2, parc3]:
+                if filter_children:
+                    p.find.return_value = [p]
+                else:
+                    p.find.return_value = [p] + p.children
+
+            result = find_regions("fooz", filter_children, find_topmost)
 
             parcellation_registry_mock.assert_called_once()
             for p in [parc1, parc2, parc3]:
-                p.find.assert_called_once_with(regionspec="fooz")
-            self.assertEqual(result, [parc3] if parents_only else [parc1, parc2, parc3])
+                p.find.assert_called_once_with(
+                    regionspec="fooz",
+                    filter_children=filter_children,
+                    find_topmost=find_topmost
+                )
+
+            expected_result = [parc1, parc2, parc3] if filter_children else [parc1, parc2, parc3] + parc3.children
+            self.assertEqual(result, expected_result)
 
     @parameterized.expand([
         # partial matches work
@@ -238,7 +266,6 @@ class TestParcellation(unittest.TestCase):
     def test_get_region(self, regionspec, find_topmost, allow_tuple, result):
         self.parc.children = [region_parent]
         self.assertIs(self.parc.get_region(regionspec, find_topmost, allow_tuple), result)
-
 
 @pytest.mark.parametrize('space_id,parc_id,map_type', [
     ('waxholm', 'waxholm v4', 'labelled')
