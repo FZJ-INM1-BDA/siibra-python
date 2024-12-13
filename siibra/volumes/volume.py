@@ -19,9 +19,9 @@ from .providers import provider as _provider
 from .. import logger
 from ..retrieval import requests
 from ..core import space as _space, structure
-from ..locations import location, point, pointset, boundingbox
+from ..locations import point, pointset, boundingbox
 from ..commons import resample_img_to_img, siibra_tqdm, affine_scaling, connected_components
-from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
+from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError, EmptyPointSetError
 
 from dataclasses import dataclass
 from nibabel import Nifti1Image
@@ -92,7 +92,7 @@ class ComponentSpatialProperties:
         return spatial_props
 
 
-class Volume(location.Location):
+class Volume(structure.BrainStructure):
     """
     A volume is a specific mesh or 3D array,
     which can be accessible via multiple providers in different formats.
@@ -200,9 +200,22 @@ class Volume(location.Location):
         RuntimeError
             If the volume provider does not have a bounding box calculator.
         """
-        if self._boundingbox is not None and len(fetch_kwargs) == 0:
-            return self._boundingbox
+        # if self._boundingbox is not None and len(fetch_kwargs) == 0:
+        #     return self._boundingbox
 
+        if not self.provides_image:
+            raise NotImplementedError("Bounding box calculation of meshes is not implemented yet.")
+
+        if clip:  # clippin requires fetching the image
+            img = self.fetch(**fetch_kwargs)
+            assert isinstance(img, Nifti1Image)
+            return boundingbox.from_array(
+                array=np.asanyarray(img.dataobj),
+                background=background,
+            ).transform(img.affine, space=self.space)
+
+        # if clipping is not required, providers migth have methods of creating
+        # bounding boxes without fetching the image
         fmt = fetch_kwargs.get("format")
         if (fmt is not None) and (fmt not in self.formats):
             raise ValueError(
@@ -212,15 +225,15 @@ class Volume(location.Location):
         providers = [self._providers[fmt]] if fmt else self._providers.values()
         for provider in providers:
             try:
+                assert clip is False
                 bbox = provider.get_boundingbox(
-                    clip=clip, background=background, **fetch_kwargs
+                    background=background, **fetch_kwargs
                 )
-                if bbox.space is None:  # provider does usually not know the space!
+                if bbox.space is None:  # provider do not know the space!
                     bbox._space_cached = self.space
                     bbox.minpoint._space_cached = self.space
                     bbox.maxpoint._space_cached = self.space
-            except NotImplementedError as e:
-                logger.info(e)
+            except NotImplementedError:
                 continue
             return bbox
         raise RuntimeError(f"No bounding box specified by any volume provider of {str(self)}")
@@ -377,22 +390,15 @@ class Volume(location.Location):
             newlabels=None if keep_labels else inside
         )
 
-    def union(self, other: location.Location):
-        if isinstance(other, Volume):
-            return merge([self, other])
-        else:
-            raise NotImplementedError(
-                f"There are no union method for {(self.__class__.__name__, other.__class__.__name__)}"
-            )
-
     def intersection(self, other: structure.BrainStructure, **fetch_kwargs) -> structure.BrainStructure:
         """
         Compute the intersection of a location with this volume. This will
         fetch actual image data. Any additional arguments are passed to fetch.
         """
         if isinstance(other, (pointset.PointSet, point.Point)):
-            points_inside = self._points_inside(other, keep_labels=False, **fetch_kwargs)
-            if len(points_inside) == 0:
+            try:
+                points_inside = self._points_inside(other, keep_labels=False, **fetch_kwargs)
+            except EmptyPointSetError:
                 return None  # BrainStructure.intersects checks for not None
             if isinstance(other, point.Point):  # preserve the type
                 return points_inside[0]
@@ -400,6 +406,8 @@ class Volume(location.Location):
         elif isinstance(other, boundingbox.BoundingBox):
             return self.get_boundingbox(clip=True, background=0.0, **fetch_kwargs).intersection(other)
         elif isinstance(other, Volume):
+            if self.space != other.space:
+                raise NotImplementedError("Cannot intersect volumes from different spaces. Try comparing their boudning boxes.")
             format = fetch_kwargs.pop('format', 'image')
             v1 = self.fetch(format=format, **fetch_kwargs)
             v2 = other.fetch(format=format, **fetch_kwargs)
@@ -420,15 +428,6 @@ class Volume(location.Location):
                 return other.intersection(self)
             except NoMapAvailableError:
                 return None
-
-    def transform(self, affine: np.ndarray, space=None):
-        raise NotImplementedError("Volume transformation is not yet implemented.")
-
-    def warp(self, space):
-        if self.space.matches(space):
-            return self
-        else:
-            raise SpaceWarpingFailedError('Warping of full volumes is not yet supported.')
 
     def fetch(
         self,
@@ -560,7 +559,7 @@ class Volume(location.Location):
             found by skimage.measure.label.
         """
         assert self.provides_image, NotImplementedError("Spatial properties can currently on be calculated for images.")
-        img = self.fetch(format="image", **fetch_kwargs)
+        img = self.fetch(format=fetch_kwargs.pop("format", "image"), **fetch_kwargs)
         return ComponentSpatialProperties.compute_from_image(
             img=img,
             space=self.space,
@@ -620,6 +619,91 @@ class Volume(location.Location):
         return points
 
 
+class FilteredVolume(Volume):
+
+    def __init__(
+        self,
+        parent_volume: Volume,
+        label: int = None,
+        fragment: str = None,
+        threshold: float = None,
+    ):
+        """
+        A prescribed Volume to fetch specified label and fragment.
+        If threshold is defined, a mask of the values above the threshold.
+
+        Parameters
+        ----------
+        parent_volume : Volume
+        label : int, default: None
+            Get the mask of value equal to label.
+        fragment : str, default None
+            If a volume is fragmented, get a specified one.
+        threshold : float, default None
+            Provide a float value to threshold the image.
+        """
+        name = parent_volume.name
+        if label:
+            name += f" - label: {label}"
+        if fragment:
+            name += f" - fragment: {fragment}"
+        if threshold:
+            name += f" - threshold: {threshold}"
+        Volume.__init__(
+            self,
+            space_spec=parent_volume._space_spec,
+            providers=list(parent_volume._providers.values()),
+            name=name
+        )
+        self.fragment = fragment
+        self.label = label
+        self.threshold = threshold
+
+    def fetch(
+        self,
+        format: str = None,
+        **kwargs
+    ):
+        if "fragment" in kwargs:
+            assert kwargs.get("fragment") == self.fragment, f"This is a filtered volume that can only fetch fragment '{self.fragment}'."
+        else:
+            kwargs["fragment"] = self.fragment
+        if "label" in kwargs:
+            assert kwargs.get("label") == self.label, f"This is a filtered volume that can only fetch label '{self.label}' only."
+        else:
+            kwargs["label"] = self.label
+
+        result = super().fetch(format=format, **kwargs)
+
+        if self.threshold is not None:
+            assert self.label is None
+            if not isinstance(result, Nifti1Image):
+                raise NotImplementedError("Cannot threshold meshes.")
+            imgdata = np.asanyarray(result.dataobj)
+            return Nifti1Image(
+                dataobj=(imgdata > self.threshold).astype("uint8"),
+                affine=result.affine,
+                dtype="uint8"
+            )
+
+        return result
+
+    def get_boundingbox(
+        self,
+        clip: bool = True,
+        background: float = 0.0,
+        **fetch_kwargs
+    ) -> "boundingbox.BoundingBox":
+        # NOTE: since some providers enable different simpllified ways to create a
+        # bounding box without fetching the image, the correct kwargs must be
+        # forwarded since FilteredVolumes enforce their specs to be fetched.
+        return super().get_boundingbox(
+            clip=clip,
+            background=background,
+            **fetch_kwargs
+        )
+
+
 class Subvolume(Volume):
     """
     Wrapper class for exposing a z level of a 4D volume to be used like a 3D volume.
@@ -632,7 +716,8 @@ class Subvolume(Volume):
             providers=[
                 _provider.SubvolumeProvider(p, z=z)
                 for p in parent_volume._providers.values()
-            ]
+            ],
+            name=parent_volume.name + f" - z: {z}"
         )
 
 
@@ -745,7 +830,7 @@ def from_pointset(
 
 def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volume:
     """
-    Merge a list of volumes in the same space into a single volume.
+    Merge a list of nifti volumes in the same space into a single volume.
 
     Note
     ----
@@ -773,8 +858,14 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
     space = volumes[0].space
     assert all(v.space == space for v in volumes), "Cannot merge volumes from different spaces."
 
+    if len(labels) > 0:
+        dtype = 'int32'
+    elif FilteredVolume in {type(v) for v in volumes}:
+        dtype = 'uint8'
+    else:
+        dtype = volumes[0].fetch().dataobj.dtype
     template_img = space.get_template().fetch(**fetch_kwargs)
-    merged_array = np.zeros(template_img.shape, dtype='uint8')
+    merged_array = np.zeros(template_img.shape, dtype=dtype)
 
     for i, vol in siibra_tqdm(
         enumerate(volumes),

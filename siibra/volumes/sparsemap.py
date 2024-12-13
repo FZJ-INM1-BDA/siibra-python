@@ -18,22 +18,26 @@ from . import parcellationmap, volume as _volume
 from .providers import provider
 from ..commons import MapIndex, logger, connected_components, siibra_tqdm
 from ..locations import boundingbox
-from ..retrieval import cache
-from ..retrieval.repositories import ZipfileConnector, GitlabConnector
-from ..exceptions import InsufficientArgumentException, ExcessiveArgumentException
+from ..retrieval.cache import CACHE
+from ..retrieval.requests import HttpRequest, FileLoader
 
-from os import path, rename, makedirs
-from zipfile import ZipFile, ZIP_DEFLATED
-import gzip
-from typing import Dict, Union, TYPE_CHECKING, List
+from os import path, makedirs
+from typing import Dict, List
 from nilearn import image
 import numpy as np
 
-if TYPE_CHECKING:
-    from ..core.region import Region
-
 
 class SparseIndex:
+
+    # Precomputed sparse indices are stored in an EBRAINS data proxy
+    _BUCKET = "https://data-proxy.ebrains.eu/api/v1/buckets/reference-atlas-data/"
+    _DATAPROXY_BASEURL = _BUCKET + "sparse-indices/sparse-indices-siibra_python_v1.0/"
+
+    _SUFFIXES = {
+        "probs": ".sparseindex_v1.probs.txt.gz",
+        "bboxes": ".sparseindex_v1.bboxes.txt.gz",
+        "voxels": ".sparseindex_v1.voxels.nii.gz"
+    }
 
     def __init__(self):
         self.probs = []
@@ -111,20 +115,101 @@ class SparseIndex:
         v = [self.probs[i][volume] for i in self.voxels[x, y, z]]
         return x, y, z, v
 
-    def _to_local_cache(self, cache_prefix: str):
+    @classmethod
+    def load(cls, filepath_or_url: str) -> "SparseIndex":
         """
-        Serialize this index to the cache, using the given prefix for the cache
-        filenames.
+        Loads a precomputed SparseIndex to the memory.
+
+        Parameters
+        ----------
+        filepath_or_url: str
+            Path/url to the SparseIndex files
+            (eg. https://url_to_files/basefilename):
+            - basefilename.sparseindex_v1.probs.txt.gz
+            - basefilename.sparseindex_v1.bboxes.txt.gz
+            - basefilename.sparseindex_v1.voxels.nii.gz
+
+        Returns
+        -------
+        SparseIndex
+        """
+        from gzip import decompress
+        spindtxt_decoder = lambda b: decompress(b).decode('utf-8').strip().splitlines()
+
+        probsfile = filepath_or_url + SparseIndex._SUFFIXES["probs"]
+        bboxfile = filepath_or_url + SparseIndex._SUFFIXES["bboxes"]
+        voxelfile = filepath_or_url + SparseIndex._SUFFIXES["voxels"]
+        if all(path.isfile(f) for f in [probsfile, bboxfile, voxelfile]):
+            request = FileLoader
+        else:
+            request = HttpRequest
+
+        result = cls()
+
+        voxels = request(voxelfile).get()
+        result.voxels = np.asanyarray(voxels.dataobj)
+        result.affine = voxels.affine
+        result.shape = voxels.shape
+
+        lines_probs = request(probsfile, func=spindtxt_decoder).get()
+        for line in siibra_tqdm(
+            lines_probs,
+            total=len(lines_probs),
+            desc="Loading sparse index",
+            unit="voxels"
+        ):
+            fields = line.strip().split(" ")
+            mapindices = list(map(int, fields[0::2]))
+            values = list(map(float, fields[1::2]))
+            D = dict(zip(mapindices, values))
+            result.probs.append(D)
+
+        lines_bboxes = request(bboxfile, func=spindtxt_decoder).get()
+        for line in lines_bboxes:
+            fields = line.strip().split(" ")
+            result.bboxes.append({
+                "minpoint": tuple(map(int, fields[:3])),
+                "maxpoint": tuple(map(int, fields[3:])),
+            })
+
+        return result
+
+    def save(self, base_filename: str, folder: str = ""):
+        """
+        Save SparseIndex (3x) files to under the folder `folder`
+        with base_filename. If SparseIndex is not cached, siibra will first
+        create it first.
+
+        Parameters
+        ----------
+        base_filename: str
+            The files that will be created as:
+            - base_filename.sparseindex_v1.probs.txt.gz
+            - base_filename.sparseindex_v1.bboxes.txt.gz
+            - base_filename.sparseindex_v1.voxels.nii.gz
+
+        folder: str, default=""
         """
         from nibabel import Nifti1Image
-        probsfile = cache.CACHE.build_filename(f"{cache_prefix}", suffix="probs.txt.gz")
-        bboxfile = cache.CACHE.build_filename(f"{cache_prefix}", suffix="bboxes.txt.gz")
-        voxelfile = cache.CACHE.build_filename(f"{cache_prefix}", suffix="voxels.nii.gz")
-        Nifti1Image(self.voxels, self.affine).to_filename(voxelfile)
-        with gzip.open(probsfile, 'wt') as f:
+        import gzip
+
+        fullpath = path.join(folder, base_filename)
+        logger.info(f"Saving SparseIndex to '{base_filename}' with suffixes {SparseIndex._SUFFIXES}")
+
+        if folder and not path.isdir(folder):
+            makedirs(folder)
+
+        Nifti1Image(self.voxels, self.affine).to_filename(
+            fullpath + SparseIndex._SUFFIXES["voxels"]
+        )
+        with gzip.open(fullpath + SparseIndex._SUFFIXES["probs"], 'wt') as f:
             for D in self.probs:
-                f.write("{}\n".format(" ".join(f"{i} {p}" for i, p in D.items())))
-        with gzip.open(bboxfile, "wt") as f:
+                f.write(
+                    "{}\n".format(
+                        " ".join(f"{i} {p}" for i, p in D.items())
+                    )
+                )
+        with gzip.open(fullpath + SparseIndex._SUFFIXES["bboxes"], "wt") as f:
             for bbox in self.bboxes:
                 f.write(
                     "{} {}\n".format(
@@ -132,63 +217,18 @@ class SparseIndex:
                         " ".join(map(str, bbox["maxpoint"])),
                     )
                 )
+        logger.info(f"SparseIndex is saved to {fullpath}.")
 
-    @staticmethod
-    def _from_local_cache(cache_name: str):
-        """
-        Attempts to build a sparse index from the siibra cache, looking for
-        suitable cache files with the specified prefix.
-
-        Parameters
-        ----------
-        prefix: str
-            Prefix of the filenames.
-
-        Returns
-        -------
-        SparseIndex
-            None if cached files are not found or suitable.
-        """
-        from nibabel import load
-
-        probsfile = cache.CACHE.build_filename(f"{cache_name}", suffix="probs.txt.gz")
-        bboxfile = cache.CACHE.build_filename(f"{cache_name}", suffix="bboxes.txt.gz")
-        voxelfile = cache.CACHE.build_filename(f"{cache_name}", suffix="voxels.nii.gz")
-        if not all(path.isfile(f) for f in [probsfile, bboxfile, voxelfile]):
-            return None
-
-        result = SparseIndex()
-
-        voxels = load(voxelfile)
-        result.voxels = np.asanyarray(voxels.dataobj)
-        result.affine = voxels.affine
-        result.shape = voxels.shape
-
-        with gzip.open(probsfile, "rt") as f:
-            lines = f.readlines()
-            for line in siibra_tqdm(
-                lines,
-                total=len(lines),
-                desc="Loading sparse index",
-                unit="voxels"
+    @classmethod
+    def from_sparsemap(cls, sparsemap: "SparseMap") -> "SparseIndex":
+        with provider.SubvolumeProvider.UseCaching():
+            spind = cls()
+            for img in siibra_tqdm(
+                sparsemap.fetch_iter(), total=len(sparsemap), unit="maps",
+                desc="Fetching volumetric maps and computing SparseIndex"
             ):
-                fields = line.strip().split(" ")
-                mapindices = list(map(int, fields[0::2]))
-                values = list(map(float, fields[1::2]))
-                D = dict(zip(mapindices, values))
-                result.probs.append(D)
-
-        with gzip.open(bboxfile, "rt") as f:
-            for line in f:
-                fields = line.strip().split(" ")
-                result.bboxes.append(
-                    {
-                        "minpoint": tuple(map(int, fields[:3])),
-                        "maxpoint": tuple(map(int, fields[3:])),
-                    }
-                )
-
-        return result
+                spind.add_img(np.asanyarray(img.dataobj), img.affine)
+        return spind
 
 
 class SparseMap(parcellationmap.Map):
@@ -210,10 +250,6 @@ class SparseMap(parcellationmap.Map):
     the unique voxel where ``spatial_index == i``. The assignment maps from a MapIndex
     to the actual (probability) value.
     """
-
-    # A gitlab instance with holds precomputed sparse indices
-    _GITLAB_SERVER = 'https://jugit.fz-juelich.de'
-    _GITLAB_PROJECT = 5779
 
     def __init__(
         self,
@@ -249,39 +285,25 @@ class SparseMap(parcellationmap.Map):
 
     @property
     def _cache_prefix(self):
-        return f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index"
+        return CACHE.build_filename(f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index")
 
     @property
     def sparse_index(self):
         if self._sparse_index_cached is None:
-            spind = SparseIndex._from_local_cache(self._cache_prefix)
-            if spind is None:
-                logger.info("Downloading precomputed SparseIndex...")
-                gconn = GitlabConnector(self._GITLAB_SERVER, self._GITLAB_PROJECT, "main")
-                zip_fname = f"{self.name.replace(' ', '_').replace('statistical', 'continuous')}_index.zip"
+            try:  # try loading from cache on disk
+                spind = SparseIndex.load(self._cache_prefix)
+            except Exception:
+                spind = None
+            if spind is None:  # try from precomputed source
                 try:
-                    assert zip_fname in gconn.search_files(), f"{zip_fname} is not in {gconn}."
-                    zipfile = gconn.get_loader(zip_fname).url
-                    spind = self.load_zipped_sparseindex(zipfile)
+                    logger.info("Downloading and loading precomputed SparseIndex...")
+                    fname = f"{self.name.replace(' ', '_').replace('statistical', 'continuous')}"
+                    spind = SparseIndex.load(SparseIndex._DATAPROXY_BASEURL + fname)
                 except Exception:
-                    logger.info("Failed to load precomputed SparseIndex from Gitlab.")
-                    logger.debug(f"Could not load SparseIndex from Gitlab at {gconn}", exc_info=1)
-            if spind is None:
-                with provider.SubvolumeProvider.UseCaching():
-                    spind = SparseIndex()
-                    for vol in siibra_tqdm(
-                        range(len(self)), total=len(self), unit="maps",
-                        desc=f"Fetching {len(self)} volumetric maps"
-                    ):
-                        img = super().fetch(
-                            index=MapIndex(volume=vol, label=None)
-                        )
-                        if img is None:
-                            region = self.get_region(volume=vol)
-                            logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
-                            continue
-                        spind.add_img(np.asanyarray(img.dataobj), img.affine)
-                    spind._to_local_cache(self._cache_prefix)
+                    logger.error("Failed to download precomputed SparseIndex.", exc_info=1)
+            if spind is None:  # Download each map and compute the SparseIndex
+                spind = SparseIndex.from_sparsemap(self)
+                spind.save(self._cache_prefix, folder=CACHE.folder)
             self._sparse_index_cached = spind
         assert self._sparse_index_cached.max() == len(self._sparse_index_cached.probs) - 1
         return self._sparse_index_cached
@@ -293,148 +315,6 @@ class SparseMap(parcellationmap.Map):
     @property
     def shape(self):
         return self.sparse_index.shape
-
-    def save_sparseindex(self, destination: str, filename: str = None):
-        """
-        Save SparseIndex as a .zip in destination folder from local cache. If
-        SparseIndex is not cached, siibra will firt create it first.
-
-        Parameters
-        ----------
-        destination: str
-            The path where the zip file will be created.
-        filename: str, default=None
-            Name of the zip and prefix of the SparseIndex files. If None, siibra
-            uses `name` property.
-        """
-        if filename is None:
-            filename = f"{self.name.replace(' ', '_')}_index"
-        logger.info(f"Saving SparseIndex of '{self.name}' as '{filename}.zip'")
-        if not path.isdir(destination):
-            makedirs(destination)
-        if self._sparse_index_cached is None:
-            _ = self.sparse_index
-        suffices = [".probs.txt.gz", ".bboxes.txt.gz", ".voxels.nii.gz"]
-        try:
-            with ZipFile(f"{destination}/{filename}.zip", 'w') as zipf:
-                for suffix in suffices:
-                    zipf.write(
-                        filename=cache.CACHE.build_filename(self._cache_prefix, suffix),
-                        arcname=path.basename(f"{filename}{suffix}"),
-                        compress_type=ZIP_DEFLATED
-                    )
-        except Exception as e:
-            logger.error("Could not save SparseIndex:\n")
-            raise e
-        logger.info("SparseIndex is saved.")
-
-    def load_zipped_sparseindex(self, zipfname: str):
-        """
-        Load SparseIndex from previously computed source and creates a local
-        cache.
-
-        Parameters
-        ----------
-        zipfile: str
-            A url or a path to zip file containing the SparseIndex files for
-            this SparseMap precomputed by siibra.
-
-        Returns
-        -------
-        SparseIndex
-        """
-        zconn = ZipfileConnector(zipfname)
-        with ZipFile(zconn.zipfile, 'r') as zp:
-            suffices = [".probs.txt.gz", ".bboxes.txt.gz", ".voxels.nii.gz"]
-            for suffix in suffices:
-                file = [f for f in zconn.search_files(suffix=suffix)]
-                assert len(file) == 1, f"Could not find a unique '{suffix}' file in {zipfname}."
-                zp.extract(file[0], cache.CACHE.folder)
-                rename(
-                    path.join(cache.CACHE.folder, file[0]),
-                    cache.CACHE.build_filename(self._cache_prefix, suffix=suffix)
-                )
-        zconn.clear_cache()
-
-        return SparseIndex._from_local_cache(self._cache_prefix)
-
-    def fetch(
-        self,
-        region_or_index: Union[MapIndex, str, 'Region'] = None,
-        *,
-        index: MapIndex = None,
-        region: Union[str, 'Region'] = None,
-        **kwargs
-    ):
-        """
-        Recreate a particular volumetric map from the sparse
-        representation.
-
-        Parameters
-        ----------
-        region_or_index: str, Region, MapIndex
-            Lazy match the specification.
-        index : MapIndex
-            The index to be fetched.
-        region: str, Region
-            Region name specification. If given, will be used to decode the map
-            index of a particular region.
-
-        Returns
-        -------
-        An image or mesh
-        """
-        if kwargs.get('format') in ['mesh'] + _volume.Volume.MESH_FORMATS:
-            # a mesh is requested, this is not handled by the sparse map
-            return super().fetch(region_or_index, index=index, region=region, **kwargs)
-
-        try:
-            length = len([arg for arg in [region_or_index, region, index] if arg is not None])
-            assert length == 1
-        except AssertionError:
-            if length > 1:
-                raise ExcessiveArgumentException(
-                    "One and only one of region_or_index, region, index can be defined for fetch"
-                )
-            # user can provide no arguments, which assumes one and only one volume present
-
-        if isinstance(region_or_index, MapIndex):
-            index = region_or_index
-
-        from ..core.region import Region
-        if isinstance(region_or_index, (str, Region)):
-            region = region_or_index
-
-        volidx = None
-        if index is not None:
-            assert isinstance(index, MapIndex)
-            volidx = index.volume
-        if region is not None:
-            index = self.get_index(region)
-            assert index is not None
-            volidx = index.volume
-
-        if volidx is None:
-            try:
-                assert len(self) == 1
-                volidx = 0
-            except AssertionError:
-                raise InsufficientArgumentException(
-                    f"{self.__class__.__name__} provides {len(self)} volumes. "
-                    "Specify 'region' or 'index' for fetch() to identify one."
-                )
-
-        assert isinstance(volidx, int)
-        x, y, z, v = self.sparse_index.mapped_voxels(volidx)
-        result = np.zeros(self.shape, dtype=np.float32)
-        result[x, y, z] = v
-        volume = _volume.from_array(
-            data=result,
-            affine=self.affine,
-            space=self.space,
-            name=f"Sparse map of {region} from {self.parcellation} in {self.space}"
-        )
-        return volume.fetch()
 
     def _read_voxel(self, x, y, z):
         spind = self.sparse_index

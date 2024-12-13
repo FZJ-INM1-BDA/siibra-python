@@ -33,7 +33,6 @@ from ..commons import (
 )
 from ..core import concept, space, parcellation, region as _region
 from ..locations import location, point, pointset
-from ..retrieval import requests
 
 import numpy as np
 from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
@@ -319,69 +318,27 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def regions(self):
         return list(self._indices)
 
-    def fetch(
+    def get_volume(
         self,
-        region_or_index: Union[str, "Region", MapIndex] = None,
+        region: Union[str, "Region"] = None,
         *,
         index: MapIndex = None,
-        region: Union[str, "Region"] = None,
-        **kwargs
-    ):
-        """
-        Fetches one particular volume of this parcellation map.
-
-        If there's only one volume, this is the default, otherwise further
-        specification is requested:
-        - the volume index,
-        - the MapIndex (which results in a regional map being returned)
-
-        You might also consider fetch_iter() to iterate the volumes, or
-        compress() to produce a single-volume parcellation map.
-
-        Parameters
-        ----------
-        region_or_index: str, Region, MapIndex
-            Lazy match the specification.
-        index: MapIndex
-            Explicit specification of the map index, typically resulting
-            in a regional map (mask or statistical map) to be returned.
-            Note that supplying 'region' will result in retrieving the map index of that region
-            automatically.
-        region: str, Region
-            Specification of a region name, resulting in a regional map
-            (mask or statistical map) to be returned.
-        **kwargs
-            - resolution_mm: resolution in millimeters
-            - format: the format of the volume, like "mesh" or "nii"
-            - voi: a BoundingBox of interest
-
-
-            Note
-            ----
-            Not all keyword arguments are supported for volume formats. Format
-            is restricted by available formats (check formats property).
-
-        Returns
-        -------
-        An image or mesh
-        """
+        **kwargs,
+    ) -> Union[_volume.Volume, _volume.FilteredVolume, _volume.Subvolume]:
         try:
-            length = len([arg for arg in [region_or_index, region, index] if arg is not None])
+            length = len([arg for arg in [region, index] if arg is not None])
             assert length == 1
         except AssertionError:
             if length > 1:
-                raise exceptions.ExcessiveArgumentException("One and only one of region_or_index, region, index can be defined for fetch")
-            # user can provide no arguments, which assumes one and only one volume present
-
-        if isinstance(region_or_index, MapIndex):
-            index = region_or_index
-
-        if isinstance(region_or_index, (str, _region.Region)):
-            region = region_or_index
-
+                raise exceptions.ExcessiveArgumentException(
+                    "One and only one of region or index can be defined for `get_volume`."
+                )
         mapindex = None
         if region is not None:
-            assert isinstance(region, (str, _region.Region))
+            try:
+                assert isinstance(region, (str, _region.Region))
+            except AssertionError:
+                raise TypeError(f"Please provide a region name or region instance, not a {type(region)}")
             mapindex = self.get_index(region)
         if index is not None:
             assert isinstance(index, MapIndex)
@@ -396,12 +353,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 )
                 labels = list(range(len(self.volumes)))
                 merged_volume = _volume.merge(self.volumes, labels, **kwargs)
-                return merged_volume.fetch()
+                return merged_volume
             else:
                 raise exceptions.NoVolumeFound("Map provides no volumes.")
-
-        if "resolution_mm" in kwargs and kwargs.get("format") is None:
-            kwargs["format"] = 'neuroglancer/precomputed'
 
         kwargs_fragment = kwargs.pop("fragment", None)
         if kwargs_fragment is not None:
@@ -418,17 +372,60 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             raise IndexError(
                 f"{self} provides {len(self)} mapped volumes, but #{mapindex.volume} was requested."
             )
-        try:
-            result = self.volumes[mapindex.volume or 0].fetch(
-                fragment=mapindex.fragment, label=mapindex.label, **kwargs
-            )
-        except requests.SiibraHttpRequestError as e:
-            print(str(e))
+        if mapindex.label is None and mapindex.fragment is None:
+            return self.volumes[mapindex.volume]
 
-        if result is None:
-            raise RuntimeError(f"Error fetching {mapindex} from {self} as {kwargs.get('format', f'{self.formats}')}.")
+        return _volume.FilteredVolume(
+            parent_volume=self.volumes[mapindex.volume],
+            label=mapindex.label,
+            fragment=mapindex.fragment,
+        )
 
-        return result
+    def fetch(
+        self,
+        region: Union[str, "Region"] = None,
+        *,
+        index: MapIndex = None,
+        **fetch_kwargs
+    ):
+        """
+        Fetches one particular volume of this parcellation map.
+
+        If there's only one volume, this is the default, otherwise further
+        specification is requested:
+        - the volume index,
+        - the MapIndex (which results in a regional map being returned)
+
+        You might also consider fetch_iter() to iterate the volumes, or
+        compress() to produce a single-volume parcellation map.
+
+        Parameters
+        ----------
+        region: str, Region
+            Specification of a region name, resulting in a regional map
+            (mask or statistical map) to be returned.
+        index: MapIndex
+            Explicit specification of the map index, typically resulting
+            in a regional map (mask or statistical map) to be returned.
+            Note that supplying 'region' will result in retrieving the map index of that region
+            automatically.
+        **fetch_kwargs
+            - resolution_mm: resolution in millimeters
+            - format: the format of the volume, like "mesh" or "nii"
+            - voi: a BoundingBox of interest
+
+
+            Note
+            ----
+            Not all keyword arguments are supported for volume formats. Format
+            is restricted by available formats (check formats property).
+
+        Returns
+        -------
+        An image or mesh
+        """
+        vol = self.get_volume(region=region, index=index, **fetch_kwargs)
+        return vol.fetch(**fetch_kwargs)
 
     def fetch_iter(self, **kwargs):
         """
@@ -531,7 +528,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 disable=(len(self.fragments) == 1 or self.fragments is None)
             ):
                 mapindex = MapIndex(volume=volidx, fragment=frag)
-                img = self.fetch(mapindex)
+                img = self.fetch(index=mapindex)
                 if np.allclose(img.affine, result_affine):
                     img_data = np.asanyarray(img.dataobj)
                 else:
@@ -572,7 +569,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )]
         )
 
-    def compute_centroids(self, split_components: bool = True) -> Dict[str, pointset.PointSet]:
+    def compute_centroids(self, split_components: bool = True, **fetch_kwargs) -> Dict[str, pointset.PointSet]:
         """
         Compute a dictionary of all regions in this map to their centroids.
         By default, the regional masks will be split to connected components
@@ -589,6 +586,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Dict[str, point.Point]
             Region names as keys and computed centroids as items.
         """
+        assert self.provides_image, "Centroid computation for meshes is not supported yet."
         centroids = dict()
         for regionname, indexlist in siibra_tqdm(
             self._indices.items(), unit="regions", desc="Computing centroids"
@@ -600,7 +598,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     merged_volume = _volume.merge(
                         [
                             _volume.from_nifti(
-                                self.fetch(index=index),
+                                self.fetch(index=index, **fetch_kwargs),
                                 self.space,
                                 f"{self.name} - {index}"
                             )
@@ -611,13 +609,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     mapimg = merged_volume.fetch()
                 elif len(indexlist) == 1:
                     index = indexlist[0]
-                    mapimg = self.fetch(index=index)  # returns a mask of the region
+                    mapimg = self.fetch(index=index, **fetch_kwargs)  # returns a mask of the region
             props = _volume.ComponentSpatialProperties.compute_from_image(
                 img=mapimg,
                 space=self.space,
                 split_components=split_components,
             )
-            centroids[regionname] = pointset.from_points([c.centroid for c in props])
+            try:
+                centroids[regionname] = pointset.from_points([c.centroid for c in props])
+            except exceptions.EmptyPointSetError:
+                centroids[regionname] = None
         return centroids
 
     def get_resampled_template(self, **fetch_kwargs) -> _volume.Volume:

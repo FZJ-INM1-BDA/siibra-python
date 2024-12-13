@@ -85,7 +85,7 @@ class BoundingBox(location.Location):
                     self.maxpoint[d] = self.minpoint[d] + minsize
 
         if self.volume == 0:
-            logger.warning("Created BoundedBox's have zero volume.")
+            logger.warning(f"Zero-volume bounding box from points {point1} and {point2} in {self.space} space.")
 
     @property
     def id(self) -> str:
@@ -146,13 +146,13 @@ class BoundingBox(location.Location):
             return other if self.minpoint <= warped <= self.maxpoint else None
         if isinstance(other, pointset.PointSet):
             points_inside = [p for p in other if self.intersects(p)]
+            if len(points_inside) == 0:
+                return None
             result = pointset.PointSet(
                 points_inside,
                 space=other.space,
                 sigma_mm=[p.sigma for p in points_inside]
             )
-            if len(result) == 0:
-                return None
             return result[0] if len(result) == 1 else result  # if PointSet has single point return as a Point
 
         return other.intersection(self)
@@ -417,14 +417,15 @@ class BoundingBox(location.Location):
         return super().__hash__()
 
 
-def _determine_bounds(array: np.ndarray, threshold=0):
+def _determine_bounds(masked_array: np.ndarray, background: float = 0.0):
     """
-    Bounding box of nonzero values in a 3D array.
+    Bounding box of nonzero (background) values in a 3D array.
+
     https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
     """
-    x = np.any(array > threshold, axis=(1, 2))
-    y = np.any(array > threshold, axis=(0, 2))
-    z = np.any(array > threshold, axis=(0, 1))
+    x = np.any(masked_array != background, axis=(1, 2))
+    y = np.any(masked_array != background, axis=(0, 2))
+    z = np.any(masked_array != background, axis=(0, 1))
     nzx, nzy, nzz = [np.where(v) for v in (x, y, z)]
     if any(len(nz[0]) == 0 for nz in [nzx, nzy, nzz]):
         # empty array
@@ -435,15 +436,19 @@ def _determine_bounds(array: np.ndarray, threshold=0):
     return np.array([[xmin, xmax + 1], [ymin, ymax + 1], [zmin, zmax + 1], [1, 1]])
 
 
-def from_array(array: np.ndarray, threshold=0, space: "Space" = None) -> "BoundingBox":
+def from_array(
+    array: np.ndarray,
+    background: Union[int, float] = 0.0,
+    space: "Space" = None
+) -> BoundingBox:
     """
-    Find the bounding box of an array.
+    Find the bounding box of non-background values for any 3D array.
 
     Parameters
     ----------
-    array : np.ndarray
-    threshold : int, default: 0
-    space : Space, default: None
+    array: np.ndarray
+    background: int or float, default: 0.0
+    space: Space, default: None
     """
-    bounds = _determine_bounds(array, threshold)
-    return BoundingBox(bounds[:3, 0], bounds[:3, 1], space=space)
+    bounds = _determine_bounds(array, background)
+    return BoundingBox(point1=bounds[:3, 0], point2=bounds[:3, 1], space=space)

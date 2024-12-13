@@ -366,9 +366,6 @@ class MapType(Enum):
     STATISTICAL = 2
 
 
-SIIBRA_DEFAULT_MAPTYPE = MapType.LABELLED
-SIIBRA_DEFAULT_MAP_THRESHOLD = 0.0
-
 REMOVE_FROM_NAME = [
     "hemisphere",
     " -",
@@ -584,49 +581,6 @@ def connected_components(
         for label in component_labels
         if label > 0
     )
-
-
-class PolyLine:
-    """Simple polyline representation which allows equidistant sampling.."""
-
-    def __init__(self, pts):
-        self.pts = pts
-        self.lengths = [
-            np.sqrt(np.sum((pts[i, :] - pts[i - 1, :]) ** 2))
-            for i in range(1, pts.shape[0])
-        ]
-
-    def length(self):
-        return sum(self.lengths)
-
-    def sample(self, d):
-
-        # if d is interable, we assume a list of sample positions
-        try:
-            iter(d)
-        except TypeError:
-            positions = [d]
-        else:
-            positions = d
-
-        samples = []
-        for s_ in positions:
-            s = min(max(s_, 0), 1)
-            target_distance = s * self.length()
-            current_distance = 0
-            for i, length in enumerate(self.lengths):
-                current_distance += length
-                if current_distance >= target_distance:
-                    p1 = self.pts[i, :]
-                    p2 = self.pts[i + 1, :]
-                    r = (target_distance - current_distance + length) / length
-                    samples.append(p1 + (p2 - p1) * r)
-                    break
-
-        if len(samples) == 1:
-            return samples[0]
-        else:
-            return np.array(samples)
 
 
 def unify_stringlist(L: list):

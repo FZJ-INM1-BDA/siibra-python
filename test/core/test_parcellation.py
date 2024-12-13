@@ -14,6 +14,7 @@ from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType
 from siibra.core.region import Region
 from siibra.commons import Species
 import siibra
+from siibra.exceptions import NoMapMatchingValues
 
 correct_json = {
     "name": "foobar",
@@ -94,7 +95,7 @@ class TestParcellationVersion(unittest.TestCase):
 INCORRECT_MAP_TYPE = "incorrect_type"
 
 
-class InputMap(NamedTuple):
+class InputMapType(NamedTuple):
     input: Union[str, MapType]
     alias: MapType
 
@@ -133,10 +134,11 @@ class TestParcellation(unittest.TestCase):
             [None, "space arg", DummySpace()],
             # input, maptype
             [
-                InputMap(None, MapType.LABELLED),
-                InputMap("labelled", MapType.LABELLED),
-                InputMap(MapType.LABELLED, MapType.LABELLED),
-                InputMap(INCORRECT_MAP_TYPE, None),
+                InputMapType(None, None),
+                InputMapType("labelled", MapType.LABELLED),
+                InputMapType("Laballlled", None),
+                InputMapType(MapType.LABELLED, MapType.LABELLED),
+                InputMapType(INCORRECT_MAP_TYPE, None),
             ],
             # volume configuration
             product(
@@ -160,12 +162,11 @@ class TestParcellation(unittest.TestCase):
         )
     )
     def test_get_map(
-        self, space, maptype_input: InputMap, vol_spec: Tuple[MapConfig, MapConfig]
+        self, space, maptype_input: InputMapType, vol_spec: Tuple[MapConfig, MapConfig]
     ):
         from siibra.volumes import Map
 
         ExpectedException = None
-        expected_return_idx = None
 
         for idx, vol_s in enumerate(vol_spec):
             if (
@@ -175,9 +176,11 @@ class TestParcellation(unittest.TestCase):
             ):
                 expected_return_idx = idx
                 break
+        else:
+            ExpectedException = NoMapMatchingValues
 
         if maptype_input.alias is None:
-            ExpectedException = KeyError
+            ExpectedException = AssertionError if maptype_input.input is None else KeyError
 
         with patch.object(Map, "registry") as map_registry_mock:
             registry_return = [
@@ -208,7 +211,7 @@ class TestParcellation(unittest.TestCase):
             if expected_return_idx is not None:
                 self.assertIs(map, registry_return[expected_return_idx])
             else:
-                self.assertIsNone(map)
+                self.assertRaises(ExpectedException)
 
     @parameterized.expand(
         [

@@ -17,11 +17,20 @@ from . import region
 
 from ..commons import logger, MapType, Species
 from ..volumes import parcellationmap
+from ..exceptions import NoMapMatchingValues
 
-from typing import Union, List
-import re
 from functools import lru_cache
+import re
+from typing import Union, List, TYPE_CHECKING
+try:
+    from typing import Literal
+except ImportError:
+    # support python 3.7
+    from typing_extensions import Literal
 
+
+if TYPE_CHECKING:
+    from .space import Space
 
 # NOTE : such code could be used to automatically resolve
 # multiple matching parcellations for a short spec to the newset version:
@@ -139,7 +148,12 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
                     self._CACHED_MATCHES[spec] = True
         return super().matches(spec)
 
-    def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED, spec: str = ""):
+    def get_map(
+        self,
+        space: Union[str, "Space"],
+        maptype: Union[Literal['labelled', 'statistical'], MapType] = MapType.LABELLED,
+        spec: str = ""
+    ):
         """
         Get the maps for the parcellation in the requested template space.
 
@@ -152,8 +166,8 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         Parameters
         ----------
         space: Space or str
-            template space specification
-        maptype: MapType
+            reference space specification such as name, id, or a `Space` instance.
+        maptype: MapType or str
             Type of map requested (e.g., statistical or labelled).
             Use MapType.STATISTICAL to request probability maps.
             Defaults to MapType.LABELLED.
@@ -168,26 +182,24 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             A ParcellationMap representing the volumetric map or
             a SparseMap representing the list of statistical maps.
         """
-        if not isinstance(maptype, MapType):
+        if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
+        assert isinstance(maptype, MapType), "Possible values of `maptype` are `MapType`s, 'labelled', 'statistical'."
 
         candidates = [
             m for m in parcellationmap.Map.registry()
             if m.space.matches(space)
             and m.maptype == maptype
-            and m.parcellation
             and m.parcellation.matches(self)
         ]
         if len(candidates) == 0:
-            logger.error(f"No {maptype} map in {space} available for {str(self)}")
-            return None
+            raise NoMapMatchingValues(f"No '{maptype}' map in '{space}' available for {str(self)}")
         if len(candidates) > 1:
             spec_candidates = [
                 c for c in candidates if all(w.lower() in c.name.lower() for w in spec.split())
             ]
             if len(spec_candidates) == 0:
-                logger.warning(f"'{spec}' does not match any options from {[c.name for c in candidates]}.")
-                return None
+                raise NoMapMatchingValues(f"'{spec}' does not match any options from {[c.name for c in candidates]}.")
             if len(spec_candidates) > 1:
                 logger.warning(
                     f"Multiple maps are available in this specification of space, parcellation, and map type.\n"
