@@ -40,32 +40,32 @@ import json
 def shift_ng_transfrom(
     transform_nm: np.ndarray, scale_resolution_nm: np.ndarray, max_resolution_nm: np.ndarray
 ) -> np.ndarray:
-        """
-        Helper method to get nifti standard affine.
+    """
+    Helper method to get nifti standard affine.
 
-        transfrorm.json stored with neuroglancer precomputed images and meshes
-        are meant to be used for neuroglancer viewers and hence they are not
-        representative of the affine in other tools. This method shifts back
-        half a voxel in each axis.
-        (see https://neuroglancer-scripts.readthedocs.io/en/latest/neuroglancer-info.html#different-conventions-for-coordinate-transformations)
+    transfrorm.json stored with neuroglancer precomputed images and meshes
+    are meant to be used for neuroglancer viewers and hence they are not
+    representative of the affine in other tools. This method shifts back
+    half a voxel in each axis.
+    (see https://neuroglancer-scripts.readthedocs.io/en/latest/neuroglancer-info.html#different-conventions-for-coordinate-transformations)
 
-        Parameters
-        ----------
-        transform_nm: np.ndarray
-            Transform array created for dispalying an image correctly from
-            neuroglancer precomputed format in neuroglancer viewer.
-        max_resolution_nm: np.ndarray
-            The voxel resolution of the highest level of resolution.
+    Parameters
+    ----------
+    transform_nm: np.ndarray
+        Transform array created for dispalying an image correctly from
+        neuroglancer precomputed format in neuroglancer viewer.
+    max_resolution_nm: np.ndarray
+        The voxel resolution of the highest level of resolution.
 
-        Returns
-        -------
-        np.ndarray
-            Standard affine in nm
-        """
-        scaling = np.diag(np.r_[scale_resolution_nm, 1.0])
-        affine = np.dot(transform_nm, scaling)
-        affine[:3, 3] += (max_resolution_nm * 0.5)
-        return affine
+    Returns
+    -------
+    np.ndarray
+        Standard affine in nm
+    """
+    scaling = np.diag(np.r_[scale_resolution_nm, 1.0])
+    affine = np.dot(transform_nm, scaling)
+    affine[:3, 3] += (max_resolution_nm * 0.5)
+    return affine
 
 
 class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/precomputed"):
@@ -401,6 +401,7 @@ class NeuroglancerVolume:
                 f" fetch in the resolution requested."
             )
         return scale
+
 
 class NeuroglancerScale:
     """One scale of a NeuroglancerVolume."""
