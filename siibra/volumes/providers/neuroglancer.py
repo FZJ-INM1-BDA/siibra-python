@@ -615,13 +615,7 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
         for name, spec in self._meshes.items():
             mesh_key = spec.get('info', {}).get('mesh')
             meshurl = f"{spec['url']}/{mesh_key}/{str(meshindex)}:0"
-            resolution_nm = np.array(spec["info"]["scales"][0]["resolution"]).squeeze()
-            transform = shift_ng_transfrom(
-                transform_nm=spec.get('transform_nm'),
-                scale_resolution_nm=resolution_nm,
-                max_resolution_nm=resolution_nm
-            )
-            transform[:3, :] /= 1e6
+            transform = spec.get('transform_nm')
             try:
                 meshinfo = requests.HttpRequest(url=meshurl, func=requests.DECODERS['.json']).data
             except requests.SiibraHttpRequestError:
