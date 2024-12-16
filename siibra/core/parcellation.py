@@ -237,7 +237,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
     def get_region(
         self,
         regionspec: Union[str, region.Region],
-        find_topmost: bool = True,
+        find_topmost: bool = False,
         allow_tuple: bool = False
     ):
         """
@@ -255,7 +255,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         regionspec: str, Region
             - a string with a possibly inexact name (matched both against the name and the identifier key)
             - a Region object
-        find_topmost: bool, default: True
+        find_topmost: bool, default: False
             If True, will automatically return the parent of a decoded region
             the decoded region is its only child.
         allow_tuple: bool, default: False
