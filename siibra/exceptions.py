@@ -59,5 +59,5 @@ class NoMapMatchingValues(ValueError):
     pass
 
 
-class EmptyPointSetError(ValueError):
+class EmptyPointCloudError(ValueError):
     pass

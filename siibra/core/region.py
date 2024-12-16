@@ -18,7 +18,7 @@ from . import concept, structure, space as _space, parcellation as _parcellation
 from .assignment import Qualification, AnatomicalAssignment
 
 from ..retrieval.cache import cache_user_fn
-from ..locations import location, pointset, boundingbox as _boundingbox
+from ..locations import location, pointcloud, boundingbox as _boundingbox
 from ..volumes import parcellationmap, volume
 from ..commons import (
     logger,
@@ -747,7 +747,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         threshold_statistical: float = 0.0,
         split_components: bool = True,
         **fetch_kwargs,
-    ) -> pointset.PointSet:
+    ) -> pointcloud.PointCloud:
         """
         Compute the centroids of the region in the given space.
 
@@ -765,8 +765,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         Returns
         -------
-        PointSet
-            Found centroids (as Point objects) in a PointSet
+        PointCloud
+            Found centroids (as Point objects) in a PointCloud
 
         Note
         ----
@@ -780,7 +780,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             split_components=split_components,
             **fetch_kwargs,
         )
-        return pointset.PointSet(
+        return pointcloud.PointCloud(
             [c.centroid for c in props],
             space=space
         )

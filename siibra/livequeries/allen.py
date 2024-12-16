@@ -20,7 +20,7 @@ from ..core import space as _space, structure
 from ..features import anchor as _anchor
 from ..features.tabular.gene_expression import GeneExpressions
 from ..commons import logger, Species
-from ..locations import point, pointset
+from ..locations import point, pointcloud
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
 
@@ -145,7 +145,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         # It will be attached to the returned feature, with the set of matched
         # MNI coordinates as anchor's location.
         anchor = _anchor.AnatomicalAnchor(
-            location=pointset.from_points(coordinates),
+            location=pointcloud.from_points(coordinates),
             species=self.species
         )
         explanation = f"MNI coordinates of tissue samples were filtered using {concept}"

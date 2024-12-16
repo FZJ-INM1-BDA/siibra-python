@@ -17,7 +17,7 @@ from . import provider as _provider
 
 from ...commons import logger, resample_img_to_img
 from ...retrieval import requests
-from ...locations import pointset, boundingbox as _boundingbox
+from ...locations import pointcloud, boundingbox as _boundingbox
 
 from typing import Union, Dict, Tuple
 import nibabel as nib
@@ -229,7 +229,7 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
 
         Returns:
         --------
-        PointSet
+        PointCloud
         """
 
         from skimage.feature.peak import peak_local_max
@@ -243,7 +243,7 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
             min_distance=dist,
         )
         return (
-            pointset.PointSet(
+            pointcloud.PointCloud(
                 [np.dot(img.affine, [x, y, z, 1])[:3] for x, y, z in voxels],
                 space=self.space,
             ),

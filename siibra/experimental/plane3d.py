@@ -15,7 +15,7 @@
 
 from . import contour
 from . import patch
-from ..locations import point, pointset
+from ..locations import point, pointcloud
 from ..volumes import volume
 
 import numpy as np
@@ -93,9 +93,9 @@ class Plane3D:
         and an Mx3 array "faces" of face definitions.
         Each row in the face array corresponds to the three indices of vertices making up the
         triangle.
-        The result is a list of contour segments, each represented as a PointSet
+        The result is a list of contour segments, each represented as a PointCloud
         holding the ordered list of contour points.
-        The point labels in each "contour" PointSet hold the index of the face in the
+        The point labels in each "contour" PointCloud hold the index of the face in the
         mesh which made up each contour point.
         """
 
@@ -185,17 +185,17 @@ class Plane3D:
 
         return result
 
-    def project_points(self, points: pointset.PointSet):
+    def project_points(self, points: pointcloud.PointCloud):
         """projects the given points onto the plane."""
         assert self.space == points.space
         XYZ = points.coordinates
         N = XYZ.shape[0]
         dists = np.dot(self._n, XYZ.T) - self._d
-        return pointset.PointSet(
+        return pointcloud.PointCloud(
             XYZ - np.tile(self._n, (N, 1)) * dists[:, np.newaxis], space=self.space
         )
 
-    def get_enclosing_patch(self, points: pointset.PointSet, margin=[0.5, 0.5]):
+    def get_enclosing_patch(self, points: pointcloud.PointCloud, margin=[0.5, 0.5]):
         """
         Computes the enclosing patch in the given plane
         which contains the projections of the given points.
@@ -225,7 +225,7 @@ class Plane3D:
 
         m0, m1 = margin
         w = np.linalg.norm(p3 - p2)
-        corners = pointset.PointSet(
+        corners = pointcloud.PointCloud(
             [
                 p1 + (w / 2 + m1) * v2 + m0 * v1,
                 p0 + (w / 2 + m1) * v2 - m0 * v1,
@@ -249,7 +249,7 @@ class Plane3D:
         assert isinstance(image, volume.Volume)
         im_lowres = image.fetch(resolution_mm=1)
         plane_dims = np.where(np.argsort(im_lowres.shape) < 2)[0]
-        voxels = pointset.PointSet(
+        voxels = pointcloud.PointCloud(
             np.vstack(([0, 0, 0], np.identity(3)[plane_dims])), space=None
         )
         points = voxels.transform(im_lowres.affine, space=image.space)

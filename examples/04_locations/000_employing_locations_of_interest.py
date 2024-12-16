@@ -38,8 +38,8 @@ point_uncertain = siibra.Point((27.75, -32.0, 63.725), space='mni152', sigma_mm=
 point_uncertain
 
 # %%
-# We can create a PointSet from several points or a set of coordinates.
-siibra.PointSet(
+# We can create a PointCloud from several points or a set of coordinates.
+siibra.PointCloud(
     [(27.75, -32.0, 63.725), (27.75, -32.0, 63.725)],
     space='mni152',
     sigma_mm=[0.0, 3.]
@@ -53,8 +53,8 @@ print(point.warp('bigbrain'))
 print(point.warp('colin27'))
 
 # %%
-# To explore further, let us first create a random pointset
-ptset = siibra.PointSet(
+# To explore further, let us first create a random pointcloud
+ptset = siibra.PointCloud(
     np.array([
         np.random.randn(10000) * 3 - 27.75,
         np.random.randn(10000) * 3 - 32.0,
@@ -65,12 +65,12 @@ ptset = siibra.PointSet(
 
 # %%
 # We can display these points as a kernel density estimated volume
-kde_volume = siibra.volumes.from_pointset(ptset)
+kde_volume = siibra.volumes.from_pointcloud(ptset)
 plotting.view_img(kde_volume.fetch())
 
 # %%
 # Moreover, a location object can be used to query features. While we can also,
-# query with the pointset, let us use the bounding box that encloses these
+# query with the pointcloud, let us use the bounding box that encloses these
 # points. We will query for image features and print the assignment of the
 # anatomical anchors to our BoundingBox
 bbox = ptset.boundingbox

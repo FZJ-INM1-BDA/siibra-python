@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from ..volumes import volume
-from ..locations import pointset, boundingbox
+from ..locations import pointcloud, boundingbox
 from ..commons import translation_matrix, y_rotation_matrix
 
 import numpy as np
@@ -24,7 +24,7 @@ from nilearn import image
 
 class Patch:
 
-    def __init__(self, corners: pointset.PointSet):
+    def __init__(self, corners: pointcloud.PointCloud):
         """Construct a patch in physical coordinates.
         As of now, only patches aligned in the y plane of the physical space
         are supported."""

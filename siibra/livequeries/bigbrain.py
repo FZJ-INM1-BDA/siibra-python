@@ -19,7 +19,7 @@ from . import query
 from ..features.tabular import bigbrain_intensity_profile, layerwise_bigbrain_intensities
 from ..features import anchor as _anchor
 from ..commons import logger
-from ..locations import point, pointset
+from ..locations import point, pointcloud
 from ..core import structure
 from ..retrieval import requests, cache
 from ..retrieval.datasets import GenericDataset
@@ -119,11 +119,11 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
 
     def query(self, concept: structure.BrainStructure, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
         loader = WagstylProfileLoader()
-        mesh_vertices = pointset.PointSet(loader._vertices, space='bigbrain')
-        matched = concept.intersection(mesh_vertices)  # returns a reduced PointSet with og indices as labels
+        mesh_vertices = pointcloud.PointCloud(loader._vertices, space='bigbrain')
+        matched = concept.intersection(mesh_vertices)  # returns a reduced PointCloud with og indices as labels
         if matched is None:
             return []
-        assert isinstance(matched, pointset.PointSet)
+        assert isinstance(matched, pointcloud.PointCloud)
         indices = matched.labels
         assert indices is not None
         features = []
@@ -159,11 +159,11 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
     def query(self, concept: structure.BrainStructure, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
 
         loader = WagstylProfileLoader()
-        mesh_vertices = pointset.PointSet(loader._vertices, space='bigbrain')
-        matched = concept.intersection(mesh_vertices)  # returns a reduced PointSet with og indices as labels
+        mesh_vertices = pointcloud.PointCloud(loader._vertices, space='bigbrain')
+        matched = concept.intersection(mesh_vertices)  # returns a reduced PointCloud with og indices as labels
         if matched is None:
             return []
-        assert isinstance(matched, pointset.PointSet)
+        assert isinstance(matched, pointcloud.PointCloud)
         indices = matched.labels
         assert indices is not None
         matched_profiles = loader._profiles[indices, :]
@@ -177,7 +177,7 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
         ]).reshape((-1, 200))
 
         anchor = _anchor.AnatomicalAnchor(
-            location=pointset.PointSet(loader._vertices[indices, :], space='bigbrain'),
+            location=pointcloud.PointCloud(loader._vertices[indices, :], space='bigbrain'),
             region=str(concept),
             species='Homo sapiens'
         )
