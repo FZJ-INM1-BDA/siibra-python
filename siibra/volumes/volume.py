@@ -200,8 +200,8 @@ class Volume(structure.BrainStructure):
         RuntimeError
             If the volume provider does not have a bounding box calculator.
         """
-        # if self._boundingbox is not None and len(fetch_kwargs) == 0:
-        #     return self._boundingbox
+        if self._boundingbox is not None and len(fetch_kwargs) == 0:
+            return self._boundingbox
 
         if not self.provides_image:
             raise NotImplementedError("Bounding box calculation of meshes is not implemented yet.")
