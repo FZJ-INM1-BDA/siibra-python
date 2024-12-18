@@ -347,6 +347,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             if len(self) == 1:
                 mapindex = MapIndex(volume=0, label=None)
             elif len(self) > 1:
+                assert self.maptype == MapType.LABELLED, f"Cannot merge multiple volumes of map type {self.maptype}. Please specify a region or index."
                 logger.info(
                     "Map provides multiple volumes and no specification is"
                     " provided. Resampling all volumes to the space."
