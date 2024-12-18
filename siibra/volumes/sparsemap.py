@@ -285,7 +285,7 @@ class SparseMap(parcellationmap.Map):
 
     @property
     def _cache_prefix(self):
-        return CACHE.build_filename(f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index")
+        return CACHE.build_filename(f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.key.lower()}_index")
 
     @property
     def sparse_index(self):
