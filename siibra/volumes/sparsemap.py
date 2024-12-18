@@ -297,8 +297,7 @@ class SparseMap(parcellationmap.Map):
             if spind is None:  # try from precomputed source
                 try:
                     logger.info("Downloading and loading precomputed SparseIndex...")
-                    fname = f"{self.name.replace(' ', '_').replace('statistical', 'continuous')}"
-                    spind = SparseIndex.load(SparseIndex._DATAPROXY_BASEURL + fname)
+                    spind = SparseIndex.load(SparseIndex._DATAPROXY_BASEURL + self.key.lower())
                 except Exception:
                     logger.error("Failed to download precomputed SparseIndex.", exc_info=1)
             if spind is None:  # Download each map and compute the SparseIndex
