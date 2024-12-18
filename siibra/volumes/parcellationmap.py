@@ -162,7 +162,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     @property
     def key(self):
         _id = self.id
-        return create_key(_id.removeprefix("siibra-map-v0.0.1"))
+        return create_key(_id[len("siibra-map-v0.0.1"):])
 
     @property
     def species(self) -> Species:
