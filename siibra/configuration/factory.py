@@ -302,16 +302,9 @@ class Factory:
     @build_type("siibra/map/v0.0.1")
     def build_map(cls, spec):
         # maps have no configured identifier - we require the spec filename to build one
-        assert "filename" in spec
-        basename = path.splitext(path.basename(spec["filename"]))[0]
-        name = (
-            basename.replace("-", " ")
-            .replace("_", " ")
-            .replace("continuous", "statistical")
-        )
-        identifier = f"{spec['@type'].replace('/', '-')}_{basename}"
+        identifier = spec.get("@id")
         volumes = cls.extract_volumes(
-            spec, space_id=spec["space"].get("@id"), name_prefix=basename
+            spec, space_id=spec["space"].get("@id"), name_prefix=identifier
         )
 
         if spec.get("sparsemap", {}).get("is_sparsemap"):
@@ -319,8 +312,8 @@ class Factory:
         else:
             Maptype = parcellationmap.Map
         return Maptype(
-            identifier=spec.get("@id", identifier),
-            name=spec.get("name", name),
+            identifier=identifier,
+            name=spec.get("name"),
             space_spec=spec.get("space", {}),
             parcellation_spec=spec.get("parcellation", {}),
             indices=spec.get("indices", {}),
@@ -584,11 +577,8 @@ class Factory:
 
         if isinstance(spec, str):
             if path.isfile(spec):
-                fname = spec
                 with open(spec, "r") as f:
                     spec = json.load(f)
-                    assert "filename" not in spec
-                    spec["filename"] = fname
             else:
                 spec = json.loads(spec)
 

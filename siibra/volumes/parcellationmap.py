@@ -160,6 +160,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         self._affine_cached = None
 
     @property
+    def key(self):
+        _id = self.id
+        return create_key(_id.removeprefix("siibra-map-v0.0.1"))
+
+    @property
     def species(self) -> Species:
         # lazy implementation
         if self._species_cached is None:
