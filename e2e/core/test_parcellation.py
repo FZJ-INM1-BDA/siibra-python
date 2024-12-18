@@ -48,7 +48,7 @@ XFAIL_LIST = [
     ('Waxholm Space atlas of the Sprague Dawley rat brain (v3)', 'thalamus'),
     ('Waxholm Space atlas of the Sprague Dawley rat brain (v3)', 'brainstem'),
     ('Waxholm Space atlas of the Sprague Dawley rat brain (v3)', 'ventricular system'),
-    # ('Waxholm Space atlas of the Sprague Dawley rat brain (v3)', 'spinal cord'),
+    ('Waxholm Space atlas of the Sprague Dawley rat brain (v3)', 'spinal cord'),
 ]
 
 
