@@ -98,6 +98,7 @@ def test_sparse_index(test_sparse_idx_mocks, mem_cache_flag, disk_cached_flag):
         with patch.object(SparseMap, "__len__", return_value=3):
             with patch.object(SparseMap, 'maptype', new_callable=PropertyMock) as maptype_mock:
                 sparse_map_inst.name = "map-name"
+                sparse_map_inst._id = f"siibra-map-v0.0.1-map-name-{sparse_map_inst.maptype}"
                 maptype_mock.return_value = "foo"
 
                 if mem_cache_flag or disk_cached_flag:
@@ -136,22 +137,24 @@ def test_sparse_index_prefixes(mock_sparse_map_spc_parc, mock_sparse_index_load)
 
     spc_mock.return_value = DCls(id='hello world spc')
     parc_mock.return_value = DCls(id='hello world parc')
+    foo = SparseMap(
+        name='foo',
+        identifier="siibra-map-v0.0.1_foo-continuous",
+        space_spec=spc_mock,
+        parcellation_spec=parc_mock,
+        indices={}
+    )
+    bar = SparseMap(
+        name='bar',
+        identifier="siibra-map-v0.0.1_bar-continuous",
+        space_spec=spc_mock,
+        parcellation_spec=parc_mock,
+        indices={}
+    )
     with patch.object(SparseMap, 'maptype', new_callable=PropertyMock) as maptype_mock:
         maptype_mock.return_value = "foo"
         with patch.object(parcellationmap.Map, '__init__'):
-            kwargs = {
-                'name': 'bla',
-                'identifier': str(uuid4()),
-                'space_spec': {},
-                'parcellation_spec': {},
-                'indices': {}
-            }
-            foo = SparseMap(**kwargs)
-            bar = SparseMap(**kwargs)
-            foo.name = 'foo'
-            bar.name = 'bar'
-
-            assert foo.name != bar.name
+            assert foo.id != bar.id
             assert foo.space is bar.space
             assert foo.parcellation is bar.parcellation
             assert foo is not bar
@@ -161,5 +164,5 @@ def test_sparse_index_prefixes(mock_sparse_map_spc_parc, mock_sparse_index_load)
 
             call0, call1 = mock_sparse_index_load.call_args_list
 
-            assert call0 != call1, "Prefix used should be different, based on not just space, parcellation, maptype, but also name"
+            assert call0 != call1, "Prefix used should be different, based on not just space, parcellation, maptype, but also id"
             assert foo._cache_prefix != bar._cache_prefix
