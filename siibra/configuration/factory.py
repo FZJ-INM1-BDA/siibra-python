@@ -307,7 +307,7 @@ class Factory:
             spec, space_id=spec["space"].get("@id"), name_prefix=identifier
         )
 
-        if spec.get("sparsemap", {}).get("is_sparsemap"):
+        if spec.get("represented_as_sparsemap", False):
             Maptype = sparsemap.SparseMap
         else:
             Maptype = parcellationmap.Map
