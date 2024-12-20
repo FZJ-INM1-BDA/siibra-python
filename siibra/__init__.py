@@ -39,7 +39,7 @@ from . import configuration
 from . import experimental
 from .configuration import factory
 from . import features, livequeries
-from siibra.locations import Point, PointSet
+from siibra.locations import Point, PointCloud
 
 import os as _os
 logger.info(f"Version: {__version__}")
@@ -150,7 +150,7 @@ def __dir__():
         "get_template",
         "MapType",
         "Point",
-        "PointSet",
+        "PointCloud",
         "QUIET",
         "VERBOSE",
         "fetch_ebrains_token",

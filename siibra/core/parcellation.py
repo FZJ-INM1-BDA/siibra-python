@@ -196,7 +196,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             raise NoMapMatchingValues(f"No '{maptype}' map in '{space}' available for {str(self)}")
         if len(candidates) > 1:
             spec_candidates = [
-                c for c in candidates if all(w.lower() in c.name.lower() for w in spec.split())
+                c for c in candidates if all(w.lower() in c.id.lower() for w in spec.split())
             ]
             if len(spec_candidates) == 0:
                 raise NoMapMatchingValues(f"'{spec}' does not match any options from {[c.name for c in candidates]}.")
@@ -237,7 +237,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
     def get_region(
         self,
         regionspec: Union[str, region.Region],
-        find_topmost: bool = True,
+        find_topmost: bool = False,
         allow_tuple: bool = False
     ):
         """
@@ -255,7 +255,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         regionspec: str, Region
             - a string with a possibly inexact name (matched both against the name and the identifier key)
             - a Region object
-        find_topmost: bool, default: True
+        find_topmost: bool, default: False
             If True, will automatically return the parent of a decoded region
             the decoded region is its only child.
         allow_tuple: bool, default: False

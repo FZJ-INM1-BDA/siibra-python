@@ -14,7 +14,7 @@
 # limitations under the License.
 """Singular coordinate defined on a space, possibly with an uncertainty."""
 
-from . import location, boundingbox, pointset
+from . import location, boundingbox, pointcloud
 
 from ..commons import logger
 from ..retrieval.requests import HttpRequest
@@ -115,7 +115,7 @@ class Point(location.Location):
     def intersection(self, other: location.Location) -> "Point":
         if isinstance(other, Point):
             return self if self == other else None
-        elif isinstance(other, pointset.PointSet):
+        elif isinstance(other, pointcloud.PointCloud):
             return self if self in other else None
         else:
             return self if other.intersection(self) else None
@@ -190,8 +190,8 @@ class Point(location.Location):
         return super().__hash__()
 
     def __eq__(self, other: 'Point'):
-        if isinstance(other, pointset.PointSet):
-            return other == self  # implemented at pointset
+        if isinstance(other, pointcloud.PointCloud):
+            return other == self  # implemented at pointcloud
         if not isinstance(other, Point):
             return False
         o = other if self.space is None else other.warp(self.space)

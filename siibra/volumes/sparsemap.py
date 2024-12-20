@@ -285,7 +285,7 @@ class SparseMap(parcellationmap.Map):
 
     @property
     def _cache_prefix(self):
-        return CACHE.build_filename(f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index")
+        return CACHE.build_filename(f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.key.lower()}_index")
 
     @property
     def sparse_index(self):
@@ -297,8 +297,7 @@ class SparseMap(parcellationmap.Map):
             if spind is None:  # try from precomputed source
                 try:
                     logger.info("Downloading and loading precomputed SparseIndex...")
-                    fname = f"{self.name.replace(' ', '_').replace('statistical', 'continuous')}"
-                    spind = SparseIndex.load(SparseIndex._DATAPROXY_BASEURL + fname)
+                    spind = SparseIndex.load(SparseIndex._DATAPROXY_BASEURL + self.key.lower())
                 except Exception:
                     logger.error("Failed to download precomputed SparseIndex.", exc_info=1)
             if spind is None:  # Download each map and compute the SparseIndex

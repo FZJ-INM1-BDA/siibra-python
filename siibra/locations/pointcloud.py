@@ -18,7 +18,7 @@ from . import location, point, boundingbox as _boundingbox
 
 from ..retrieval.requests import HttpRequest
 from ..commons import logger
-from ..exceptions import SpaceWarpingFailedError, EmptyPointSetError
+from ..exceptions import SpaceWarpingFailedError, EmptyPointCloudError
 
 from typing import List, Union, Tuple
 import numbers
@@ -32,13 +32,13 @@ except ImportError:
     _HAS_HDBSCAN = False
     logger.warning(
         f"HDBSCAN is not available with your version {sklearn.__version__} of sckit-learn."
-        "`PointSet.find_clusters()` will not be avaiable."
+        "`PointCloud.find_clusters()` will not be avaiable."
     )
 
 
-def from_points(points: List["point.Point"], newlabels: List[Union[int, float, tuple]] = None) -> "PointSet":
+def from_points(points: List["point.Point"], newlabels: List[Union[int, float, tuple]] = None) -> "PointCloud":
     """
-    Create a PointSet from an iterable of Points.
+    Create a PointCloud from an iterable of Points.
 
     Parameters
     ----------
@@ -48,17 +48,17 @@ def from_points(points: List["point.Point"], newlabels: List[Union[int, float, t
 
     Returns
     -------
-    PointSet
+    PointCloud
     """
     if len(points) == 0:
-        raise EmptyPointSetError("Cannot create a PointSet without any points.")
+        raise EmptyPointCloudError("Cannot create a PointCloud without any points.")
 
     spaces = {p.space for p in points}
-    assert len(spaces) == 1, f"PointSet can only be constructed with points from the same space.\n{spaces}"
+    assert len(spaces) == 1, f"PointCloud can only be constructed with points from the same space.\n{spaces}"
     coords, sigmas, labels = zip(*((p.coordinate, p.sigma, p.label) for p in points))
     if all(lb is None for lb in set(labels)):
         labels = None
-    return PointSet(
+    return PointCloud(
         coordinates=coords,
         space=next(iter(spaces)),
         sigma_mm=sigmas,
@@ -66,7 +66,7 @@ def from_points(points: List["point.Point"], newlabels: List[Union[int, float, t
     )
 
 
-class PointSet(location.Location):
+class PointCloud(location.Location):
     """A set of 3D points in the same reference space,
     defined by a list of coordinates."""
 
@@ -93,7 +93,7 @@ class PointSet(location.Location):
         location.Location.__init__(self, space)
 
         if len(coordinates) == 0:
-            raise EmptyPointSetError(f"Cannot create a {self.__class__.__name__} without any coordinates.")
+            raise EmptyPointCloudError(f"Cannot create a {self.__class__.__name__} without any coordinates.")
 
         self._coordinates = coordinates
         if not isinstance(coordinates, np.ndarray):
@@ -117,7 +117,7 @@ class PointSet(location.Location):
         NOTE: The affine matrix of the image must be set to warp voxels
         coordinates into the reference space of this Bounding Box.
         """
-        if not isinstance(other, (point.Point, PointSet, _boundingbox.BoundingBox)):
+        if not isinstance(other, (point.Point, PointCloud, _boundingbox.BoundingBox)):
             return other.intersection(self)
 
         intersections = [(i, p) for i, p in enumerate(self) if p.intersects(other)]
@@ -126,7 +126,7 @@ class PointSet(location.Location):
         ids, points = zip(*intersections)
         labels = None if self.labels is None else [self.labels[i] for i in ids]
         sigma = [p.sigma for p in points]
-        intersection = PointSet(
+        intersection = PointCloud(
             points,
             space=self.space,
             sigma_mm=sigma,
@@ -190,7 +190,7 @@ class PointSet(location.Location):
         return self.__class__(coordinates=tuple(tgt_points), space=spaceobj, labels=self.labels)
 
     def transform(self, affine: np.ndarray, space=None):
-        """Returns a new PointSet obtained by transforming the
+        """Returns a new PointCloud obtained by transforming the
         coordinates of this one with the given affine matrix.
 
         Parameters
@@ -211,7 +211,7 @@ class PointSet(location.Location):
     def __getitem__(self, index: int):
         if (abs(index) >= self.__len__()):
             raise IndexError(
-                f"Pointset with {self.__len__()} points "
+                f"pointcloud with {self.__len__()} points "
                 f"cannot be accessed with index {index}."
             )
         return point.Point(
@@ -233,10 +233,10 @@ class PointSet(location.Location):
             for i in range(len(self))
         )
 
-    def __eq__(self, other: 'PointSet'):
+    def __eq__(self, other: 'PointCloud'):
         if isinstance(other, point.Point):
             return len(self) == 1 and self[0] == other
-        if not isinstance(other, PointSet):
+        if not isinstance(other, PointCloud):
             return False
         return list(self) == list(other)
 
@@ -244,7 +244,7 @@ class PointSet(location.Location):
         return super().__hash__()
 
     def __len__(self):
-        """The number of points in this PointSet."""
+        """The number of points in this PointCloud."""
         return self.coordinates.shape[0]
 
     def __str__(self):
@@ -254,7 +254,7 @@ class PointSet(location.Location):
     def boundingbox(self):
         """
         Return the bounding box of these points, or None in the
-        special case of an empty PointSet.
+        special case of an empty PointCloud.
         """
         if len(self.coordinates) == 0:
             return None
@@ -300,8 +300,8 @@ class PointSet(location.Location):
 
         Parameters
         ----------
-        min_fraction: min cluster size as a fraction of total points in the PointSet
-        max_fraction: max cluster size as a fraction of total points in the PointSet
+        min_fraction: min cluster size as a fraction of total points in the PointCloud
+        max_fraction: max cluster size as a fraction of total points in the PointCloud
 
         Returns
         -------
@@ -310,7 +310,7 @@ class PointSet(location.Location):
 
             Note
             ----
-            Replaces the labels of the PointSet instance with these labels.
+            Replaces the labels of the PointCloud instance with these labels.
 
         Raises
         ------
@@ -320,7 +320,7 @@ class PointSet(location.Location):
         if not _HAS_HDBSCAN:
             raise RuntimeError(
                 f"HDBSCAN is not available with your version {sklearn.__version__} "
-                "of sckit-learn. `PointSet.find_clusters()` will not be avaiable."
+                "of sckit-learn. `PointCloud.find_clusters()` will not be avaiable."
             )
         points = np.array(self.as_list())
         N = points.shape[0]
@@ -330,7 +330,7 @@ class PointSet(location.Location):
         )
         if self.labels is not None:
             logger.warning(
-                "Existing labels of PointSet will be overwritten with cluster labels."
+                "Existing labels of PointCloud will be overwritten with cluster labels."
             )
         self.labels = clustering.fit_predict(points)
         return self.labels

@@ -534,9 +534,9 @@ class NeuroglancerScale:
         for dim in range(3):
             if bbox_.shape[dim] < 1:
                 logger.warning(
-                    f"Bounding box in voxel space will be enlarged to voxel size 1 along axis {dim}."
+                    f"Bounding box in voxel space will be enlarged to by {self.res_mm[dim]} along axis {dim}."
                 )
-                bbox_.maxpoint[dim] = bbox_.maxpoint[dim] + 1
+                bbox_.maxpoint[dim] = bbox_.maxpoint[dim] + self.res_mm[dim]
 
         # extract minimum and maximum the chunk indices to be loaded
         gx0, gy0, gz0 = self._point_to_lower_chunk_idx(tuple(bbox_.minpoint))
@@ -615,13 +615,7 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
         for name, spec in self._meshes.items():
             mesh_key = spec.get('info', {}).get('mesh')
             meshurl = f"{spec['url']}/{mesh_key}/{str(meshindex)}:0"
-            resolution_nm = np.array(spec["info"]["scales"][0]["resolution"]).squeeze()
-            transform = shift_ng_transfrom(
-                transform_nm=spec.get('transform_nm'),
-                scale_resolution_nm=resolution_nm,
-                max_resolution_nm=resolution_nm
-            )
-            transform[:3, :] /= 1e6
+            transform = spec.get('transform_nm')
             try:
                 meshinfo = requests.HttpRequest(url=meshurl, func=requests.DECODERS['.json']).data
             except requests.SiibraHttpRequestError:

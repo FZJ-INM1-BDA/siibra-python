@@ -38,7 +38,5 @@ def test_onthefly_and_preconfig_bboxes(volume: Volume, clip_flag: bool):
         pytest.skip(f"No preconfigured BoundingBox for {volume} is found. ")
     volume._boundingbox = None
     kwargs = {"clip": clip_flag}
-    if "neuroglancer/precomputed" in volume.providers:
-        pytest.xfail("Bounding boxes of 'neuroglancer/precomputed' volumes have to be recalculated due to 0.5 voxel shift fix.")
     bbox = volume.get_boundingbox(**kwargs)
     assert configured_bbox == bbox, f" {volume}"

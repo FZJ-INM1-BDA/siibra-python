@@ -19,7 +19,7 @@ from ..feature import Compoundable
 from ...core import region as _region
 from .. import anchor as _anchor
 from ...commons import QUIET, siibra_tqdm
-from ...locations import pointset
+from ...locations import pointcloud
 from ...retrieval.repositories import RepositoryConnector
 from ...retrieval.requests import HttpRequest
 
@@ -203,7 +203,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
                 found = [r for r in region if r.name in all_centroids]
             assert len(found) > 0
             result.append(
-                tuple(pointset.PointSet(
+                tuple(pointcloud.PointCloud(
                     [all_centroids[r.name] for r in found], space=space
                 ).centroid)
             )

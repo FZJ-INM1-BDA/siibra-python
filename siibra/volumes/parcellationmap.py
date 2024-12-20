@@ -32,7 +32,7 @@ from ..commons import (
     generate_uuid
 )
 from ..core import concept, space, parcellation, region as _region
-from ..locations import location, point, pointset
+from ..locations import location, point, pointcloud
 
 import numpy as np
 from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
@@ -158,6 +158,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if len(duplicates) > 0:
             logger.warning(f"Non unique indices encountered in {self}: {duplicates}")
         self._affine_cached = None
+
+    @property
+    def key(self):
+        _id = self.id
+        return create_key(_id[len("siibra-map-v0.0.1"):])
 
     @property
     def species(self) -> Species:
@@ -347,6 +352,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             if len(self) == 1:
                 mapindex = MapIndex(volume=0, label=None)
             elif len(self) > 1:
+                assert self.maptype == MapType.LABELLED, f"Cannot merge multiple volumes of map type {self.maptype}. Please specify a region or index."
                 logger.info(
                     "Map provides multiple volumes and no specification is"
                     " provided. Resampling all volumes to the space."
@@ -569,11 +575,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )]
         )
 
-    def compute_centroids(self, split_components: bool = True, **fetch_kwargs) -> Dict[str, pointset.PointSet]:
+    def compute_centroids(self, split_components: bool = True, **fetch_kwargs) -> Dict[str, pointcloud.PointCloud]:
         """
         Compute a dictionary of all regions in this map to their centroids.
         By default, the regional masks will be split to connected components
-        and each point in the PointSet corresponds to a region component.
+        and each point in the PointCloud corresponds to a region component.
 
         Parameters
         ----------
@@ -616,8 +622,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 split_components=split_components,
             )
             try:
-                centroids[regionname] = pointset.from_points([c.centroid for c in props])
-            except exceptions.EmptyPointSetError:
+                centroids[regionname] = pointcloud.from_points([c.centroid for c in props])
+            except exceptions.EmptyPointCloudError:
                 centroids[regionname] = None
         return centroids
 
@@ -743,7 +749,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         Returns
         -------
-        PointSet
+        PointCloud
             Sample points in physcial coordinates corresponding to this
             parcellationmap
         """
@@ -761,7 +767,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             np.unravel_index(np.random.choice(len(p), numpoints, p=p), W.shape)
         ).T
         XYZ = np.dot(mask.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
-        return pointset.PointSet(XYZ, space=self.space)
+        return pointcloud.PointCloud(XYZ, space=self.space)
 
     def to_sparse(self):
         """
@@ -832,10 +838,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         if isinstance(item, point.Point):
             return self._assign_points(
-                pointset.PointSet([item], item.space, sigma_mm=item.sigma),
+                pointcloud.PointCloud([item], item.space, sigma_mm=item.sigma),
                 lower_threshold
             )
-        if isinstance(item, pointset.PointSet):
+        if isinstance(item, pointcloud.PointCloud):
             return self._assign_points(item, lower_threshold)
         if isinstance(item, _volume.Volume):
             return self._assign_volume(
@@ -990,9 +996,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             .dropna(axis='columns', how='all')
         )
 
-    def _assign_points(self, points: pointset.PointSet, lower_threshold: float) -> List[MapAssignment]:
+    def _assign_points(self, points: pointcloud.PointCloud, lower_threshold: float) -> List[MapAssignment]:
         """
-        assign a PointSet to this parcellation map.
+        assign a PointCloud to this parcellation map.
 
         Parameters
         -----------

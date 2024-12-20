@@ -10,19 +10,8 @@
         "parcellation": {
             "$ref": "config_schema/at_id.json"
         },
-        "sparsemap": {
-            "type": "object",
-            "properties": {
-                "is_sparsemap": {
-                    "type": "boolean"
-                },
-                "cached": {
-                    "type": "boolean"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
+        "represented_as_sparsemap": {
+            "type": "boolean"
         },
         "volumes": {
             "type": "array",
@@ -42,11 +31,12 @@
                                 "type": "number"
                             },
                             "label": {
-                                "anyOf": [{
-                                   
-                                }, {
-                                    "type": "null"
-                                }]
+                                "anyOf": [
+                                    {},
+                                    {
+                                        "type": "null"
+                                    }
+                                ]
                             },
                             "fragment": {
                                 "type": "string"
@@ -64,6 +54,7 @@
     "required": [
         "volumes",
         "@type",
+        "@id",
         "space",
         "parcellation",
         "indices"

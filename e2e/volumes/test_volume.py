@@ -11,7 +11,7 @@ selected_regions = [
     (siibra.get_region('julich 2.9', 'CA2 (Hippocampus) right'), 'mni152'),
     (siibra.get_region('julich 2.9', 'CA2 (Hippocampus) left'), 'colin27'),
     (siibra.get_region('julich 2.9', 'hoc1 left'), 'mni152'),
-    (siibra.get_region('julich 3', 'sts'), 'mni152')
+    (siibra.get_region('julich 3', 'superior temporal sulcus'), 'mni152'),
 ]
 
 
