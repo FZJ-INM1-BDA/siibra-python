@@ -35,6 +35,18 @@ BASE_URL = "http://api.brain-map.org/api/v2/data"
 LOCATION_PRECISION_MM = 2.  # the assumed spatial precision of the probe locations in MNI space
 
 
+def is_allen_api_microarray_service_available():
+    import requests
+
+    # see https://community.brain-map.org/t/human-brain-atlas-api/2876
+    microarray_test_url = "http://api.brain-map.org/api/v2/data/query.json?criteria= service::human_microarray_expression[probes$eq1023146,1023147][donors$eq15496][structures$eq9148]"
+    try:
+        response = requests.get(microarray_test_url).json()
+    except requests.RequestException:
+        return False
+    return response["success"]
+
+
 class InvalidAllenAPIResponseException(Exception):
     pass
 
@@ -124,6 +136,13 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         self.genes = parse_gene(gene)
 
     def query(self, concept: structure.BrainStructure) -> List[GeneExpressions]:
+        if not is_allen_api_microarray_service_available():
+            raise InvalidAllenAPIResponseException(
+                'The service "web API of the Allen Brain Atlas for the human microarray expression" '
+                'is not available at the moment, therefore siibra is not able to fetch '
+                'gene expression features. This is a known issue which we are investigating: '
+                'https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.'
+            )
 
         mnispace = _space.Space.registry().get('mni152')
 

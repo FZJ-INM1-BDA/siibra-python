@@ -16,13 +16,17 @@ from sphinx_gallery.sorting import FileNameSortKey
 import sphinx_rtd_theme  # this import must be kept to make sphinx_rtd_theme function
 import sphinx_autopackagesummary  # this import must be kept to make autopackagesummary function
 
+print("sphinx-rtd-theme:", sphinx_rtd_theme.__version__)
+print("sphinx-autopackagesummary", sphinx_autopackagesummary.__version__)
+
 os.environ['SIIBRA_LOG_LEVEL'] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
 
+
 def is_allen_api_microarray_service_available():
     import requests
-    
+
     # see https://community.brain-map.org/t/human-brain-atlas-api/2876
     microarray_test_url = "http://api.brain-map.org/api/v2/data/query.json?criteria= service::human_microarray_expression[probes$eq1023146,1023147][donors$eq15496][structures$eq9148]"
     try:
@@ -30,6 +34,7 @@ def is_allen_api_microarray_service_available():
     except requests.RequestException:
         return False
     return response["success"]
+
 
 # -- Project information -----------------------------------------------------
 
