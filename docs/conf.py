@@ -16,13 +16,14 @@ from sphinx_gallery.sorting import FileNameSortKey
 import sphinx_book_theme  # this import must be kept to make sphinx_rtd_theme function
 import sphinx_autopackagesummary  # this import must be kept to make autopackagesummary function
 
-os.environ['SIIBRA_LOG_LEVEL'] = "ERROR"
+os.environ["SIIBRA_LOG_LEVEL"] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
 
+
 def is_allen_api_microarray_service_available():
     import requests
-    
+
     # see https://community.brain-map.org/t/human-brain-atlas-api/2876
     microarray_test_url = "http://api.brain-map.org/api/v2/data/query.json?criteria= service::human_microarray_expression[probes$eq1023146,1023147][donors$eq15496][structures$eq9148]"
     try:
@@ -31,19 +32,20 @@ def is_allen_api_microarray_service_available():
         return False
     return response["success"]
 
+
 # -- Project information -----------------------------------------------------
 
 project = "siibra-python"
 copyright = "2020-2024, Forschungszentrum Juelich GmbH"
 author = "Big Data Analytics Group, Institute of Neuroscience and Medicine, Forschungszentrum Juelich GmbH"
-language = 'en'
+language = "en"
 
 # -- General configuration ---------------------------------------------------
 
-source_suffix = ['.rst', '.md']
+source_suffix = [".rst", ".md"]
 
 # The master toctree document.
-root_doc = 'index'
+root_doc = "index"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -67,10 +69,10 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**/legacy"]
 extensions = [
     "sphinx_gallery.gen_gallery",  # builds an HTML gallery of examples from any set of Python scripts
     "sphinx.ext.autodoc",  # pull in documentation from docstrings in a semi-automatic way
-    'sphinx.ext.autosummary',  # generates function/method/attribute summary lists
-    'sphinx.ext.autosectionlabel',  # generates the labels for each section
-    'sphinx.ext.intersphinx',  # generate links to the documentation of objects in external projects
-    'sphinx.ext.napoleon',  # parse both NumPy and Google style docstrings
+    "sphinx.ext.autosummary",  # generates function/method/attribute summary lists
+    "sphinx.ext.autosectionlabel",  # generates the labels for each section
+    "sphinx.ext.intersphinx",  # generate links to the documentation of objects in external projects
+    "sphinx.ext.napoleon",  # parse both NumPy and Google style docstrings
     "sphinx_autopackagesummary",  # auto generation of API doc for nested Python packages; uses `autosummary`
     "autoapi.extension",  # "autodoc" style doc wo needing to load/run/import the project
     "IPython.sphinxext.ipython_console_highlighting",  # enables ipython syntax highlighting
@@ -80,34 +82,42 @@ extensions = [
     "sphinx.ext.inheritance_diagram",  # creates inheritance diagrams
     "sphinx_copybutton",  # adds a copy button for code fields
     "sphinxcontrib.images",  # adds lightbox to images
-    "sphinxcontrib.mermaid",   # embed Mermaid graphs including flowcharts, sequence diagrams, gantt diagrams, etc.
+    "sphinxcontrib.mermaid",  # embed Mermaid graphs including flowcharts, sequence diagrams, gantt diagrams, etc.
 ]
 
 run_stale_examples = True
-rtds_action_github_token = os.environ.get("GITHUB_TOKEN")  # A GitHub personal access token is required
+rtds_action_github_token = os.environ.get(
+    "GITHUB_TOKEN"
+)  # A GitHub personal access token is required
 if rtds_action_github_token:
     extensions.append("rtds_action")
     # rtds action settings
-    rtds_action_github_repo = "FZJ-INM1-BDA/siibra-python"  # The name of GitHub repository
+    rtds_action_github_repo = (
+        "FZJ-INM1-BDA/siibra-python"  # The name of GitHub repository
+    )
     rtds_action_path = ""  # The path where the artifact should be extracted # Note: this is relative to the conf.py file!
     rtds_action_artifact_prefix = "sphinx-docs-built-in-github-"  # The "prefix" used in the `upload-artifact` step of the docs github action
-    nbsphinx_execute = 'never'
+    nbsphinx_execute = "never"
     run_stale_examples = False  # it will be run at github actions (since /docs/example are in gitignore) and locally but not on readthedocs.
 else:
     # create package and class diagrams if they were not created with pyreverse and graphviz (see docs.yml)
     cwd = os.getcwd()
-    if cwd.endswith('docs'):
-        staticpath = os.path.join(cwd, '_static')
-        siibrapath = os.path.join(os.path.split(cwd)[0], 'siibra')
+    if cwd.endswith("docs"):
+        staticpath = os.path.join(cwd, "_static")
+        siibrapath = os.path.join(os.path.split(cwd)[0], "siibra")
     else:
-        staticpath = os.path.join(cwd, 'docs/_static')
-        siibrapath = os.path.join(cwd, 'siibra')
+        staticpath = os.path.join(cwd, "docs/_static")
+        siibrapath = os.path.join(cwd, "siibra")
     if any(
         svg not in os.listdir(staticpath)
         for svg in ["packages_siibra.svg", "classes_siibra.svg"]
     ):
         from subprocess import run
-        run(f"pyreverse -k  -o svg -p siibra {siibrapath} --colorized --all-ancestors --output-directory {staticpath}", shell=False)
+
+        run(
+            f"pyreverse -k  -o svg -p siibra {siibrapath} --colorized --all-ancestors --output-directory {staticpath}",
+            shell=False,
+        )
 
 # napolean settings
 napoleon_google_docstring = False
@@ -116,9 +126,9 @@ napoleon_use_ivar = True
 
 # Mappings
 intersphinx_mapping = {
-    "mainconcepts": ('../concepts.html', None),
+    "mainconcepts": ("../concepts.html", None),
     "matplotlib": ("https://matplotlib.org/", None),
-    "nilearn": ('https://nilearn.github.io/stable/index.html', None),
+    "nilearn": ("https://nilearn.github.io/stable/index.html", None),
     "nibabel": ("https://nipy.org/nibabel/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "pandas": ("http://pandas.pydata.org/pandas-docs/dev", None),
@@ -131,19 +141,17 @@ autoapi_type = "python"
 autoapi_dirs = [os.path.join(os.path.abspath(".."), "siibra")]
 autoapi_add_toctree_entry = False
 autoapi_options = [
-    'members',
-    'undoc-members',
-    'special-members',
-    'show-inheritance-diagram',
-    'show-module-summary',
-    'imported-members'
+    "members",
+    "undoc-members",
+    "special-members",
+    "show-inheritance-diagram",
+    "show-module-summary",
+    "imported-members",
 ]
-autoclass_content = 'both'
+autoclass_content = "both"
 
-graphviz_output_format = 'png'
-inheritance_graph_attrs = dict(
-    rankdir="LR"
-)
+graphviz_output_format = "png"
+inheritance_graph_attrs = dict(rankdir="LR")
 
 # sphinx_autopackagesummary options
 autosummary_generate = True
@@ -174,33 +182,35 @@ sphinx_gallery_conf = {
 }
 
 if not is_allen_api_microarray_service_available():
-    sphinx_gallery_conf.update({
-        "expected_failing_examples": [
-            "../examples/03_data_features/000_matchings.py",
-            "../examples/03_data_features/004_gene_expressions.py",
-        ]
-    })
+    sphinx_gallery_conf.update(
+        {
+            "expected_failing_examples": [
+                "../examples/03_data_features/000_matchings.py",
+                "../examples/03_data_features/004_gene_expressions.py",
+            ]
+        }
+    )
 
 html_theme_options = {
-    'logo_only': True,
-    'display_version': True,
-    'prev_next_buttons_location': "bottom",
-    'style_external_links': False,
-    'vcs_pageview_mode': '',
-    'style_nav_header_background': 'white',
+    "logo_only": True,
+    "display_version": True,
+    "prev_next_buttons_location": "bottom",
+    "style_external_links": False,
+    "vcs_pageview_mode": "",
+    "style_nav_header_background": "white",
     # Toc options
-    'collapse_navigation': True,
-    'sticky_navigation': True,
-    'navigation_depth': 3,
-    'includehidden': True,
-    'titles_only': False
+    "collapse_navigation": True,
+    "sticky_navigation": True,
+    "navigation_depth": 3,
+    "includehidden": True,
+    "titles_only": False,
 }
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = "sphinx_book_theme"
 html_show_sourcelink = False
 html_show_sphinx = True
-# html_logo = "_static/siibra-python.jpeg"  # overriden by logo in html_theme_options
+html_logo = "_static/siibra-python.jpeg"  # overriden by logo in html_theme_options
 html_favicon = "_static/siibra_favicon.ico"
 html_permalinks = False
 
@@ -209,9 +219,9 @@ html_theme_options = {
         "image_light": "_static/iibra-python.jpeg",
         "image_dark": "_static/iibra-python.jpeg",
     },
-    'repository_url': "https://github.com/FZJ-INM1-BDA/siibra-python",
-    'use_repository_button': True,
+    "repository_url": "https://github.com/FZJ-INM1-BDA/siibra-python",
+    "use_repository_button": True,
     "extra_footer": "<div>This software code is funded from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 945539 (Human Brain Project SGA3).</div>",
-    'collapse_navigation': True,
-    'max_navbar_depth': 2,
+    "collapse_navigation": True,
+    "max_navbar_depth": 2,
 }
