@@ -16,7 +16,10 @@ from sphinx_gallery.sorting import FileNameSortKey
 import sphinx_book_theme  # this import must be kept to make sphinx_rtd_theme function
 import sphinx_autopackagesummary  # this import must be kept to make autopackagesummary function
 
-os.environ["SIIBRA_LOG_LEVEL"] = "ERROR"
+print("sphinx-book-theme:", sphinx_book_theme.__version__)
+print("sphinx-autopackagesummary", sphinx_autopackagesummary.__version__)
+
+os.environ['SIIBRA_LOG_LEVEL'] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
 
@@ -216,8 +219,8 @@ html_permalinks = False
 
 html_theme_options = {
     "logo": {
-        "image_light": "_static/iibra-python.jpeg",
-        "image_dark": "_static/iibra-python.jpeg",
+        "image_light": "_static/siibra-python.jpeg",
+        "image_dark": "_static/siibra-python.jpeg",
     },
     "repository_url": "https://github.com/FZJ-INM1-BDA/siibra-python",
     "use_repository_button": True,
