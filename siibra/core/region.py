@@ -537,12 +537,10 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         """
         from ..volumes.parcellationmap import Map
         for m in Map.registry():
-            # Use and operant for efficiency (short circuiting logic)
-            # Put the most inexpensive logic first
             if (
-                self.name in m.regions
-                and m.space.matches(space)
+                m.space.matches(space)
                 and m.parcellation.matches(self.parcellation)
+                and self.name in m.regions
             ):
                 return True
         if recurse and not self.is_leaf:
@@ -551,16 +549,16 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         return False
 
     @property
-    def supported_spaces(self) -> Set[_space.Space]:
+    def supported_spaces(self) -> List[_space.Space]:
         """
-        The set of spaces for which a mask could be extracted from an existing
+        The list of spaces for which a mask could be extracted from an existing
         map or combination of masks of its children.
         """
         if self._supported_spaces is None:
-            self._supported_spaces = {
+            self._supported_spaces = sorted({
                 s for s in _space.Space.registry()
                 if self.mapped_in_space(s, recurse=True)
-            }
+            })
         return self._supported_spaces
 
     @property
