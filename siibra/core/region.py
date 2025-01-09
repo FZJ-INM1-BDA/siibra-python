@@ -31,7 +31,7 @@ from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
 import re
 import anytree
-from typing import List, Union, Iterable, Dict, Callable, Tuple
+from typing import List, Union, Iterable, Dict, Callable, Tuple, Set
 from difflib import SequenceMatcher
 from ebrains_drive import BucketApiClient
 import json
@@ -111,14 +111,14 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         )
 
         # anytree node will take care to use this appropriately
-        self.parent = parent
-        self.children = children
+        self.parent: "Region" = parent
+        self.children: List["Region"] = children
         # convert hex to int tuple if rgb is given
         self.rgb = (
             None if rgb is None
             else tuple(int(rgb[p:p + 2], 16) for p in [1, 3, 5])
         )
-        self._supported_spaces = None  # computed on 1st call of self.supported_spaces
+        self._supported_spaces: Set[_space.Space] = None  # computed on 1st call of self.supported_spaces
         self._str_aliases = None
         self.find = lru_cache(maxsize=3)(self.find)
 
@@ -459,7 +459,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         except NoMapAvailableError:
             # This region is not mapped directly in any map in the registry.
             # Try building a map from the child regions
-            if (len(self.children) > 0) and all(c.mapped_in_space(space) for c in self.children):
+            if (len(self.children) > 0) and all(c.mapped_in_space(space, recurse=True) for c in self.children):
                 logger.info(f"{self.name} is not mapped in {space}. Merging the masks of its {len(self.children)} child regions.")
                 child_volumes = [
                     child.get_regional_mask(space=space, maptype=maptype, threshold=threshold)
@@ -521,7 +521,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 " Please try getting the children or getting the mask."
             )
 
-    def mapped_in_space(self, space, recurse: bool = True) -> bool:
+    def mapped_in_space(self, space, recurse: bool = False) -> bool:
         """
         Verifies wether this region is defined by an explicit map in the given space.
 
@@ -529,20 +529,18 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         ----------
         space: Space or str
             reference space
-        recurse: bool, default: True
-            If True, check if all child regions are mapped instead
+        recurse: bool, default: False
+            If True, check if itself or all child regions are mapped instead recursively.
         Returns
         -------
         bool
         """
         from ..volumes.parcellationmap import Map
         for m in Map.registry():
-            # Use and operant for efficiency (short circuiting logic)
-            # Put the most inexpensive logic first
             if (
-                self.name in m.regions
-                and m.space.matches(space)
+                m.space.matches(space)
                 and m.parcellation.matches(self.parcellation)
+                and self.name in m.regions
             ):
                 return True
         if recurse and not self.is_leaf:
@@ -553,20 +551,15 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
     @property
     def supported_spaces(self) -> List[_space.Space]:
         """
-        The set of spaces for which a mask could be extracted.
-        Overwrites the corresponding method of AtlasConcept.
+        The list of spaces for which a mask could be extracted from an existing
+        map or combination of masks of its children.
         """
         if self._supported_spaces is None:
-            self._supported_spaces = sorted(
-                {s for s in _space.Space.registry() if self.mapped_in_space(s)}
-            )
+            self._supported_spaces = sorted({
+                s for s in _space.Space.registry()
+                if self.mapped_in_space(s, recurse=True)
+            })
         return self._supported_spaces
-
-    def supports_space(self, space: _space.Space):
-        """
-        Return true if this region supports the given space, else False.
-        """
-        return any(s.matches(space) for s in self.supported_spaces)
 
     @property
     def spaces(self):
@@ -610,7 +603,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             return self._ASSIGNMENT_CACHE[other, self].invert()
 
         if isinstance(other, (location.Location, volume.Volume)):
-            if self.mapped_in_space(other.space):
+            if self.mapped_in_space(other.space, recurse=True):
                 regionmap = self.get_regional_mask(other.space)
                 self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(other)
                 return self._ASSIGNMENT_CACHE[self, other]
@@ -842,7 +835,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
     def intersection(self, other: "location.Location") -> "location.Location":
         """Use this region for filtering a location object."""
 
-        if self.supports_space(other.space):
+        if self.mapped_in_space(other.space, recurse=True):
             try:
                 volume = self.get_regional_mask(other.space)
                 if volume is not None:
