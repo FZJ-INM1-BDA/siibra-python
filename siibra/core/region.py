@@ -53,8 +53,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
     _regex_re = re.compile(r'^\/(?P<expression>.+)\/(?P<flags>[a-zA-Z]*)$')
     _accepted_flags = "aiLmsux"
 
-    _GETMAP_CACHE = {}
-    _GETMAP_CACHE_MAX_ENTRIES = 1
+    _GETMASK_CACHE = {}
+    _GETMASK_CACHE_MAX_ENTRIES = 1
 
     def __init__(
         self,
@@ -441,12 +441,21 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             maptype = MapType[maptype.upper()]
 
         threshold_info = "" if maptype == MapType.LABELLED else f"(threshold: {threshold}) "
+        # check cache
+        getmap_hash = hash(f"{self.id} - {space} - {maptype}{threshold_info}")
+        if getmap_hash in self._GETMASK_CACHE:
+            return self._GETMASK_CACHE[getmap_hash]
+
         name = f"Mask {threshold_info}of '{self.name} ({self.parcellation})' in "
         try:
             regional_map = self.get_regional_map(space=space, maptype=maptype)
             if maptype == MapType.LABELLED:
                 assert threshold == 0.0, f"threshold can only be set for {MapType.STATISTICAL} maps."
-                result = regional_map
+                result = volume.FilteredVolume(
+                    parent_volume=regional_map,
+                    label=regional_map.label,
+                    fragment=regional_map.fragment
+                )
                 result._boundingbox = None
             if maptype == MapType.STATISTICAL:
                 result = volume.FilteredVolume(
@@ -459,18 +468,25 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         except NoMapAvailableError:
             # This region is not mapped directly in any map in the registry.
             # Try building a map from the child regions
-            if (len(self.children) > 0) and all(c.mapped_in_space(space, recurse=True) for c in self.children):
-                logger.info(f"{self.name} is not mapped in {space}. Merging the masks of its {len(self.children)} child regions.")
-                child_volumes = [
-                    child.get_regional_mask(space=space, maptype=maptype, threshold=threshold)
-                    for child in self.children
+            if (len(self.children) > 0) and self.mapped_in_space(space, recurse=True):
+                mapped_descendants: List[Region] = [
+                    d for d in self.descendants if d.mapped_in_space(space, recurse=False)
+                ]
+                logger.info(f"{self.name} is not mapped in {space}. Merging the masks of its {len(mapped_descendants)} map descendants.")
+                descendant_volumes = [
+                    descendant.get_regional_mask(space=space, maptype=maptype, threshold=threshold)
+                    for descendant in mapped_descendants
                 ]
                 result = volume.FilteredVolume(
-                    volume.merge(child_volumes),
+                    volume.merge(descendant_volumes),
                     label=1
                 )
                 name += f"'{result.space}' (built by merging the mask {threshold_info} of its decendants)"
         result._name = name
+
+        while len(self._GETMASK_CACHE) > self._GETMASK_CACHE_MAX_ENTRIES:
+            self._GETMASK_CACHE.pop(next(iter(self._GETMASK_CACHE)))
+        self._GETMASK_CACHE[getmap_hash] = result
         return result
 
     def get_regional_map(
@@ -515,11 +531,10 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 and self.name in m.regions
             ):
                 return m.get_volume(region=self)
-        else:
-            raise NoMapAvailableError(
-                f"{self.name} is not mapped in {space} as a {str(maptype)} map."
-                " Please try getting the children or getting the mask."
-            )
+        raise NoMapAvailableError(
+            f"{self.name} is not mapped in {space} as a {str(maptype)} map."
+            " Please try getting the children or getting the mask."
+        )
 
     def mapped_in_space(self, space, recurse: bool = False) -> bool:
         """
