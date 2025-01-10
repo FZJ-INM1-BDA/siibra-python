@@ -442,9 +442,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         threshold_info = "" if maptype == MapType.LABELLED else f"(threshold: {threshold}) "
         # check cache
-        getmap_hash = hash(f"{self.id} - {space} - {maptype}{threshold_info}")
-        if getmap_hash in self._GETMASK_CACHE:
-            return self._GETMASK_CACHE[getmap_hash]
+        getmask_hash = hash(f"{self.id} - {space} - {maptype}{threshold_info}")
+        if getmask_hash in self._GETMASK_CACHE:
+            return self._GETMASK_CACHE[getmask_hash]
 
         name = f"Mask {threshold_info}of '{self.name} ({self.parcellation})' in "
         try:
@@ -465,7 +465,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 if threshold == 0.0:
                     result._boundingbox = regional_map._boundingbox
             name += f"'{result.space}'"
-        except NoMapAvailableError:
+        except NoMapAvailableError as e:
             # This region is not mapped directly in any map in the registry.
             # Try building a map from the child regions
             if (len(self.children) > 0) and self.mapped_in_space(space, recurse=True):
@@ -482,11 +482,13 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                     label=1
                 )
                 name += f"'{result.space}' (built by merging the mask {threshold_info} of its decendants)"
+            else:
+                raise e
         result._name = name
 
         while len(self._GETMASK_CACHE) > self._GETMASK_CACHE_MAX_ENTRIES:
             self._GETMASK_CACHE.pop(next(iter(self._GETMASK_CACHE)))
-        self._GETMASK_CACHE[getmap_hash] = result
+        self._GETMASK_CACHE[getmask_hash] = result
         return result
 
     def get_regional_map(
