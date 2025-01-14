@@ -52,7 +52,7 @@ def shift_ng_transfrom(
     Parameters
     ----------
     transform_nm: np.ndarray
-        Transform array created for dispalying an image correctly from
+        Transform array created for displaying an image correctly from
         neuroglancer precomputed format in neuroglancer viewer.
     max_resolution_nm: np.ndarray
         The voxel resolution of the highest level of resolution.
@@ -594,7 +594,7 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
         elif isinstance(resource, dict):
             self._meshes = {n: self._fragmentinfo(u) for n, u in resource.items()}
         else:
-            raise ValueError(f"Resource specificaton not understood for {self.__class__.__name__}: {resource}")
+            raise ValueError(f"Resource specification not understood for {self.__class__.__name__}: {resource}")
 
     @property
     def _url(self) -> Union[str, Dict[str, str]]:
@@ -635,7 +635,7 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
                 result[name] = (f"{spec['url']}/{mesh_key}/{fragment_names[0]}", transform)
             else:
                 # only one mesh was configures, so we might still
-                # see muliple fragments under the mesh url
+                # see multiple fragments under the mesh url
                 for fragment_name in fragment_names:
                     result[fragment_name] = (f"{spec['url']}/{mesh_key}/{fragment_name}", transform)
 

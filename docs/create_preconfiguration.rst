@@ -37,7 +37,7 @@ I. Determine the type
     * Volume of interest
     * Parcellation-based activity timeseries (tabular)
 
-**Not listed:** If the data is not fitting to any of the catagories and would
+**Not listed:** If the data is not fitting to any of the categories and would
 like to see your data in siibra, then a new schema is needed as otherwise CI
 will fail. It is expected that each new schema should be as general as possible.
 For example, instead of a schema for regional BOLD data, a schema for activity
@@ -82,7 +82,7 @@ IV. Use/share your preconfiguration
 -----------------------------------
 
 You can now use this json to load your desired data as a siibra object and take
-adventage its functionalities. You can also share this json with your colleagues
+advantage its functionalities. You can also share this json with your colleagues
 to collabrate.
 
 At this stage, if you'd like to see your data in siibra-toolbox as default,

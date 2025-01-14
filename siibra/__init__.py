@@ -108,7 +108,7 @@ def set_feasible_download_size(maxsize_gbyte):
 
 def set_cache_size(maxsize_gbyte: int):
     """
-    siibra runs maintainance on its local cache to keep it under a predetermined
+    siibra runs maintenance on its local cache to keep it under a predetermined
     size of 2 gigabytes. This method changes the cache size.
 
     Parameters
@@ -129,9 +129,9 @@ def warm_cache(level=WarmupLevel.INSTANCE):
     Preload preconfigured siibra concepts.
 
     Siibra relies on preconfigurations that simplify integrating various
-    concepts such as parcellations, refernce spaces, and multimodal data
+    concepts such as parcellations, reference spaces, and multimodal data
     features. By preloading the instances, siibra commits all preconfigurations
-    to the memory at once instead of commiting them when required.
+    to the memory at once instead of committing them when required.
     """
     Warmup.warmup(level)
 

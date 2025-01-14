@@ -66,7 +66,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
     - Each sample was subject to multiple (in fact 4) different probes.
     - The probe data structures contain the list of gene expression of a
       particular gene measured in each sample. Therefore the length of the gene
-      expression list in a probe coresponds to the number of samples taken in
+      expression list in a probe corresponds to the number of samples taken in
       the corresponding donor for the given gene.
     """
 

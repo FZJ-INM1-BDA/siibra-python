@@ -133,8 +133,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         Example
         -------
         >>> region = siibra.get_region("monkey", "PG")
-        >>> for assesment in region.get_related_regions():
-        >>>    print(assesment)
+        >>> for assessment in region.get_related_regions():
+        >>>    print(assessment)
         'PG' is homologous to 'Area PGa (IPL)'
         'PG' is homologous to 'Area PGa (IPL) left'
         'PG' is homologous to 'Area PGa (IPL) right'
@@ -481,7 +481,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                     volume.merge(descendant_volumes),
                     label=1
                 )
-                name += f"'{result.space}' (built by merging the mask {threshold_info} of its decendants)"
+                name += f"'{result.space}' (built by merging the mask {threshold_info} of its descendants)"
             else:
                 raise e
         result._name = name
@@ -497,7 +497,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         maptype: MapType = MapType.LABELLED,
     ) -> Union[volume.FilteredVolume, volume.Volume, volume.Subvolume]:
         """
-        Get a volume reprsenting this region in the given space and MapType.
+        Get a volume representing this region in the given space and MapType.
 
         Note
         ----
@@ -931,8 +931,8 @@ def get_related_regions(region: Region) -> Iterable["RegionRelationAssessments"]
     Example
     -------
     >>> region = siibra.get_region("monkey", "PG")
-    >>> for assesment in siibra.core.region.get_related_regions(region):
-    >>>    print(assesment)
+    >>> for assessment in siibra.core.region.get_related_regions(region):
+    >>>    print(assessment)
     'PG' is homologous to 'Area PGa (IPL)'
     'PG' is homologous to 'Area PGa (IPL) left'
     'PG' is homologous to 'Area PGa (IPL) right'

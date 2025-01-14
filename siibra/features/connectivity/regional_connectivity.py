@@ -275,7 +275,7 @@ class RegionalConnectivity(Feature, Compoundable):
 
         regions = [r for r in matrix.index if matches(r, region)]
         if len(regions) == 0:
-            raise ValueError(f"Invalid region specificiation: {region}")
+            raise ValueError(f"Invalid region specification: {region}")
         elif len(regions) > 1:
             raise ValueError(f"Region specification {region} matched more than one profile: {regions}")
         else:
