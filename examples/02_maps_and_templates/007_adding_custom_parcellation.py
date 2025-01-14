@@ -85,7 +85,7 @@ print(f"{len(profiles)} intensity profiles found.")
 
 # %%
 # On the other hand, some features are only anchored to a semantic region
-# object and the link to the custome region is not directly known to siibra.
+# object and the link to the custom region is not directly known to siibra.
 # However, siibra circumvents this by comparing volumes of these regions to
 # assign a link between them.
 volume = region.get_regional_mask('mni152')

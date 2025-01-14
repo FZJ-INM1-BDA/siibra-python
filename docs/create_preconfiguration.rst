@@ -14,7 +14,7 @@ How to structure jsons?
 =======================
 In ``config_schema`` folder within
 `siibra-python <https://github.com/FZJ-INM1-BDA/siibra-python>`_, the existing
-schemes are provied as json files. These are meant to be a guide, particularly
+schemes are provided as json files. These are meant to be a guide, particularly
 for the minimum requirements.
 
 Step-by-step

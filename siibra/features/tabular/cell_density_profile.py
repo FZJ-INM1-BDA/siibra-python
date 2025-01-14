@@ -60,7 +60,7 @@ class PolyLine:
         return sum(self.lengths)
 
     def sample(self, d: Union[Iterable[float], np.ndarray, float]):
-        # if d is interable, we assume a list of sample positions
+        # if d is iterable, we assume a list of sample positions
         try:
             iter(d)
         except TypeError:

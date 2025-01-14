@@ -554,7 +554,7 @@ def connected_components(
 
     Note
     ----
-    `Uses skimage.measure.label()` to determine foreground compenents.
+    `Uses skimage.measure.label()` to determine foreground components.
 
     Parameters
     ----------
@@ -644,7 +644,7 @@ def MI(arr1, arr2, nbins=100, normalized=True):
     assert (all(arr.size > 0) for arr in [arr1, arr2])
 
     # compute the normalized joint 2D histogram as an
-    # empirical measure of the joint probabily of arr1 and arr2
+    # empirical measure of the joint probability of arr1 and arr2
     pxy, _, _ = np.histogram2d(arr1.ravel(), arr2.ravel(), bins=nbins)
     pxy /= pxy.sum()
 

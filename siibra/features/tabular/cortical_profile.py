@@ -37,7 +37,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
     Optionally, the depth coordinates of layer boundaries can be specified.
 
     Most attributes are modelled as properties, so dervide classes are able
-    to implement lazy loading instead of direct initialiation.
+    to implement lazy loading instead of direct initialization.
 
     """
 
