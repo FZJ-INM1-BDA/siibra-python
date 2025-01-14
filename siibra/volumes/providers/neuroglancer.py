@@ -174,7 +174,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
         Parameters
         ----------
         fetch_kwargs:
-            key word arguments that are used for fetchin volumes,
+            key word arguments that are used for fetching volumes,
             such as voi or resolution_mm.
         """
         bbox = None
