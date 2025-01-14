@@ -127,11 +127,12 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
             matched = pointcloud.from_points([matched])
         assert isinstance(matched, pointcloud.PointCloud)
         if isinstance(concept, location.Location):
-            matched.labels = list(range(len(matched)))
+            mesh_as_list = mesh_vertices.as_list()
+            matched.labels = [mesh_as_list.index(v.coordinate) for v in matched]
         indices = matched.labels
         assert indices is not None
         features = []
-        for i in matched.labels:
+        for i in indices:
             anchor = _anchor.AnatomicalAnchor(
                 location=point.Point(loader._vertices[i], space='bigbrain'),
                 region=str(concept),
@@ -164,15 +165,15 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
 
         loader = WagstylProfileLoader()
         mesh_vertices = pointcloud.PointCloud(loader._vertices, space='bigbrain')
-        matched = concept.intersection(mesh_vertices)  # returns a reduced PointCloud with og indices as labels
+        matched = concept.intersection(mesh_vertices)  # returns a reduced PointCloud with og indices as labels if the concept is a region
         if matched is None:
             return []
-        assert isinstance(matched, pointcloud.PointCloud)
         if isinstance(matched, point.Point):
             matched = pointcloud.from_points([matched])
         assert isinstance(matched, pointcloud.PointCloud)
         if isinstance(concept, location.Location):
-            matched.labels = list(range(len(matched)))
+            mesh_as_list = mesh_vertices.as_list()
+            matched.labels = [mesh_as_list.index(v.coordinate) for v in matched]
         indices = matched.labels
         matched_profiles = loader._profiles[indices, :]
         boundary_depths = loader._boundary_depths[indices, :]

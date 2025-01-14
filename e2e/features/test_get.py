@@ -1,6 +1,12 @@
 import pytest
-import siibra
 from e2e.util import check_duplicate
+
+import siibra
+from siibra.locations import Location, PointCloud
+from siibra.livequeries.bigbrain import WagstylProfileLoader
+from siibra.features.feature import CompoundFeature
+
+import numpy as np
 
 
 # We get all registered subclasses of Feature
@@ -67,8 +73,53 @@ def test_querying_with_volume():
     # Use features with location anchors only. Because hybrid ones will also
     # employ sementic links between regions, potentially changing the result.
     region = siibra.get_region("julich 2.9", "ca1")
-    volume = region.get_regional_mask('mni152')
+    volume = region.get_regional_mask("mni152")
     profiles_region = siibra.features.get(region, "BigBrainIntensityProfile")[0]
     profiles_volume = siibra.features.get(volume, "BigBrainIntensityProfile")[0]
     # the ids will be diffent but the content has to be the same. Even the order.
-    assert [p.location for p in profiles_region] == [p.location for p in profiles_volume]
+    assert [p.location for p in profiles_region] == [
+        p.location for p in profiles_volume
+    ]
+
+
+WagstylProfileLoader._load()
+verts = WagstylProfileLoader._vertices
+np.random.seed(10)
+loc_queries = [
+    (
+        siibra.get_map("julich 2.9", "bigbrain")
+        .get_volume("hoc1 left")
+        .get_boundingbox(clip=True),
+        "BigBrainIntensityProfile",
+        13968,
+    ),
+    (
+        PointCloud(verts[np.random.randint(0, len(verts) - 1, 100)], space="bigbrain"),
+        "BigBrainIntensityProfile",
+        100,
+    ),
+    (
+        PointCloud(
+            np.concatenate(
+                [
+                    verts[np.random.randint(0, len(verts) - 1, 100)] + 1000,
+                    verts[np.random.randint(0, len(verts) - 1, 10)],
+                ]
+            ),
+            space="bigbrain",
+        ),
+        "BigBrainIntensityProfile",
+        10,
+    ),
+]
+
+
+@pytest.mark.parametrize("loc, feat_type, res_len", loc_queries)
+def test_query_w_locations(loc: Location, feat_type: str, res_len: int):
+    results = siibra.features.get(loc, feat_type)
+    assert len(results) > 0
+    assert results[0].data is not None
+    if len(results) == 1 and isinstance(results[0], CompoundFeature):
+        assert len(results[0]) == res_len
+    else:
+        assert len(results) == res_len
