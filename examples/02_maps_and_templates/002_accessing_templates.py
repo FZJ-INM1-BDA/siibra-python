@@ -78,7 +78,7 @@ icbm_tpl.formats
 # or to fetch from a concrete resource format.
 # Meshes are provided as a dictionary with an Nx3 array of N vertices,
 # and an Mx3 array of M triangles defined from the vertices.
-# we can pre-check wether a volume provides image or mesh data
+# we can pre-check whether a volume provides image or mesh data
 # explicitly using `provides_mesh` and `provides_image`
 assert icbm_tpl.provides_mesh
 icbm_mesh = icbm_tpl.fetch(format='mesh')

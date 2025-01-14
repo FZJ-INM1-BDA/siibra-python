@@ -139,7 +139,7 @@ class InstanceTable(Generic[T], Iterable):
         return (w for w in self._elements.values())
 
     def __contains__(self, key: Union[str, T]) -> bool:
-        """Test wether the given key or element is defined by the registry."""
+        """Test whether the given key or element is defined by the registry."""
         if isinstance(key, str):
             return key in self._elements
         return key in [item for _, item in self._elements.values()]

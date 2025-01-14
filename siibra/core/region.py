@@ -540,7 +540,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
     def mapped_in_space(self, space, recurse: bool = False) -> bool:
         """
-        Verifies wether this region is defined by an explicit map in the given space.
+        Verifies whether this region is defined by an explicit map in the given space.
 
         Parameters
         ----------
