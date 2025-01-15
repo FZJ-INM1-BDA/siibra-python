@@ -4,5 +4,5 @@
 skip = .git*,*.css,.codespellrc,gene_names.json,requirements*.txt,region_aliases.json
 check-hidden = true
 # embedded images and otherwise too long lines
-ignore-regex = ^\s*"image/\S+": ".*|.{300,}|\bFOM\b|.*codespell-ignore
+ignore-regex = ^\s*"image/\S+": ".*|.{300,}|\bFOM\b
 # ignore-words-list = 
