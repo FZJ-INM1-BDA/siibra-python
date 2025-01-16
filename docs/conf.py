@@ -122,7 +122,7 @@ else:
             shell=False,
         )
 
-# napolean settings
+# napoleon settings
 napoleon_google_docstring = False
 napoleon_use_param = True
 napoleon_use_ivar = True
@@ -213,7 +213,7 @@ html_theme_options = {
 html_theme = "sphinx_book_theme"
 html_show_sourcelink = False
 html_show_sphinx = True
-html_logo = "_static/siibra-python.jpeg"  # overriden by logo in html_theme_options
+html_logo = "_static/siibra-python.jpeg"  # overridden by logo in html_theme_options
 html_favicon = "_static/siibra_favicon.ico"
 html_permalinks = False
 

@@ -239,7 +239,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         backend="plotly", **kwargs
     ):
         """
-        Create a carpet plot ofthe timeseries data per region.
+        Create a carpet plot of the timeseries data per region.
 
         Parameters
         ----------

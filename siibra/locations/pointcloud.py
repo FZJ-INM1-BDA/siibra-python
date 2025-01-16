@@ -32,7 +32,7 @@ except ImportError:
     _HAS_HDBSCAN = False
     logger.warning(
         f"HDBSCAN is not available with your version {sklearn.__version__} of sckit-learn."
-        "`PointCloud.find_clusters()` will not be avaiable."
+        "`PointCloud.find_clusters()` will not be available."
     )
 
 
@@ -320,7 +320,7 @@ class PointCloud(location.Location):
         if not _HAS_HDBSCAN:
             raise RuntimeError(
                 f"HDBSCAN is not available with your version {sklearn.__version__} "
-                "of sckit-learn. `PointCloud.find_clusters()` will not be avaiable."
+                "of sckit-learn. `PointCloud.find_clusters()` will not be available."
             )
         points = np.array(self.as_list())
         N = points.shape[0]

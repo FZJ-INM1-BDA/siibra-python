@@ -53,7 +53,7 @@ _README_TMPL = """
 Downloaded from siibra toolsuite.
 siibra-python version: {version}
 
-All releated resources (e.g. doi, web resources) are categorized under publications.
+All related resources (e.g. doi, web resources) are categorized under publications.
 
 Name
 ----
@@ -199,9 +199,9 @@ class Feature:
     @property
     def authors(self):
         return [
-            contributer['name']
+            contributor['name']
             for ds in self.datasets
-            for contributer in ds.contributors
+            for contributor in ds.contributors
         ]
 
     @property
@@ -256,7 +256,7 @@ class Feature:
         concept: Union[structure.BrainStructure, space.Space],
     ) -> bool:
         """
-        Match the features anatomical anchor agains the given query concept.
+        Match the features anatomical anchor against the given query concept.
         Record the most recently matched concept for inspection by the caller.
         """
         # TODO: storing the last matched concept. It is not ideal, might cause problems in multithreading
@@ -509,7 +509,7 @@ class Feature:
         This will
         - call Feature.match(concept) for any registered preconfigured features
         - run any registered live queries
-        The preconfigured and live query instances are merged and returend as a list.
+        The preconfigured and live query instances are merged and returned as a list.
 
         If multiple feature types are given, recurse for each of them.
 
@@ -519,7 +519,7 @@ class Feature:
         concept: AtlasConcept
             An anatomical concept, typically a brain region or parcellation.
         feature_type: subclass of Feature, str
-            specififies the type of features ("modality")
+            specifies the type of features ("modality")
         """
         if isinstance(feature_type, list):
             # a list of feature types is given, collect match results on those
@@ -604,7 +604,7 @@ class Feature:
                 if inst.id == feature_id
             ]
             if len(candidates) == 0:
-                raise NotFoundException(f"No feature instance wth {feature_id} found.")
+                raise NotFoundException(f"No feature instance with {feature_id} found.")
             if len(candidates) == 1:
                 return candidates[0]
             else:
@@ -719,7 +719,7 @@ class Compoundable(ABC):
         """
         Compute the merge data and create a merged instance from a set of
         elements of this class. This will be used by CompoundFeature to
-        create the aggegated data and plot it. For example, to compute an
+        create the aggregated data and plot it. For example, to compute an
         average connectivity matrix from a set of subfeatures, we create a
         RegionalConnectivty feature.
         """
@@ -728,7 +728,7 @@ class Compoundable(ABC):
 
 class CompoundFeature(Feature):
     """
-    A compound aggregating mutliple features of the same type, forming its
+    A compound aggregating multiple features of the same type, forming its
     elements. The anatomical anchors and data of the features is merged.
     Features need to subclass "Compoundable" to allow aggregation
     into a compound feature.

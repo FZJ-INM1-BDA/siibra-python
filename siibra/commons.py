@@ -139,7 +139,7 @@ class InstanceTable(Generic[T], Iterable):
         return (w for w in self._elements.values())
 
     def __contains__(self, key: Union[str, T]) -> bool:
-        """Test wether the given key or element is defined by the registry."""
+        """Test whether the given key or element is defined by the registry."""
         if isinstance(key, str):
             return key in self._elements
         return key in [item for _, item in self._elements.values()]
@@ -554,7 +554,7 @@ def connected_components(
 
     Note
     ----
-    `Uses skimage.measure.label()` to determine foreground compenents.
+    `Uses skimage.measure.label()` to determine foreground components.
 
     Parameters
     ----------
@@ -568,7 +568,7 @@ def connected_components(
     Yields
     ------
     Generator[Tuple[int, np.ndarray], None, None]
-        tuple of integer label of the component and component as an nd.array in
+        tuple of integer label of the component and component as an ndarray in
         the shape of the original image.
     """
     from skimage import measure
@@ -644,11 +644,11 @@ def MI(arr1, arr2, nbins=100, normalized=True):
     assert (all(arr.size > 0) for arr in [arr1, arr2])
 
     # compute the normalized joint 2D histogram as an
-    # empirical measure of the joint probabily of arr1 and arr2
+    # empirical measure of the joint probability of arr1 and arr2
     pxy, _, _ = np.histogram2d(arr1.ravel(), arr2.ravel(), bins=nbins)
     pxy /= pxy.sum()
 
-    # extract the empirical propabilities of intensities
+    # extract the empirical probabilities of intensities
     # from the joint histogram
     px = np.sum(pxy, axis=1)  # marginal for x over y
     py = np.sum(pxy, axis=0)  # marginal for y over x

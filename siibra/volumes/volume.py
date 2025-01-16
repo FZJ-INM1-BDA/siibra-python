@@ -191,7 +191,7 @@ class Volume(structure.BrainStructure):
             ----
             To use it, clip must be True.
         fetch_kwargs:
-            key word arguments that are used for fetchin volumes,
+            key word arguments that are used for fetching volumes,
             such as voi or resolution_mm. Currently, only possible for
             Neuroglancer volumes except for `format`.
 
@@ -206,7 +206,7 @@ class Volume(structure.BrainStructure):
         if not self.provides_image:
             raise NotImplementedError("Bounding box calculation of meshes is not implemented yet.")
 
-        if clip:  # clippin requires fetching the image
+        if clip:  # clipping requires fetching the image
             img = self.fetch(**fetch_kwargs)
             assert isinstance(img, Nifti1Image)
             return boundingbox.from_array(
@@ -214,7 +214,7 @@ class Volume(structure.BrainStructure):
                 background=background,
             ).transform(img.affine, space=self.space)
 
-        # if clipping is not required, providers migth have methods of creating
+        # if clipping is not required, providers might have methods of creating
         # bounding boxes without fetching the image
         fmt = fetch_kwargs.get("format")
         if (fmt is not None) and (fmt not in self.formats):
@@ -365,7 +365,7 @@ class Volume(structure.BrainStructure):
         this map.
 
 
-        Paramaters
+        Parameters
         ----------
         points: PointCloud
         keep_labels: bool
@@ -407,7 +407,7 @@ class Volume(structure.BrainStructure):
             return self.get_boundingbox(clip=True, background=0.0, **fetch_kwargs).intersection(other)
         elif isinstance(other, Volume):
             if self.space != other.space:
-                raise NotImplementedError("Cannot intersect volumes from different spaces. Try comparing their boudning boxes.")
+                raise NotImplementedError("Cannot intersect volumes from different spaces. Try comparing their bounding boxes.")
             format = fetch_kwargs.pop('format', 'image')
             v1 = self.fetch(format=format, **fetch_kwargs)
             v2 = other.fetch(format=format, **fetch_kwargs)
@@ -461,7 +461,7 @@ class Volume(structure.BrainStructure):
             format = 'neuroglancer/precomputed'
 
         if format is None:
-            # preseve fetch order in SUPPORTED_FORMATS
+            # preserve fetch order in SUPPORTED_FORMATS
             possible_formats = [f for f in self.SUPPORTED_FORMATS if f in self.formats]
         elif format in self._FORMAT_LOOKUP:  # allow use of aliases
             possible_formats = [f for f in self._FORMAT_LOOKUP[format] if f in self.formats]
@@ -519,7 +519,7 @@ class Volume(structure.BrainStructure):
                     break
                 else:
                     break
-            # udpate the cache if fetch is successful
+            # update the cache if fetch is successful
             if result is not None:
                 self._FETCH_CACHE[fetch_hash] = result
                 while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
@@ -539,7 +539,7 @@ class Volume(structure.BrainStructure):
         """
         img = self.fetch(**fetch_kwargs)
         assert isinstance(img, Nifti1Image), NotImplementedError(
-            f"Connected components for type {type(img)} is not yet implemeneted."
+            f"Connected components for type {type(img)} is not yet implemented."
         )
         for label, component in connected_components(np.asanyarray(img.dataobj)):
             yield (
@@ -569,7 +569,7 @@ class Volume(structure.BrainStructure):
     def draw_samples(self, N: int, sample_size: int = 100, e: float = 1, sigma_mm=None, invert=False, **kwargs):
         """
         Draw samples from the volume, by interpreting its values as an
-        unnormalized empirical probability distribtution.
+        unnormalized empirical probability distributions.
         Any keyword arguments are passed over to fetch()
         """
         if not self.provides_image:
@@ -814,7 +814,7 @@ def from_pointcloud(
     sigmas = np.array(points.sigma_mm)[selection]
     bandwidth = np.mean(sigmas)
     if len(np.unique(sigmas)) > 1:
-        logger.warning(f"KDE of pointcloud uses average bandwith {bandwidth} instead of the points' individual sigmas.")
+        logger.warning(f"KDE of pointcloud uses average bandwidth {bandwidth} instead of the points' individual sigmas.")
 
     filtered_arr = filters.gaussian(voxelcount_img, bandwidth)
     if normalize:
@@ -841,7 +841,7 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
     ----------
     volumes : List[Volume]
     labels : List[int], optional
-        Supply new labels to replace exisiting values per volume.
+        Supply new labels to replace existing values per volume.
 
     Returns
     -------

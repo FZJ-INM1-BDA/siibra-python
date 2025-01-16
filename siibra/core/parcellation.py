@@ -221,7 +221,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         """
         spec = re.sub(r'Group: *', '', spec)
         for substr in re.findall(r'\(.*?\)', spec):
-            # temporarilty replace commas inside brackets with a placeholder
+            # temporarily replace commas inside brackets with a placeholder
             # because these are not region spec delimiters
             spec = spec.replace(substr, re.sub(r', *', '##', substr))
         # process the comma separated substrings
@@ -354,7 +354,7 @@ def find_regions(
 ):
     """
     Find regions matching the given region specification across all parcellation
-    instances in the registery.
+    instances in the registry.
 
     Parameters
     ----------

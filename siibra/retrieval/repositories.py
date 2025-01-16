@@ -196,7 +196,7 @@ class GithubConnector(RepositoryConnector):
                 if len(matched_reftags) == 1:
                     self._want_commit_cached = matched_reftags[0]["commit"]
                 else:
-                    raise RuntimeError(f"Found {len(matched_reftags)} mathces to {reftag}")
+                    raise RuntimeError(f"Found {len(matched_reftags)} matches to {reftag}")
                 self._tag_checked = True
             except Exception:
                 logger.warning("Could not connect to GitHub repository.", exc_info=1)
@@ -258,7 +258,7 @@ class GitlabConnector(RepositoryConnector):
             n.b. only archive_mode should only be set for trusted domains. Extraction of archive can result in files created outside the path
             see https://docs.python.org/3/library/tarfile.html#tarfile.TarFile.extractall
         """
-        # TODO: the query builder needs to check wether the reftag is a branch, and then not cache.
+        # TODO: the query builder needs to check whether the reftag is a branch, and then not cache.
         assert server.startswith("http")
         RepositoryConnector.__init__(
             self, base_url=f"{server}/api/v4/projects/{project}/repository"
@@ -584,7 +584,7 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
             Part of dataset title as an alternative dataset specification (will ignore dataset_id then)
         in_progress: bool (default:False)
             If true, will request datasets that are still under curation.
-            Will only work when autenticated with an appropriately privileged
+            Will only work when authenticated with an appropriately privileged
             user account.
         """
         self.dataset_id = dataset_id

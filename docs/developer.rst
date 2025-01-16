@@ -219,7 +219,7 @@ Adding data to siibra-toolsuite
 
 Anatomical Anchor
 -----------------
-Each feautre instance requires an anatomical anchor. This could be a parcellation
+Each feature instance requires an anatomical anchor. This could be a parcellation
 (as in ``RegionalConnecticity``), a region, a region and a location, or a location.
 Using the anatomical anchor siibra can determine the semantic and spatial
 relationship between different ``AtlasConcepts``.

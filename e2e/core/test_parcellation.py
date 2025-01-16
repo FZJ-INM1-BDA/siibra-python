@@ -65,4 +65,4 @@ def test_region_id_uniqueness(parcellation: Parcellation):
             duplicates.add(region.id)
         ids.add(region)
 
-    assert len(duplicates) == 0, f"Folowing regions a duplicate IDs in {parcellation.name}:\n{duplicates}"
+    assert len(duplicates) == 0, f"Following regions a duplicate IDs in {parcellation.name}:\n{duplicates}"

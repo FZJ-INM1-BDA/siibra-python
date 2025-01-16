@@ -503,7 +503,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         taking the voxelwise maximum across the mapped volumes and fragments,
         and re-labelling regions sequentially.
 
-        Paramaters
+        Parameters
         ----------
         **kwargs: Takes the fetch arguments of its space's template.
 
@@ -726,13 +726,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     if region.rgb is not None:
                         colors[index.label] = region.rgb
 
-        pallette = np.array(
+        palette = np.array(
             [
                 list(colors[i]) + [1] if i in colors else [0, 0, 0, 0]
                 for i in range(max(colors.keys()) + 1)
             ]
         ) / [255, 255, 255, 1]
-        return ListedColormap(pallette)
+        return ListedColormap(palette)
 
     def sample_locations(self, regionspec, numpoints: int):
         """ Sample 3D locations inside a given region.
@@ -750,7 +750,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Returns
         -------
         PointCloud
-            Sample points in physcial coordinates corresponding to this
+            Sample points in physical coordinates corresponding to this
             parcellationmap
         """
         index = self.get_index(regionspec)
@@ -923,7 +923,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if len(assignments) == 0:
             return pd.DataFrame(columns=columns)
         # determine the unique set of observed indices in order to do region lookups
-        # only once for each map index occuring in the point list
+        # only once for each map index occurring in the point list
         labelled = self.is_labelled  # avoid calling this in a loop
         observed_indices = {  # unique set of observed map indices. NOTE: len(observed_indices) << len(assignments)
             (
