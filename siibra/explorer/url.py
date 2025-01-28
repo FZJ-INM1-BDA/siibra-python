@@ -211,7 +211,7 @@ def get_hash(full_string: str):
         for char in full_string:
             # overflowing is expected and in fact the whole reason why convert number to int32
 
-            # in windows, int32((0 - min_int32) << 5), rather than overflow to wraper around, raises OverflowError
+            # in windows, int32((0 - min_int32) << 5), rather than overflow to wrapper around, raises OverflowError
             shifted_5 = int32(
                 (return_val - min_int32) if return_val > max_int32 else return_val << 5
             )

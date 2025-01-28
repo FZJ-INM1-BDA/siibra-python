@@ -44,7 +44,7 @@ class ImageAnchor(_anchor.AnatomicalAnchor):
         if self._location_cached is None:
             self._location_cached = self.volume.get_boundingbox(
                 clip=False
-            )  # use unclipped to preseve exisiting behaviour
+            )  # use unclipped to preserve existing behaviour
         return self._location_cached
 
     @property

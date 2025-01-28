@@ -83,7 +83,7 @@ view = plotting.plot_anat(anat_img=template, cut_coords=tuple(location))
 view.add_markers([tuple(location)])
 
 # %%
-# Now let us look into BigBrain intenstiy profiles for V1 left and dispaly the
+# Now let us look into BigBrain intenstiy profiles for V1 left and display the
 # gray matter mesh coordinates on the region mask.
 v1left = siibra.get_region("julich 2.9", "v1 left")
 cf = siibra.features.get(v1left, "BigBrainIntensityProfile")[0]

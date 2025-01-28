@@ -209,7 +209,7 @@ class BoundingBox(location.Location):
         X, Y, Z = np.where(mask.get_fdata() > threshold)
         h = np.ones(len(X))
 
-        # array of homogenous physical nonzero voxel coordinates
+        # array of homogeneous physical nonzero voxel coordinates
         coords = np.dot(mask.affine, np.vstack((X, Y, Z, h)))[:3, :].T
         minpoint = [min(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
         maxpoint = [max(self.minpoint[i], self.maxpoint[i]) for i in range(3)]

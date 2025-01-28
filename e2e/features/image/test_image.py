@@ -18,7 +18,7 @@ all_image_features = [f for ft in siibra.features.Feature._SUBCLASSES[siibra.fea
 def test_feature_has_datasets(feature: Image):
     if feature.name in PRERELEASE_FEATURES_W_NO_DATASET:
         if len(feature.datasets) > 0:
-            pytest.fail(f"Feature '{feature}' was listed as prerelase previosly but now have dataset information. Please update `PRERELEASE_FEATURES_W_NO_DATASET`")
+            pytest.fail(f"Feature '{feature}' was listed as prerelease previously but now have dataset information. Please update `PRERELEASE_FEATURES_W_NO_DATASET`")
         pytest.skip(f"Feature '{feature}' has no datasets yet as it is a prerelease data.")
     assert len(feature.datasets) > 0, f"{feature} has no datasets"
 
