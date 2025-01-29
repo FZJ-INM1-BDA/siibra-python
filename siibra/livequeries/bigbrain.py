@@ -19,7 +19,7 @@ from . import query
 from ..features.tabular import bigbrain_intensity_profile, layerwise_bigbrain_intensities
 from ..features import anchor as _anchor
 from ..commons import logger
-from ..locations import point, pointcloud
+from ..locations import point, pointcloud, location
 from ..core import structure
 from ..retrieval import requests, cache
 from ..retrieval.datasets import GenericDataset
@@ -123,11 +123,16 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
         matched = concept.intersection(mesh_vertices)  # returns a reduced PointCloud with og indices as labels
         if matched is None:
             return []
+        if isinstance(matched, point.Point):
+            matched = pointcloud.from_points([matched])
         assert isinstance(matched, pointcloud.PointCloud)
+        if isinstance(concept, location.Location):
+            mesh_as_list = mesh_vertices.as_list()
+            matched.labels = [mesh_as_list.index(v.coordinate) for v in matched]
         indices = matched.labels
         assert indices is not None
         features = []
-        for i in matched.labels:
+        for i in indices:
             anchor = _anchor.AnatomicalAnchor(
                 location=point.Point(loader._vertices[i], space='bigbrain'),
                 region=str(concept),
@@ -160,12 +165,16 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
 
         loader = WagstylProfileLoader()
         mesh_vertices = pointcloud.PointCloud(loader._vertices, space='bigbrain')
-        matched = concept.intersection(mesh_vertices)  # returns a reduced PointCloud with og indices as labels
+        matched = concept.intersection(mesh_vertices)  # returns a reduced PointCloud with og indices as labels if the concept is a region
         if matched is None:
             return []
+        if isinstance(matched, point.Point):
+            matched = pointcloud.from_points([matched])
         assert isinstance(matched, pointcloud.PointCloud)
+        if isinstance(concept, location.Location):
+            mesh_as_list = mesh_vertices.as_list()
+            matched.labels = [mesh_as_list.index(v.coordinate) for v in matched]
         indices = matched.labels
-        assert indices is not None
         matched_profiles = loader._profiles[indices, :]
         boundary_depths = loader._boundary_depths[indices, :]
         # compute array of layer labels for all coefficients in profiles_left
