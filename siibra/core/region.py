@@ -124,7 +124,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
     def get_related_regions(self) -> Iterable["RegionRelationAssessments"]:
         """
-        Get assements on relations of this region to others defined on EBRAINS.
+        Get assessments on relations of this region to others defined on EBRAINS.
 
         Yields
         ------
@@ -918,7 +918,7 @@ def get_peid_from_region(region: Region) -> str:
 
 def get_related_regions(region: Region) -> Iterable["RegionRelationAssessments"]:
     """
-    Get assements on relations of a region to others defined on EBRAINS.
+    Get assessments on relations of a region to others defined on EBRAINS.
 
     Parameters
     ----------
