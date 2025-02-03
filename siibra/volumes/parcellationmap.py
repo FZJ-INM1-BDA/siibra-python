@@ -1032,7 +1032,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         assignments.append(
                             MapAssignment(
                                 input_structure=pointindex,
-                                centroid=tuple(np.array(position).round(2)),
+                                centroid=tuple(position),
                                 volume=vol,
                                 fragment=frag,
                                 map_value=value
