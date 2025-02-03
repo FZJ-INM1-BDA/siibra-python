@@ -146,24 +146,21 @@ class AnatomicalAnchor:
         """
         if concept not in self._assignments:
             matches: List[AnatomicalAssignment] = []
-            if isinstance(concept, Space):
-                if self.space == concept:
-                    matches.append(
-                        AnatomicalAssignment(self.space, concept, AssignmentQualification.EXACT)
-                    )
-            elif isinstance(concept, Region):
-                if concept.species in self.species:
-                    if any(_.matches(self._regionspec) for _ in concept) \
-                            or self.has_region_aliases:  # dramatic speedup, since decoding _regionspec is expensive
-                        for r in self.regions:
-                            matches.append(AnatomicalAnchor.match_regions(r, concept))
-                    if len(concept.root.find(self._regionspec)) == 0:
-                        # We perform the (quite expensive) location-to-region test
-                        # only if this anchor's regionspec is not known to the
-                        # parcellation of the query region. Otherwise we can rely
-                        # on the region-to-region test.
-                        if self.location is not None:
-                            matches.append(AnatomicalAnchor.match_location_to_region(self.location, concept))
+            if isinstance(concept, Space) and self.space == concept:
+                matches.append(
+                    AnatomicalAssignment(self.space, concept, AssignmentQualification.EXACT)
+                )
+            elif isinstance(concept, Region) and concept.species in self.species:
+                hierarchy_search = concept.root.find(self._regionspec)
+                if len(hierarchy_search) > 0 or self.has_region_aliases:  # dramatic speedup, since decoding _regionspec is expensive
+                    for r in self.regions:
+                        matches.append(AnatomicalAnchor.match_regions(r, concept))
+                if len(hierarchy_search) == 0 and self.location is not None:
+                    # We perform the (quite expensive) location-to-region test
+                    # only if this anchor's regionspec is not known to the
+                    # parcellation of the query region. Otherwise we can rely
+                    # on the region-to-region test.
+                    matches.append(AnatomicalAnchor.match_location_to_region(self.location, concept))
             elif isinstance(concept, Location):
                 if self.location is not None:
                     matches.append(AnatomicalAnchor.match_locations(self.location, concept))
