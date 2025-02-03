@@ -1,6 +1,7 @@
-=========================
-Guide for adding new data
-=========================
+.. _use_your_data:
+======================
+Working with your data
+======================
 
 Overview
 ========

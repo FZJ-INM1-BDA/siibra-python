@@ -19,7 +19,7 @@ import sphinx_autopackagesummary  # this import must be kept to make autopackage
 print("sphinx-book-theme:", sphinx_book_theme.__version__)
 print("sphinx-autopackagesummary", sphinx_autopackagesummary.__version__)
 
-os.environ['SIIBRA_LOG_LEVEL'] = "ERROR"
+os.environ["SIIBRA_LOG_LEVEL"] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
 
@@ -28,7 +28,7 @@ def is_allen_api_microarray_service_available():
     import requests
 
     # see https://community.brain-map.org/t/human-brain-atlas-api/2876
-    microarray_test_url = "http://api.brain-map.org/api/v2/data/query.json?criteria= service::human_microarray_expression[probes$eq1023146,1023147][donors$eq15496][structures$eq9148]"
+    microarray_test_url = "http://api.brain-map.org/api/v2/data/query.json?criteria=service::human_microarray_expression[probes$eq1023146,1023147][donors$eq15496][structures$eq9148]"
     try:
         response = requests.get(microarray_test_url).json()
     except requests.RequestException:
@@ -86,6 +86,8 @@ extensions = [
     "sphinx_copybutton",  # adds a copy button for code fields
     "sphinxcontrib.images",  # adds lightbox to images
     "sphinxcontrib.mermaid",  # embed Mermaid graphs including flowcharts, sequence diagrams, gantt diagrams, etc.
+    "sphinx_design",
+    "sphinx_togglebutton",
 ]
 
 run_stale_examples = True
@@ -129,7 +131,7 @@ napoleon_use_ivar = True
 
 # Mappings
 intersphinx_mapping = {
-    "mainconcepts": ("../concepts.html", None),
+    "glossary": ("../concepts.html", None),
     "matplotlib": ("https://matplotlib.org/", None),
     "nilearn": ("https://nilearn.github.io/stable/index.html", None),
     "nibabel": ("https://nipy.org/nibabel/", None),
