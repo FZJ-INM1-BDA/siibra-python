@@ -19,7 +19,7 @@ from .. import feature
 
 from .. import anchor as _anchor
 
-from ... import commons
+from ...commons import logger
 
 import pandas as pd
 from textwrap import wrap
@@ -91,9 +91,11 @@ class Tabular(feature.Feature):
         if backend == "matplotlib":
             try:
                 import matplotlib.pyplot as plt
-            except ImportError:
-                commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
-                return None
+            except ImportError as e:
+                logger.error(
+                    "matplotlib not available. Please install matplotlib or use or another backend such as plotly."
+                )
+                raise e
             # default kwargs
             if kwargs.get("error_y") is None:
                 kwargs["yerr"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)

@@ -703,8 +703,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         -------
         ListedColormap
         """
-        from matplotlib.colors import ListedColormap
-        import numpy as np
+        try:
+            from matplotlib.colors import ListedColormap
+        except ImportError as e:
+            logger.error(
+                "matplotlib not available. Please install matplotlib to create a matplotlib colormap."
+            )
+            raise e
 
         colors = {}
         if region_specs is not None:

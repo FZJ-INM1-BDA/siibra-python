@@ -16,7 +16,8 @@
 from .. import anchor as _anchor
 from . import tabular
 
-from ... import commons, vocabularies
+from ...commons import logger
+from ...vocabularies import RECEPTOR_SYMBOLS
 from ...retrieval import requests
 
 import pandas as pd
@@ -75,9 +76,9 @@ class ReceptorDensityFingerprint(
         # Likely ill-formed tsv's
         return [
             "{} ({})".format(
-                vocabularies.RECEPTOR_SYMBOLS[t]['neurotransmitter']['label'],
-                vocabularies.RECEPTOR_SYMBOLS[t]['neurotransmitter']['name'],
-            ) if t in vocabularies.RECEPTOR_SYMBOLS else
+                RECEPTOR_SYMBOLS[t]['neurotransmitter']['label'],
+                RECEPTOR_SYMBOLS[t]['neurotransmitter']['name'],
+            ) if t in RECEPTOR_SYMBOLS else
             f"{t} (undeciphered)"
             for t in self.receptors
         ]
@@ -107,7 +108,7 @@ class ReceptorDensityFingerprint(
             std = [data[_]["density (sd)"] for _ in labels]
         except KeyError as e:
             print(str(e))
-            commons.logger.error("Could not parse fingerprint from this dictionary")
+            logger.error("Could not parse fingerprint from this dictionary")
         return {
             'unit': next(iter(units)),
             'labels': labels,
@@ -124,9 +125,11 @@ class ReceptorDensityFingerprint(
         if backend == "matplotlib":
             try:
                 import matplotlib.pyplot as plt
-            except ImportError:
-                commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
-                return None
+            except ImportError as e:
+                logger.error(
+                    "matplotlib not available. Please install matplotlib or use or another backend such as plotly."
+                )
+                raise e
             from collections import deque
 
             # default args
