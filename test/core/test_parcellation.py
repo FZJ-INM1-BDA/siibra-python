@@ -10,7 +10,7 @@ import pytest
 from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType, find_regions
 from siibra.core.region import Region
 from siibra.commons import Species
-from siibra.exceptions import NoMapMatchingValues
+from siibra.exceptions import MapNotFound
 import siibra
 
 correct_json = {
@@ -174,7 +174,7 @@ class TestParcellation(unittest.TestCase):
                 expected_return_idx = idx
                 break
         else:
-            ExpectedException = NoMapMatchingValues
+            ExpectedException = MapNotFound
 
         if maptype_input.alias is None:
             ExpectedException = AssertionError if maptype_input.input is None else KeyError

@@ -17,7 +17,7 @@ from . import region
 
 from ..commons import logger, MapType, Species
 from ..volumes import parcellationmap
-from ..exceptions import NoMapMatchingValues
+from ..exceptions import MapNotFound
 
 from functools import lru_cache
 import re
@@ -193,13 +193,13 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             and m.parcellation.matches(self)
         ]
         if len(candidates) == 0:
-            raise NoMapMatchingValues(f"No '{maptype}' map in '{space}' available for {str(self)}")
+            raise MapNotFound(f"No '{maptype}' map in '{space}' available for {str(self)}")
         if len(candidates) > 1:
             spec_candidates = [
                 c for c in candidates if all(w.lower() in c.id.lower() for w in spec.split())
             ]
             if len(spec_candidates) == 0:
-                raise NoMapMatchingValues(f"'{spec}' does not match any options from {[c.name for c in candidates]}.")
+                raise MapNotFound(f"'{spec}' does not match any options from {[c.name for c in candidates]}.")
             if len(spec_candidates) > 1:
                 logger.warning(
                     f"Multiple maps are available in this specification of space, parcellation, and map type.\n"

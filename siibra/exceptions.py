@@ -55,7 +55,7 @@ class NoneCoordinateSuppliedError(ValueError):
     pass
 
 
-class NoMapMatchingValues(ValueError):
+class MapNotFound(ValueError):
     pass
 
 
