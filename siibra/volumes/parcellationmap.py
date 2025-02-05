@@ -730,6 +730,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     region = self.get_region(index=index)
                     if region.rgb is not None:
                         colors[index.label] = region.rgb
+        if len(colors) == 0:
+            raise exceptions.NoPredifinedColormapException(
+                f"There is no predefined/preconfigured colormap for '{self}'."
+                "Set `allow_random_colors=True` to a colormap with random values"
+            )
 
         palette = np.array(
             [
