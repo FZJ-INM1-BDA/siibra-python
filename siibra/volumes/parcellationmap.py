@@ -690,7 +690,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             name=f"Custom colorization of {self}"
         )
 
-    def get_colormap(self, region_specs: Iterable = None):
+    def get_colormap(self, region_specs: Iterable = None, *, allow_random_colors: bool = False):
         """
         Generate a matplotlib colormap from known rgb values of label indices.
 
@@ -698,6 +698,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         ----------
         region_specs: iterable(regions), optional
             Optional parameter to only color the desired regions.
+        allow_random_colors: bool , optional
 
         Returns
         -------
@@ -710,6 +711,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 "matplotlib not available. Please install matplotlib to create a matplotlib colormap."
             )
             raise e
+        if allow_random_colors:
+            seed = len(self.regions)
+            np.random.seed(seed)
+            logger.info(f"Random colors are allowed for regions without preconfgirued colors. Random seee: {seed}.")
 
         colors = {}
         if region_specs is not None:
@@ -730,6 +735,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     region = self.get_region(index=index)
                     if region.rgb is not None:
                         colors[index.label] = region.rgb
+                    elif allow_random_colors:
+                        random_clr = [np.random.randint(0, 255) for r in range(3)]
+                        while random_clr in list(colors.values()):
+                            random_clr = [np.random.randint(0, 255) for r in range(3)]
+                        colors[index.label] = random_clr
+
         if len(colors) == 0:
             raise exceptions.NoPredifinedColormapException(
                 f"There is no predefined/preconfigured colormap for '{self}'."
