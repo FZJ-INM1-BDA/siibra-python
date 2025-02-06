@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2025
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,7 +61,7 @@ plt.figure()
 layers = [2, 4, 5]
 thicknesses = {}
 for layer in layers:
-    upper_surf = layermap.fetch(f"layer {layer+1} left", format="mesh")
+    upper_surf = layermap.fetch(f"layer {layer + 1} left", format="mesh")
     lower_surf = layermap.fetch(f"layer {layer} left", format="mesh")
     thicknesses[layer] = np.linalg.norm(upper_surf['verts'] - lower_surf['verts'], axis=1)
     plt.hist(thicknesses[layer], 200)
