@@ -222,7 +222,7 @@ html_permalinks = False
 html_theme_options = {
     "logo": {
         "image_light": "_static/siibra-python.jpeg",
-        "image_dark": "_static/siibra-python.jpeg",
+        "image_dark": "_static/siibra-siibra-logo-darkmode.png",
     },
     "repository_url": "https://github.com/FZJ-INM1-BDA/siibra-python",
     "use_repository_button": True,
