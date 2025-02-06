@@ -62,5 +62,6 @@ class MapNotFound(ValueError):
 class EmptyPointCloudError(ValueError):
     pass
 
+
 class NoPredifinedColormapException(ValueError):
     pass
