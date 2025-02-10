@@ -1,12 +1,15 @@
-# Design Philosophies & Design philosophy
+# Architecture Design Summary
 
-This document is a summary of the design philosophies and architecture design outline. The architecture design should reference the relevant architecture design records.
+This document is a summary of the design philosophies and architecture design guidelines, distilled from the architecture design records (ADR). The summaries should be accompanied by the corresponding ADR(s), allowing convenient access to the full context when needed.
+
+This document is aimed at those who are interested in the internal organisation of siibra-python codebase. When/if they are ready to contribute via pull requests, issues, feature rerquests etc, this document should be able to provide a more informed context.
+
 
 ## Design philosophies
 
 This section outlines the highest level design philosphies for siibra-python. The points mentioned should be on the highest level and conceptual. Specific examples should be avoided. Subpoints may be provided to add context/clarification. 
 
-The order represent the relative priorities of the philosophies. If an architecture decision would cause a conflict between two philosophies, this list should provide weighted assessment of the conflict, and the net positively/negative.
+The order represent the relative priorities of the philosophies. If an architecture decision would cause a conflict between two philosophies, this list should provide a weighted assessment of the conflict.
 
 - siibra-land objects are context aware
     - are operable in siibra-land, annotated with rich metadata,
@@ -35,6 +38,26 @@ The order represent the relative priorities of the philosophies. If an architect
 
 - usability/intuitiveness of the API
 
-## Architecture design
+## Architecture design guidelines
 
-foo bar [[ADR000]](ADR000-use-adr-records.md)
+### Data feature class design
+
+Siibra data features should not defined by what they _are_, but by what they _have_ (i.e. do **not** extend `Feature` class). [[adr001]](ADR001-use-ecs.md)
+
+```python
+# n.b. simplified
+
+class Attribute: pass
+
+class AttributeCollections:
+    attributes: List[Attribute]
+
+class Space(AttributeCollections): pass
+class Region(AttributeCollections): pass
+class Parcellation(Region): pass
+class Map(AttributeCollections): pass
+class Feature(AttributeCollections): pass
+```
+
+> n.b. while `Space`, `Region`, `Parcellation` and `Map` is not necessarily relevant to the discussion of data feature design, they are included for completeness. 
+

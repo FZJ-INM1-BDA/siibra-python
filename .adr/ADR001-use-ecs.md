@@ -2,7 +2,7 @@
 
 ## Status
 
-Pending
+Adopted
 
 ## Context
 
