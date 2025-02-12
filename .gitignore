@@ -7,7 +7,8 @@
 *.swp
 *.swp
 *.zip
-.*nii
+*.nii
+*.svg
 .DS_Store
 .env
 .idea
