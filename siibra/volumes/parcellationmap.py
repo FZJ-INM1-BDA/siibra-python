@@ -690,7 +690,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             name=f"Custom colorization of {self}"
         )
 
-    def get_colormap(self, region_specs: Iterable = None, *, allow_random_colors: bool = False):
+    def get_colormap(self, region_specs: Iterable = None, *, fill_uncolored: bool = False):
         """
         Generate a matplotlib colormap from known rgb values of label indices.
 
@@ -698,7 +698,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         ----------
         region_specs: iterable(regions), optional
             Optional parameter to only color the desired regions.
-        allow_random_colors: bool , optional
+        fill_uncolored: bool , optional
+            If a region has no preconfigured color, a color will be randomly (reproducible) created.
 
         Returns
         -------
@@ -711,7 +712,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 "matplotlib not available. Please install matplotlib to create a matplotlib colormap."
             )
             raise e
-        if allow_random_colors:
+        if fill_uncolored:
             seed = len(self.regions)
             np.random.seed(seed)
             logger.info(f"Random colors are allowed for regions without preconfgirued colors. Random seee: {seed}.")
@@ -724,6 +725,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         else:
             include_region_names = None
 
+        no_predefined_color = []
         for regionname, indices in self._indices.items():
             for index in indices:
                 if index.label is None:
@@ -735,16 +737,25 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     region = self.get_region(index=index)
                     if region.rgb is not None:
                         colors[index.label] = region.rgb
-                    elif allow_random_colors:
+                    elif fill_uncolored:
                         random_clr = [np.random.randint(0, 255) for r in range(3)]
                         while random_clr in list(colors.values()):
                             random_clr = [np.random.randint(0, 255) for r in range(3)]
                         colors[index.label] = random_clr
+                    else:
+                        no_predefined_color.append(region.name)
 
         if len(colors) == 0:
             raise exceptions.NoPredifinedColormapException(
                 f"There is no predefined/preconfigured colormap for '{self}'."
-                "Set `allow_random_colors=True` to a colormap with random values"
+                "Set `fill_uncolored=True` to get a reproducible colormap."
+            )
+
+        if no_predefined_color:
+            logger.info(
+                f"No preconfigured color found for the follwing regions."
+                "Use `fill_uncolored=True` to display with a non-background color.\n"
+                f"{no_predefined_color}"
             )
 
         palette = np.array(
