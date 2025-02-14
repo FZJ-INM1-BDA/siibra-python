@@ -715,7 +715,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if fill_uncolored:
             seed = len(self.regions)
             np.random.seed(seed)
-            logger.info(f"Random colors are allowed for regions without preconfgirued colors. Random seee: {seed}.")
+            logger.info(f"Random colors are allowed for regions without preconfgirued colors. Random seed: {seed}.")
 
         colors = {}
         if region_specs is not None:
@@ -753,7 +753,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         if no_predefined_color:
             logger.info(
-                f"No preconfigured color found for the follwing regions."
+                f"No preconfigured color found for the following regions."
                 "Use `fill_uncolored=True` to display with a non-background color.\n"
                 f"{no_predefined_color}"
             )
