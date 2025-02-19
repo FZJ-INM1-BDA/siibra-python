@@ -42,16 +42,14 @@ This section provides a catalogue of documented code examples that is systematic
       :class-card: sd-shadow-sm
       :margin: 2 2 auto auto
 
-   .. grid-item-card:: :fas:`book` Detailed tutorials :octicon:`link-external`
-      :link: https://github.com/FZJ-INM1-BDA/siibra-tutorials
+   .. grid-item-card:: :octicon:`pin` Extended tutorials
+      :link: examples/tutorials/index.html
       :link-type: url
       :columns: 12 12 12 12
-      :class-card: sd-shadow-md
-      :class-title: sd-text-primary
-      :margin: 3 3 auto auto
+      :class-card: sd-shadow-sm
+      :margin: 2 2 auto auto
 
-      A set of jupyter notebooks demonstrating more extensive example use cases
-      are maintained in the siibra-tutorials repository.
+      A set of more extensive example use cases.
 
 
 .. Note:: 
