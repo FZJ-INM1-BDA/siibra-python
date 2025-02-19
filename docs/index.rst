@@ -22,7 +22,7 @@ siibra - Software interface for interacting with brain atlases
         :class-title: sd-text-primary
         :margin: 2 2 0 0
 
-        Bite-size code examples to start using siibra
+        Documented, working code examples to help you start using siibra
         
     .. grid-item-card:: :fas:`book` Tutorials :octicon:`link-external`
         :link: https://github.com/FZJ-INM1-BDA/siibra-tutorials
@@ -32,7 +32,7 @@ siibra - Software interface for interacting with brain atlases
         :class-title: sd-text-primary
         :margin: 2 2 0 0
 
-        Find more siibra tutorials here.
+        Find more siibra tutorials here!
         
 .. include:: ../README.rst
   :start-after: intro-start

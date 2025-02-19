@@ -65,4 +65,4 @@ This section provides a catalogue of documented code examples that is systematic
    examples/03_data_features/index
    examples/04_locations/index
    examples/05_anatomical_assignment/index
-
+   examples/tutorials/index
