@@ -20,3 +20,5 @@ graphviz
 sphinx-copybutton
 sphinxcontrib-images
 sphinxcontrib.mermaid
+sphinx_togglebutton
+sphinx-design
