@@ -19,7 +19,11 @@ Anatomical characterization and multimodal profiling of regions of interest
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 `siibra` accepts user-defined location specifications in the form of reference space coordinates with
-optional certainty quantifiers.
+optional certainty quantifiers, or feature maps from imaging experiments.
+Feature maps are typically separated into cluster components to obtain clearly localized regions of interest (ROIs).
+Any region of interest in image form can be used to run spatial feature queries and extract multimodal data features co-localized with ROIs.
+In addition, locations of interest are assigned to brain areas using probabilistic maps from functional, cyto- or fiber architectonic reference atlases, distinguishing incidence, correlation and overlap of structures. The resulting associated brain areas
+reveal additional multimodal data features characterizing the ROIs.
 """
 
 # %%
@@ -36,7 +40,7 @@ sns.set_style('dark')
 # %%
 # # Input: Activation map or other feature distribution as image volume in MNI space
 #
-# We compose an artificial input image by merging some functional maps from the DiFuMo atlas, but the image could be any feature distribution map. The image is built as a NIfTI, but then casted to a siibra volume so we have a reference space attached and can used it properly in the siibra workflows. The NIfTI object can always be accessed via `.fetch()`. 
+# We compose an artificial input image by merging some functional maps from the DiFuMo atlas, but the image could be any feature distribution map. The image is built as a NIfTI, but then casted to a siibra volume so we have a reference space attached and can used it properly in the siibra workflows. The NIfTI object can always be accessed via `.fetch()`.
 
 # obtain and merge a couple of functional statistical maps
 difumo128 = siibra.get_map(parcellation="difumo 64", space='mni152', maptype='statistical')
