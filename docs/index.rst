@@ -107,8 +107,9 @@ siibra - Software interface for interacting with brain atlases
    :maxdepth: 2
 
    installation
-   step-by-step
    concepts
+   examples
+   howtocite
    api
    faq
    howtocite

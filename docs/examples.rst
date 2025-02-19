@@ -1,6 +1,6 @@
 .. _examples:
 ==================
-Step-by-step guide
+Examples
 ==================
 
 This section provides a catalogue of documented code examples that is systematically organized along explain the core features of ``siibra``.
