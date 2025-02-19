@@ -259,8 +259,9 @@ class BigBrain1MicronPatchQuery(
     query.LiveQuery, args=[], FeatureType=BigBrain1MicronPatch
 ):
 
-    def __init__(self):
+    def __init__(self, lower_threshold=0.):
         self.layermap = get_registry("Map").get("cortical layers bigbrain")
+        self.lower_threshold = lower_threshold
         query.LiveQuery.__init__(self)
 
     def _get_closest_profile(self, query_point: point.Point, hemisphere: str):
@@ -311,7 +312,6 @@ class BigBrain1MicronPatchQuery(
         ]
         if not sections:
             return []
-        lower_threshold = kwargs.get("lower_threshold", 0)
         bb_bbox = concept.get_boundingbox().warp('bigbrain')
 
         for hemisphere in ["left", "right"]:
@@ -326,9 +326,8 @@ class BigBrain1MicronPatchQuery(
             l4verts = pointcloud.PointCloud(layerverts[l4.name], "bigbrain")
             if not l4verts.boundingbox.intersects(bb_bbox):
                 continue
-            print("hemisphere", hemisphere, "good")
             vertex_tree = KDTree(layerverts[l4.name])
-            for s in siibra_tqdm(sections, unit="sections", desc="Testing sections"):
+            for i, s in enumerate(siibra_tqdm(sections, unit="sections", desc="Testing sections")):
                 imgplane = experimental.Plane.from_image(s)
                 try:
                     contour = imgplane.intersect_mesh(l4mesh)
@@ -340,8 +339,10 @@ class BigBrain1MicronPatchQuery(
                 points = {
                     pt.coordinate: prob
                     for pt, prob in zip(all_points, all_probs)
-                    if prob >= lower_threshold
+                    if prob >= self.lower_threshold
                 }
+                if len(points) == 0:
+                    continue
                 _, indices = vertex_tree.query(np.array(list(points.keys())))
                 for prob, nnb in zip(points.values(), indices):
                     prof = pointcloud.Contour(
@@ -356,7 +357,7 @@ class BigBrain1MicronPatchQuery(
                     if patch is None:
                         continue
                     anchor = _anchor.AnatomicalAnchor(
-                        location=patch.corners, species="Homo sapiens"
+                        location=patch, species="Homo sapiens"
                     )
                     anchor._assignments[concept] = _anchor.AnatomicalAssignment(
                         query_structure=concept,

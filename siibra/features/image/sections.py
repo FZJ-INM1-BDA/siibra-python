@@ -51,20 +51,25 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
             providers=list(section._providers.values()),
             region=None,
             datasets=section.datasets,
-            bbox=patch.corners.boundingbox,
+            bbox=patch.boundingbox,
             id=None
         )
         self._anchor_cached = anchor
 
+    def __repr__(self):
+        return (
+            f"<{self.__class__.__name__}(space_spec={self._space_spec}, "
+            f"name='{self.name}', patch='{self._patch}', providers={self._providers})>"
+        )
+
     def fetch(self, flip=False, **kwargs):
         assert "voi" not in kwargs
         res = kwargs.get("resolution_mm", -1)
-        mb = kwargs.get("max_bytes")
         if flip:
             return self._patch.flip().extract_volume(
-                self._section, resolution_mm=res, max_bytes=mb
+                self._section, resolution_mm=res
             )
         else:
             return self._patch.extract_volume(
-                self._section, resolution_mm=res, max_bytes=mb
+                self._section, resolution_mm=res
             )
