@@ -15,12 +15,56 @@
 """Multimodal data features in 2D section."""
 
 from . import image
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ...locations import Patch
+    from ...features.anchor import AnatomicalAnchor
 
 
 class CellbodyStainedSection(
     image.Image,
-    configuration_folder='features/images/sections/cellbody',
-    category="cellular"
+    configuration_folder="features/images/sections/cellbody",
+    category="cellular",
 ):
     def __init__(self, **kwargs):
         image.Image.__init__(self, **kwargs, modality="cell body staining")
+
+
+class BigBrain1MicronPatch(image.Image, category="cellular"):
+    def __init__(
+        self,
+        patch: "Patch",
+        section: CellbodyStainedSection,
+        relevance: float,
+        anchor: "AnatomicalAnchor",
+        **kwargs
+    ):
+        self._patch = patch
+        self._section = section
+        self.relevance = relevance
+        image.Image.__init__(
+            self,
+            name=f"Cortical patch in {section.name}",
+            modality=section.modality,
+            space_spec=section._space_spec,
+            providers=list(section._providers.values()),
+            region=None,
+            datasets=section.datasets,
+            bbox=patch.corners.boundingbox,
+            id=None
+        )
+        self._anchor_cached = anchor
+
+    def fetch(self, flip=False, **kwargs):
+        assert "voi" not in kwargs
+        res = kwargs.get("resolution_mm", -1)
+        mb = kwargs.get("max_bytes")
+        if flip:
+            return self._patch.flip().extract_volume(
+                self._section, resolution_mm=res, max_bytes=mb
+            )
+        else:
+            return self._patch.extract_volume(
+                self._section, resolution_mm=res, max_bytes=mb
+            )

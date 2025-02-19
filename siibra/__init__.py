@@ -36,10 +36,9 @@ from .retrieval.requests import (
 from .retrieval.cache import Warmup, WarmupLevel
 
 from . import configuration
-from . import experimental
 from .configuration import factory
 from . import features, livequeries
-from siibra.locations import Point, PointCloud
+from siibra.locations import Point, PointCloud, Plane, BoundingBox
 
 import os as _os
 logger.info(f"Version: {__version__}")
@@ -151,6 +150,7 @@ def __dir__():
         "MapType",
         "Point",
         "PointCloud",
+        "BoundingBox",
         "QUIET",
         "VERBOSE",
         "fetch_ebrains_token",

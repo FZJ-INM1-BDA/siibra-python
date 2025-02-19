@@ -16,17 +16,26 @@
 
 from . import query
 
-from ..features.tabular import bigbrain_intensity_profile, layerwise_bigbrain_intensities
+from ..features.tabular import (
+    bigbrain_intensity_profile,
+    layerwise_bigbrain_intensities,
+)
+from ..features.image import volume_of_interest, CellbodyStainedSection
+from ..features.image.sections import BigBrain1MicronPatch
 from ..features import anchor as _anchor
-from ..commons import logger
-from ..locations import point, pointcloud, location
+from ..commons import logger, siibra_tqdm
+from ..locations import point, pointcloud, location, experimental
 from ..core import structure
+from ..core.concept import get_registry
 from ..retrieval import requests, cache
 from ..retrieval.datasets import GenericDataset
+from ..volumes import Volume
+
 
 import numpy as np
 from typing import List
 from os import path
+from scipy.spatial import KDTree
 
 
 class WagstylProfileLoader:
@@ -41,23 +50,23 @@ class WagstylProfileLoader:
     DATASET = GenericDataset(
         name="HIBALL workshop on cortical layers",
         contributors=[
-            'Konrad Wagstyl',
-            'Stéphanie Larocque',
-            'Guillem Cucurull',
-            'Claude Lepage',
-            'Joseph Paul Cohen',
-            'Sebastian Bludau',
-            'Nicola Palomero-Gallagher',
-            'Lindsay B. Lewis',
-            'Thomas Funck',
-            'Hannah Spitzer',
-            'Timo Dickscheid',
-            'Paul C. Fletcher',
-            'Adriana Romero',
-            'Karl Zilles',
-            'Katrin Amunts',
-            'Yoshua Bengio',
-            'Alan C. Evans'
+            "Konrad Wagstyl",
+            "Stéphanie Larocque",
+            "Guillem Cucurull",
+            "Claude Lepage",
+            "Joseph Paul Cohen",
+            "Sebastian Bludau",
+            "Nicola Palomero-Gallagher",
+            "Lindsay B. Lewis",
+            "Thomas Funck",
+            "Hannah Spitzer",
+            "Timo Dickscheid",
+            "Paul C. Fletcher",
+            "Adriana Romero",
+            "Karl Zilles",
+            "Katrin Amunts",
+            "Yoshua Bengio",
+            "Alan C. Evans",
         ],
         url="https://github.com/kwagstyl/cortical_layers_tutorial/",
         description="Cortical profiles of BigBrain staining intensities computed by Konrad Wagstyl, "
@@ -67,7 +76,7 @@ class WagstylProfileLoader:
         "http://dx.doi.org/10.1371/journal.pbio.3000678."
         "The data is taken from the tutorial at "
         "https://github.com/kwagstyl/cortical_layers_tutorial. Each vertex is "
-        "assigned to the regional map when queried."
+        "assigned to the regional map when queried.",
     )
 
     def __init__(self):
@@ -76,15 +85,22 @@ class WagstylProfileLoader:
 
     @property
     def profile_labels(self):
-        return np.arange(0., 1., 1. / self._profiles.shape[1])
+        return np.arange(0.0, 1.0, 1.0 / self._profiles.shape[1])
 
     @classmethod
     def _load(cls):
         # read thicknesses, in mm, and normalize by their last column which is the total thickness
-        thickness = requests.HttpRequest(f"{cls.REPO}/{cls.THICKNESSES_FILE_LEFT}").data.T
-        total_thickness = thickness[:, :-1].sum(1)  # last column is the computed total thickness
+        thickness = requests.HttpRequest(
+            f"{cls.REPO}/{cls.THICKNESSES_FILE_LEFT}"
+        ).data.T
+        total_thickness = thickness[:, :-1].sum(
+            1
+        )  # last column is the computed total thickness
         valid = np.where(total_thickness > 0)[0]
-        cls._boundary_depths = np.c_[np.zeros_like(valid), (thickness[valid, :] / total_thickness[valid, None]).cumsum(1)]
+        cls._boundary_depths = np.c_[
+            np.zeros_like(valid),
+            (thickness[valid, :] / total_thickness[valid, None]).cumsum(1),
+        ]
         cls._boundary_depths[:, -1] = 1  # account for float calculation errors
 
         # find profiles with valid thickness
@@ -112,15 +128,23 @@ class WagstylProfileLoader:
 cache.Warmup.register_warmup_fn()(lambda: WagstylProfileLoader._load())
 
 
-class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intensity_profile.BigBrainIntensityProfile):
+class BigBrainProfileQuery(
+    query.LiveQuery,
+    args=[],
+    FeatureType=bigbrain_intensity_profile.BigBrainIntensityProfile,
+):
 
     def __init__(self):
         query.LiveQuery.__init__(self)
 
-    def query(self, concept: structure.BrainStructure, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
+    def query(
+        self, concept: structure.BrainStructure, **kwargs
+    ) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
         loader = WagstylProfileLoader()
-        mesh_vertices = pointcloud.PointCloud(loader._vertices, space='bigbrain')
-        matched = concept.intersection(mesh_vertices)  # returns a reduced PointCloud with og indices as labels
+        mesh_vertices = pointcloud.PointCloud(loader._vertices, space="bigbrain")
+        matched = concept.intersection(
+            mesh_vertices
+        )  # returns a reduced PointCloud with og indices as labels
         if matched is None:
             return []
         if isinstance(matched, point.Point):
@@ -134,21 +158,21 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
         features = []
         for i in indices:
             anchor = _anchor.AnatomicalAnchor(
-                location=point.Point(loader._vertices[i], space='bigbrain'),
+                location=point.Point(loader._vertices[i], space="bigbrain"),
                 region=str(concept),
-                species='Homo sapiens'
+                species="Homo sapiens",
             )
             prof = bigbrain_intensity_profile.BigBrainIntensityProfile(
                 anchor=anchor,
                 depths=loader.profile_labels,
                 values=loader._profiles[i],
-                boundaries=loader._boundary_depths[i]
+                boundaries=loader._boundary_depths[i],
             )
             prof.anchor._assignments[concept] = _anchor.AnatomicalAssignment(
                 query_structure=concept,
                 assigned_structure=concept,
                 qualification=_anchor.Qualification.CONTAINED,
-                explanation=f"Surface vertex of BigBrain cortical profile was filtered using {concept}"
+                explanation=f"Surface vertex of BigBrain cortical profile was filtered using {concept}",
             )
             prof.datasets = [WagstylProfileLoader.DATASET]
             features.append(prof)
@@ -156,16 +180,24 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
         return features
 
 
-class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities):
+class LayerwiseBigBrainIntensityQuery(
+    query.LiveQuery,
+    args=[],
+    FeatureType=layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities,
+):
 
     def __init__(self):
         query.LiveQuery.__init__(self)
 
-    def query(self, concept: structure.BrainStructure, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
+    def query(
+        self, concept: structure.BrainStructure, **kwargs
+    ) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
 
         loader = WagstylProfileLoader()
-        mesh_vertices = pointcloud.PointCloud(loader._vertices, space='bigbrain')
-        matched = concept.intersection(mesh_vertices)  # returns a reduced PointCloud with og indices as labels if the concept is a region
+        mesh_vertices = pointcloud.PointCloud(loader._vertices, space="bigbrain")
+        matched = concept.intersection(
+            mesh_vertices
+        )  # returns a reduced PointCloud with og indices as labels if the concept is a region
         if matched is None:
             return []
         if isinstance(matched, point.Point):
@@ -180,27 +212,161 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
         # compute array of layer labels for all coefficients in profiles_left
         N = matched_profiles.shape[1]
         prange = np.arange(N)
-        layer_labels = 7 - np.array([
-            [np.array([[(prange < T) * 1] for i, T in enumerate((b * N).astype('int'))]).squeeze().sum(0)]
-            for b in boundary_depths
-        ]).reshape((-1, 200))
+        layer_labels = 7 - np.array(
+            [
+                [
+                    np.array(
+                        [
+                            [(prange < T) * 1]
+                            for i, T in enumerate((b * N).astype("int"))
+                        ]
+                    )
+                    .squeeze()
+                    .sum(0)
+                ]
+                for b in boundary_depths
+            ]
+        ).reshape((-1, 200))
 
         anchor = _anchor.AnatomicalAnchor(
-            location=pointcloud.PointCloud(loader._vertices[indices, :], space='bigbrain'),
+            location=pointcloud.PointCloud(
+                loader._vertices[indices, :], space="bigbrain"
+            ),
             region=str(concept),
-            species='Homo sapiens'
+            species="Homo sapiens",
         )
         result = layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities(
             anchor=anchor,
-            means=[matched_profiles[layer_labels == layer].mean() for layer in range(1, 7)],
-            stds=[matched_profiles[layer_labels == layer].std() for layer in range(1, 7)],
+            means=[
+                matched_profiles[layer_labels == layer].mean() for layer in range(1, 7)
+            ],
+            stds=[
+                matched_profiles[layer_labels == layer].std() for layer in range(1, 7)
+            ],
         )
         result.anchor._assignments[concept] = _anchor.AnatomicalAssignment(
             query_structure=concept,
             assigned_structure=concept,
             qualification=_anchor.Qualification.CONTAINED,
-            explanation=f"Surface vertices of BigBrain cortical profiles were filtered using {concept}"
+            explanation=f"Surface vertices of BigBrain cortical profiles were filtered using {concept}",
         )
         result.datasets = [WagstylProfileLoader.DATASET]
 
         return [result]
+
+
+class BigBrain1MicronPatchQuery(
+    query.LiveQuery, args=[], FeatureType=BigBrain1MicronPatch
+):
+
+    def __init__(self):
+        self.layermap = get_registry("Map").get("cortical layers bigbrain")
+        query.LiveQuery.__init__(self)
+
+    def _get_closest_profile(self, query_point: point.Point, hemisphere: str):
+        q = query_point.warp(self.layermap.space)
+        smallest_dist = np.inf
+        best_match = None
+        for layername in self.layermap.regions:
+            if hemisphere not in layername:
+                continue
+            vertices = self.layermap.fetch(region=layername, format="mesh")["verts"]
+            dists = np.sqrt(((vertices - q.coordinate) ** 2).sum(1))
+            best = np.argmin(dists)
+            if dists[best] < smallest_dist:
+                best_match = (layername, best)
+                smallest_dist = dists[best]
+
+        best_vertex = best_match[1]
+        logger.debug(f"Best match is vertex #{best_match[1]} in {best_match[0]}.")
+
+        profile = [
+            (_, self.layermap.fetch(region=_, format="mesh")["verts"][best_vertex])
+            for _ in self.layermap.regions
+            if hemisphere in _
+        ]
+
+        return pointcloud.Contour(
+            [p[1] for p in profile],
+            space=self.layermap.space,
+            labels=[p[0] for p in profile],
+        )
+
+    def query(
+        self, concept: structure.BrainStructure, **kwargs
+    ) -> List[BigBrain1MicronPatch]:
+
+        if not isinstance(concept, Volume):
+            logger.warning(
+                "Querying BigBrain1MicronPatch features requires to "
+                "query with an image volume."
+            )
+            return []
+
+        features = []
+        sections = [
+            s
+            for s in CellbodyStainedSection._get_instances()
+            if s.get_boundingbox().intersects(concept)
+        ]
+        if not sections:
+            return []
+        lower_threshold = kwargs.get("lower_threshold", 0)
+        bb_bbox = concept.get_boundingbox().warp('bigbrain')
+
+        for hemisphere in ["left", "right"]:
+            print("considering hemisphere", hemisphere)
+            l4 = self.layermap.parcellation.get_region("4 " + hemisphere)
+            l4mesh = self.layermap.fetch(l4, format="mesh")
+            layerverts = {
+                n: self.layermap.fetch(region=n, format="mesh")["verts"]
+                for n in self.layermap.regions if hemisphere in n
+            }
+            assert l4.name in layerverts
+            l4verts = pointcloud.PointCloud(layerverts[l4.name], "bigbrain")
+            if not l4verts.boundingbox.intersects(bb_bbox):
+                continue
+            print("hemisphere", hemisphere, "good")
+            vertex_tree = KDTree(layerverts[l4.name])
+            for s in siibra_tqdm(sections, unit="sections", desc="Testing sections"):
+                imgplane = experimental.Plane.from_image(s)
+                try:
+                    contour = imgplane.intersect_mesh(l4mesh)
+                except AssertionError:
+                    logger.error(f"Could not intersect with layer 4 mesh: {s.name}")
+                    continue
+                all_points = pointcloud.from_points(sum(map(list, contour), []))
+                all_probs = concept.evaluate_points(all_points)
+                points = {
+                    pt.coordinate: prob
+                    for pt, prob in zip(all_points, all_probs)
+                    if prob >= lower_threshold
+                }
+                _, indices = vertex_tree.query(np.array(list(points.keys())))
+                for prob, nnb in zip(points.values(), indices):
+                    prof = pointcloud.Contour(
+                        [
+                            layerverts[_][nnb]
+                            for _ in self.layermap.regions
+                            if hemisphere in _
+                        ],
+                        space=self.layermap.space,
+                    )
+                    patch = imgplane.get_enclosing_patch(prof)
+                    if patch is None:
+                        continue
+                    anchor = _anchor.AnatomicalAnchor(
+                        location=patch.corners, species="Homo sapiens"
+                    )
+                    anchor._assignments[concept] = _anchor.AnatomicalAssignment(
+                        query_structure=concept,
+                        assigned_structure=s.anchor.volume,
+                        qualification=_anchor.Qualification.CONTAINED
+                    )
+                    features.append(
+                        BigBrain1MicronPatch(
+                            patch=patch, section=s, relevance=prob, anchor=anchor
+                        )
+                    )
+
+        return features
