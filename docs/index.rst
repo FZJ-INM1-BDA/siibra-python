@@ -14,7 +14,7 @@ siibra - Software interface for interacting with brain atlases
 
         Get started with ``siibra-python``
 
-    .. grid-item-card:: :material-outlined:`stairs;1.5em` Step-by-step
+    .. grid-item-card:: :material-outlined:`stairs;1.5em` Examples
         :link: examples
         :link-type: ref
         :columns: 12 12 4 4
@@ -32,7 +32,7 @@ siibra - Software interface for interacting with brain atlases
         :class-title: sd-text-primary
         :margin: 2 2 0 0
 
-        More comprehensive notebooks
+        Find more siibra tutorials here.
         
 .. include:: ../README.rst
   :start-after: intro-start
