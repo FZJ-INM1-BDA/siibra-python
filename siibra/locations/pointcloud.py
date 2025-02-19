@@ -122,6 +122,8 @@ class PointCloud(location.Location):
 
         if isinstance(other, PointCloud):
             intersecting_points = [p for p in self if p.coordinate in other.coordinates]
+        elif isinstance(other, point.Point):
+            return other if other in self else None
         else:
             intersecting_points = [p for p in self if p.intersects(other)]
         if len(intersecting_points) == 0:
