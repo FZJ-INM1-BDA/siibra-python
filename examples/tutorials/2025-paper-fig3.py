@@ -103,7 +103,7 @@ assignments.append(df[['type', 'id', 'region', 'map value']])
 view = plotting.plot_glass_brain(input_volume.fetch(), alpha=1, cmap='RdBu', symmetric_cbar=True)
 view.add_markers(peaks.as_list(), marker_size=30)
 
-# %%  
+# %%
 # assign clusters to regions
 for l in clusterlabels:
     clustermap = siibra.volumes.from_pointcloud(samples, label=l, target=input_volume)
