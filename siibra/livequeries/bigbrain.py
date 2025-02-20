@@ -289,23 +289,25 @@ class BigBrain1MicronPatchQuery(
             return []
 
         # threshold image volume, if requested
-        if self.lower_threshold > 0:
+        if self.lower_threshold > 0.0:
             logger.info(
                 f"Applying lower threshold of {self.lower_threshold} "
                 "for BigBrain 1 micron patch query."
             )
             img = concept.fetch()
-            arr = img.get_fdata()
+            arr = np.asanyarray(img.dataobj)
             arr[arr < self.lower_threshold] = 0
-            vol = from_array(arr, img.affine, space=concept.space, name="filtered volume")
+            query_vol = from_array(arr, img.affine, space=concept.space, name="filtered volume")
         else:
-            vol = concept
-        bb_bbox = vol.get_boundingbox().warp('bigbrain')
+            query_vol = concept
+        bb_bbox = query_vol.get_boundingbox().warp('bigbrain')
 
         # find 1 micron BigBrain sections intersecting the thresholded volume
-        sections = [
-            s for s in CellbodyStainedSection._get_instances()
-            if s.get_boundingbox().intersects(vol)
+        sections: List[CellbodyStainedSection] = [
+            s
+            for s in CellbodyStainedSection._get_instances()
+            if isinstance(s, CellbodyStainedSection)
+            and s.get_boundingbox(clip=False).intersects(query_vol)
         ]
         if not sections:
             return []
@@ -343,7 +345,7 @@ class BigBrain1MicronPatchQuery(
 
                 # score the contour points with the query image volume
                 all_points = pointcloud.from_points(sum(map(list, contour), []))
-                all_probs = vol.evaluate_points(all_points)
+                all_probs = query_vol.evaluate_points(all_points)
                 points = {
                     pt.coordinate: prob
                     for pt, prob in zip(all_points, all_probs)
@@ -376,7 +378,7 @@ class BigBrain1MicronPatchQuery(
                         location=patch, species="Homo sapiens"
                     )
                     anchor._assignments[concept] = _anchor.AnatomicalAssignment(
-                        query_structure=concept,
+                        query_structure=query_vol,
                         assigned_structure=s.anchor.volume,
                         qualification=_anchor.Qualification.CONTAINED
                     )
@@ -388,4 +390,3 @@ class BigBrain1MicronPatchQuery(
 
         # return the patches sorted by relevance (ie. probability)
         return sorted(features, key=lambda p: p.relevance, reverse=True)
-

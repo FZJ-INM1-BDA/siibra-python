@@ -32,6 +32,16 @@ class CellbodyStainedSection(
 
 
 class BigBrain1MicronPatch(image.Image, category="cellular"):
+
+    _DESCRIPTION = """Sample approximately orthogonal cortical image patches
+    from BigBrain 1 micron sections, guided by an image volume
+    in a supported reference space providing. The image
+    volume is used as a weighted mask to extract patches
+    along the cortical midsurface with nonzero weights in the
+    input image.
+    An optional lower_threshold can be used to narrow down
+    the search. The weight is stored with the resulting features."""
+
     def __init__(
         self,
         patch: "AxisAlignedPatch",
@@ -39,7 +49,6 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
         vertex: int,
         relevance: float,
         anchor: "AnatomicalAnchor",
-        **kwargs
     ):
         self._patch = patch
         self._section = section
@@ -54,9 +63,10 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
             region=None,
             datasets=section.datasets,
             bbox=patch.boundingbox,
-            id=None
+            id=None,
         )
         self._anchor_cached = anchor
+        self._description_cached = self._DESCRIPTION
 
     def __repr__(self):
         return (
@@ -70,14 +80,7 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
     def bigbrain_section(self):
         return self.get_boundingbox().minpoint.bigbrain_section()
 
-    def fetch(self, flip=False, **kwargs):
-        assert "voi" not in kwargs
-        res = kwargs.get("resolution_mm", -1)
-        if flip:
-            return self._patch.flip().extract_volume(
-                self._section, resolution_mm=res
-            ).fetch()
-        else:
-            return self._patch.extract_volume(
-                self._section, resolution_mm=res
-            ).fetch()
+    def fetch(self, flip: bool = False, resolution_mm: float = 0.001, **kwargs):
+        assert len(kwargs) == 0
+        p = self._patch.flip() if flip else self._patch
+        p.extract_volume(self._section, resolution_mm=resolution_mm).fetch()
