@@ -32,7 +32,7 @@ siibra - Software interface for interacting with brain atlases
         :class-title: sd-text-primary
         :margin: 2 2 0 0
 
-        Find more siibra tutorials here!
+        Find and interactively run siibra tutorials here!
         
 .. include:: ../README.rst
   :start-after: intro-start

@@ -21,7 +21,7 @@ This section provides a catalogue of documented code examples that is systematic
       :class-card: sd-shadow-sm
       :margin: 2 2 auto auto
 
-   .. grid-item-card:: :octicon:`tasklist` Multimodal data features
+   .. grid-item-card:: :material-outlined:`query_stats;2em` Multimodal data features
       :link: examples/03_data_features/index.html
       :link-type: url
       :columns: 12 12 12 12
@@ -35,14 +35,14 @@ This section provides a catalogue of documented code examples that is systematic
       :class-card: sd-shadow-sm
       :margin: 2 2 auto auto
 
-   .. grid-item-card:: :octicon:`pin` Anatomical assignment
+   .. grid-item-card:: :material-outlined:`push_pin;2em` Anatomical assignment
       :link: examples/05_anatomical_assignment/index.html
       :link-type: url
       :columns: 12 12 12 12
       :class-card: sd-shadow-sm
       :margin: 2 2 auto auto
 
-   .. grid-item-card:: :octicon:`pin` Extended tutorials
+   .. grid-item-card:: :material-outlined:`menu_book;2em` Extended tutorials
       :link: examples/tutorials/index.html
       :link-type: url
       :columns: 12 12 12 12
