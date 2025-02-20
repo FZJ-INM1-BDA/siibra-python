@@ -24,7 +24,6 @@ The tutorial shows how maps and mutimodal regional measurements are obtained usi
 import matplotlib.pyplot as plt
 from nilearn import plotting
 import pandas as pd
-import numpy as np
 import re
 import seaborn as sns
 import siibra
@@ -162,62 +161,25 @@ plt.suptitle("Functional Connectivity")
 plt.tight_layout()
 
 # %%
-# For both brain areas, sample representative cortical image patches at 1µm resolution that were automatically extracted from scans of BigBrain sections. The image patches display clearly the differences in laminar structure of the two regions
+# For both brain areas, sample representative cortical image patches at 1µm
+# resolution that were automatically extracted from scans of BigBrain sections.
+# The image patches display clearly the differences in laminar structure of the two regions
 
-layers = siibra.parcellations.get("cortical layers")
-layermap = layers.get_map(space="bigbrain")
-patches = {}
-
-for r in regions:
+selected_sections = [4950, 1345]
+fig, axs = plt.subplots(1, len(regions))
+for r, sn, ax in zip(regions, selected_sections, axs):
     # find 1 micron sections intersecting the region
-    pmap_volume = siibra.volumes.from_nifti(
-        pmaps.fetch(region=r), space="mni152", name=r.name
-    )
-    sections = siibra.features.get(
-        pmap_volume.get_boundingbox(), siibra.features.cellular.CellbodyStainedSection
-    )
-    section = sections[len(sections) // 2]
+    pmap = pmaps.get_volume(r)
+    all_patches = siibra.features.get(pmap, "BigBrain1MicronPatch")
+    patches = [p for p in all_patches if p.bigbrain_section == sn]
 
-    # intersect layer IV surface with the selected section
-    imgplane = siibra.experimental.Plane3D.from_image(section)
-    hemisphere = "left" if "left" in r.name else "right"
-    l4layer = layers.get_region(f"4 {hemisphere}")
-    l4_contours = imgplane.intersect_mesh(layermap.fetch(region=l4layer, format="mesh"))
-
-    # score all contour points with the region probabilities to find the most likely one
-    l4points = siibra.PointCloud(
-        [p for contour in l4_contours for p in contour], space="bigbrain"
-    )
-    probs = pmap_volume.evaluate_points(l4points)
-    l4point = l4points[probs.argmax()]
-
-    # find the closest cortical profile to this point
-    profile = siibra.experimental.CorticalProfileSampler().query(l4point)
-
-    # extract the patch in the image plane showing the projection of this profile
-    patch_canvas = imgplane.get_enclosing_patch(profile)
-    i = np.argmin(
-        np.linalg.norm(
-            (patch_canvas.corners.coordinates - profile[0].coordinate), axis=1
-        )
-    )
-    if i in [0, 3]:
-        patch_canvas.flip()
-    patches[r] = patch_canvas.extract_volume(section, resolution_mm=0.01)
-
-# Display the two extracted patches
-fig, axs = plt.subplots(1, 2)
-for ax, patch, region in zip(axs, patches, regions):
-
-    # access the underlying image data
-    patchimg = patches[patch].fetch()
-    phys2vox = np.linalg.inv(patchimg.affine)
+    # select the first patch and access the underlying image data
+    patchimg = patches[0].fetch()
     patchdata = patchimg.get_fdata().squeeze()
-
-    ax.set_title(region.name)
 
     # plot the pure image array
     ax.imshow(patchdata, cmap="gray", vmin=0, vmax=2**16)
     ax.axis("off")
+    ax.set_title(r.name)
 
 plt.tight_layout()

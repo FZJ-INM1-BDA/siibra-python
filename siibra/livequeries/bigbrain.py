@@ -338,20 +338,22 @@ class BigBrain1MicronPatchQuery(
                 # compute layer IV contour in the image plane
                 imgplane = experimental.Plane.from_image(s)
                 try:
-                    contour = imgplane.intersect_mesh(l4mesh)
+                    contour_segments = imgplane.intersect_mesh(l4mesh)
                 except AssertionError:
                     logger.error(f"Could not intersect with layer 4 mesh: {s.name}")
                     continue
+                if len(contour_segments) == 0:
+                    continue
 
                 # score the contour points with the query image volume
-                all_points = pointcloud.from_points(sum(map(list, contour), []))
+                all_points = pointcloud.from_points(sum(map(list, contour_segments), []))
                 all_probs = query_vol.evaluate_points(all_points)
-                points = {
+                points_prob_lookup = {
                     pt.coordinate: prob
                     for pt, prob in zip(all_points, all_probs)
                     if prob >= self.lower_threshold
                 }
-                if len(points) == 0:
+                if len(points_prob_lookup) == 0:
                     continue
 
                 # For each contour point,
@@ -359,8 +361,8 @@ class BigBrain1MicronPatchQuery(
                 # - build the profile of corresponding vertices across all layers
                 # - project the profile to the image section
                 # - determine the oriented patch along the profile
-                _, indices = vertex_tree.query(np.array(list(points.keys())))
-                for prob, nnb in zip(points.values(), indices):
+                _, indices = vertex_tree.query(np.array(list(points_prob_lookup.keys())))
+                for prob, nnb in zip(points_prob_lookup.values(), indices):
 
                     prof = pointcloud.Contour(
                         [
