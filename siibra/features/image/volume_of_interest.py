@@ -78,4 +78,3 @@ class LSFMVolumeOfInterest(
 ):
     def __init__(self, modality, **kwargs):
         image.Image.__init__(self, **kwargs, modality=modality)
-
