@@ -20,7 +20,7 @@ from ..features.tabular import (
     bigbrain_intensity_profile,
     layerwise_bigbrain_intensities,
 )
-from ..features.image import volume_of_interest, CellbodyStainedSection
+from ..features.image import CellbodyStainedSection
 from ..features.image.sections import BigBrain1MicronPatch
 from ..features import anchor as _anchor
 from ..commons import logger, siibra_tqdm
@@ -287,7 +287,7 @@ class BigBrain1MicronPatchQuery(
                 "query with an image volume."
             )
             return []
-    
+
         # threshold image volume, if requested
         if self.lower_threshold > 0:
             logger.info(
@@ -302,7 +302,7 @@ class BigBrain1MicronPatchQuery(
             vol = concept
         bb_bbox = vol.get_boundingbox().warp('bigbrain')
 
-        # find 1 micron BigBrain sections intersecting the thresholded volume 
+        # find 1 micron BigBrain sections intersecting the thresholded volume
         sections = [
             s for s in CellbodyStainedSection._get_instances()
             if s.get_boundingbox().intersects(vol)
@@ -388,4 +388,4 @@ class BigBrain1MicronPatchQuery(
 
         # return the patches sorted by relevance (ie. probability)
         return sorted(features, key=lambda p: p.relevance, reverse=True)
-    
+
