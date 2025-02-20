@@ -61,8 +61,9 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
     def __repr__(self):
         return (
             f"<{self.__class__.__name__}(space_spec={self._space_spec}, "
-            f"name='{self.name}', section='{self.bigbrain_section}', vertex='{self.vertex}', "
-            f"providers={self._providers})>"
+            f"name='{self.name}', "
+            f"section='{self._section.get_boundingbox().minpoint.bigbrain_section()}', "
+            f"vertex='{self.vertex}', providers={self._providers})>"
         )
 
     @property
