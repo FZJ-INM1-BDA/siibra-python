@@ -85,7 +85,9 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
     def fetch(self, flip: bool = False, resolution_mm: float = 0.001, **kwargs):
         assert len(kwargs) == 0
         p = self._patch.flip() if flip else self._patch
-        p.extract_volume(self._section, resolution_mm=resolution_mm).fetch()
+        return p.extract_volume(
+            self._section, resolution_mm=resolution_mm
+        ).fetch()
 
     def plot(self, *args, **kwargs):
         raise NotImplementedError
