@@ -29,7 +29,7 @@ from ..core import structure
 from ..core.concept import get_registry
 from ..retrieval import requests, cache
 from ..retrieval.datasets import GenericDataset
-from ..volumes import Volume
+from ..volumes import Volume, from_array
 
 
 import numpy as np
@@ -258,84 +258,86 @@ class LayerwiseBigBrainIntensityQuery(
 class BigBrain1MicronPatchQuery(
     query.LiveQuery, args=[], FeatureType=BigBrain1MicronPatch
 ):
+    """
+    Sample approximately orthogonal cortical image patches
+    from BigBrain 1 micron sections, guided by an image volume
+    in a supported reference space providing. The image
+    volume is used as a weighted mask to extract patches
+    along the cortical midsurface with nonzero weights in the
+    input image.
+    An optional lower_threshold can be used to narrow down
+    the search
+    The weight is stored with the resulting features.
+    """
 
     def __init__(self, lower_threshold=0.):
         self.layermap = get_registry("Map").get("cortical layers bigbrain")
         self.lower_threshold = lower_threshold
         query.LiveQuery.__init__(self)
 
-    def _get_closest_profile(self, query_point: point.Point, hemisphere: str):
-        q = query_point.warp(self.layermap.space)
-        smallest_dist = np.inf
-        best_match = None
-        for layername in self.layermap.regions:
-            if hemisphere not in layername:
-                continue
-            vertices = self.layermap.fetch(region=layername, format="mesh")["verts"]
-            dists = np.sqrt(((vertices - q.coordinate) ** 2).sum(1))
-            best = np.argmin(dists)
-            if dists[best] < smallest_dist:
-                best_match = (layername, best)
-                smallest_dist = dists[best]
-
-        best_vertex = best_match[1]
-        logger.debug(f"Best match is vertex #{best_match[1]} in {best_match[0]}.")
-
-        profile = [
-            (_, self.layermap.fetch(region=_, format="mesh")["verts"][best_vertex])
-            for _ in self.layermap.regions
-            if hemisphere in _
-        ]
-
-        return pointcloud.Contour(
-            [p[1] for p in profile],
-            space=self.layermap.space,
-            labels=[p[0] for p in profile],
-        )
-
     def query(
         self, concept: structure.BrainStructure, **kwargs
     ) -> List[BigBrain1MicronPatch]:
 
+        # make sure input is an image volume
+        # TODO function should be extended to deal with other concepts as well
         if not isinstance(concept, Volume):
             logger.warning(
                 "Querying BigBrain1MicronPatch features requires to "
                 "query with an image volume."
             )
             return []
+    
+        # threshold image volume, if requested
+        if self.lower_threshold > 0:
+            img = concept.fetch()
+            arr = img.get_fdata()
+            arr[arr < self.lower_threshold] = 0
+            vol = from_array(arr, img.affine, space=concept.space, name="filtered volume")
+        else:
+            vol = concept
+        bb_bbox = vol.get_boundingbox().warp('bigbrain')
 
-        features = []
+        # find 1 micron BigBrain sections intersecting the thresholded volume 
         sections = [
-            s
-            for s in CellbodyStainedSection._get_instances()
+            s for s in CellbodyStainedSection._get_instances()
             if s.get_boundingbox().intersects(concept)
         ]
         if not sections:
             return []
-        bb_bbox = concept.get_boundingbox().warp('bigbrain')
 
+        # extract relevant patches
+        features = []
         for hemisphere in ["left", "right"]:
-            print("considering hemisphere", hemisphere)
+
+            # get layer 4 mesh in the hemisphere
             l4 = self.layermap.parcellation.get_region("4 " + hemisphere)
             l4mesh = self.layermap.fetch(l4, format="mesh")
             layerverts = {
                 n: self.layermap.fetch(region=n, format="mesh")["verts"]
                 for n in self.layermap.regions if hemisphere in n
             }
-            assert l4.name in layerverts
             l4verts = pointcloud.PointCloud(layerverts[l4.name], "bigbrain")
             if not l4verts.boundingbox.intersects(bb_bbox):
                 continue
+
+            # for each relevant BigBrain 1 micron section, intersect layer IV mesh
+            # to obtain midcortex-locations, and build their orthogonal patches.
+            # store the concept's value with the patch.
             vertex_tree = KDTree(layerverts[l4.name])
             for i, s in enumerate(siibra_tqdm(sections, unit="sections", desc="Testing sections")):
+
+                # compute layer IV contour in the image plane
                 imgplane = experimental.Plane.from_image(s)
                 try:
                     contour = imgplane.intersect_mesh(l4mesh)
                 except AssertionError:
                     logger.error(f"Could not intersect with layer 4 mesh: {s.name}")
                     continue
+
+                # score the contour points with the query image volume
                 all_points = pointcloud.from_points(sum(map(list, contour), []))
-                all_probs = concept.evaluate_points(all_points)
+                all_probs = vol.evaluate_points(all_points)
                 points = {
                     pt.coordinate: prob
                     for pt, prob in zip(all_points, all_probs)
@@ -343,8 +345,15 @@ class BigBrain1MicronPatchQuery(
                 }
                 if len(points) == 0:
                     continue
+
+                # For each contour point,
+                # - find the closest BigBrain layer surface vertex,
+                # - build the profile of corresponding vertices across all layers
+                # - project the profile to the image section
+                # - determine the oriented patch along the profile
                 _, indices = vertex_tree.query(np.array(list(points.keys())))
                 for prob, nnb in zip(points.values(), indices):
+
                     prof = pointcloud.Contour(
                         [
                             layerverts[_][nnb]
@@ -356,6 +365,7 @@ class BigBrain1MicronPatchQuery(
                     patch = imgplane.get_enclosing_patch(prof)
                     if patch is None:
                         continue
+
                     anchor = _anchor.AnatomicalAnchor(
                         location=patch, species="Homo sapiens"
                     )
