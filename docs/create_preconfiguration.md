@@ -18,7 +18,7 @@ added to ``siibra-explorer``.)
 
 ## Determine configuration type
 
-`siibra` accepts a variety of coniguration types. Nonetheless, it has limitations. 
+`siibra` accepts a variety of configuration types. Nonetheless, it has limitations. 
 
 ### 1. Atlas concepts
 - Atlas: 
@@ -29,7 +29,7 @@ added to ``siibra-explorer``.)
   - Statistical map: A set of volumes with probability (or other statistical values) for a subset of areas from a parcellation.
 
 ### 2. Data features
-A variaty of data features can be preconfigured. However, while some data types are very similar, the modality has to
+A variety of data features can be preconfigured. However, while some data types are very similar, the modality has to
 be supported by a specific siibra-python version (this will not be required with version 2).
 
 - Parcellation-based connectivity: Connectivity matrix calculated for a specific parcellation.
@@ -64,7 +64,7 @@ or both. This is crucial for `siibra` to assign this feature to other atlas conc
 #### Integration of additional modalities
 
 1. determine a "@type" and add this to the newly created configuration json.
-2. Add the confifuration into siibra-configurations by "features/<data_type>/<other_categoryies_if_any><new_modality_name>"
+2. Add the configuration into siibra-configurations by "features/<data_type>/<other_categoryies_if_any><new_modality_name>"
 3. Declare a new class and ensure `configuration_folder="features/<data_type>/<other_categoryies_if_any><new_modality_name>"` is passed with the class declaration.
 4. Export the newly created class at the appropriate module. 
 5. Then, update `siibra.configuration.factory.py` to digest type defined in step 1.
