@@ -13,18 +13,111 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import contour
-from . import patch
-from ..locations import point, pointcloud
 from ..volumes import volume
+from . import point, pointcloud, boundingbox
+from ..commons import translation_matrix, y_rotation_matrix
 
 import numpy as np
+import math
+from nilearn import image
 
 
-class Plane3D:
+class AxisAlignedPatch(pointcloud.PointCloud):
+
+    def __init__(self, corners: pointcloud.PointCloud):
+        """Construct a patch in physical coordinates.
+        As of now, only patches aligned in the y plane of the physical space
+        are supported."""
+        # TODO: need to ensure that the points are planar, if more than 3
+        assert len(corners) == 4
+        assert len(np.unique(corners.coordinates[:, 1])) == 1
+        pointcloud.PointCloud.__init__(
+            self,
+            coordinates=corners.coordinates,
+            space=corners.space,
+            sigma_mm=corners.sigma_mm,
+            labels=corners.labels
+        )
+        # self.corners = corners
+
+    def __str__(self):
+        return f"Patch with boundingbox {self.boundingbox}"
+
+    def flip(self):
+        """Returns a flipped version of the patch."""
+        new_corners = self.coordinates.copy()[[2, 3, 0, 1]]
+        return AxisAlignedPatch(pointcloud.PointCloud(new_corners, self.space))
+
+    def extract_volume(
+        self,
+        image_volume: volume.Volume,
+        resolution_mm: float,
+    ):
+        """
+        fetches image data in a planar patch.
+        TODO The current implementation only covers patches which are strictly
+        define in the y plane. A future implementation should accept arbitrary
+        oriented patches.accept arbitrary oriented patches.
+        """
+        assert image_volume.space == self.space
+
+        # Extend the 2D patch into a 3D structure
+        # this is only valid if the patch plane lies within the image canvas.
+        canvas = image_volume.get_boundingbox()
+        assert canvas.minpoint[1] <= self.coordinates[0, 1]
+        assert canvas.maxpoint[1] >= self.coordinates[0, 1]
+        XYZ = self.coordinates
+        voi = boundingbox.BoundingBox(
+            XYZ.min(0)[:3], XYZ.max(0)[:3], space=image_volume.space
+        )
+        # enforce the patch to have the same y dimensions
+        voi.minpoint[1] = canvas.minpoint[1]
+        voi.maxpoint[1] = canvas.maxpoint[1]
+        patch = image_volume.fetch(voi=voi, resolution_mm=resolution_mm)
+        assert patch is not None
+
+        # patch rotation defined in physical space
+        vx, vy, vz = XYZ[1] - XYZ[0]
+        alpha = -math.atan2(-vz, -vx)
+        cx, cy, cz = XYZ.mean(0)
+        rot_phys = np.linalg.multi_dot(
+            [
+                translation_matrix(cx, cy, cz),
+                y_rotation_matrix(alpha),
+                translation_matrix(-cx, -cy, -cz),
+            ]
+        )
+
+        # rotate the patch in physical space
+        affine_rot = np.dot(rot_phys, patch.affine)
+
+        # crop in the rotated space
+        pixels = (
+            np.dot(np.linalg.inv(affine_rot), self.homogeneous.T)
+            .astype("int")
+            .T
+        )
+        # keep a pixel distance to avoid black border pixels
+        xmin, ymin, zmin = pixels.min(0)[:3] + 1
+        xmax, ymax, zmax = pixels.max(0)[:3] - 1
+        h, w = xmax - xmin, zmax - zmin
+        affine = np.dot(affine_rot, translation_matrix(xmin, 0, zmin))
+        return volume.from_nifti(
+            image.resample_img(
+                patch,
+                target_affine=affine,
+                target_shape=[h, 1, w],
+                force_resample=True
+            ),
+            space=image_volume.space,
+            name=f"Rotated patch with corner points {self.coordinates} sampled from {image_volume.name}",
+        )
+
+
+class Plane:
     """
     A 3D plane in reference space.
-    This shall eventually be derived from siibra.Location
+    TODO This shall eventually be derived from siibra.Location
     """
 
     def __init__(self, point1: point.Point, point2: point.Point, point3: point.Point):
@@ -64,8 +157,6 @@ class Plane3D:
         Returns the set of intersection points.
         The line segments are given by two Nx3 arrays of their start- and endpoints.
         The result is an Nx3 list of intersection coordinates.
-        TODO This returns an intersection even if the line segment intersects the plane,
-
         """
         directions = endpoints - startpoints
         lengths = np.linalg.norm(directions, axis=1)
@@ -148,7 +239,7 @@ class Plane3D:
         # should include the exact same set of points. Verify this now.
         sortrows = lambda A: A[np.lexsort(A.T[::-1]), :]
         err = (sortrows(fwd_intersections) - sortrows(bwd_intersections)).sum()
-        assert err == 0
+        assert err == 0, f"intersection inconsistency: {err}"
 
         # Due to the above property, we can construct closed contours in the
         # intersection plane by following the interleaved fwd/bwd roles of intersection
@@ -175,7 +266,7 @@ class Plane3D:
 
             # finish the current contour.
             result.append(
-                contour.Contour(np.array(points), labels=labels, space=self.space)
+                pointcloud.Contour(np.array(points), labels=labels, space=self.space)
             )
             if len(face_indices) > 0:
                 # prepare to process another contour segment
@@ -236,8 +327,15 @@ class Plane3D:
         )
         err = (self.project_points(corners).coordinates - corners.coordinates).sum()
         if err > 1e-5:
-            print(f"WARNING: patch coordinates were not exactly in-plane (error={err}).")
-        return patch.Patch(self.project_points(corners))
+            print(
+                f"WARNING: patch coordinates were not exactly in-plane (error={err})."
+            )
+
+        try:
+            patch = AxisAlignedPatch(self.project_points(corners))
+        except AssertionError:
+            patch = None
+        return patch
 
     @classmethod
     def from_image(cls, image: volume.Volume):

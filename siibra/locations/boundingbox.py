@@ -85,7 +85,7 @@ class BoundingBox(location.Location):
                     self.maxpoint[d] = self.minpoint[d] + minsize
 
         if self.volume == 0:
-            logger.warning(f"Zero-volume bounding box from points {point1} and {point2} in {self.space} space.")
+            logger.debug(f"Zero-volume bounding box from points {point1} and {point2} in {self.space} space.")
 
     @property
     def id(self) -> str:

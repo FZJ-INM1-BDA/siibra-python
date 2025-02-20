@@ -14,7 +14,7 @@
 # limitations under the License.
 """Singular coordinate defined on a space, possibly with an uncertainty."""
 
-from . import location, boundingbox, pointcloud
+from . import location, pointcloud
 
 from ..commons import logger
 from ..retrieval.requests import HttpRequest
@@ -115,8 +115,6 @@ class Point(location.Location):
     def intersection(self, other: location.Location) -> "Point":
         if isinstance(other, Point):
             return self if self == other else None
-        elif isinstance(other, pointcloud.PointCloud):
-            return self if self in other else None
         else:
             return self if other.intersection(self) else None
 
@@ -304,13 +302,6 @@ class Point(location.Location):
         """Index access to the coefficients of this point."""
         assert 0 <= index < 3
         return self.coordinate[index]
-
-    @property
-    def boundingbox(self):
-        w = max(self.sigma or 0, 1e-6)  # at least a micrometer
-        return boundingbox.BoundingBox(
-            self - w, self + w, self.space, self.sigma
-        )
 
     def bigbrain_section(self):
         """

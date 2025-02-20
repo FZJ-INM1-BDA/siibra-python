@@ -122,6 +122,8 @@ class PointCloud(location.Location):
 
         if isinstance(other, PointCloud):
             intersecting_points = [p for p in self if p.coordinate in other.coordinates]
+        elif isinstance(other, point.Point):
+            return other if other in self else None
         else:
             intersecting_points = [p for p in self if p.intersects(other)]
         if len(intersecting_points) == 0:
@@ -342,3 +344,46 @@ class PointCloud(location.Location):
                 logger.error("Matplotlib is not available. Label colors is disabled.")
                 return None
             return colormaps.rainbow(np.linspace(0, 1, max(self.labels) + 1))
+
+
+class Contour(PointCloud):
+    """
+    A PointCloud that represents a contour line.
+    The only difference is that the point order is relevant,
+    and consecutive points are thought as being connected by an edge.
+
+    In fact, PointCloud assumes order as well, but no connections between points.
+    """
+
+    def __init__(self, coordinates, space=None, sigma_mm=0, labels: list = None):
+        PointCloud.__init__(self, coordinates, space, sigma_mm, labels)
+
+    def crop(self, voi: "_boundingbox.BoundingBox"):
+        """
+        Crop the contour with a volume of interest.
+        Since the contour might be split from the cropping,
+        returns a set of contour segments.
+        """
+        segments = []
+
+        # set the contour point labels to a linear numbering
+        # so we can use them after the intersection to detect splits.
+        old_labels = self.labels
+        self.labels = list(range(len(self)))
+        cropped = self.intersection(voi)
+
+        if cropped is not None and not isinstance(cropped, point.Point):
+            assert isinstance(cropped, PointCloud)
+            # Identify contour splits are by discontinuouities ("jumps")
+            # of their labels, which denote positions in the original contour
+            jumps = np.diff([self.labels.index(lb) for lb in cropped.labels])
+            splits = [0] + list(np.where(jumps > 1)[0] + 1) + [len(cropped)]
+            for i, j in zip(splits[:-1], splits[1:]):
+                segments.append(
+                    self.__class__(cropped.coordinates[i:j, :], space=cropped.space)
+                )
+
+        # reset labels of the input contour points.
+        self.labels = old_labels
+
+        return segments
