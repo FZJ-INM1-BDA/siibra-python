@@ -22,7 +22,7 @@ import math
 from nilearn import image
 
 
-class Patch(pointcloud.PointCloud):
+class AxisAlignedPatch(pointcloud.PointCloud):
 
     def __init__(self, corners: pointcloud.PointCloud):
         """Construct a patch in physical coordinates.
@@ -32,12 +32,12 @@ class Patch(pointcloud.PointCloud):
         assert len(corners) == 4
         assert len(np.unique(corners.coordinates[:, 1])) == 1
         pointcloud.PointCloud.__init__(
-            self, 
+            self,
             coordinates=corners.coordinates,
             space=corners.space,
             sigma_mm=corners.sigma_mm,
             labels=corners.labels
-        ) 
+        )
         # self.corners = corners
 
     def __str__(self):
@@ -46,7 +46,7 @@ class Patch(pointcloud.PointCloud):
     def flip(self):
         """Returns a flipped version of the patch."""
         new_corners = self.coordinates.copy()[[2, 3, 0, 1]]
-        return Patch(pointcloud.PointCloud(new_corners, self.space))
+        return AxisAlignedPatch(pointcloud.PointCloud(new_corners, self.space))
 
     def extract_volume(
         self,
@@ -112,7 +112,7 @@ class Patch(pointcloud.PointCloud):
 class Plane:
     """
     A 3D plane in reference space.
-    This shall eventually be derived from siibra.Location
+    TODO This shall eventually be derived from siibra.Location
     """
 
     def __init__(self, point1: point.Point, point2: point.Point, point3: point.Point):
@@ -327,7 +327,7 @@ class Plane:
             )
 
         try:
-            patch = Patch(self.project_points(corners))
+            patch = AxisAlignedPatch(self.project_points(corners))
         except AssertionError:
             patch = None
         return patch

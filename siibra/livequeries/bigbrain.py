@@ -290,6 +290,10 @@ class BigBrain1MicronPatchQuery(
     
         # threshold image volume, if requested
         if self.lower_threshold > 0:
+            logger.info(
+                f"Applying lower threshold of {self.lower_threshold} "
+                "for BigBrain 1 micron patch query."
+            )
             img = concept.fetch()
             arr = img.get_fdata()
             arr[arr < self.lower_threshold] = 0
@@ -301,7 +305,7 @@ class BigBrain1MicronPatchQuery(
         # find 1 micron BigBrain sections intersecting the thresholded volume 
         sections = [
             s for s in CellbodyStainedSection._get_instances()
-            if s.get_boundingbox().intersects(concept)
+            if s.get_boundingbox().intersects(vol)
         ]
         if not sections:
             return []

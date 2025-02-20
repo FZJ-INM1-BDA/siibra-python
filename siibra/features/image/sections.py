@@ -18,7 +18,7 @@ from . import image
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ...locations import Patch
+    from ...locations import AxisAlignedPatch
     from ...features.anchor import AnatomicalAnchor
 
 
@@ -34,7 +34,7 @@ class CellbodyStainedSection(
 class BigBrain1MicronPatch(image.Image, category="cellular"):
     def __init__(
         self,
-        patch: "Patch",
+        patch: "AxisAlignedPatch",
         section: CellbodyStainedSection,
         relevance: float,
         anchor: "AnatomicalAnchor",

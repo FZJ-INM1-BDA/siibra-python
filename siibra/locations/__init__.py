@@ -17,7 +17,7 @@
 from .location import Location
 from .point import Point
 from .pointcloud import PointCloud, Contour, from_points
-from .experimental import Patch, Plane
+from .experimental import AxisAlignedPatch, Plane
 from .boundingbox import BoundingBox
 
 
