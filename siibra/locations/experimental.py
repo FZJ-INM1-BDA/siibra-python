@@ -103,7 +103,12 @@ class AxisAlignedPatch(pointcloud.PointCloud):
         h, w = xmax - xmin, zmax - zmin
         affine = np.dot(affine_rot, translation_matrix(xmin, 0, zmin))
         return volume.from_nifti(
-            image.resample_img(patch, target_affine=affine, target_shape=[h, 1, w]),
+            image.resample_img(
+                patch,
+                target_affine=affine,
+                target_shape=[h, 1, w],
+                force_resample=True
+            ),
             space=image_volume.space,
             name=f"Rotated patch with corner points {self.coordinates} sampled from {image_volume.name}",
         )

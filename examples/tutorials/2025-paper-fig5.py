@@ -14,18 +14,17 @@ pmap = parc.get_map('mni152', 'statistical').get_volume(region)
 
 # %%
 # 2: find a corresponding brain section
-patches = siibra.features.get(pmap, "BigBrain1MicronPatch", lower_threshold=0.8)
+patches = siibra.features.get(pmap, "BigBrain1MicronPatch", lower_threshold=0.7)
 print(f"Found {len(patches)} patches.")
 
 # %%
-N = 5
-f, axs = plt.subplots(1, N)
-for n, (patch, ax) in enumerate(zip(patches[:N], axs.ravel())):
+section = 3556
+candidates = [p for p in patches if p.bigbrain_section == 3556]
+N = len(candidates)
+f, axs = plt.subplots(N, 1)
+for n, (patch, ax) in enumerate(zip(candidates, axs.ravel())):
     patchimg = patch.fetch()
     patchdata = patchimg.get_fdata().squeeze()
     ax.imshow(patchdata, cmap='gray', vmin=0, vmax=2**16)
     ax.axis('off')
-    ax.set_title(f"Patch {n} - section {patch.bigbrain_section}")
-
-
-# %%
+    ax.set_title(f"#{n}/{patch.vertex}")
