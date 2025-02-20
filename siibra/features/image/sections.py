@@ -36,12 +36,14 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
         self,
         patch: "AxisAlignedPatch",
         section: CellbodyStainedSection,
+        vertex: int,
         relevance: float,
         anchor: "AnatomicalAnchor",
         **kwargs
     ):
         self._patch = patch
         self._section = section
+        self.vertex = vertex
         self.relevance = relevance
         image.Image.__init__(
             self,
@@ -59,8 +61,13 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
     def __repr__(self):
         return (
             f"<{self.__class__.__name__}(space_spec={self._space_spec}, "
-            f"name='{self.name}', patch='{self._patch}', providers={self._providers})>"
+            f"name='{self.name}', section='{self.bigbrain_section}', vertex='{self.vertex}', "
+            f"providers={self._providers})>"
         )
+
+    @property
+    def bigbrain_section(self):
+        return self.get_boundingbox().minpoint.bigbrain_section()
 
     def fetch(self, flip=False, **kwargs):
         assert "voi" not in kwargs
@@ -68,8 +75,8 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
         if flip:
             return self._patch.flip().extract_volume(
                 self._section, resolution_mm=res
-            )
+            ).fetch()
         else:
             return self._patch.extract_volume(
                 self._section, resolution_mm=res
-            )
+            ).fetch()

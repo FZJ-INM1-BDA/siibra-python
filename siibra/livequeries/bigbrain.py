@@ -329,7 +329,9 @@ class BigBrain1MicronPatchQuery(
             # to obtain midcortex-locations, and build their orthogonal patches.
             # store the concept's value with the patch.
             vertex_tree = KDTree(layerverts[l4.name])
-            for i, s in enumerate(siibra_tqdm(sections, unit="sections", desc="Testing sections")):
+            for s in siibra_tqdm(
+                sections, unit="sections", desc=f"Sampling patches in {hemisphere} hemisphere"
+            ):
 
                 # compute layer IV contour in the image plane
                 imgplane = experimental.Plane.from_image(s)
@@ -380,8 +382,10 @@ class BigBrain1MicronPatchQuery(
                     )
                     features.append(
                         BigBrain1MicronPatch(
-                            patch=patch, section=s, relevance=prob, anchor=anchor
+                            patch=patch, section=s, vertex=nnb, relevance=prob, anchor=anchor
                         )
                     )
 
-        return features
+        # return the patches sorted by relevance (ie. probability)
+        return sorted(features, key=lambda p: p.relevance, reverse=True)
+    
