@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List
+
 from ..volumes import volume
 from . import point, pointcloud, boundingbox
 from ..commons import translation_matrix, y_rotation_matrix
@@ -174,7 +176,7 @@ class Plane:
             )
         return result
 
-    def intersect_mesh(self, mesh: dict):
+    def intersect_mesh(self, mesh: dict) -> List[pointcloud.Contour]:
         """
         Intersects a 3D surface mesh with the plane.
         Returns a set of split 2D contours, represented by ordered coordinate lists.

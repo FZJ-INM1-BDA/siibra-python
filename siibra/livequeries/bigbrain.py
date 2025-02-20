@@ -384,7 +384,12 @@ class BigBrain1MicronPatchQuery(
                     )
                     features.append(
                         BigBrain1MicronPatch(
-                            patch=patch, section=s, vertex=nnb, relevance=prob, anchor=anchor
+                            patch=patch,
+                            profile=prof,
+                            section=s,
+                            vertex=nnb,
+                            relevance=prob,
+                            anchor=anchor
                         )
                     )
 

@@ -18,7 +18,7 @@ from . import image
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ...locations import AxisAlignedPatch
+    from ...locations import AxisAlignedPatch, Contour
     from ...features.anchor import AnatomicalAnchor
 
 
@@ -45,12 +45,14 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
     def __init__(
         self,
         patch: "AxisAlignedPatch",
+        profile: "Contour",
         section: CellbodyStainedSection,
         vertex: int,
         relevance: float,
         anchor: "AnatomicalAnchor",
     ):
         self._patch = patch
+        self._profile = profile
         self._section = section
         self.vertex = vertex
         self.relevance = relevance
@@ -84,3 +86,6 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
         assert len(kwargs) == 0
         p = self._patch.flip() if flip else self._patch
         p.extract_volume(self._section, resolution_mm=resolution_mm).fetch()
+
+    def plot(self, *args, **kwargs):
+        raise NotImplementedError
