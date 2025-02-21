@@ -33,13 +33,15 @@ assert siibra.__version__ >= "1.0.1"
 sns.set_style("dark")
 
 # %%
-# # Instantiate parcellation and reference space from the human brain atlas
+# Instantiate parcellation and reference space from the human brain atlas
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 jubrain = siibra.parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_ATLAS_V3_0_3
 pmaps = jubrain.get_map(space="mni152", maptype="statistical")
 
 # %%
-# Obtain definitions and probabilistic maps in MNI asymmetric space of area IFG 44 and primary visual region hOc1 as defined in the Julich-Brain cytoarchitectonic atlas
+# Obtain definitions and probabilistic maps in MNI asymmetric space of area IFG 44
+# and primary visual region hOc1 as defined in the Julich-Brain cytoarchitectonic atlas
 
 specs = ["ifg 44 left", "hoc1 left"]
 regions = [jubrain.get_region(spec) for spec in specs]
@@ -55,21 +57,16 @@ for r in regions:
     plt.savefig(f"{r.key}.png")
 
 # %%
-# For each of the two brain areas, retrieve average densities of a selection of monogenetic neurotransmitter receptors, layer-specific distributions of cell bodies, as well as expressions of a selection of genes coding for these receptors.
+# For each of the two brain areas, retrieve average densities of a selection of monogenetic
+# neurotransmitter receptors, layer-specific distributions of cell bodies, as well as expressions
+# of a selection of genes coding for these receptors.
 
 receptors = ["M1", "M2", "M3", "D1", "5-HT1A", "5-HT2"]
-genes = [
-    siibra.vocabularies.GENE_NAMES.CHRM1,
-    siibra.vocabularies.GENE_NAMES.CHRM2,
-    siibra.vocabularies.GENE_NAMES.CHRM3,
-    siibra.vocabularies.GENE_NAMES.HTR1A,
-    siibra.vocabularies.GENE_NAMES.HTR2A,
-    siibra.vocabularies.GENE_NAMES.DRD1,
-]
+genes = ["CHRM1", "CHRM2", "CHRM3", "HTR1A", "HTR2A", "DRD1"]
 modalities = [
-    (siibra.features.molecular.ReceptorDensityFingerprint, {}, {"rot": 90}),
-    (siibra.features.cellular.LayerwiseCellDensity, {}, {"rot": 0}),
-    (siibra.features.molecular.GeneExpressions, {"gene": genes}, {"rot": 90}),
+    ("receptor density fingerprint", {}, {"rot": 90}),
+    ("layerwise cell density", {}, {"rot": 0}),
+    ("gene expressions", {"gene": genes}, {"rot": 90}),
 ]
 fig, axs = plt.subplots(
     len(modalities) + 1, len(regions), figsize=(4 * len(regions), 11), sharey="row"
@@ -107,7 +104,9 @@ fig.suptitle("")
 fig.tight_layout()
 
 # %%
-# For each of the two brain areas, collect functional connectivity profiles referring to temporal correlation of fMRI timeseries of several hundred subjects from the Human Connectome Project. We show the strongest connections per brain area for the average connectivity patterns
+# For each of the two brain areas, collect functional connectivity profiles referring to
+# temporal correlation of fMRI timeseries of several hundred subjects from the Human Connectome
+# Project. We show the strongest connections per brain area for the average connectivity patterns
 fts = siibra.features.get(
     regions[0], siibra.features.connectivity.FunctionalConnectivity
 )
