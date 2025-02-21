@@ -212,8 +212,8 @@ class ReceptorDensityFingerprint(
         """
         kwargs['xlabel'] = ""
         kwargs["backend"] = backend
+        og_data = self.data
         if receptors is not None:
-            og_data = self.data
             self._data_cached = og_data.loc[receptors]
         fig = super().plot(*args, **kwargs)
         self._data_cached = og_data

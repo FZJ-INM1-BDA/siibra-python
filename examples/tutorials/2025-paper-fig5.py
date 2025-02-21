@@ -80,7 +80,7 @@ crop_voi = patch.section.intersection(pmap.get_boundingbox().zoom(0.35))
 cropped_img = patch.section.fetch(voi=crop_voi, resolution_mm=0.2)
 phys2pix = np.linalg.inv(cropped_img.affine)
 
-# The probabilities can be assigned to the countour vertices with the
+# The probabilities can be assigned to the contour vertices with the
 # probability map.
 points = siibra.PointCloud(
     np.vstack(
