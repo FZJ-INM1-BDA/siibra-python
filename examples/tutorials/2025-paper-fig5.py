@@ -19,7 +19,7 @@ Anatomically guided reproducible extraction of full resolution image data from c
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 `siibra` allows to implement reproducible workflows for sampling microscopy data from anatomically defined regions of interest.
-This example retrieves the probabilistic map of motor area 4p from the Julich-Brain atlas in the right hemisphere, 
+This example retrieves the probabilistic map of motor area 4p from the Julich-Brain atlas in the right hemisphere,
 uses it to find relevant high-resolution scans of whole-brain tissue sections in BigBrain space (B; ll. 8-10),
 and samples oriented cortical patches centered on the cortical mid surface.
 The different coordinate systems are automatically handled using precomputed nonlinear transformations.
@@ -35,16 +35,17 @@ the full resolution image data for the identified cortical patch from the underl
 """
 
 # %%
-import siibra
-assert siibra.__version__ >= "1.0.1"
 import matplotlib.pyplot as plt
 import numpy as np
+import siibra
+
+assert siibra.__version__ >= "1.0.1"
 
 # %%
 # 1: Retrieve probability map of a motor area in Julich-Brain
-parc = siibra.parcellations.get('julich 3.0.3')
+parc = siibra.parcellations.get("julich 3.0.3")
 region = parc.get_region("4p right")
-pmap = parc.get_map('mni152', 'statistical').get_volume(region)
+pmap = parc.get_map("mni152", "statistical").get_volume(region)
 
 # %%
 # 2: Extract BigBrain 1 micron patches with high probability in this area
@@ -53,84 +54,74 @@ print(f"Found {len(patches)} patches.")
 
 # %%
 # 3: Display highly rated samples, here further reduced to a predefined section
-section = 3556
-candidates = filter(lambda p: p.bigbrain_section == 3556, patches)
+section_num = 3556
+candidates = filter(lambda p: p.bigbrain_section == section_num, patches)
 patch = next(iter(candidates))
 plt.figure()
-patchdata = patch.fetch().get_fdata().squeeze()
-plt.imshow(patchdata, cmap='gray', vmin=0, vmax=2**16)
-plt.axis('off')
-plt.set_title(f"#{section} - {patch.vertex}", fontsize=10)
-
+plt.imshow(patch.fetch().get_fdata().squeeze(), cmap="gray", vmin=0, vmax=2**16)
+plt.axis("off")
+plt.title(f"#{section_num} - {patch.vertex}", fontsize=10)
 
 # %%
 # To understand how the live query works, we have a look at some of the intermediate
-# steps that `siibra` is performing under the hood.
-# It first identifies brain sections that intersect the given map (or, more generally, the given image volume.)
+# steps that `siibra` is performing under the hood. It first identifies brain sections that
+# intersect the given map (or, more generally, the given image volume).
 # Each returned patch still has the corresponding section linked, so we can have a look at it.
-section = patch._section
-fig = plt.figure()
-ax = fig.add_subplot(111)
-img = section.fetch(resolution_mm=0.8)
-plt.imshow(img.get_fdata().squeeze(), cmap='gray', vmin=0, vmax=2**16)
-
-# The section was intersected with the cortical layer 4 surface to get an approximation of the mid cortex. 
-# This can be done by fetching the layer surface meshes, and intersecting 
+# The section was intersected with the cortical layer 4 surface to get an approximation of
+# the mid cortex. This can be done by fetching the layer surface meshes, and intersecting
 # them with the 3D plane corresponding to the brain section.
-plane = siibra.Plane.from_image(section)
-layermap = siibra.get_map('cortical layers', space='bigbrain')
+plane = siibra.Plane.from_image(patch)
+layermap = siibra.get_map("cortical layers", space="bigbrain")
 layer_contours = {
-    layername: plane.intersect_mesh(
-        layermap.fetch(region=layername, format='mesh')
-    )
+    layername: plane.intersect_mesh(layermap.fetch(region=layername, format="mesh"))
     for layername in layermap.regions
 }
+crop_voi = patch.section.intersection(pmap.get_boundingbox().zoom(0.35))
+cropped_img = patch.section.fetch(voi=crop_voi, resolution_mm=0.2)
+phys2pix = np.linalg.inv(cropped_img.affine)
 
 # The probabilities can be assigned to the countour vertices with the
 # probability map.
 points = siibra.PointCloud(
-    np.vstack([
-        contour.coordinates 
-        for contour in layer_contours["cortical layer 4 right"]
-    ]),
-    space='bigbrain'
+    np.vstack(
+        sum(
+            [
+                [s.coordinates for s in contour.crop(crop_voi)]
+                for contour in layer_contours["cortical layer 4 right"]
+            ],
+            [],
+        )
+    ),
+    space="bigbrain",
 )
-probs = pmap.evaluate_points(points)
-X, Y, Z = points.transform(np.linalg.inv(pmap.affine), space=None).coordinates.T
-ax.scatter(X, Z, c=probs)
+probs = pmap.evaluate_points(
+    points
+)  # siibra warps points to MNI152 and reads corresponding PMAP values
+img_arr = cropped_img.get_fdata().squeeze().swapaxes(0, 1)
+plt.imshow(img_arr, cmap="gray", origin="lower")
+X, Y, Z = points.transform(phys2pix).coordinates.T
+plt.scatter(X, Z, s=2, c=probs)
+for p in patch.profile:
+    x, y, z = p.transform(phys2pix)
+    plt.plot(x, z, "r.", ms=3)
+plt.axis("off")
 
 # %%
-# we can plot the contours on top of the image, and even use the
+# We can plot the contours on top of the image, and even use the
 # colormap recommended by siibra. We use a crop around the brain
 # region to zoom a bit closer to the extracte profile and patch.
-crop_voi = (
-    section
-    .get_boundingbox()
-    .intersection(pmap.get_boundingbox().zoom(0.4))
-)
-crop = section.fetch(voi=crop_voi, resolution_mm=0.2)
-phys2pix = np.linalg.inv(crop.affine)
-
-
-
-
-# plot the contour segments
 plt.figure()
-img = section.fetch(resolution_mm=0.8)
-plt.imshow(crop.get_fdata().squeeze(), cmap='gray', vmin=0, vmax=2**16)
+plt.imshow(img_arr, cmap="gray", vmin=0, vmax=2**16, origin="lower")
 for layername, contours in layer_contours.items():
+    layercolor = layermap.get_colormap().colors[layermap.get_index(layername).label]
     for contour in contours:
         for segment in contour.crop(crop_voi):
             pixels = segment.transform(phys2pix, space=None).homogeneous
-            plt.plot(
-                pixels[:, 2], pixels[:, 0], '-', ms=4,
-                color=layercolors[layermap.get_index(layername).label]
-            )
+            plt.plot(pixels[:, 0], pixels[:, 2], "-", ms=4, color=layercolor)
 
 # plot the profile points
-for p in patch._profile:
+for p in patch.profile:
     x, y, z = p.transform(phys2pix, space=None)
-    plt.plot(z, x, 'r.', ms=3)
-    
-plt.axis('off')
-# %%
+    plt.plot(x, z, "r.", ms=3)
+
+plt.axis("off")
