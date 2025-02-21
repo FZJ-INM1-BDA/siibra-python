@@ -118,7 +118,7 @@ view.add_markers(
 min_correlation = 0.2
 min_map_value = 0.5
 pmaps = siibra.get_map(
-    parcellation="julich 3.1", space="mni152", maptype="statistical", spec="207"
+    parcellation="julich 3.0.3", space="mni152", maptype="statistical"
 )
 assignments = []
 
@@ -227,7 +227,7 @@ def plot_connectivity(region, ax):
 
 
 # %%
-selected_region = siibra.get_region("julich 3.1", "Area hOc1 (V1, 17, CalcS) left")
+selected_region = siibra.get_region("julich 3.0.3", "Area hOc1 (V1, 17, CalcS) left")
 plot_funcs = [
     lambda r, a: plot_receptors(r, a),
     lambda r, a: plot_celldensities(r, a),
