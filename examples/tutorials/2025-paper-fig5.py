@@ -125,3 +125,5 @@ for p in patch.profile:
     plt.plot(x, z, "r.", ms=3)
 
 plt.axis("off")
+
+# sphinx_gallery_thumbnail_number = -2

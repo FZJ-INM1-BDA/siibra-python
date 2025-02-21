@@ -182,3 +182,5 @@ for r, sn, ax in zip(regions, selected_sections, axs):
     ax.set_title(r.name)
 
 plt.tight_layout()
+
+# sphinx_gallery_thumbnail_number = 2
