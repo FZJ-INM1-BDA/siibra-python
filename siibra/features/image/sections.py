@@ -79,6 +79,14 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
         )
 
     @property
+    def section(self) -> CellbodyStainedSection:
+        return self._section
+    
+    @property
+    def profile(self) -> CellbodyStainedSection:
+        return self._profile
+
+    @property
     def bigbrain_section(self):
         return self.get_boundingbox().minpoint.bigbrain_section()
 
