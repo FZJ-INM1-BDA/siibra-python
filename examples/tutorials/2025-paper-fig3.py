@@ -40,9 +40,13 @@ assert siibra.__version__ >= "1.0.1"
 sns.set_style("dark")
 
 # %%
-# # Input: Activation map or other feature distribution as image volume in MNI space
+# Input: Activation map or other feature distribution as image volume in MNI space
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #
-# We compose an artificial input image by merging some functional maps from the DiFuMo atlas, but the image could be any feature distribution map. The image is built as a NIfTI, but then casted to a siibra volume so we have a reference space attached and can used it properly in the siibra workflows. The NIfTI object can always be accessed via `.fetch()`.
+# We compose an artificial input image by merging some functional maps from the DiFuMo atlas,
+# but the image could be any feature distribution map. The image is built as a NIfTI, but
+# then casted to a siibra volume so we have a reference space attached and can used it
+# properly in the siibra workflows. The NIfTI object can always be accessed via `.fetch()`.
 
 # obtain and merge a couple of functional statistical maps
 difumo128 = siibra.get_map(
@@ -67,14 +71,18 @@ plotting.plot_glass_brain(
 )
 
 # %%
-# # Split input volume into cluster components
+# Split input volume into cluster components
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #
 # There are many ways to get components out of a feature map. Here we use siibra to
 # - draw random points from the distribution encoded by the input volume, then
 #  cluster them using DBSCAN, and
 # - build clusterwise featuremaps as Kernel Density estimates thereof.
 #
-# In this example, this more or less inverts the composition of the input volume from the DiFuMo maps, but the idea for a general input image is to separate it into components that have more meaningful correlations with brain regions than the full image, which is usually a mixture distribution.
+# In this example, this more or less inverts the composition of the input volume from
+# the DiFuMo maps, but the idea for a general input image is to separate it into
+# components that have more meaningful correlations with brain regions than the full
+# image, which is usually a mixture distribution.
 
 np.random.seed(25)
 N = 10000  # number of random samples
@@ -97,11 +105,15 @@ view.add_markers(
 )
 
 # %%
-# # Assign peaks and clusters to cytoarchitectonic regions
+# Assign peaks and clusters to cytoarchitectonic regions
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #
-# To assign the clusters to brain regions, we build feature maps from each cluster and assign them to the Julich-Brain probabilistic maps. The assignemint is one-to-many since the structures in the image and parcellation are continuous. Assignments report correlation, intersection over union, and some other measures which we can use to filter and sort them.
-#
-# The result is an assignment table from cluster components in the input volume to regions in the Julich-Brain atlas.
+# To assign the clusters to brain regions, we build feature maps from each cluster
+# and assign them to the Julich-Brain probabilistic maps. The assignemint is one-to-many
+# since the structures in the image and parcellation are continuous. Assignments
+# report correlation, intersection over union, and some other measures which we can use
+# to filter and sort them. The result is an assignment table from cluster components
+# in the input volume to regions in the Julich-Brain atlas.
 
 min_correlation = 0.2
 min_map_value = 0.5
@@ -159,7 +171,9 @@ for n, a in all_assignments.iterrows():
         break
 
 # %%
-# # Find features
+# Find features
+# ^^^^^^^^^^^^^
+#
 # To demonstrate multimodal feature profiling, we only choose the first connected region.
 
 
