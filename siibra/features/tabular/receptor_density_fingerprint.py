@@ -190,6 +190,31 @@ class ReceptorDensityFingerprint(
         else:
             raise NotImplementedError
 
-    def plot(self, *args, **kwargs):
+    def plot(
+        self,
+        *args,
+        receptors: List[str] = None,
+        backend: str = "matplotlib",
+        **kwargs
+    ):
+        """
+        Create a bar plot of receptor density fingerprint.
+
+        Parameters
+        ----------
+        receptors : List[str], optional
+            Plot a subset of receptors.
+        backend: str
+            "matplotlib", "plotly", or others supported by pandas DataFrame
+            plotting backend.
+        **kwargs
+            takes Matplotlib.pyplot keyword arguments
+        """
         kwargs['xlabel'] = ""
-        return super().plot(*args, **kwargs)
+        kwargs["backend"] = backend
+        if receptors is not None:
+            og_data = self.data
+            self._data_cached = og_data.loc[receptors]
+        fig = super().plot(*args, **kwargs)
+        self._data_cached = og_data
+        return fig
