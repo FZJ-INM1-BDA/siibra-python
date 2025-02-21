@@ -22,6 +22,8 @@ from .volume_of_interest import (
     XPCTVolumeOfInterest,
     LSFMVolumeOfInterest,
     DTIVolumeOfInterest
-    # SegmentedVolumeOfInterest
 )
-from .sections import CellbodyStainedSection
+from .sections import (
+    CellbodyStainedSection,
+    BigBrain1MicronPatch
+)

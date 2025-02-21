@@ -1,5 +1,5 @@
-..  _mainconcepts:
-Elements of an atlas in siibra
+..  _glossary:
+Glossary
 ==============================
 
 A typical brain atlas consists of 

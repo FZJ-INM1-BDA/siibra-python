@@ -87,3 +87,5 @@ selected_features = [
 ]
 for f in selected_features:
     print(f.name)
+
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
