@@ -191,32 +191,22 @@ def filter_features(feats, region):
 
 
 def plot_receptors(region, ax):
-    fts = filter_features(
-        siibra.features.get(
-            region, siibra.features.molecular.ReceptorDensityFingerprint
-        ),
-        region,
-    )
+    fts = filter_features(siibra.features.get(region, "ReceptorDensityFingerprint"), region)
     fts[0].plot(ax=ax)
 
 
 def plot_celldensities(region, ax):
-    fts = filter_features(
-        siibra.features.get(region, siibra.features.cellular.LayerwiseCellDensity),
-        region,
-    )
+    fts = filter_features(siibra.features.get(region, "LayerwiseCellDensity"), region)
     fts[0].plot(ax=ax)
 
 
 def plot_gene_expressions(region, ax, genes):
-    fts = siibra.features.get(
-        region, siibra.features.molecular.GeneExpressions, gene=genes
-    )
+    fts = siibra.features.get(region, "GeneExpressions", gene=genes)
     fts[0].plot(ax=ax)
 
 
 def plot_connectivity(region, ax):
-    fts = siibra.features.get(region, siibra.features.connectivity.StreamlineCounts)
+    fts = siibra.features.get(region, "StreamlineCounts")
     conndata = fts[0][0].get_profile(region).data
     conndata.rename(index={r: shortname(r) for r in conndata.index}, inplace=True)
     conndata[:15].plot(kind="bar", ax=ax)

@@ -64,7 +64,7 @@ for r in regions:
 receptors = ["M1", "M2", "M3", "D1", "5-HT1A", "5-HT2"]
 genes = ["CHRM1", "CHRM2", "CHRM3", "HTR1A", "HTR2A", "DRD1"]
 modalities = [
-    ("receptor density fingerprint", {}, {"rot": 90}),
+    ("receptor density fingerprint", {}, {"receptors": receptors, "rot": 90}),
     ("layerwise cell density", {}, {"rot": 0}),
     ("gene expressions", {"gene": genes}, {"rot": 90}),
 ]
@@ -83,15 +83,12 @@ for i, region in enumerate(regions):
         if len(fts) > 1:
             print(f"More than one feature found for {modality}, {region.name}")
         f = fts[0]
-        if modality == siibra.features.molecular.ReceptorDensityFingerprint:
-            fcopy = f
-            fcopy._data_cached = f.data.loc[receptors]
         f.plot(ax=axs[j + 1, i], **plotargs)
-        if modality == siibra.features.molecular.ReceptorDensityFingerprint:
+        if modality == "receptor density fingerprint":
             # add neurotransmitter names to  receptor names in xtick labels
             transmitters = [re.sub(r"(^.*\()|(\))", "", n) for n in f.neurotransmitters]
             axs[j + 1, i].set_xticklabels(
-                [f"{r}\n({n})" for r, n in zip(f.receptors, transmitters)]
+                [f"{r}\n({n})" for r, n in zip(receptors, transmitters)]
             )
         if ymax[j] is not None:
             axs[j + 1, i].set_ylim(0, ymax[j])
@@ -107,10 +104,8 @@ fig.tight_layout()
 # For each of the two brain areas, collect functional connectivity profiles referring to
 # temporal correlation of fMRI timeseries of several hundred subjects from the Human Connectome
 # Project. We show the strongest connections per brain area for the average connectivity patterns
-fts = siibra.features.get(
-    regions[0], siibra.features.connectivity.FunctionalConnectivity
-)
-conn = fts[0]
+fts = siibra.features.get(regions[0], "functional connectivity")
+conn = fts[1]
 
 # aggregate connectivity profiles for first region across subjects
 D1 = (
