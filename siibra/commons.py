@@ -538,6 +538,7 @@ def resample_img_to_img(
         target_img=target_img,
         interpolation=interpolation,
         force_resample=True,  # False is intended for testing. see nilearn docs
+        copy_header=True,  # nilearn > 0.13.0 default. Copies the header of the source_img (`resample_to_img` docstring is not entirely correct. see `resample_img`)
     )
     return resampled_img
 
