@@ -554,6 +554,10 @@ class NeuroglancerScale:
         x0, y0, z0 = (np.array(bbox_.minpoint) - data_min).astype("int")
         xd, yd, zd = np.ceil(bbox_.maxpoint).astype(int) - np.floor(bbox_.minpoint).astype(int)
         offset = tuple(bbox_.minpoint)
+        if voi is not None:
+            logger.debug(
+                f"Input: {voi.minpoint.coordinate}, {voi.maxpoint.coordinate}.\nVoxel space: {bbox_.minpoint.coordinate}, {bbox_.maxpoint.coordinate}"
+            )
 
         # build the nifti image
         trans = np.identity(4)[[2, 1, 0, 3], :]  # zyx -> xyz
