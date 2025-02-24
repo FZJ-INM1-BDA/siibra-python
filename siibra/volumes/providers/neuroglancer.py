@@ -529,7 +529,7 @@ class NeuroglancerScale:
         if voi is None:
             bbox_ = _boundingbox.BoundingBox((0, 0, 0), self.size, space=None)
         else:
-            bbox_ = voi.transform(np.linalg.inv(self.affine))
+            bbox_ = voi.transform(np.linalg.inv(self.affine), space=None)
 
         # extract minimum and maximum the chunk indices to be loaded
         gx0, gy0, gz0 = self._point_to_lower_chunk_idx(tuple(bbox_.minpoint))
@@ -552,7 +552,7 @@ class NeuroglancerScale:
         # exact bounding box requested, to cut off undesired borders
         data_min = np.array([gx0, gy0, gz0]) * self.chunk_sizes
         x0, y0, z0 = (np.array(bbox_.minpoint) - data_min).astype("int")
-        xd, yd, zd = np.ceil(bbox_.maxpoint - bbox_.minpoint).astype("int")  # fetch full voxels
+        xd, yd, zd = np.ceil(bbox_.maxpoint).astype(int) - np.floor(bbox_.minpoint).astype(int)
         offset = tuple(bbox_.minpoint)
 
         # build the nifti image
