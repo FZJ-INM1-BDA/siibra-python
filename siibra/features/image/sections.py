@@ -83,7 +83,7 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
         return self._section
 
     @property
-    def profile(self) -> CellbodyStainedSection:
+    def profile(self) -> "Contour":
         return self._profile
 
     @property
