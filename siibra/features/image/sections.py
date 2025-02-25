@@ -98,4 +98,47 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
         ).fetch()
 
     def plot(self, *args, **kwargs):
-        raise NotImplementedError
+        from ...locations import PointCloud, Plane
+        from ...core.concept import get_registry
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        query_vol = list(self.anchor._assignments.values())[0].query_structure
+        plane = Plane.from_image(self)
+        layermap = get_registry("Map").get("cortical layers bigbrain")
+        layer_contours = {
+            layername: plane.intersect_mesh(layermap.fetch(region=layername, format="mesh"))
+            for layername in layermap.regions
+        }
+        crop_voi = self.section.intersection(query_vol.get_boundingbox())
+        cropped_img = self.section.fetch(voi=crop_voi, resolution_mm=-1)
+        phys2pix = np.linalg.inv(cropped_img.affine)
+
+        # The probabilities can be assigned to the contour vertices with the
+        # probability map.
+        points = PointCloud(
+            np.vstack(
+                sum(
+                    [
+                        [s.coordinates for s in contour.crop(crop_voi)]
+                        for contour in layer_contours["cortical layer 4 right"]
+                    ],
+                    [],
+                )
+            ),
+            space="bigbrain",
+        )
+        probs = query_vol.evaluate_points(
+            points
+        )  # siibra warps points to MNI152 and reads corresponding PMAP values
+        img_arr = cropped_img.get_fdata().squeeze().swapaxes(0, 1)
+
+        fig = plt.figure()
+        plt.imshow(img_arr, cmap="gray", origin="lower")
+        X, Y, Z = points.transform(phys2pix).coordinates.T
+        plt.scatter(X, Z, s=2, c=probs)
+        for p in self.profile:
+            x, y, z = p.transform(phys2pix)
+            plt.plot(x, z, "r.", ms=3)
+        plt.axis("off")
+        return fig
