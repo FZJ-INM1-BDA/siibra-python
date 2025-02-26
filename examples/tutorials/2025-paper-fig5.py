@@ -53,10 +53,6 @@ patches = siibra.features.get(pmap, "BigBrain1MicronPatch", lower_threshold=0.7)
 print(f"Found {len(patches)} patches.")
 
 # %%
-# test plotting
-patches[0].plot()
-
-# %%
 # 3: Display highly rated samples, here further reduced to a predefined section
 section_num = 3556
 candidates = filter(lambda p: p.bigbrain_section == section_num, patches)
@@ -65,6 +61,10 @@ plt.figure()
 plt.imshow(patch.fetch().get_fdata().squeeze(), cmap="gray", vmin=0, vmax=2**16)
 plt.axis("off")
 plt.title(f"#{section_num} - {patch.vertex}", fontsize=10)
+
+# %%
+# test plotting
+patch.plot()
 
 # %%
 # To understand how the live query works, we have a look at some of the intermediate
