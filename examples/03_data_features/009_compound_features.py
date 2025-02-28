@@ -25,8 +25,8 @@ element.
 
 # %%
 # Compound features naturally result from a feature query for certain feature types.
-# For example, connectivty matrices usually provided for each subject, however,
-# having them as seperate featuers make it difficult to work with them. But as a
+# For example, connectivity matrices usually provided for each subject, however,
+# having them as separate features make it difficult to work with them. But as a
 # compound feature, they inherit the joint attributes from their elements. But
 # siibra will not compound different cohorts for example. Let us demonstrate:
 import siibra
@@ -47,7 +47,7 @@ print(cf[5].name)
 print(cf.get_element('0031_2').name)
 
 # %%
-# The indicies of this compound feature corresponds to the the subject ids:
+# The indices of this compound feature corresponds to the the subject ids:
 for i, f in enumerate(cf[:10]):  # we can iterate over elements of a CompoundFeature
     print(f"Element index: {cf.indices[i]}, Subject: {f.subject}")
 
