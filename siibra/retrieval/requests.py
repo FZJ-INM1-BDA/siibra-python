@@ -15,7 +15,7 @@
 """Request files with decoders, lazy loading, and caching."""
 
 from .cache import CACHE, cache_user_fn
-from .exceptions import EbrainsAuthenticationError
+from . import exceptions as _exceptions
 from ..commons import (
     logger,
     HBP_AUTH_TOKEN,
@@ -388,7 +388,7 @@ class EbrainsRequest(HttpRequest):
                 ),  # if explicitly enabled by env var, do not raise
             ]
         ):
-            raise EbrainsAuthenticationError(
+            raise _exceptions.EbrainsAuthenticationError(
                 "sys.stdout is not tty, SIIBRA_ENABLE_DEVICE_FLOW is not set,"
                 "and not running in a notebook. Are you running in batch mode?"
             )
@@ -444,7 +444,7 @@ class EbrainsRequest(HttpRequest):
                     f"exceeded max attempts: {cls._IAM_DEVICE_MAXTRIES}, aborting..."
                 )
                 logger.error(message)
-                raise EbrainsAuthenticationError(message)
+                raise _exceptions.EbrainsAuthenticationError(message)
             attempt_number += 1
             resp = requests.post(
                 url=cls._IAM_TOKEN_ENDPOINT,
@@ -470,7 +470,7 @@ class EbrainsRequest(HttpRequest):
                 logger.debug(f"400 error: {resp.content}")
                 continue
 
-            raise EbrainsAuthenticationError(resp.content)
+            raise _exceptions.EbrainsAuthenticationError(resp.content)
 
     @classmethod
     def set_token(cls, token):

@@ -17,13 +17,12 @@
 from __future__ import annotations
 
 from ..core.structure import BrainStructure
+from ..core import space as _space
 
 import numpy as np
 from abc import abstractmethod
 
-from typing import TYPE_CHECKING, Union, Dict
-if TYPE_CHECKING:
-    from siibra.core.space import Space
+from typing import Union, Dict
 
 
 class Location(BrainStructure):
@@ -46,29 +45,28 @@ class Location(BrainStructure):
     _MASK_MEMO = {}  # cache region masks for Location._assign_region()
     _ASSIGNMENT_CACHE = {}  # caches assignment results, see Region.assign()
 
-    def __init__(self, spacespec: Union[str, Dict[str, str], "Space"]):
+    def __init__(self, spacespec: Union[str, Dict[str, str], "_space.Space"]):
         self._space_spec = spacespec
         self._space_cached = None
 
     @property
-    def space(self):
+    def space(self) -> "_space.Space":
         if self._space_cached is None:
-            from ..core.space import Space
             if isinstance(self._space_spec, dict):
                 spec = self._space_spec.get("@id") or self._space_spec.get("name")
-                self._space_cached = Space.get_instance(spec)
+                self._space_cached = _space.Space.get_instance(spec)
             else:
-                self._space_cached = Space.get_instance(self._space_spec)
+                self._space_cached = _space.Space.get_instance(self._space_spec)
         return self._space_cached
 
     @abstractmethod
-    def warp(self, space):
+    def warp(self, space: Union[str, "_space.Space"]):
         """Generates a new location by warping the
         current one into another reference space."""
         pass
 
     @abstractmethod
-    def transform(self, affine: np.ndarray, space=None):
+    def transform(self, affine: np.ndarray, space: Union[str, "_space.Space", None] = None):
         """Returns a new location obtained by transforming the
         reference coordinates of this one with the given affine matrix.
 
