@@ -93,21 +93,25 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
     def fetch(self, flip: bool = False, resolution_mm: float = -1, **kwargs):
         assert len(kwargs) == 0
         p = self._patch.flip() if flip else self._patch
-        return p.extract_volume(
-            self._section, resolution_mm=resolution_mm
-        ).fetch()
+        return p.extract_volume(self._section, resolution_mm=resolution_mm).fetch()
 
     def plot(self, *args, **kwargs):
         from ...locations import PointCloud, Plane
         from ...core.concept import get_registry
+        from ...volumes import Volume
         import numpy as np
         import matplotlib.pyplot as plt
 
         query_vol = list(self.anchor._assignments.values())[0].query_structure
+        assert isinstance(
+            query_vol, Volume
+        ), f"Cannot plot patch anchored at query structure of type {type(query_vol)}"
         plane = Plane.from_image(self)
         layermap = get_registry("Map").get("cortical layers bigbrain")
         layer_contours = {
-            layername: plane.intersect_mesh(layermap.fetch(region=layername, format="mesh"))
+            layername: plane.intersect_mesh(
+                layermap.fetch(region=layername, format="mesh")
+            )
             for layername in layermap.regions
         }
         crop_voi = self.section.intersection(query_vol.get_boundingbox())
@@ -134,11 +138,11 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
         img_arr = cropped_img.get_fdata().squeeze().swapaxes(0, 1)
 
         fig = plt.figure()
-        plt.imshow(img_arr, cmap="gray", origin="lower")
-        X, Y, Z = points.transform(phys2pix).coordinates.T
-        plt.scatter(X, Z, s=2, c=probs)
+        plt.imshow(img_arr, cmap="gray", origin="lower", vmin=0, vmax=2**16)
+        X, _, Z = points.transform(phys2pix).coordinates.T
+        plt.scatter(X, Z, s=2, c=probs, vmin=0)
         for p in self.profile:
-            x, y, z = p.transform(phys2pix)
+            x, _, z = p.transform(phys2pix)
             plt.plot(x, z, "r.", ms=3)
         plt.axis("off")
         return fig
