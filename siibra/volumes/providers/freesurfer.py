@@ -14,12 +14,12 @@
 # limitations under the License.
 """Handles reading and preparing gii files."""
 
-from . import provider as _provider
-
-from ...retrieval.requests import HttpRequest, ZipfileRequest
+from typing import Union, Dict, TYPE_CHECKING
 
 import numpy as np
-from typing import Union, Dict, TYPE_CHECKING
+
+from . import provider as _provider
+from ...retrieval.requests import HttpRequest, ZipfileRequest
 
 if TYPE_CHECKING:
     from ...locations import boundingbox as _boundingbox

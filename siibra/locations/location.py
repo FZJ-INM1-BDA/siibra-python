@@ -16,13 +16,13 @@
 
 from __future__ import annotations
 
-from ..core.structure import BrainStructure
-from ..core import space as _space
-
-import numpy as np
+from typing import Union, Dict
 from abc import abstractmethod
 
-from typing import Union, Dict
+import numpy as np
+
+from ..core.structure import BrainStructure
+from ..core import space as _space
 
 
 class Location(BrainStructure):

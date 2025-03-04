@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Provides reference systems for brains."""
-from . import concept, space as _space, parcellation as _parcellation
-
-from ..commons import MapType, logger, InstanceTable, Species
 
 from typing import List
+
+from . import concept, space as _space, parcellation as _parcellation
+from ..commons import MapType, logger, InstanceTable, Species
 
 
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]

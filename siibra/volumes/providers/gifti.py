@@ -14,14 +14,14 @@
 # limitations under the License.
 """Handles reading and preparing gii files."""
 
-from . import provider as _provider
+from typing import Union, Dict
 
+import numpy as np
+
+from . import provider as _provider
 from ...retrieval import requests
 from ...commons import logger, merge_meshes
 from ...locations import boundingbox as _boundingbox
-
-import numpy as np
-from typing import Union, Dict
 
 
 class GiftiMesh(_provider.VolumeProvider, srctype="gii-mesh"):

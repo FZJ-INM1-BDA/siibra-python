@@ -13,14 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
+import pandas as pd
+
 from . import cortical_profile
 from . import tabular, cell_reader, layer_reader
 from .. import anchor as _anchor
 from ... import commons
 from ...retrieval import requests
-
-import pandas as pd
-import numpy as np
 
 
 class LayerwiseCellDensity(

@@ -13,17 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import anchor as _anchor
-from . import tabular
+from textwrap import wrap
+from typing import List
 
+import numpy as np
+import pandas as pd
+
+from . import tabular
+from .. import anchor as _anchor
 from ...commons import logger
 from ...vocabularies import RECEPTOR_SYMBOLS
 from ...retrieval import requests
-
-import pandas as pd
-import numpy as np
-from textwrap import wrap
-from typing import List
 
 
 class ReceptorDensityFingerprint(

@@ -14,12 +14,12 @@
 # limitations under the License.
 """Handles feature queries that rely on live or on-the-fly calculations."""
 
+from abc import ABC, abstractmethod
+from typing import List
+
 from ..commons import logger
 from ..features.feature import Feature
 from ..core.concept import AtlasConcept
-
-from abc import ABC, abstractmethod
-from typing import List
 
 
 class LiveQuery(ABC):

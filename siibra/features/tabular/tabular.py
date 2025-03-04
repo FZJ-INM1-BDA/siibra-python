@@ -15,14 +15,13 @@
 """Base type of features in tabular formats."""
 
 from zipfile import ZipFile
-from .. import feature
-
-from .. import anchor as _anchor
-
-from ...commons import logger
 
 import pandas as pd
 from textwrap import wrap
+
+from .. import feature
+from .. import anchor as _anchor
+from ...commons import logger
 
 
 class Tabular(feature.Feature):

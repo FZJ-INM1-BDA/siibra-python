@@ -13,13 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import cortical_profile
-from . import tabular
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import numpy as np
 
-from typing import TYPE_CHECKING
+from . import tabular
+from . import cortical_profile
+
 if TYPE_CHECKING:
     from ...features.anchor import AnatomicalAnchor
 

@@ -14,26 +14,23 @@
 # limitations under the License.
 
 from zipfile import ZipFile
-from ..feature import Feature, Compoundable
-from ..tabular.tabular import Tabular
+from typing import Callable, Union, List, Tuple, Iterator
+try:
+    from typing import Literal
+except ImportError:  # support python 3.7
+    from typing_extensions import Literal
+
+import numpy as np
+import pandas as pd
 
 from .. import anchor as _anchor
-
+from ..feature import Feature, Compoundable
+from ..tabular.tabular import Tabular
 from ...commons import logger, QUIET, siibra_tqdm
 from ...core import region as _region
 from ...locations import pointcloud
 from ...retrieval.repositories import RepositoryConnector
 from ...retrieval.requests import HttpRequest
-
-
-import pandas as pd
-import numpy as np
-from typing import Callable, Union, List, Tuple, Iterator
-
-try:
-    from typing import Literal
-except ImportError:  # support python 3.7
-    from typing_extensions import Literal
 
 
 class RegionalConnectivity(Feature, Compoundable):

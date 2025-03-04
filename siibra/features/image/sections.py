@@ -14,8 +14,9 @@
 # limitations under the License.
 """Multimodal data features in 2D section."""
 
-from . import image
 from typing import TYPE_CHECKING
+
+from . import image
 
 if TYPE_CHECKING:
     from ...locations import AxisAlignedPatch, Contour

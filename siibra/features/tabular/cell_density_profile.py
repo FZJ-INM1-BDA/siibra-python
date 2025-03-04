@@ -13,19 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import cortical_profile
+from io import BytesIO
+from typing import Union, Tuple, Iterable
 
+import numpy as np
+import pandas as pd
+from skimage.draw import polygon
+from skimage.transform import resize
+
+from . import cortical_profile
 from .. import anchor as _anchor
 from ...commons import logger
 from ...retrieval import requests
-
-from skimage.draw import polygon
-from skimage.transform import resize
-import numpy as np
-import pandas as pd
-
-from io import BytesIO
-from typing import Union, Tuple, Iterable
 
 
 def cell_reader(bytes_buffer: bytes):

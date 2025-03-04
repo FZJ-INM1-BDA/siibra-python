@@ -17,23 +17,25 @@
 import os
 import re
 from enum import Enum
-from nibabel import Nifti1Image
-from nilearn.image import resample_to_img
 import logging
-from tqdm import tqdm
-import numpy as np
-import pandas as pd
-from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict, Generator, Tuple
-from skimage.filters import gaussian
 from dataclasses import dataclass
 from hashlib import md5
 from uuid import UUID
 import math
+from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict, Generator, Tuple
 try:
     from typing import TypedDict
 except ImportError:
     # support python 3.7
     from typing_extensions import TypedDict
+
+from tqdm import tqdm
+import numpy as np
+import pandas as pd
+from nibabel import Nifti1Image
+from nilearn.image import resample_to_img
+from skimage.filters import gaussian
+
 
 logging.addLevelName(21, "INFO_WO_PROGRESS_BARS")
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])

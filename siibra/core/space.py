@@ -14,11 +14,10 @@
 # limitations under the License.
 """A particular brain reference space."""
 
+from typing import List, TYPE_CHECKING, Union
 
 from . import concept
 from ..commons import logger, Species
-
-from typing import List, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from ..volumes import volume

@@ -14,15 +14,16 @@
 # limitations under the License.
 """Matches BigBrain intensity profiles extracted by Wagstyl et al. to volumes."""
 
-from . import query
+from typing import List
+from os import path
 
-from ..features.tabular import (
-    bigbrain_intensity_profile,
-    layerwise_bigbrain_intensities,
-)
-from ..features.image import CellbodyStainedSection
-from ..features.image.sections import BigBrain1MicronPatch
+import numpy as np
+from scipy.spatial import KDTree
+
+from . import query
 from ..features import anchor as _anchor
+from ..features.tabular import bigbrain_intensity_profile, layerwise_bigbrain_intensities
+from ..features.image import CellbodyStainedSection, BigBrain1MicronPatch
 from ..commons import logger, siibra_tqdm
 from ..locations import point, pointcloud, location, experimental
 from ..core import structure
@@ -30,12 +31,6 @@ from ..core.concept import get_registry
 from ..retrieval import requests, cache
 from ..retrieval.datasets import GenericDataset
 from ..volumes import Volume, from_array
-
-
-import numpy as np
-from typing import List
-from os import path
-from scipy.spatial import KDTree
 
 
 class WagstylProfileLoader:

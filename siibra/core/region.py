@@ -14,6 +14,17 @@
 # limitations under the License.
 """Representation of a brain region."""
 
+import re
+from typing import List, Union, Iterable, Dict, Callable, Tuple, Set
+from difflib import SequenceMatcher
+import json
+from functools import wraps, reduce
+from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
+
+import anytree
+from ebrains_drive import BucketApiClient
+
 from . import concept, structure, space as _space, parcellation as _parcellation, assignment
 from ..retrieval.cache import cache_user_fn
 from ..locations import location, pointcloud, boundingbox as _boundingbox
@@ -26,16 +37,6 @@ from ..commons import (
     InstanceTable,
 )
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
-
-import re
-import anytree
-from typing import List, Union, Iterable, Dict, Callable, Tuple, Set
-from difflib import SequenceMatcher
-from ebrains_drive import BucketApiClient
-import json
-from functools import wraps, reduce
-from concurrent.futures import ThreadPoolExecutor
-from functools import lru_cache
 
 
 REGEX_TYPE = type(re.compile("test"))

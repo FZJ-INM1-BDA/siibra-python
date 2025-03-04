@@ -14,9 +14,18 @@
 # limitations under the License.
 """Provides spatial representations for parcellations and regions."""
 
+from collections import defaultdict
+from dataclasses import dataclass, asdict
+from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
+
+import numpy as np
+import pandas as pd
+from scipy.ndimage import distance_transform_edt
+from nilearn import image
+
 from . import volume as _volume
 from .providers import provider
-from .. import logger, QUIET, exceptions
+from .. import exceptions
 from ..commons import (
     MapIndex,
     MapType,
@@ -29,18 +38,12 @@ from ..commons import (
     siibra_tqdm,
     Species,
     CompareMapsResult,
-    generate_uuid
+    generate_uuid,
+    logger,
+    QUIET,
 )
 from ..core import concept, space, parcellation, region as _region
 from ..locations import location, point, pointcloud
-
-import numpy as np
-from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
-from scipy.ndimage import distance_transform_edt
-from collections import defaultdict
-from nilearn import image
-import pandas as pd
-from dataclasses import dataclass, asdict
 
 if TYPE_CHECKING:
     from ..core.region import Region

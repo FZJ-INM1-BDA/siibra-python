@@ -21,10 +21,10 @@ a brain region is a structure which is at the same time an AtlasConcept. A
 bounding box in MNI space is a structure, but not an AtlasConcept.
 """
 
-from . import assignment, region as _region
-
 from abc import ABC, abstractmethod
 from typing import Tuple, Dict
+
+from . import assignment, region as _region
 
 
 class BrainStructure(ABC):

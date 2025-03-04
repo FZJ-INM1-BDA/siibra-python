@@ -14,15 +14,16 @@
 # limitations under the License.
 """A box defined by two farthest corner coordinates on a specific space."""
 
-from . import location, point, pointcloud
+from itertools import product
+import hashlib
+from typing import TYPE_CHECKING, Union
 
+import numpy as np
+
+from . import location, point, pointcloud
 from ..commons import logger
 from ..exceptions import SpaceWarpingFailedError
 
-from itertools import product
-import hashlib
-import numpy as np
-from typing import TYPE_CHECKING, Union
 if TYPE_CHECKING:
     from ..core.structure import BrainStructure
     from nibabel import Nifti1Image

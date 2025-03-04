@@ -15,9 +15,9 @@
 """Non-preconfigured data features hosted at EBRAINS."""
 
 from zipfile import ZipFile
+
 from .. import anchor as _anchor
 from .. import feature
-
 from ...retrieval import datasets
 
 

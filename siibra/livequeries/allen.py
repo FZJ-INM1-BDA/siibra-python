@@ -14,8 +14,13 @@
 # limitations under the License.
 """Query Allen Human Brain Atlas microarray data in specified volume."""
 
-from . import query as _query
+from typing import List
+from xml.etree import ElementTree
+import json
 
+import numpy as np
+
+from . import query as _query
 from ..core import space as _space, structure
 from ..features import anchor as _anchor
 from ..features.tabular.gene_expression import GeneExpressions
@@ -23,11 +28,6 @@ from ..commons import logger, Species
 from ..locations import point, pointcloud
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
-
-from typing import List
-from xml.etree import ElementTree
-import numpy as np
-import json
 
 
 BASE_URL = "http://api.brain-map.org/api/v2/data"

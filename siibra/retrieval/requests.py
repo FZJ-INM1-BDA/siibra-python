@@ -14,8 +14,28 @@
 # limitations under the License.
 """Request files with decoders, lazy loading, and caching."""
 
-from .cache import CACHE, cache_user_fn
+import json
+from zipfile import ZipFile
+import requests
+import os
+import gzip
+from io import BytesIO
+import urllib.parse
+from typing import List, Callable, TYPE_CHECKING
+from enum import Enum
+from functools import wraps
+from time import sleep
+import sys
+
+from filelock import FileLock as Lock
+import numpy as np
+import pandas as pd
+from skimage import io as skimage_io
+from nibabel import Nifti1Image, GiftiImage, streamlines, freesurfer
+
 from . import exceptions as _exceptions
+from .cache import CACHE, cache_user_fn
+from .. import __version__
 from ..commons import (
     logger,
     HBP_AUTH_TOKEN,
@@ -24,25 +44,7 @@ from ..commons import (
     siibra_tqdm,
     SIIBRA_USE_LOCAL_SNAPSPOT,
 )
-from .. import __version__
 
-import json
-from zipfile import ZipFile
-import requests
-import os
-from nibabel import Nifti1Image, GiftiImage, streamlines, freesurfer
-from skimage import io as skimage_io
-import gzip
-from io import BytesIO
-import urllib.parse
-import pandas as pd
-import numpy as np
-from typing import List, Callable, TYPE_CHECKING
-from enum import Enum
-from functools import wraps
-from time import sleep
-import sys
-from filelock import FileLock as Lock
 if TYPE_CHECKING:
     from .repositories import GitlabConnector
 

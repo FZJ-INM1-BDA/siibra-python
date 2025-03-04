@@ -14,6 +14,16 @@
 # limitations under the License.
 """A specific mesh or 3D array."""
 
+from typing import List, Dict, Union, Set, TYPE_CHECKING
+from dataclasses import dataclass
+from time import sleep
+import json
+from functools import lru_cache
+
+import numpy as np
+from nibabel import Nifti1Image
+from skimage import feature as skimage_feature, filters
+
 from . import providers as _providers
 from ..commons import resample_img_to_img, siibra_tqdm, affine_scaling, connected_components, logger
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError, EmptyPointCloudError
@@ -22,18 +32,8 @@ from ..core import space as _space, structure
 from ..core.concept import get_registry
 from ..locations import point, pointcloud, boundingbox
 
-from dataclasses import dataclass
-from nibabel import Nifti1Image
-import numpy as np
-from typing import List, Dict, Union, Set, TYPE_CHECKING
-from time import sleep
-import json
-from skimage import feature as skimage_feature, filters
-from functools import lru_cache
-
 if TYPE_CHECKING:
-    from ..retrieval.datasets import EbrainsDataset
-    TypeDataset = EbrainsDataset
+    from ..retrieval.datasets import EbrainsDataset as TypeDataset
 
 
 @dataclass
