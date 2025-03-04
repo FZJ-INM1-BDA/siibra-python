@@ -19,6 +19,7 @@ from ..commons import resample_img_to_img, siibra_tqdm, affine_scaling, connecte
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError, EmptyPointCloudError
 from ..retrieval import requests
 from ..core import space as _space, structure
+from ..core.concept import get_registry
 from ..locations import point, pointcloud, boundingbox
 
 from dataclasses import dataclass
@@ -720,25 +721,21 @@ class Subvolume(Volume):
 
 
 def from_file(filename: str, space: str, name: str) -> Volume:
-    """ Builds a nifti volume from a filename. """
-    from ..core.concept import get_registry
-
+    """Builds a nifti volume from a filename."""
     spaceobj = get_registry("Space").get(space)
     return Volume(
         space_spec={"@id": spaceobj.id},
-        providers=[_providers.provider.nifti.NiftiProvider(filename)],
+        providers=[_providers.NiftiProvider(filename)],
         name=filename if name is None else name,
     )
 
 
 def from_nifti(nifti: Nifti1Image, space: str, name: str) -> Volume:
     """Builds a nifti volume from a Nifti image."""
-    from ..core.concept import get_registry
-    from .providers.nifti import NiftiProvider
     spaceobj = get_registry("Space").get(space)
     return Volume(
         space_spec={"@id": spaceobj.id},
-        providers=[NiftiProvider((np.asanyarray(nifti.dataobj), nifti.affine))],
+        providers=[_providers.NiftiProvider((np.asanyarray(nifti.dataobj), nifti.affine))],
         name=name
     )
 
@@ -752,13 +749,11 @@ def from_array(
     """Builds a siibra volume from an array and an affine matrix."""
     if len(name) == 0:
         raise ValueError("Please provide a non-empty string for `name`")
-    from ..core.concept import get_registry
-
     spacespec = next(iter(space.values())) if isinstance(space, dict) else space
     spaceobj = get_registry("Space").get(spacespec)
     return Volume(
         space_spec={"@id": spaceobj.id},
-        providers=[_providers.provider.nifti.NiftiProvider((data, affine))],
+        providers=[_providers.NiftiProvider((data, affine))],
         name=name,
     )
 
