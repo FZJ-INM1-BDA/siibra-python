@@ -21,11 +21,11 @@ import json
 import numpy as np
 
 from . import query as _query
-from ..core import space as _space, structure
+from ..core import structure
 from ..features import anchor as _anchor
 from ..features.tabular.gene_expression import GeneExpressions
 from ..commons import logger, Species
-from ..locations import point, pointcloud
+from ..locations import pointcloud
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
 
@@ -144,19 +144,17 @@ class AllenBrainAtlasQuery(_query.LiveQuery, args=['gene'], FeatureType=GeneExpr
                 'https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.'
             )
 
-        mnispace = _space.Space.registry().get('mni152')
-
         # Match the microarray probes to the query mask.
         # Record matched instances and their locations.
-        measurements = []
-        coordinates = []
-        for measurement in self:
-            pt = point.Point(measurement['mni_xyz'], space=mnispace, sigma_mm=LOCATION_PRECISION_MM)
-            if pt in concept:
-                measurements.append(measurement)
-                coordinates.append(pt)
+        all_mes_points = pointcloud.PointCloud(
+            [measurement['mni_xyz'] for measurement in self],
+            space='mni152',
+            sigma_mm=LOCATION_PRECISION_MM
+        )
+        intersecting_points = concept.intersection(all_mes_points)
+        measurements = [mes for mes in self if mes['mni_xyz'] in intersecting_points.coordinates]
 
-        if len(coordinates) == 0:
+        if len(intersecting_points) == 0:
             logger.info(f"No probes found that lie within {concept}")
             return []
 
@@ -164,7 +162,7 @@ class AllenBrainAtlasQuery(_query.LiveQuery, args=['gene'], FeatureType=GeneExpr
         # It will be attached to the returned feature, with the set of matched
         # MNI coordinates as anchor's location.
         anchor = _anchor.AnatomicalAnchor(
-            location=pointcloud.from_points(coordinates),
+            location=pointcloud.from_points(intersecting_points),
             species=self.species
         )
         explanation = f"MNI coordinates of tissue samples were filtered using {concept}"
