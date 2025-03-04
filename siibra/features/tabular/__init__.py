@@ -15,7 +15,7 @@
 """Multimodal data features in tabular formats."""
 
 from .bigbrain_intensity_profile import BigBrainIntensityProfile
-from .cell_density_profile import CellDensityProfile
+from .cell_density_profile import CellDensityProfile, cell_reader, layer_reader
 from .gene_expression import GeneExpressions
 from .layerwise_bigbrain_intensities import LayerwiseBigBrainIntensities
 from .layerwise_cell_density import LayerwiseCellDensity

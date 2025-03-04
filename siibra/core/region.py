@@ -14,9 +14,7 @@
 # limitations under the License.
 """Representation of a brain region."""
 
-from . import concept, structure, space as _space, parcellation as _parcellation
-from .assignment import Qualification, AnatomicalAssignment
-
+from . import concept, structure, space as _space, parcellation as _parcellation, assignment
 from ..retrieval.cache import cache_user_fn
 from ..locations import location, pointcloud, boundingbox as _boundingbox
 from ..volumes import parcellationmap, volume
@@ -128,7 +126,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         Yields
         ------
-        Qualification
+        assignment.Qualification
 
         Example
         -------
@@ -595,7 +593,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             except NoMapAvailableError:
                 return False
 
-    def assign(self, other: structure.BrainStructure) -> AnatomicalAssignment:
+    def assign(self, other: structure.BrainStructure) -> assignment.AnatomicalAssignment:
         """
         Compute assignment of a location to this region.
 
@@ -609,8 +607,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         Returns
         -------
-        AnatomicalAssignment or None
-            None if there is no Qualification found.
+        assignment.AnatomicalAssignment or None
+            None if there is no assignment.Qualification found.
         """
         if (self, other) in self._ASSIGNMENT_CACHE:
             return self._ASSIGNMENT_CACHE[self, other]
@@ -659,17 +657,17 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         else:  # other is a Region
             assert isinstance(other, Region)
             if self == other:
-                qualification = Qualification.EXACT
+                qualification = assignment.Qualification.EXACT
             elif self.__contains__(other):
-                qualification = Qualification.CONTAINS
+                qualification = assignment.Qualification.CONTAINS
             elif other.__contains__(self):
-                qualification = Qualification.CONTAINED
+                qualification = assignment.Qualification.CONTAINED
             else:
                 qualification = None
             if qualification is None:
                 self._ASSIGNMENT_CACHE[self, other] = None
             else:
-                self._ASSIGNMENT_CACHE[self, other] = AnatomicalAssignment(self, other, qualification)
+                self._ASSIGNMENT_CACHE[self, other] = assignment.AnatomicalAssignment(self, other, qualification)
         return self._ASSIGNMENT_CACHE[self, other]
 
     def tree2str(self):
@@ -926,7 +924,7 @@ def get_related_regions(region: Region) -> Iterable["RegionRelationAssessments"]
 
     Yields
     ------
-    Qualification
+    assignment.Qualification
 
     Example
     -------
@@ -968,7 +966,7 @@ def _register_region_reference_type(ebrain_type: str):
     return outer
 
 
-class RegionRelationAssessments(AnatomicalAssignment[Region]):
+class RegionRelationAssessments(assignment.AnatomicalAssignment[Region]):
     """
     A collection of methods on finding related regions and the quantification
     of the relationship.
@@ -1110,7 +1108,7 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
                 yield cls(
                     query_structure=src,
                     assigned_structure=found_target,
-                    qualification=Qualification.parse_relation_assessment(overlap)
+                    qualification=assignment.Qualification.parse_relation_assessment(overlap)
                 )
 
             if "https://openminds.ebrains.eu/sands/ParcellationEntity" in target.get("type"):
@@ -1124,7 +1122,7 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
                         yield cls(
                             query_structure=src,
                             assigned_structure=reg,
-                            qualification=Qualification.parse_relation_assessment(overlap)
+                            qualification=assignment.Qualification.parse_relation_assessment(overlap)
                         )
 
     @classmethod
@@ -1178,7 +1176,7 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
                     yield cls(
                         query_structure=src,
                         assigned_structure=region,
-                        qualification=Qualification.OTHER_VERSION
+                        qualification=assignment.Qualification.OTHER_VERSION
                     )
 
             # homologuous

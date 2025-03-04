@@ -14,14 +14,13 @@
 # limitations under the License.
 """A specific mesh or 3D array."""
 
-from .providers import provider as _provider
-
-from .. import logger
+from . import providers as _providers
+from ..commons import resample_img_to_img, siibra_tqdm, affine_scaling, connected_components, logger
+from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError, EmptyPointCloudError
 from ..retrieval import requests
 from ..core import space as _space, structure
+from ..core.concept import get_registry
 from ..locations import point, pointcloud, boundingbox
-from ..commons import resample_img_to_img, siibra_tqdm, affine_scaling, connected_components
-from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError, EmptyPointCloudError
 
 from dataclasses import dataclass
 from nibabel import Nifti1Image
@@ -129,7 +128,7 @@ class Volume(structure.BrainStructure):
     def __init__(
         self,
         space_spec: dict,
-        providers: List['_provider.VolumeProvider'],
+        providers: List[_providers.provider.VolumeProvider],
         name: str = "",
         variant: str = None,
         datasets: List['TypeDataset'] = [],
@@ -138,7 +137,7 @@ class Volume(structure.BrainStructure):
         self._name = name
         self._space_spec = space_spec
         self.variant = variant
-        self._providers: Dict[str, _provider.VolumeProvider] = {}
+        self._providers: Dict[str, _providers.provider.VolumeProvider] = {}
         self.datasets = datasets
         self._boundingbox = bbox
         for provider in providers:
@@ -714,7 +713,7 @@ class Subvolume(Volume):
             self,
             space_spec=parent_volume._space_spec,
             providers=[
-                _provider.SubvolumeProvider(p, z=z)
+                _providers.provider.SubvolumeProvider(p, z=z)
                 for p in parent_volume._providers.values()
             ],
             name=parent_volume.name + f" - z: {z}"
@@ -722,25 +721,21 @@ class Subvolume(Volume):
 
 
 def from_file(filename: str, space: str, name: str) -> Volume:
-    """ Builds a nifti volume from a filename. """
-    from ..core.concept import get_registry
-    from .providers.nifti import NiftiProvider
+    """Builds a nifti volume from a filename."""
     spaceobj = get_registry("Space").get(space)
     return Volume(
         space_spec={"@id": spaceobj.id},
-        providers=[NiftiProvider(filename)],
+        providers=[_providers.NiftiProvider(filename)],
         name=filename if name is None else name,
     )
 
 
 def from_nifti(nifti: Nifti1Image, space: str, name: str) -> Volume:
     """Builds a nifti volume from a Nifti image."""
-    from ..core.concept import get_registry
-    from .providers.nifti import NiftiProvider
     spaceobj = get_registry("Space").get(space)
     return Volume(
         space_spec={"@id": spaceobj.id},
-        providers=[NiftiProvider((np.asanyarray(nifti.dataobj), nifti.affine))],
+        providers=[_providers.NiftiProvider((np.asanyarray(nifti.dataobj), nifti.affine))],
         name=name
     )
 
@@ -754,13 +749,11 @@ def from_array(
     """Builds a siibra volume from an array and an affine matrix."""
     if len(name) == 0:
         raise ValueError("Please provide a non-empty string for `name`")
-    from ..core.concept import get_registry
-    from .providers.nifti import NiftiProvider
     spacespec = next(iter(space.values())) if isinstance(space, dict) else space
     spaceobj = get_registry("Space").get(spacespec)
     return Volume(
         space_spec={"@id": spaceobj.id},
-        providers=[NiftiProvider((data, affine))],
+        providers=[_providers.NiftiProvider((data, affine))],
         name=name,
     )
 

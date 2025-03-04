@@ -18,7 +18,7 @@ from .requests import MultiSourcedRequest, GitlabProxy, GitlabProxyEnum
 
 import re
 from typing import Union, List
-from abc import ABC, abstractproperty
+from abc import ABC, abstractmethod
 from hashlib import md5
 
 try:
@@ -48,31 +48,38 @@ EbrainsDatasetEmbargoStatus = TypedDict("EbrainsDatasetEmbargoStatus", {
 
 
 class EbrainsBaseDataset(ABC):
-    @abstractproperty
+    @property
+    @abstractmethod
     def id(self) -> str:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def name(self) -> str:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def urls(self) -> List[EbrainsDatasetUrl]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def description(self) -> str:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def contributors(self) -> List[EbrainsDatasetPerson]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def ebrains_page(self) -> str:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def custodians(self) -> List[EbrainsDatasetPerson]:
         raise NotImplementedError
 
@@ -342,7 +349,7 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
         return [version.get("id") for version in self._detail.get("versions", [])]
 
 
-class GenericDataset():
+class GenericDataset:
 
     def __init__(
         self,

@@ -15,8 +15,7 @@
 """A particular brain reference space."""
 
 
-from .concept import AtlasConcept
-
+from . import concept
 from ..commons import logger, Species
 
 from typing import List, TYPE_CHECKING, Union
@@ -25,7 +24,7 @@ if TYPE_CHECKING:
     from ..volumes import volume
 
 
-class Space(AtlasConcept, configuration_folder="spaces"):
+class Space(concept.AtlasConcept, configuration_folder="spaces"):
 
     def __init__(
         self,
@@ -66,7 +65,7 @@ class Space(AtlasConcept, configuration_folder="spaces"):
                 Key: EBRAINS KG schema, value: EBRAINS KG @id
         """
 
-        AtlasConcept.__init__(
+        concept.AtlasConcept.__init__(
             self,
             identifier=identifier,
             name=name,
