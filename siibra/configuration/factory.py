@@ -13,6 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from os import path
+import json
+from typing import List, Dict, Callable
+from io import BytesIO
+from functools import wraps
+
+import numpy as np
+import pandas as pd
+
 from ..commons import logger, Species
 from ..features import anchor, connectivity
 from ..features.tabular import (
@@ -28,14 +37,6 @@ from ..locations import point, pointcloud, boundingbox
 from ..retrieval import datasets, repositories
 from ..volumes import volume, sparsemap, parcellationmap
 from ..volumes.providers.provider import VolumeProvider
-
-from os import path
-import json
-import numpy as np
-from typing import List, Dict, Callable
-import pandas as pd
-from io import BytesIO
-from functools import wraps
 
 
 _registered_build_fns: Dict[str, Callable] = {}

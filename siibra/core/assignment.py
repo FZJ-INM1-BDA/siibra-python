@@ -17,6 +17,7 @@
 from enum import Enum
 from dataclasses import dataclass
 from typing import Dict, Generic, TypeVar, TYPE_CHECKING
+
 if TYPE_CHECKING:
     from .structure import BrainStructure
 

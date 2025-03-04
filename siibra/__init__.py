@@ -13,16 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os as _os
+
 from .commons import (
     logger,
     QUIET,
     VERBOSE,
     MapType,
-    MapIndex,
     set_log_level,
     __version__
 )
-
+from . import configuration, features, livequeries
+from .configuration import factory
 from .core import (
     atlas as _atlas,
     parcellation as _parcellation,
@@ -31,13 +33,9 @@ from .core import (
 from .volumes import parcellationmap as _parcellationmap
 from .retrieval.requests import CACHE as cache
 from .retrieval.cache import Warmup, WarmupLevel
+from .locations import Point, PointCloud, Plane, BoundingBox
 
-from . import configuration
-from .configuration import factory
-from . import features, livequeries
-from siibra.locations import Point, PointCloud, Plane, BoundingBox
 
-import os as _os
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
 logger.info(

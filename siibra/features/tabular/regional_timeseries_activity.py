@@ -13,19 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import tabular
-from ..feature import Compoundable
+from typing import Callable, List, Union
 
-from ...core import region as _region
+import numpy as np
+import pandas as pd
+
+from . import tabular
 from .. import anchor as _anchor
+from ..feature import Compoundable
+from ...core import region as _region
 from ...commons import QUIET, siibra_tqdm
 from ...locations import pointcloud
-from ...retrieval.repositories import RepositoryConnector
 from ...retrieval.requests import HttpRequest
-
-from typing import Callable, List, Union
-import pandas as pd
-import numpy as np
+from ...retrieval.repositories import RepositoryConnector
 
 
 class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):

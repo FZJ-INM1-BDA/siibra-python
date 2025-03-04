@@ -13,6 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Parent class to siibra main concepts."""
+
+import re
+from typing import TypeVar, Type, Union, List, TYPE_CHECKING, Dict
+
 from ..commons import (
     create_key,
     clear_name,
@@ -23,8 +27,6 @@ from ..commons import (
 )
 from ..retrieval import cache
 
-import re
-from typing import TypeVar, Type, Union, List, TYPE_CHECKING, Dict
 
 T = TypeVar("T", bound="AtlasConcept")
 _REGISTRIES: Dict[Type[T], InstanceTable[T]] = {}

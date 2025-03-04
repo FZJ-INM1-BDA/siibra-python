@@ -13,18 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Represents lists of probabilistic brain region maps."""
-from . import parcellationmap, volume as _volume
 
+from os import path, makedirs
+from typing import Dict, List
+
+import numpy as np
+from nilearn import image
+
+from . import parcellationmap, volume as _volume
 from .providers import provider
 from ..commons import MapIndex, logger, connected_components, siibra_tqdm
 from ..locations import boundingbox
 from ..retrieval.cache import CACHE
 from ..retrieval.requests import HttpRequest, FileLoader
-
-from os import path, makedirs
-from typing import Dict, List
-from nilearn import image
-import numpy as np
 
 
 class SparseIndex:

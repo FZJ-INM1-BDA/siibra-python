@@ -14,15 +14,10 @@
 # limitations under the License.
 """A set of coordinates on a reference space."""
 
-from . import location, point, boundingbox as _boundingbox
-
-from ..retrieval.requests import HttpRequest
-from ..commons import logger
-from ..exceptions import SpaceWarpingFailedError, EmptyPointCloudError
-
 from typing import List, Union, Tuple
 import numbers
 import json
+
 import numpy as np
 try:
     from sklearn.cluster import HDBSCAN
@@ -30,10 +25,11 @@ try:
 except ImportError:
     import sklearn
     _HAS_HDBSCAN = False
-    logger.warning(
-        f"HDBSCAN is not available with your version {sklearn.__version__} of sckit-learn."
-        "`PointCloud.find_clusters()` will not be available."
-    )
+
+from . import location, point, boundingbox as _boundingbox
+from ..retrieval.requests import HttpRequest
+from ..commons import logger
+from ..exceptions import SpaceWarpingFailedError, EmptyPointCloudError
 
 
 def from_points(points: List["point.Point"], newlabels: List[Union[int, float, tuple]] = None) -> "PointCloud":

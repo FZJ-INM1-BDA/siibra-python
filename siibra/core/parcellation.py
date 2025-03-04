@@ -13,11 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Hierarchal brain regions and metadata."""
-from . import region
-
-from ..commons import logger, MapType, Species
-from ..volumes import parcellationmap
-from ..exceptions import MapNotFound
 
 from functools import lru_cache
 import re
@@ -27,6 +22,11 @@ try:
 except ImportError:
     # support python 3.7
     from typing_extensions import Literal
+
+from . import region
+from ..commons import logger, MapType, Species
+from ..volumes import parcellationmap
+from ..exceptions import MapNotFound
 
 
 if TYPE_CHECKING:

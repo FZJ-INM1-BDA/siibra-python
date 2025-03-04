@@ -13,16 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import provider as _provider
+import os
+from typing import Union, Dict, Tuple
 
+import numpy as np
+import nibabel as nib
+
+from . import provider as _provider
 from ...commons import logger, resample_img_to_img
 from ...retrieval import requests
 from ...locations import pointcloud, boundingbox as _boundingbox
-
-from typing import Union, Dict, Tuple
-import nibabel as nib
-import os
-import numpy as np
 
 
 class NiftiProvider(_provider.VolumeProvider, srctype="nii"):

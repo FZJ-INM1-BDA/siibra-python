@@ -14,12 +14,6 @@
 # limitations under the License.
 """Handles multimodal data features and related queries."""
 
-from . import anchor as _anchor
-
-from ..commons import logger, InstanceTable, siibra_tqdm, __version__
-from ..core import concept, space, region, parcellation, structure
-from ..volumes import volume
-
 from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO, Any, Iterator
 from hashlib import md5
 from collections import defaultdict
@@ -27,6 +21,11 @@ from zipfile import ZipFile
 from abc import ABC, abstractmethod
 from re import sub
 from textwrap import wrap
+
+from . import anchor as _anchor
+from ..commons import logger, InstanceTable, siibra_tqdm, __version__
+from ..core import concept, space, region, parcellation, structure
+from ..volumes import volume
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset

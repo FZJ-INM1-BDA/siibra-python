@@ -14,8 +14,9 @@
 # limitations under the License.
 """Handles the relation between study targets and BrainStructures."""
 
-from ..commons import Species, logger
+from typing import Union, List, Dict, Iterable
 
+from ..commons import Species, logger
 from ..core.structure import BrainStructure
 from ..core.assignment import AnatomicalAssignment, Qualification
 from ..locations.location import Location
@@ -23,10 +24,7 @@ from ..core.parcellation import Parcellation, find_regions
 from ..core.region import Region
 from ..core.space import Space
 from ..exceptions import SpaceWarpingFailedError
-
 from ..vocabularies import REGION_ALIASES
-
-from typing import Union, List, Dict, Iterable
 
 
 class AnatomicalAnchor:

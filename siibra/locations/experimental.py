@@ -14,14 +14,14 @@
 # limitations under the License.
 
 from typing import List
-
-from ..volumes import volume
-from . import point, pointcloud, boundingbox
-from ..commons import translation_matrix, y_rotation_matrix
+from math import atan2
 
 import numpy as np
-import math
 from nilearn import image
+
+from . import point, pointcloud, boundingbox
+from ..volumes import volume
+from ..commons import translation_matrix, y_rotation_matrix
 
 
 class AxisAlignedPatch(pointcloud.PointCloud):
@@ -80,7 +80,7 @@ class AxisAlignedPatch(pointcloud.PointCloud):
 
         # patch rotation defined in physical space
         vx, vy, vz = XYZ[1] - XYZ[0]
-        alpha = -math.atan2(-vz, -vx)
+        alpha = -atan2(-vz, -vx)
         cx, cy, cz = XYZ.mean(0)
         rot_phys = np.linalg.multi_dot(
             [

@@ -13,9 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List, TYPE_CHECKING
+
 from . import cortical_profile
 
-from typing import List, TYPE_CHECKING
 if TYPE_CHECKING:
     from ...features.anchor import AnatomicalAnchor
 

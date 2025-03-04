@@ -13,8 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import provider as _provider
+from io import BytesIO
+import os
+from typing import Union, Dict, Tuple
+import json
 
+import numpy as np
+import nibabel as nib
+from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset, PrecomputedIO
+from neuroglancer_scripts.http_accessor import HttpAccessor
+from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
+
+from . import provider as _provider
+from ...retrieval import requests, cache
+from ...locations import boundingbox as _boundingbox
 from ...commons import (
     logger,
     MapType,
@@ -23,18 +35,6 @@ from ...commons import (
     QUIET,
     resample_img_to_img
 )
-from ...retrieval import requests, cache
-from ...locations import boundingbox as _boundingbox
-
-from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset, PrecomputedIO
-from neuroglancer_scripts.http_accessor import HttpAccessor
-from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
-from io import BytesIO
-import nibabel as nib
-import os
-import numpy as np
-from typing import Union, Dict, Tuple
-import json
 
 
 def shift_ng_transfrom(

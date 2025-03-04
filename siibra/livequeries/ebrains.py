@@ -14,18 +14,21 @@
 # limitations under the License.
 """Query data features published as Ebrains datasets with AtlasConcepts"""
 
-from ..features.dataset import ebrains as _ebrains
-from . import query
-
-from ..commons import logger, siibra_tqdm
-from ..features import anchor as _anchor
-from ..retrieval import requests, datasets, cache
-from ..core import parcellation, region
-
 from collections import defaultdict
 import re
 from packaging.version import Version
 from tempfile import NamedTemporaryFile
+from typing import TYPE_CHECKING
+
+from . import query
+from ..features.dataset import ebrains as _ebrains
+from ..commons import logger, siibra_tqdm
+from ..features import anchor as _anchor
+from ..retrieval import requests, datasets, cache
+from ..core.concept import get_registry
+
+if TYPE_CHECKING:
+    from ..core.region import Region
 
 
 class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.EbrainsDataFeature):
@@ -58,12 +61,12 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
         if self.__class__.parcellation_ids is None:
             self.__class__.parcellation_ids = [
                 dset.id
-                for parc in parcellation.Parcellation.registry()
+                for parc in get_registry("Parcellation")
                 for dset in parc.datasets
                 if isinstance(dset, datasets.EbrainsV3DatasetVersion)
             ]
 
-    def query(self, region: region.Region):
+    def query(self, region: "Region"):
         versioned_datasets = defaultdict(dict)
         invalid_species_datasets = {}
         results = self.loader.data.get("results", [])

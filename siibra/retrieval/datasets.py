@@ -14,18 +14,17 @@
 # limitations under the License.
 """Metadata connection to EBRAINS datasets."""
 
-from .requests import MultiSourcedRequest, GitlabProxy, GitlabProxyEnum
-
 import re
-from typing import Union, List
 from abc import ABC, abstractmethod
 from hashlib import md5
-
+from typing import Union, List
 try:
     from typing import TypedDict
 except ImportError:
     # support python 3.7
     from typing_extensions import TypedDict
+
+from .requests import MultiSourcedRequest, GitlabProxy, GitlabProxyEnum
 
 
 class EbrainsDatasetUrl(TypedDict):

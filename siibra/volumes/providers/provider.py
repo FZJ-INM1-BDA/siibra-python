@@ -17,12 +17,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Union, Dict, List
-from nibabel import Nifti1Image
 import json
+
+from nibabel import Nifti1Image
+
 if TYPE_CHECKING:
     from ...locations.boundingbox import BoundingBox
 
-# TODO add mesh primitive. Check nibabel implementation? Use trimesh? Do we want to add yet another dependency?
 VolumeData = Union[Nifti1Image, Dict]
 
 

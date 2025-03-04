@@ -14,6 +14,14 @@
 # limitations under the License.
 """Connect to repositories to browse and pull files within."""
 
+from abc import ABC, abstractmethod
+from urllib.parse import quote
+import pathlib
+import os
+from zipfile import ZipFile
+from typing import List
+
+from .cache import CACHE
 from .requests import (
     HttpRequest,
     EbrainsRequest,
@@ -22,16 +30,7 @@ from .requests import (
     DECODERS,
     FileLoader
 )
-from .cache import CACHE
-
 from ..commons import logger, siibra_tqdm
-
-from abc import ABC, abstractmethod
-from urllib.parse import quote
-import pathlib
-import os
-from zipfile import ZipFile
-from typing import List
 
 
 class RepositoryConnector(ABC):
