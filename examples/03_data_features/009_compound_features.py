@@ -18,47 +18,52 @@ Compound features
 ~~~~~~~~~~~~~~~~~
 
 Some features such as connectivity matrices have attributes siibra can use to
-combine them into one set, call CompoundFeatures. They allow easy handling of
-similar features.
+combine them into one feature object, called `CompoundFeature`. Compound features
+contain all the features making them up as elements and allow easy access to each
+element.
 """
 
 # %%
-# Query mechanism for CompoundFeatures is the same as any other. Only difference
-# is that the resulting Feature object has a few extra functionality. Let us
-# demonstrate it with connectivity matrices. They also inherit joint attributes
-# (with the same value) from their elements. Using these, we can distinguish
-# different CompoundFeatures of the same feature type.
+# Compound features naturally result from a feature query for certain feature types.
+# For example, connectivity matrices usually provided for each subject, however,
+# having them as separate features make it difficult to work with them. But as a
+# compound feature, they inherit the joint attributes from their elements. But
+# siibra will not compound different cohorts for example. Let us demonstrate:
 import siibra
 features = siibra.features.get(siibra.parcellations["julich 2.9"], "StreamlineLengths")
 for f in features:
     print("Compounded feature type:", f.feature_type)
     print(f.name)
+    # let us select the 1000 Brains cohort
     if f.cohort == "1000BRAINS":
         cf = f
         print(f"Selected: {cf.name}")
 
 # %%
-# Each of these CompoundFeatures have StreamlineLengths features as elements.
-# We can access to these elements via an integer index or by their key unique
-# to a CompoundFeature using `get_element`.
+# Each of these features consist of streamline lengths features corresponding to
+# different subjects. An element can be selected via an integer index or by
+# their index to a CompoundFeature using `get_element`:
 print(cf[5].name)
 print(cf.get_element('0031_2').name)
 
 # %%
-# The element key changes based on the type of features that make up a
-# CompoundFeature. CompoundFeatures composed of StreamlineLengths obtain their
-# element key from the subject id.
+# The indices of this compound feature corresponds to the the subject ids:
 for i, f in enumerate(cf[:10]):  # we can iterate over elements of a CompoundFeature
     print(f"Element index: {cf.indices[i]}, Subject: {f.subject}")
 
 # %%
-# Meanwhile, receptor density profiles employ receptor names.
+# We can also obtain the averaged data (depends on the underlying feature type) by
+# as you would normally access the data of a feature
+cf.data
+
+# %%
+# Meanwhile, receptor density profiles employ receptor names as indices.
 cf = siibra.features.get(siibra.get_region('julich', 'hoc1'), 'receptor density profile')[0]
 for i, f in enumerate(cf):
     print(f"Element index: {cf.indices[i]}, receptor: {f.receptor}")
 
 # %%
-# So to get the receptor profile on HOC1 for GABAB
+# So to get the receptor profile on HOC1 for GABAB we can do
 cf.get_element("GABAB").data
 
 # %%

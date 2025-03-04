@@ -36,10 +36,10 @@ def test_images_datasets_names():
 
 query_and_results = [
     (siibra.spaces["bigbrain"], "CellbodyStainedSection", 145),
-    (siibra.spaces["bigbrain"], "image", 157),
+    (siibra.spaces["bigbrain"], "volume", 12),
     (siibra.spaces["bigbrain"], "CellBodyStainedVolumeOfInterest", 2),
-    (siibra.spaces["mni152"], "image", 4),
-    (siibra.spaces["colin27"], "image", 0),
+    (siibra.spaces["mni152"], "volume", 4),
+    (siibra.spaces["colin27"], "volume", 0),
     (siibra.get_region('julich 3.1', 'hoc1 left'), "CellbodyStainedSection", 45),
     (siibra.get_region('julich 2.9', 'hoc1 left'), "CellbodyStainedSection", 41)
 ]

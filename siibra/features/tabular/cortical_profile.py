@@ -13,15 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import tabular
-from ..feature import Compoundable
-
-from .. import anchor as _anchor
-
-import pandas as pd
 from typing import Union, Dict, Tuple, List
+
 from textwrap import wrap
 import numpy as np
+import pandas as pd
+
+from . import tabular
+from .. import anchor as _anchor
+from ..feature import Compoundable
 
 
 class CorticalProfile(tabular.Tabular, Compoundable):

@@ -13,15 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import logger, __version__, SIIBRA_USE_CONFIGURATION, siibra_tqdm
-from ..retrieval.repositories import GitlabConnector, RepositoryConnector, GithubConnector
-from ..retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
-from ..retrieval.requests import SiibraHttpRequestError
-
 from typing import Union, List
 from collections import defaultdict
 from requests.exceptions import ConnectionError
 from os import path
+
+from ..commons import logger, __version__, SIIBRA_USE_CONFIGURATION, siibra_tqdm
+from ..retrieval.repositories import GitlabConnector, RepositoryConnector, GithubConnector
+from ..retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
+from ..retrieval.requests import SiibraHttpRequestError
 
 
 class Configuration:

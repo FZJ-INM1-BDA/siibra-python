@@ -13,35 +13,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os as _os
+
 from .commons import (
     logger,
     QUIET,
     VERBOSE,
     MapType,
-    MapIndex,
     set_log_level,
     __version__
 )
-
+from . import configuration, features, livequeries
+from .configuration import factory
 from .core import (
     atlas as _atlas,
     parcellation as _parcellation,
     space as _space
 )
 from .volumes import parcellationmap as _parcellationmap
-from .retrieval.requests import (
-    EbrainsRequest as _EbrainsRequest,
-    CACHE as cache
-)
+from .retrieval.requests import CACHE as cache
 from .retrieval.cache import Warmup, WarmupLevel
+from .locations import Point, PointCloud, Plane, BoundingBox
 
-from . import configuration
-from . import experimental
-from .configuration import factory
-from . import features, livequeries
-from siibra.locations import Point, PointCloud
 
-import os as _os
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
 logger.info(
@@ -49,8 +43,6 @@ logger.info(
 )
 
 # forward access to some functions
-set_ebrains_token = _EbrainsRequest.set_token
-fetch_ebrains_token = _EbrainsRequest.fetch_token
 find_regions = _parcellation.find_regions
 from_json = factory.Factory.from_json
 
@@ -151,10 +143,9 @@ def __dir__():
         "MapType",
         "Point",
         "PointCloud",
+        "BoundingBox",
         "QUIET",
         "VERBOSE",
-        "fetch_ebrains_token",
-        "set_ebrains_token",
         "vocabularies",
         "__version__",
         "cache",

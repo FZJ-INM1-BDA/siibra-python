@@ -23,6 +23,7 @@ from enum import Enum
 from typing import Callable, List, NamedTuple, Union
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
 from filelock import FileLock as Lock
 
 from ..commons import logger, SIIBRA_CACHEDIR, SKIP_CACHEINIT_MAINTENANCE, siibra_tqdm

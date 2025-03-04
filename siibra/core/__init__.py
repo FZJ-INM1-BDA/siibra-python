@@ -12,5 +12,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""":ref:`Main siibra concepts<mainconcepts>`"""
+"""Core concepts behind siibra, :ref:`see glossary <glossary>` for details."""
 from . import atlas, parcellation, space

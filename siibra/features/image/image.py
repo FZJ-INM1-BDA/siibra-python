@@ -14,14 +14,12 @@
 # limitations under the License.
 """Base type of features in volume format and related anatomical anchor."""
 
-from zipfile import ZipFile
-from .. import feature
-
-from .. import anchor as _anchor
-
-from ...volumes import volume as _volume
-
 from typing import List, TYPE_CHECKING
+from zipfile import ZipFile
+
+from .. import feature
+from .. import anchor as _anchor
+from ...volumes import volume as _volume
 
 if TYPE_CHECKING:
     from ...locations.boundingbox import BoundingBox

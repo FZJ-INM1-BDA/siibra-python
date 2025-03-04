@@ -14,19 +14,19 @@
 # limitations under the License.
 """Singular coordinate defined on a space, possibly with an uncertainty."""
 
-from . import location, pointcloud
-
-from ..commons import logger
-from ..retrieval.requests import HttpRequest
-from ..exceptions import SpaceWarpingFailedError, NoneCoordinateSuppliedError
-
 from urllib.parse import quote
 import re
-import numpy as np
 import json
 import numbers
 import hashlib
 from typing import Tuple, Union
+
+import numpy as np
+
+from . import location, pointcloud
+from ..commons import logger
+from ..retrieval.requests import HttpRequest
+from ..exceptions import SpaceWarpingFailedError, NoneCoordinateSuppliedError
 
 
 class Point(location.Location):

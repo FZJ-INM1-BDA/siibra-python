@@ -13,17 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import anchor as _anchor
-from . import tabular
-from ...retrieval.datasets import GenericDataset
-
-import pandas as pd
 from textwrap import wrap
 from typing import List
 try:
     from typing import TypedDict
 except ImportError:
     from typing_extensions import TypedDict
+
+import pandas as pd
+
+from . import tabular
+from .. import anchor as _anchor
+from ...retrieval.datasets import GenericDataset
 
 
 class GeneExpressions(

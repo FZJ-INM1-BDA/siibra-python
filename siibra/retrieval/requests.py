@@ -14,8 +14,28 @@
 # limitations under the License.
 """Request files with decoders, lazy loading, and caching."""
 
+import json
+from zipfile import ZipFile
+import requests
+import os
+import gzip
+from io import BytesIO
+import urllib.parse
+from typing import List, Callable, TYPE_CHECKING
+from enum import Enum
+from functools import wraps
+from time import sleep
+import sys
+
+from filelock import FileLock as Lock
+import numpy as np
+import pandas as pd
+from skimage import io as skimage_io
+from nibabel import Nifti1Image, GiftiImage, streamlines, freesurfer
+
+from . import exceptions as _exceptions
 from .cache import CACHE, cache_user_fn
-from .exceptions import EbrainsAuthenticationError
+from .. import __version__
 from ..commons import (
     logger,
     HBP_AUTH_TOKEN,
@@ -24,25 +44,7 @@ from ..commons import (
     siibra_tqdm,
     SIIBRA_USE_LOCAL_SNAPSPOT,
 )
-from .. import __version__
 
-import json
-from zipfile import ZipFile
-import requests
-import os
-from nibabel import Nifti1Image, GiftiImage, streamlines, freesurfer
-from skimage import io as skimage_io
-import gzip
-from io import BytesIO
-import urllib.parse
-import pandas as pd
-import numpy as np
-from typing import List, Callable, TYPE_CHECKING
-from enum import Enum
-from functools import wraps
-from time import sleep
-import sys
-from filelock import FileLock as Lock
 if TYPE_CHECKING:
     from .repositories import GitlabConnector
 
@@ -388,7 +390,7 @@ class EbrainsRequest(HttpRequest):
                 ),  # if explicitly enabled by env var, do not raise
             ]
         ):
-            raise EbrainsAuthenticationError(
+            raise _exceptions.EbrainsAuthenticationError(
                 "sys.stdout is not tty, SIIBRA_ENABLE_DEVICE_FLOW is not set,"
                 "and not running in a notebook. Are you running in batch mode?"
             )
@@ -444,7 +446,7 @@ class EbrainsRequest(HttpRequest):
                     f"exceeded max attempts: {cls._IAM_DEVICE_MAXTRIES}, aborting..."
                 )
                 logger.error(message)
-                raise EbrainsAuthenticationError(message)
+                raise _exceptions.EbrainsAuthenticationError(message)
             attempt_number += 1
             resp = requests.post(
                 url=cls._IAM_TOKEN_ENDPOINT,
@@ -470,7 +472,7 @@ class EbrainsRequest(HttpRequest):
                 logger.debug(f"400 error: {resp.content}")
                 continue
 
-            raise EbrainsAuthenticationError(resp.content)
+            raise _exceptions.EbrainsAuthenticationError(resp.content)
 
     @classmethod
     def set_token(cls, token):

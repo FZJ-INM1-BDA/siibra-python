@@ -13,17 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import anchor as _anchor
-from . import tabular
+from textwrap import wrap
+from typing import List
 
+import numpy as np
+import pandas as pd
+
+from . import tabular
+from .. import anchor as _anchor
 from ...commons import logger
 from ...vocabularies import RECEPTOR_SYMBOLS
 from ...retrieval import requests
-
-import pandas as pd
-import numpy as np
-from textwrap import wrap
-from typing import List
 
 
 class ReceptorDensityFingerprint(
@@ -190,6 +190,31 @@ class ReceptorDensityFingerprint(
         else:
             raise NotImplementedError
 
-    def plot(self, *args, **kwargs):
+    def plot(
+        self,
+        *args,
+        receptors: List[str] = None,
+        backend: str = "matplotlib",
+        **kwargs
+    ):
+        """
+        Create a bar plot of receptor density fingerprint.
+
+        Parameters
+        ----------
+        receptors : List[str], optional
+            Plot a subset of receptors.
+        backend: str
+            "matplotlib", "plotly", or others supported by pandas DataFrame
+            plotting backend.
+        **kwargs
+            takes Matplotlib.pyplot keyword arguments
+        """
         kwargs['xlabel'] = ""
-        return super().plot(*args, **kwargs)
+        kwargs["backend"] = backend
+        og_data = self.data
+        if receptors is not None:
+            self._data_cached = og_data.loc[receptors]
+        fig = super().plot(*args, **kwargs)
+        self._data_cached = og_data
+        return fig

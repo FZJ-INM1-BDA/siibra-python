@@ -14,8 +14,13 @@
 # limitations under the License.
 """Query Allen Human Brain Atlas microarray data in specified volume."""
 
-from .query import LiveQuery
+from typing import List
+from xml.etree import ElementTree
+import json
 
+import numpy as np
+
+from . import query as _query
 from ..core import space as _space, structure
 from ..features import anchor as _anchor
 from ..features.tabular.gene_expression import GeneExpressions
@@ -23,11 +28,6 @@ from ..commons import logger, Species
 from ..locations import point, pointcloud
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
-
-from typing import List
-from xml.etree import ElementTree
-import numpy as np
-import json
 
 
 BASE_URL = "http://api.brain-map.org/api/v2/data"
@@ -51,7 +51,7 @@ class InvalidAllenAPIResponseException(Exception):
     pass
 
 
-class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions):
+class AllenBrainAtlasQuery(_query.LiveQuery, args=['gene'], FeatureType=GeneExpressions):
     """
     Interface to Allen Human Brain Atlas microarray data.
 
@@ -117,7 +117,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         will be tested against the region mask in ICBM space
         to produce a table of outputs.
         """
-        LiveQuery.__init__(self, **kwargs)
+        _query.LiveQuery.__init__(self, **kwargs)
         gene = kwargs.get('gene')
 
         def parse_gene(spec):

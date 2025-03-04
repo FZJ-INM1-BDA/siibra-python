@@ -14,10 +14,11 @@
 # limitations under the License.
 """Package handling variety of volumes and volume operations"""
 
+from typing import List, Union
+
+import numpy as np
+
 from .parcellationmap import Map
 from .providers import provider
 from .volume import from_array, from_file, from_pointcloud, from_nifti, Volume
-
 from ..commons import logger
-from typing import List, Union
-import numpy as np

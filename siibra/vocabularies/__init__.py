@@ -14,11 +14,10 @@
 # limitations under the License.
 """Abbreviations and aliases."""
 
-from ..commons import InstanceTable
-
 import json
 from os import path
 
+from ..commons import InstanceTable
 
 RT_DIR = path.dirname(__file__)
 

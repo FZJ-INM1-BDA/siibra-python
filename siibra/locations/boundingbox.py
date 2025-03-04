@@ -14,15 +14,16 @@
 # limitations under the License.
 """A box defined by two farthest corner coordinates on a specific space."""
 
-from . import point, pointcloud, location
+from itertools import product
+import hashlib
+from typing import TYPE_CHECKING, Union
 
+import numpy as np
+
+from . import location, point, pointcloud
 from ..commons import logger
 from ..exceptions import SpaceWarpingFailedError
 
-from itertools import product
-import hashlib
-import numpy as np
-from typing import TYPE_CHECKING, Union
 if TYPE_CHECKING:
     from ..core.structure import BrainStructure
     from nibabel import Nifti1Image
@@ -85,7 +86,7 @@ class BoundingBox(location.Location):
                     self.maxpoint[d] = self.minpoint[d] + minsize
 
         if self.volume == 0:
-            logger.warning(f"Zero-volume bounding box from points {point1} and {point2} in {self.space} space.")
+            logger.debug(f"Zero-volume bounding box from points {point1} and {point2} in {self.space} space.")
 
     @property
     def id(self) -> str:
