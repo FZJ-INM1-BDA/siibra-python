@@ -624,13 +624,24 @@ class Feature:
 
         See docstring of serialize_query_context for further context.
         """
-        class ProxyFeature(feature.__class__, do_not_index=True):
+        class ProxyFeature(feature.__class__):
 
             # override __class__ property
             # some instances of features accesses inst.__class__
             @property
             def __class__(self):
                 return self.inst.__class__
+
+            def __init_subclass__(
+                cls,
+                configuration_folder=None,
+                category=None,
+                do_not_index=True,
+                **kwargs,
+            ):
+                return super().__init_subclass__(
+                    configuration_folder, category, do_not_index, **kwargs
+                )
 
             def __init__(self, inst: Feature, fid: str):
                 self.inst = inst
