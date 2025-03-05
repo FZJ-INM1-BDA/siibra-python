@@ -85,3 +85,20 @@ def test_no_probes_found_in_concept():
         gene=siibra.vocabularies.GENE_NAMES.G0S2,
     )
     assert features == []
+
+
+@xfail_if_allen_api_unavailable
+def test_reproducing_query_results():
+    region = siibra.get_region("julich 2.9", "V1")
+    features = siibra.features.get(
+        region, siibra.features.molecular.GeneExpressions,
+        gene=siibra.vocabularies.GENE_NAMES.GABARAPL2
+    )
+    assert len(features) == 1
+    gene_exp = features[0]
+    assert set(gene_exp.data['gene']) == {'GABARAPL2'}
+    assert gene_exp.data.iloc[0]['level'] == 10.1143
+    assert gene_exp.data.iloc[2]['zscore'] == -0.6653
+    assert gene_exp.data.iloc[3]['mni_xyz'] == (-6.0, -86.0, 10.0)
+    assert gene_exp.data.iloc[4]['probe_id'] == 1046316
+    assert gene_exp.data.iloc[4]['donor_name'] == "H0351.1015"
