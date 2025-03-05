@@ -32,7 +32,6 @@ region mask to filter the probes.
 # %%
 import siibra
 from nilearn import plotting
-# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 # sphinx_gallery_failing_thumbnail = False
 
 # %%
