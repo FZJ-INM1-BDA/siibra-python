@@ -153,11 +153,10 @@ class AllenBrainAtlasQuery(_query.LiveQuery, args=['gene'], FeatureType=GeneExpr
             sigma_mm=LOCATION_PRECISION_MM
         )
         intersecting_points = concept.intersection(all_mes_points)
-        measurements = [all_measurements[index] for index in intersecting_points.labels]
-
-        if len(intersecting_points) == 0:
+        if intersecting_points is None:
             logger.info(f"No probes found that lie within {concept}")
             return []
+        measurements = [all_measurements[index] for index in intersecting_points.labels]
 
         # Build the anatomical anchor and assignment to the query concept.
         # It will be attached to the returned feature, with the set of matched
