@@ -146,13 +146,14 @@ class AllenBrainAtlasQuery(_query.LiveQuery, args=['gene'], FeatureType=GeneExpr
 
         # Match the microarray probes to the query mask.
         # Record matched instances and their locations.
+        all_measurements = list(self)
         all_mes_points = pointcloud.PointCloud(
-            [measurement['mni_xyz'] for measurement in self],
+            [measurement['mni_xyz'] for measurement in all_measurements],
             space='mni152',
             sigma_mm=LOCATION_PRECISION_MM
         )
         intersecting_points = concept.intersection(all_mes_points)
-        measurements = [mes for mes in self if mes['mni_xyz'] in intersecting_points.coordinates]
+        measurements = [all_measurements[index] for index in intersecting_points.labels]
 
         if len(intersecting_points) == 0:
             logger.info(f"No probes found that lie within {concept}")
