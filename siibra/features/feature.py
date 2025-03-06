@@ -627,7 +627,7 @@ class Feature:
         See docstring of serialize_query_context for further context.
         """
 
-        # if you change the name of this calss, change the string in Feature.__init_subclass__
+        # if you change the name of this class, change the string in Feature.__init_subclass__
         class ProxyFeature(feature.__class__):
 
             # override __class__ property
