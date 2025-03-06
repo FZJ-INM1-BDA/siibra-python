@@ -129,23 +129,22 @@ class Feature:
         # allows subclasses to implement lazy loading of an anchor
         return self._anchor_cached
 
-    def __init_subclass__(cls, configuration_folder=None, category=None, do_not_index=False, **kwargs):
+    def __init_subclass__(cls, configuration_folder=None, category=None, **kwargs):
 
         # Feature.SUBCLASSES serves as an index where feature class inheritance is cached. When users
         # queries a branch on the hierarchy, all children will also be queried. There are usecases where
         # such behavior is not desired (e.g. ProxyFeature, which wraps livequery features id to capture the
         # query context).
-        # do_not_index flag allow the default index behavior to be toggled off.
+        if "ProxyFeature" in cls.__name__:
+            return
 
-        if do_not_index is False:
-
-            # extend the subclass lists
-            # Iterate over all mro, not just immediate base classes
-            for BaseCls in cls.__mro__:
-                # some base classes may not be sub class of feature, ignore these
-                if not issubclass(BaseCls, Feature):
-                    continue
-                cls._SUBCLASSES[BaseCls].append(cls)
+        # extend the subclass lists
+        # Iterate over all mro, not just immediate base classes
+        for BaseCls in cls.__mro__:
+            # some base classes may not be sub class of feature, ignore these
+            if not issubclass(BaseCls, Feature):
+                continue
+            cls._SUBCLASSES[BaseCls].append(cls)
 
         cls._live_queries = []
         cls._preconfigured_instances = None
@@ -627,7 +626,9 @@ class Feature:
 
         See docstring of serialize_query_context for further context.
         """
-        class ProxyFeature(feature.__class__, do_not_index=True):
+
+        # if you change the name of this calss, change the string in Feature.__init_subclass__
+        class ProxyFeature(feature.__class__):
 
             # override __class__ property
             # some instances of features accesses inst.__class__
