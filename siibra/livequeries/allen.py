@@ -162,7 +162,7 @@ class AllenBrainAtlasQuery(_query.LiveQuery, args=['gene'], FeatureType=GeneExpr
         # It will be attached to the returned feature, with the set of matched
         # MNI coordinates as anchor's location.
         anchor = _anchor.AnatomicalAnchor(
-            location=pointcloud.from_points(intersecting_points),
+            location=intersecting_points,
             species=self.species
         )
         explanation = f"MNI coordinates of tissue samples were filtered using {concept}"
