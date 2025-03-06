@@ -93,7 +93,7 @@ DECODERS = {
 }
 
 
-def find_suitiable_decoder(url: str) -> Callable:
+def find_suitable_decoder(url: str) -> Callable:
     """
     By supplying a url or a filename, obtain a suitable decoder function
     for siibra to digest based on predefined DECODERS. An extra layer of
@@ -110,7 +110,7 @@ def find_suitiable_decoder(url: str) -> Callable:
     """
     urlpath = urllib.parse.urlsplit(url).path
     if urlpath.endswith(".gz"):
-        dec = find_suitiable_decoder(urlpath[:-3])
+        dec = find_suitable_decoder(urlpath[:-3])
         if dec is None:
             return lambda b: gzip.decompress(b)
         else:
@@ -185,7 +185,7 @@ class HttpRequest:
         ----------
         func : Callable, default: None
         """
-        self.func = func or find_suitiable_decoder(self.url)
+        self.func = func or find_suitable_decoder(self.url)
 
     @property
     def cached(self):
@@ -279,7 +279,7 @@ class FileLoader(HttpRequest):
     def __init__(self, filepath, func=None):
         HttpRequest.__init__(
             self, filepath, refresh=False,
-            func=func or find_suitiable_decoder(filepath)
+            func=func or find_suitable_decoder(filepath)
         )
         self.cachefile = filepath
 
@@ -293,7 +293,7 @@ class ZipfileRequest(HttpRequest):
     def __init__(self, url, filename, func=None, refresh=False):
         HttpRequest.__init__(
             self, url, refresh=refresh,
-            func=func or find_suitiable_decoder(filename)
+            func=func or find_suitable_decoder(filename)
         )
         self.filename = filename
 

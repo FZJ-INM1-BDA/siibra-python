@@ -26,7 +26,7 @@ from .requests import (
     HttpRequest,
     EbrainsRequest,
     SiibraHttpRequestError,
-    find_suitiable_decoder,
+    find_suitable_decoder,
     DECODERS,
     FileLoader
 )
@@ -66,7 +66,7 @@ class RepositoryConnector(ABC):
         pass
 
     def _decode_response(self, response, filename: str):
-        decoder = find_suitiable_decoder(filename)
+        decoder = find_suitable_decoder(filename)
         return decoder(response) if decoder else response
 
     def get(self, filename, folder="", decode_func=None):
