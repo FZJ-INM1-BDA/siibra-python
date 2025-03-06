@@ -24,7 +24,7 @@ from .boundingbox import BoundingBox
 
 
 def reassign_union(*args: Iterable["Location"]) -> "Location":
-    return reduce(pairwise_union, args[0])
+    return reduce(pairwise_union, args)
 
 
 def pairwise_union(loc0: "Location", loc1: "Location") -> "Location":
