@@ -55,12 +55,12 @@ class ReceptorDensityFingerprint(
             description=self.DESCRIPTION,
             modality="Neurotransmitter receptor density",
             anchor=anchor,
+            file=tsvfile,
             data=None,  # lazy loading below
             datasets=datasets,
             id=id,
             prerelease=prerelease,
         )
-        self._loader = requests.HttpRequest(tsvfile)
 
     @property
     def unit(self) -> str:
