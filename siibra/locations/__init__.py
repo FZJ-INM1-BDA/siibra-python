@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Handles spatial concepts and spatial operation like warping between spaces."""
+from typing import Iterable
+from functools import reduce
 
 from .location import Location
 from .point import Point
@@ -21,19 +23,24 @@ from .experimental import AxisAlignedPatch, Plane
 from .boundingbox import BoundingBox
 
 
-def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
+def reassign_union(*args: Iterable["Location"]) -> "Location":
+    return reduce(pairwise_union, args[0])
+
+
+def pairwise_union(loc0: "Location", loc1: "Location") -> "Location":
     """
     Add two locations of same or different type to find their union as a
     Location object.
+
     Note
     ----
     `loc1` will be warped to `loc0` they are not in the same space.
+
     Parameters
     ----------
     loc0 : Location
-        _description_
     loc1 : Location
-        _description_
+
     Returns
     -------
     Location
@@ -59,12 +66,13 @@ def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
         try:
             return loc1.union(loc0)
         except Exception:
-            raise NotImplementedError(f"There are no union method for {(loc0.__class__.__name__, loc1.__class__.__name__)}")
+            raise NotImplementedError(
+                f"There are no union method for {(loc0.__class__.__name__, loc1.__class__.__name__)}"
+            )
 
     # convert Points to PointClouds
     loc0, loc1 = [
-        from_points([loc]) if isinstance(loc, Point) else loc
-        for loc in [loc0, loc1]
+        from_points([loc]) if isinstance(loc, Point) else loc for loc in [loc0, loc1]
     ]
 
     # adopt the space of the first location
@@ -83,7 +91,7 @@ def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
             point1=[min(p[i] for p in coordinates) for i in range(3)],
             point2=[max(p[i] for p in coordinates) for i in range(3)],
             space=loc0.space,
-            sigma_mm=[loc0.minpoint.sigma, loc0.maxpoint.sigma]
+            sigma_mm=[loc0.minpoint.sigma, loc0.maxpoint.sigma],
         )
 
     return reassign_union(loc1_w, loc0)
