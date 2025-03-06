@@ -63,10 +63,6 @@ plt.axis("off")
 plt.title(f"#{section_num} - {patch.vertex}", fontsize=10)
 
 # %%
-# test plotting
-patch.plot()
-
-# %%
 # To understand how the live query works, we have a look at some of the intermediate
 # steps that `siibra` is performing under the hood. It first identifies brain sections that
 # intersect the given map (or, more generally, the given image volume).
