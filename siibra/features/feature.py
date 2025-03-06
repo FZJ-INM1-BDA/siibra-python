@@ -155,6 +155,9 @@ class Feature:
             cls._CATEGORIZED[category].add(cls.__name__, cls)
         return super().__init_subclass__(**kwargs)
 
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}(id='{self.id}', name='{self.name}')>"
+
     @classmethod
     def _get_subclasses(cls):
         return {Cls.__name__: Cls for Cls in cls._SUBCLASSES}
