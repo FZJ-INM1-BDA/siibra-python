@@ -71,7 +71,7 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
         invalid_species_datasets = {}
         results = self.loader.data.get("results", [])
 
-        for r in siibra_tqdm(results, total=len(results)):
+        for r in siibra_tqdm(results, total=len(results), unit='dataset', desc=f'Matching datasets to "{region}"'):
             regionname = r.get("name", None)
             alias = r.get("alias", None)
             for ds_spec in r.get("datasets", []):
