@@ -43,20 +43,19 @@ assert siibra.__version__ >= "1.0.1"
 
 # %%
 # 1: Retrieve probability map of a motor area in Julich-Brain
-parc = siibra.parcellations.get("julich 3.0.3")
-region = parc.get_region("4p right")
-pmap = parc.get_map("mni152", "statistical").get_volume(region)
+region = siibra.get_region("julich 3.0.3", "4p right")
+region_map = siibra.get_map("julich 3.0.3", "mni152", "statistical").get_volume(region)
 
 # %%
 # 2: Extract BigBrain 1 micron patches with high probability in this area
-patches = siibra.features.get(pmap, "BigBrain1MicronPatch", lower_threshold=0.7)
+patches = siibra.features.get(region_map, "BigBrain1MicronPatch", lower_threshold=0.5)
 print(f"Found {len(patches)} patches.")
 
 # %%
 # 3: Display highly rated samples, here further reduced to a predefined section
 section_num = 3556
-candidates = filter(lambda p: p.bigbrain_section == section_num, patches)
-patch = next(iter(candidates))
+candidates = [p for p in patches if p.bigbrain_section == section_num]
+patch = candidates[0]
 plt.figure()
 plt.imshow(patch.fetch().get_fdata().squeeze(), cmap="gray", vmin=0, vmax=2**16)
 plt.axis("off")
@@ -76,34 +75,24 @@ layer_contours = {
     layername: plane.intersect_mesh(layermap.fetch(region=layername, format="mesh"))
     for layername in layermap.regions
 }
-crop_voi = patch.section.intersection(pmap.get_boundingbox().zoom(0.35))
-cropped_img = patch.section.fetch(voi=crop_voi, resolution_mm=0.2)
+ymin, ymax = [p[1] for p in patch.section.get_boundingbox()]
+crop_voi = siibra.BoundingBox((17.14, ymin, 40.11), (22.82, ymax, 32.91), 'bigbrain')
+cropped_img = patch.section.fetch(voi=crop_voi, resolution_mm=-1)
 phys2pix = np.linalg.inv(cropped_img.affine)
 
 # The probabilities can be assigned to the contour vertices with the
 # probability map.
-points = siibra.PointCloud(
-    np.vstack(
-        sum(
-            [
-                [s.coordinates for s in contour.crop(crop_voi)]
-                for contour in layer_contours["cortical layer 4 right"]
-            ],
-            [],
-        )
-    ),
-    space="bigbrain",
+points = siibra.PointCloud.union(
+    *[c.intersection(crop_voi) for c in layer_contours["cortical layer 4 right"]]
 )
-probs = pmap.evaluate_points(
-    points
-)  # siibra warps points to MNI152 and reads corresponding PMAP values
+# siibra warps points to MNI152 and reads corresponding PMAP values
+probs = region_map.evaluate_points(points)
 img_arr = cropped_img.get_fdata().squeeze().swapaxes(0, 1)
 plt.imshow(img_arr, cmap="gray", origin="lower")
 X, Y, Z = points.transform(phys2pix).coordinates.T
-plt.scatter(X, Z, s=2, c=probs)
-for p in patch.profile:
-    x, y, z = p.transform(phys2pix)
-    plt.plot(x, z, "r.", ms=3)
+plt.scatter(X, Z, s=10, c=probs)
+prof_x, _, prof_z = zip(*[p.transform(phys2pix) for p in patch.profile])
+plt.plot(prof_x, prof_z, "r", lw=2)
 plt.axis("off")
 
 # %%
@@ -119,11 +108,8 @@ for layername, contours in layer_contours.items():
             pixels = segment.transform(phys2pix, space=None).homogeneous
             plt.plot(pixels[:, 0], pixels[:, 2], "-", ms=4, color=layercolor)
 
-# plot the profile points
-for p in patch.profile:
-    x, y, z = p.transform(phys2pix, space=None)
-    plt.plot(x, z, "r.", ms=3)
-
+# plot the profile
+plt.plot(prof_x, prof_z, "r", lw=2)
 plt.axis("off")
 
 # sphinx_gallery_thumbnail_number = -2
