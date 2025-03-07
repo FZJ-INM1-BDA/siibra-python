@@ -22,9 +22,10 @@ from textwrap import wrap
 from .. import feature
 from .. import anchor as _anchor
 from ...commons import logger
+from ...retrieval import requests
 
 
-class Tabular(feature.Feature):
+class Tabular(feature.Feature, category="generic", configuration_folder="features/tabular"):
     """
     Represents a table of different measures anchored to a brain location.
 
@@ -42,7 +43,8 @@ class Tabular(feature.Feature):
         description: str,
         modality: str,
         anchor: _anchor.AnatomicalAnchor,
-        data: pd.DataFrame,  # sample x feature dimension
+        file: str = None,
+        data: pd.DataFrame = None,  # sample x feature dimension
         datasets: list = [],
         id: str = None,
         prerelease: bool = False,
@@ -56,10 +58,19 @@ class Tabular(feature.Feature):
             id=id,
             prerelease=prerelease
         )
-        self._data_cached = data
+        if data is None:
+            if file is not None:
+                self._loader = requests.HttpRequest(file)
+            else:
+                self._data_cached = data
+        else:
+            self._loader = None
+            self._data_cached = data
 
     @property
     def data(self):
+        if self._loader is not None:
+            self._data_cached = self._loader.get()
         return self._data_cached.copy()
 
     def _to_zip(self, fh: ZipFile):
