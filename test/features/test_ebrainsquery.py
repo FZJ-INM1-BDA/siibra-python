@@ -79,8 +79,12 @@ def test_species(parc_id, region_id, inc_exc):
     features: List[siibra.features._basetypes.Feature] = siibra.features.get(
         r, siibra.features.dataset.EbrainsDataFeature
     )
-    feature_names = [f.name for f in features]
-
+    try:
+        feature_names = [f.name for f in features]
+    except siibra.retrieval.requests.MultiSourceRequestException:
+        pytest.xfail(
+            "Some ebrains dataset links are not working atm (see https://github.com/FZJ-INM1-BDA/siibra-python/issues/651)."
+        )
     excludes: List[str] = inc_exc.get("exclude")
     for exc in excludes:
         assert exc not in feature_names
