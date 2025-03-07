@@ -188,6 +188,11 @@ sphinx_gallery_conf = {
     "run_stale_examples": run_stale_examples,
 }
 
+sphinx_gallery_conf.update({
+    "expected_failing_examples": [
+        "../examples/02_maps_and_templates/007_adding_custom_parcellation.py"  # see https://github.com/FZJ-INM1-BDA/siibra-python/issues/650
+    ]
+})
 if not is_allen_api_microarray_service_available():
     sphinx_gallery_conf.update(
         {
