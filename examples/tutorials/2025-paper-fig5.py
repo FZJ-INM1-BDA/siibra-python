@@ -46,8 +46,7 @@ assert siibra.__version__ >= "1.0.1"
 # First we retrieve the probability map of a motor area
 # from the Julich-Brain cytoarchitectonic atlas.
 region = siibra.get_region("julich 3.0.3", "4p right")
-probmaps = region.parcellation.get_map("mni152", "statistical")
-region_map = probmaps.get_volume(region)
+region_map = region.get_regional_map("mni152", "statistical")
 
 # %%
 # We can use the probability map as a query to extract 1 micron resolution
@@ -84,10 +83,7 @@ view.axes[key].ax.axvline(pos, color='red', linestyle='--', linewidth=2)
 # Next we plot the section itself and identify the larger region of
 # interest around the patch, using the bounding box
 # of the centers of most relevant patches with a bit of padding.
-patch_locations = siibra.PointCloud(
-    [tuple(p.get_boundingbox().center) for p in patches],
-    space='bigbrain'
-)
+patch_locations = siibra.PointCloud.union(*[p.get_boundingbox().center for p in patches])
 roi = patch_locations.boundingbox.zoom(1.5)
 
 # fetch the section at reduced resolution for plotting.
@@ -139,7 +135,7 @@ for layername, contours in layer_contours.items():
 # %%
 # Plot the region of interest again, this time with the cortical profile that
 # defined the patch, as well as other candidate patch's locations
-# with their relevance scores, ie. probabilities. 
+# with their relevance scores, ie. probabilities.
 display = plotting.plot_img(roi_img, display_mode="y", cmap='gray', annotate=False)
 ax = list(display.axes.values())[0].ax
 
@@ -156,5 +152,3 @@ X, _, Z = patch.profile.coordinates.T
 ax.plot(X, Z, "r-", lw=2)
 
 # sphinx_gallery_thumbnail_number = -2
-
-# %%
