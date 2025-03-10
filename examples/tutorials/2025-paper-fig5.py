@@ -35,6 +35,7 @@ the full resolution image data for the identified cortical patch from the underl
 """
 
 # %%
+from nilearn import plotting
 import matplotlib.pyplot as plt
 import numpy as np
 import siibra
@@ -42,74 +43,112 @@ import siibra
 assert siibra.__version__ >= "1.0.1"
 
 # %%
-# 1: Retrieve probability map of a motor area in Julich-Brain
+# First we retrieve the probability map of a motor area
+# from the Julich-Brain cytoarchitectonic atlas.
 region = siibra.get_region("julich 3.0.3", "4p right")
-region_map = siibra.get_map("julich 3.0.3", "mni152", "statistical").get_volume(region)
+region_map = region.get_regional_map("mni152", "statistical")
 
 # %%
-# 2: Extract BigBrain 1 micron patches with high probability in this area
-patches = siibra.features.get(region_map, "BigBrain1MicronPatch", lower_threshold=0.5)
-print(f"Found {len(patches)} patches.")
+# We can use the probability map as a query to extract 1 micron resolution
+# cortical image patches from BigBrain.
+# The patches are automatically selected to be centered on the cortex
+# and cover its whole thickness.
+patches = siibra.features.get(region_map, "BigBrain1MicronPatch", lower_threshold=0.52)
+
+# For this example, we filter the results to a particular (nice) brain section,
+# but the tutorial can be run without this filter.
+patches = [p for p in patches if p.bigbrain_section == 3556]
+
+# Results are sorted by relevance to the query, so in our case the first
+# in the list will be the one with highest probability as defined in the
+# probability map.
+patch = patches[0]
+
+# siibra samples the patch in upright position, but keeps its
+# original orientation in the affine transformation encoded in the NIfTI.
+# Let's first plot the pure voxel data of the patch to see that.
+plt.imshow(
+    patch.fetch().get_fdata().squeeze(), cmap='gray'
+)
 
 # %%
-# 3: Display highly rated samples, here further reduced to a predefined section
-section_num = 3556
-candidates = [p for p in patches if p.bigbrain_section == section_num]
-patch = candidates[0]
-plt.figure()
-plt.imshow(patch.fetch().get_fdata().squeeze(), cmap="gray", vmin=0, vmax=2**16)
-plt.axis("off")
-plt.title(f"#{section_num} - {patch.vertex}", fontsize=10)
+# To understand where and how siibra actually sampled this patch,
+# we first plot the position of the chosen brain section in MNI space.
+view = plotting.plot_glass_brain(region_map.fetch(), cmap='viridis')
+roi_mni = patch.get_boundingbox().warp('mni152')
+_, key, pos = min(zip(roi_mni.shape, view.axes.keys(), roi_mni.center))
+view.axes[key].ax.axvline(pos, color='red', linestyle='--', linewidth=2)
 
 # %%
-# To understand how the live query works, we have a look at some of the intermediate
-# steps that `siibra` is performing under the hood. It first identifies brain sections that
-# intersect the given map (or, more generally, the given image volume).
-# Each returned patch still has the corresponding section linked, so we can have a look at it.
-# The section was intersected with the cortical layer 4 surface to get an approximation of
-# the mid cortex. This can be done by fetching the layer surface meshes, and intersecting
-# them with the 3D plane corresponding to the brain section.
+# Next we plot the section itself and identify the larger region of
+# interest around the patch, using the bounding box
+# of the centers of most relevant patches with a bit of padding.
+patch_locations = siibra.PointCloud.union(*[p.get_boundingbox().center for p in patches])
+roi = patch_locations.boundingbox.zoom(1.5)
+
+# fetch the section at reduced resolution for plotting.
+section_img = patch.section.fetch(resolution_mm=0.2)
+display = plotting.plot_img(
+    section_img, display_mode="y", cmap='gray', annotate=False,
+)
+display.title(f"BigBrain section #{patch.bigbrain_section}", size=8)
+
+# Annotate the region of interest bounding box
+ax = list(display.axes.values())[0].ax
+(x, w), _, (z, d) = zip(roi.minpoint, roi.shape)
+ax.add_patch(plt.Rectangle((x, z), w, d, ec='k', fc='none', lw=1))
+
+
+# %%
+# Zoom in to the region of interest, and show the cortical layer boundaries
+# that were used to define the patch dimensions.
+
+# Since the patch locations only formed a flat bounding box,
+# we first extend the roi to the patch's shape along the flat dimension.
+for dim, size in enumerate(roi.shape):
+    if size == 0:
+        roi.minpoint[dim] = patch.get_boundingbox().minpoint[dim]
+        roi.maxpoint[dim] = patch.get_boundingbox().maxpoint[dim]
+
+# Fetch the region of interest from the section, and plot it.
+roi_img = patch.section.fetch(voi=roi, resolution_mm=-1)
+display = plotting.plot_img(roi_img, display_mode="y", cmap='gray', annotate=False)
+ax = list(display.axes.values())[0].ax
+
+# Intersect cortical layer surfaces with the image plane
 plane = siibra.Plane.from_image(patch)
 layermap = siibra.get_map("cortical layers", space="bigbrain")
 layer_contours = {
     layername: plane.intersect_mesh(layermap.fetch(region=layername, format="mesh"))
     for layername in layermap.regions
 }
-ymin, ymax = [p[1] for p in patch.section.get_boundingbox()]
-crop_voi = siibra.BoundingBox((17.14, ymin, 40.11), (22.82, ymax, 32.91), 'bigbrain')
-cropped_img = patch.section.fetch(voi=crop_voi, resolution_mm=-1)
-phys2pix = np.linalg.inv(cropped_img.affine)
 
-# The probabilities can be assigned to the contour vertices with the
-# probability map.
-points = siibra.PointCloud.union(
-    *[c.intersection(crop_voi) for c in layer_contours["cortical layer 4 right"]]
-)
-# siibra warps points to MNI152 and reads corresponding PMAP values
-probs = region_map.evaluate_points(points)
-img_arr = cropped_img.get_fdata().squeeze().swapaxes(0, 1)
-plt.imshow(img_arr, cmap="gray", origin="lower")
-X, Y, Z = points.transform(phys2pix).coordinates.T
-plt.scatter(X, Z, s=10, c=probs)
-prof_x, _, prof_z = zip(*[p.transform(phys2pix) for p in patch.profile])
-plt.plot(prof_x, prof_z, "r", lw=2)
-plt.axis("off")
-
-# %%
-# We can plot the contours on top of the image, and even use the
-# colormap recommended by siibra. We use a crop around the brain
-# region to zoom a bit closer to the extracte profile and patch.
-plt.figure()
-plt.imshow(img_arr, cmap="gray", vmin=0, vmax=2**16, origin="lower")
+# Plot the contours on top of the image, using the
+# colormap provided by siibra.
 for layername, contours in layer_contours.items():
     layercolor = layermap.get_colormap().colors[layermap.get_index(layername).label]
     for contour in contours:
-        for segment in contour.crop(crop_voi):
-            pixels = segment.transform(phys2pix, space=None).homogeneous
-            plt.plot(pixels[:, 0], pixels[:, 2], "-", ms=4, color=layercolor)
+        for segment in contour.crop(roi):
+            X, _, Z = segment.coordinates.T
+            ax.plot(X, Z, "-", ms=4, color=layercolor)
 
-# plot the profile
-plt.plot(prof_x, prof_z, "r", lw=2)
-plt.axis("off")
+# %%
+# Plot the region of interest again, this time with the cortical profile that
+# defined the patch, as well as other candidate patch's locations
+# with their relevance scores, ie. probabilities.
+display = plotting.plot_img(roi_img, display_mode="y", cmap='gray', annotate=False)
+ax = list(display.axes.values())[0].ax
+
+# Concatenate all coordinates of the layer 4 intersected contours.
+layer = "cortical layer 4 right"
+XYZ = np.vstack([c.coordinates for c in layer_contours[layer]])
+layerpoints = siibra.PointCloud(XYZ, space='bigbrain')
+patch_probs = region_map.evaluate_points(layerpoints)
+X, _, Z = layerpoints.coordinates.T
+ax.scatter(X, Z, c=patch_probs, s=10)
+
+# plot the cortical profile in red
+X, _, Z = patch.profile.coordinates.T
+ax.plot(X, Z, "r-", lw=2)
 
 # sphinx_gallery_thumbnail_number = -2

@@ -83,6 +83,14 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
     def section(self) -> CellbodyStainedSection:
         return self._section
 
+    def get_boundingbox(self, **fetch_kwargs):
+        """Enforce that the bounding box spans the full section thickness."""
+        bbox_section = self._section.get_boundingbox(**fetch_kwargs)
+        bbox = self._patch.boundingbox
+        bbox.minpoint[1] = bbox_section.minpoint[1]
+        bbox.maxpoint[1] = bbox_section.maxpoint[1]
+        return bbox
+
     @property
     def profile(self) -> "Contour":
         return self._profile
