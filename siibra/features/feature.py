@@ -232,7 +232,11 @@ class Feature:
         from ..configuration.configuration import Configuration
         conf = Configuration()
         Configuration.register_cleanup(cls._clean_instances)
-        assert cls._configuration_folder in conf.folders
+        try:
+            assert cls._configuration_folder in conf.folders
+        except AssertionError:
+            logger.info(f"'{cls._configuration_folder}' has no configuration jsons.")
+            return []
         cls._preconfigured_instances = [
             o for o in conf.build_objects(cls._configuration_folder)
             if isinstance(o, cls)
@@ -464,14 +468,12 @@ class Feature:
     def _parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
         ftypes = sorted({
             feattype
-            for FeatCls, feattypes in cls._SUBCLASSES.items()
-            if all(w.lower() in FeatCls.__name__.lower() for w in feature_type.split())
+            for FeatDataCls, feattypes in cls._SUBCLASSES.items()
+            if all(w.lower() in FeatDataCls.__name__.lower() for w in feature_type.split())
             for feattype in feattypes
+            if getattr(feattype, 'category')
         }, key=lambda t: t.__name__)
-        if len(ftypes) > 1:
-            return [ft for ft in ftypes if getattr(ft, 'category')]
-        else:
-            return list(ftypes)
+        return sorted(ftypes, key=lambda t: t.__name__)
 
     @classmethod
     def _livequery(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], **kwargs) -> List['Feature']:
@@ -502,7 +504,7 @@ class Feature:
     def _match(
         cls,
         concept: Union[structure.BrainStructure, space.Space],
-        feature_type: Union[str, Type['Feature'], list],
+        feature_type: Union[str, Type['Feature'], List['Feature']],
         **kwargs
     ) -> List['Feature']:
         """
@@ -524,13 +526,13 @@ class Feature:
         """
         if isinstance(feature_type, list):
             # a list of feature types is given, collect match results on those
-            assert all(
-                (isinstance(t, str) or issubclass(t, cls))
-                for t in feature_type
-            )
+            ftypes = list(dict.fromkeys(
+                cls._parse_featuretype(ft) if isinstance(ft, str) else ft
+                for ft in feature_type
+            ))
             return list(dict.fromkeys(
                 sum((
-                    cls._match(concept, t, **kwargs) for t in feature_type
+                    cls._match(concept, t, **kwargs) for t in ftypes
                 ), [])
             ))
 

@@ -47,6 +47,20 @@ def is_allen_api_microarray_service_available():
     return response["success"]
 
 
+def parse_gene(spec):
+    if isinstance(spec, str):
+        return [GENE_NAMES.get(spec)]
+    elif isinstance(spec, dict):
+        assert all(k in spec for k in ['symbol', 'description'])
+        assert spec['symbol'] in GENE_NAMES
+        return [spec]
+    elif isinstance(spec, list):
+        return [g for s in spec for g in parse_gene(s)]
+    else:
+        logger.error("Invalid specification of gene:", spec)
+        return []
+
+
 class InvalidAllenAPIResponseException(Exception):
     pass
 
@@ -119,21 +133,10 @@ class AllenBrainAtlasQuery(_query.LiveQuery, args=['gene'], FeatureType=GeneExpr
         """
         _query.LiveQuery.__init__(self, **kwargs)
         gene = kwargs.get('gene')
-
-        def parse_gene(spec):
-            if isinstance(spec, str):
-                return [GENE_NAMES.get(spec)]
-            elif isinstance(spec, dict):
-                assert all(k in spec for k in ['symbol', 'description'])
-                assert spec['symbol'] in GENE_NAMES
-                return [spec]
-            elif isinstance(spec, list):
-                return [g for s in spec for g in parse_gene(s)]
-            else:
-                logger.error("Invalid specification of gene:", spec)
-                return []
-
-        self.genes = parse_gene(gene)
+        if gene is None:
+            self.genes = []
+        else:
+            self.genes = parse_gene(gene)
 
     def query(self, concept: structure.BrainStructure) -> List[GeneExpressions]:
         if not is_allen_api_microarray_service_available():
@@ -143,6 +146,9 @@ class AllenBrainAtlasQuery(_query.LiveQuery, args=['gene'], FeatureType=GeneExpr
                 'gene expression features. This is a known issue which we are investigating: '
                 'https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.'
             )
+        if len(self.genes) == 0:
+            logger.error("Cannot query for gene expresssions without a specified gene.")
+            return []
 
         # Match the microarray probes to the query mask.
         # Record matched instances and their locations.
