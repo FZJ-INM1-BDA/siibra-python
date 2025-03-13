@@ -58,14 +58,10 @@ class Tabular(feature.Feature, category="generic", configuration_folder="feature
             id=id,
             prerelease=prerelease
         )
-        if data is None:
-            if file is not None:
-                self._loader = requests.HttpRequest(file)
-            else:
-                self._data_cached = data
-        else:
-            self._loader = None
-            self._data_cached = data
+        self._loader = None if file is None else requests.HttpRequest(file)
+        if file is not None:
+            assert data is None
+        self._data_cached = data
 
     @property
     def data(self):
