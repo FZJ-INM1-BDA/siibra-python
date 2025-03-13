@@ -232,7 +232,11 @@ class Feature:
         from ..configuration.configuration import Configuration
         conf = Configuration()
         Configuration.register_cleanup(cls._clean_instances)
-        assert cls._configuration_folder in conf.folders
+        try:
+            assert cls._configuration_folder in conf.folders
+        except AssertionError:
+            logger.info(f"'{cls._configuration_folder}' has no configuration jsons.")
+            return []
         cls._preconfigured_instances = [
             o for o in conf.build_objects(cls._configuration_folder)
             if isinstance(o, cls)
