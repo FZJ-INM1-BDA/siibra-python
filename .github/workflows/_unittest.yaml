@@ -13,7 +13,7 @@ on:
         type: string
         default: ''
       siibra_log_level:
-        required: False
+        required: false
         type: string
         default: "INFO_WO_PROGRESS_BARS"
 
@@ -31,9 +31,6 @@ jobs:
       uses: './.github/workflows/setup-custom-cfg'
       with:
         siibra-cfg-ref: ${{ inputs.use-cfg }}
-    
-    - name: Set env vars
-      run: echo "SIIBRA_LOG_LEVEL=${{ inputs.siibra_log_level }}" >> $GITHUB_ENV
 
     - name: Install dependencies
       run: |
@@ -44,4 +41,6 @@ jobs:
     - name: Install test dependencies
       run:  pip install pytest pytest-cov coverage
     - name: Run test with pytest
+      env:
+        SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
       run: pytest -rx

@@ -64,7 +64,6 @@ jobs:
       os: ubuntu-20.04  # use ubuntu-latest when python 3.7 is dropped
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
-      siibra_log_level: ${{ github.env.SIIBRA_LOG_LEVEL }}
     strategy:
       fail-fast: false
       matrix:
@@ -78,7 +77,6 @@ jobs:
       os: ubuntu-latest
       python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
-      siibra_log_level: ${{ github.env.SIIBRA_LOG_LEVEL }}
 
   e2e-tests-full:
     if: ${{ github.event_name == 'pull_request' }}
@@ -88,7 +86,6 @@ jobs:
       os: ubuntu-20.04  # use ubuntu-latest when python 3.7 is dropped
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
-      siibra_log_level: ${{ github.env.SIIBRA_LOG_LEVEL }}
     strategy:
       fail-fast: false
       matrix:
@@ -102,7 +99,6 @@ jobs:
       os: ubuntu-latest
       python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
-      siibra_log_level: ${{ github.env.SIIBRA_LOG_LEVEL }}
 
   test-examples:
     needs: 'use-custom-cfg'
@@ -111,4 +107,3 @@ jobs:
       os: ubuntu-latest
       python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
-      siibra_log_level: ${{ github.env.SIIBRA_LOG_LEVEL }}

@@ -13,13 +13,15 @@ on:
         type: string
         default: ''
       siibra_log_level:
-        required: False
+        required: false
         type: string
         default: "INFO_WO_PROGRESS_BARS"
 
 jobs:
   test_examples:
     runs-on: ${{ inputs.os }}
+    env:
+      SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python ${{ inputs.python-version }}
@@ -32,9 +34,6 @@ jobs:
       with:
         siibra-cfg-ref: ${{ inputs.use-cfg }}
 
-    - name: Set env vars
-      run: echo "SIIBRA_LOG_LEVEL=${{ inputs.siibra_log_level }}" >> $GITHUB_ENV
-
     - name: Install dependencies
       shell: bash
       run: |
@@ -44,5 +43,7 @@ jobs:
     - name: Install test dependencies
       run:  pip install pytest pytest-cov coverage
     - name: Run test with pytest
+      env:
+        SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
       shell: bash
       run: pytest -rx examples/test_examples.py
