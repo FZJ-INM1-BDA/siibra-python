@@ -147,7 +147,7 @@ class AllenBrainAtlasQuery(_query.LiveQuery, args=['gene'], FeatureType=GeneExpr
                 'https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.'
             )
         if len(self.genes) == 0:
-            logger.error("Cannot query for gene expresssions without a specified gene.")
+            logger.error("Cannot query for gene expressions without a specified gene.")
             return []
 
         # Match the microarray probes to the query mask.

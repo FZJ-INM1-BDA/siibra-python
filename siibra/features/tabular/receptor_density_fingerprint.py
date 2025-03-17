@@ -23,7 +23,6 @@ from . import tabular
 from .. import anchor as _anchor
 from ...commons import logger
 from ...vocabularies import RECEPTOR_SYMBOLS
-from ...retrieval import requests
 
 
 class ReceptorDensityFingerprint(
