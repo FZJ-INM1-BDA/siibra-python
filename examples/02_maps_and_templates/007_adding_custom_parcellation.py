@@ -37,30 +37,25 @@ from nilearn import plotting
 # to create a custom parcellation map inside siibra.
 
 # connect to the online zip file
-conn = siibra.retrieval.ZipfileConnector(
-    "http://www.gin.cnrs.fr/wp-content/uploads/aicha_v1.zip"
-)
+base_url = "https://object.cscs.ch/v1/AUTH_4791e0a3b3de43e2840fe46d9dc2b334/ext-d000069_AICHA_pub/v2.0"
 
 # the NIfTI file is easily retrieved:
-nifti = conn.get("AICHA/AICHA.nii")
+nii = siibra.retrieval.requests.HttpRequest(f"{base_url}/AICHA1mm.nii").get()
 # and create a volume on space MNI152 (note that this assumes our
 # external knowledge that the map is in MNI152 space)
-volume = siibra.volumes.from_nifti(nifti, 'mni152', "AICHA")
+volume = siibra.volumes.from_nifti(nii, 'mni152', "AICHA")
 
 # The text file with label mappings has a custom format. We provide a tsv
 # decoder to extract the list of region/label pairs since the txt file is tab
 # separated.
-volume_info = conn.get("AICHA/AICHA_vol1.txt", decode_func=siibra.retrieval.requests.DECODERS['.tsv'])
+volume_info = siibra.retrieval.requests.HttpRequest(f"{base_url}/AICHA1mm_vol3.txt", func=siibra.retrieval.requests.DECODERS['.tsv']).get()
 volume_info
 
 # %%
-# Now we use this to add a custom map to siibra.
-regionnames = [
-    name.replace('-R', ' right').replace('-L', ' left')
-    for name in volume_info['nom_l']
-]
+# Now we can add this map to current configuration:
+regionnames = volume_info['nom_l'].tolist()
 labels = [int(label) for label in volume_info['color']]
-custom_map = siibra.volumes.parcellationmap.from_volume(
+aicha_map = siibra.volumes.parcellationmap.from_volume(
     name="AICHA - Atlas of Intrinsic Connectivity of Homotopic Areas",
     volume=volume,
     regionnames=regionnames,
@@ -68,19 +63,22 @@ custom_map = siibra.volumes.parcellationmap.from_volume(
 )
 
 # %%
-# let's plot the final map
-plotting.plot_roi(custom_map.fetch())
+# Let us plot the full map to test
+plotting.plot_roi(aicha_map.fetch())
 
+# %%
+# Now let's fetch a specific region
+plotting.plot_roi(aicha_map.fetch("G_Fusiform-1-L"))
 
 # %%
 # We can already use this map to find spatial features, such as BigBrain
 # intensity profiles, gene expressions, volume of interests, sections...
-region = custom_map.parcellation.get_region('S_Rolando-1 left')
-profiles = siibra.features.get(
+region = aicha_map.parcellation.get_region('S_Rolando-1-L')
+intensity_profiles = siibra.features.get(
     region,
     siibra.features.cellular.BigBrainIntensityProfile
 )[0]
-print(f"{len(profiles)} intensity profiles found.")
+print(f"{len(intensity_profiles)} {intensity_profiles.name} found.")
 
 
 # %%
@@ -89,15 +87,15 @@ print(f"{len(profiles)} intensity profiles found.")
 # However, siibra circumvents this by comparing volumes of these regions to
 # assign a link between them.
 volume = region.get_regional_mask('mni152')
-receptor_density = siibra.features.get(
+receptor_profiles = siibra.features.get(
     volume,
     siibra.features.molecular.ReceptorDensityFingerprint
 )
-print(f"{len(receptor_density)} layerwise cell density found.")
+print(f"{len(receptor_profiles)} {receptor_profiles[0].name} found intersecting with this region.")
 
 # The relation of volume to the anatomical anchor is provided in
 # `anchor.last_match_description`
-for d in receptor_density:
+for d in receptor_profiles:
     print(d.anchor.last_match_description)
 
 
