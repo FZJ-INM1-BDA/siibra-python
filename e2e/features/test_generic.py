@@ -102,7 +102,6 @@ def test_digestion(conf_path: str):
         raise ValueError(f'type {conf["@type"]} does not match any predefined generic types for testing.')
 
 
-siibra.extend_configuration(CUSTOM_CONF_FOLDER)
 queries = [q for qs in generic_feature_configs for q in qs["queries"]]
 
 
@@ -119,6 +118,8 @@ def test_generic_feature_query(query_concept, query_type: siibra.features.Featur
 
 
 @pytest.fixture(scope="module", autouse=True)
-def cleanup():
+def prepare_and_cleanup_module():
+    siibra.extend_configuration(CUSTOM_CONF_FOLDER)
     yield
     shutil.rmtree(CUSTOM_CONF_FOLDER)
+    siibra.configuration.configuration.Configuration().CONFIG_EXTENSIONS = []
