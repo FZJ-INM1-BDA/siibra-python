@@ -8,9 +8,17 @@ from nibabel.nifti1 import Nifti1Image
 from pandas import DataFrame
 
 CUSTOM_CONF_FOLDER = "./custom-configurations/"
+configuration = siibra.configuration.configuration.Configuration()
 
 
-def create_json(conf: Dict):
+def teardown_module():
+    configuration.CONFIG_EXTENSIONS = []
+    shutil.rmtree(CUSTOM_CONF_FOLDER)
+    siibra.cache.clear()
+    siibra.use_configuration(configuration.CONFIG_CONNECTORS[0])
+
+
+def create_json(conf: Dict) -> str:
     if conf["@type"] == "siibra/feature/tabular/v0.1":
         folderpath = Path(CUSTOM_CONF_FOLDER + "features/tabular/")
     elif conf["@type"] == "siibra/feature/image/v0.1":
@@ -23,10 +31,9 @@ def create_json(conf: Dict):
     with open(filepath, "wt") as fp:
         json.dump(conf, fp=fp)
 
+    print(filepath.as_posix())
     return filepath.as_posix()
 
-
-siibra.spaces
 
 generic_feature_configs = [
     {
@@ -80,13 +87,12 @@ generic_feature_configs = [
         ],
     },
 ]
-
-conf_jsons = []
+conf_json_paths = []
 for conf in generic_feature_configs:
-    conf_jsons.append(create_json(conf["config"]))
+    conf_json_paths.append(create_json(conf["config"]))
 
 
-@pytest.mark.parametrize("conf_path", conf_jsons)
+@pytest.mark.parametrize("conf_path", conf_json_paths)
 def test_digestion(conf_path: str):
     with open(conf_path, 'rt') as fp:
         conf = json.load(fp)
@@ -102,24 +108,28 @@ def test_digestion(conf_path: str):
         raise ValueError(f'type {conf["@type"]} does not match any predefined generic types for testing.')
 
 
-queries = [q for qs in generic_feature_configs for q in qs["queries"]]
+class TestCustomConfig:
+    def setup_method(self, method):
+        siibra.extend_configuration(CUSTOM_CONF_FOLDER)
 
+    def teardown_method(self, method):
+        configuration.CONFIG_EXTENSIONS = []
 
-@pytest.mark.parametrize("query_concept, query_type", queries)
-def test_generic_feature_query(query_concept, query_type: siibra.features.Feature):
-    if isinstance(query_concept, str):
-        query_concept = siibra.spaces.get(query_concept)  # TODO: check why match method fails
-    fts = [
-        f
-        for f in siibra.features.get(query_concept, query_type)
-        if isinstance(f, query_type)
-    ]
-    assert len(fts) > 0
+    @pytest.fixture(
+        scope="class",
+        params=[q for qs in generic_feature_configs for q in qs["queries"]],
+    )
+    def query_params(cls, request):
+        return request.param
 
-
-@pytest.fixture(scope="module", autouse=True)
-def prepare_and_cleanup_module():
-    siibra.extend_configuration(CUSTOM_CONF_FOLDER)
-    yield
-    shutil.rmtree(CUSTOM_CONF_FOLDER)
-    siibra.configuration.configuration.Configuration().CONFIG_EXTENSIONS = []
+    def test_generic_feature_query(self, query_params):
+        query_concept, query_type = query_params
+        if isinstance(query_concept, str):
+            query_concept = siibra.spaces.get(query_concept)  # TODO: check why match method fails
+        fts = [
+            f
+            for f in siibra.features.get(query_concept, query_type)
+            if isinstance(f, query_type)
+        ]
+        assert len(fts) > 0
+        print(len(fts))
