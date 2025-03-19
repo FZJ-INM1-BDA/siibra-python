@@ -14,7 +14,7 @@
 # limitations under the License.
 """A set of coordinates on a reference space."""
 
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Dict, TYPE_CHECKING
 import numbers
 import json
 
@@ -30,6 +30,9 @@ from . import location, point, boundingbox as _boundingbox
 from ..retrieval.requests import HttpRequest
 from ..commons import logger
 from ..exceptions import SpaceWarpingFailedError, EmptyPointCloudError
+
+if TYPE_CHECKING:
+    from ..core.space import Space
 
 
 def from_points(points: List["point.Point"], newlabels: List[Union[int, float, tuple]] = None) -> "PointCloud":
@@ -140,9 +143,10 @@ class PointCloud(location.Location):
     def has_constant_sigma(self) -> bool:
         return len(set(self.sigma)) == 1
 
-    def warp(self, space, chunksize=1000):
+    def warp(self, space: Union[str, Dict, "Space"], chunksize: int = 1000):
         """Creates a new point set by warping its points to another space"""
         from ..core.space import Space
+
         spaceobj = space if isinstance(space, Space) else Space.get_instance(space)
         if spaceobj == self.space:
             return self
