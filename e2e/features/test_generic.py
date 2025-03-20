@@ -75,15 +75,13 @@ generic_feature_configs = [
             "name": "some name for custom image feature",
             "modality": "foo",
             "ebrains": {"openminds/DatasetVersion": "73c1fa55-d099-4854-8cda-c9a403c6080a"},
-            "space": {"@id": "minds/core/referencespace/v1.0.0/d5717c4a-0fa1-46e6-918c-b8003069ade8"},
+            "space": {"@id": "minds/core/referencespace/v1.0.0/265d32a0-3d84-40a5-926f-bf89f68212b9"},
             "providers": {
                 "neuroglancer/precomputed": "https://1um.brainatlas.eu/registered_sections/bigbrain/B20_0102/precomputed"
             },
         },
         "queries": [
-            ('waxholm', siibra.features.generic.Image),
-            ('waxholm', siibra.features.generic.Image),
-            ('waxholm', siibra.features.generic.Image),
+            ('Allen Mouse', siibra.features.generic.Image),
         ],
     },
 ]
@@ -129,7 +127,7 @@ class TestCustomConfig:
         fts = [
             f
             for f in siibra.features.get(query_concept, query_type)
-            if isinstance(f, query_type)
+            if f.category == 'generic'
         ]
         assert len(fts) > 0
         print(len(fts))
