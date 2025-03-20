@@ -16,7 +16,7 @@
 
 from itertools import product
 import hashlib
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, Dict
 
 import numpy as np
 
@@ -282,14 +282,15 @@ class BoundingBox(location.Location):
             sigma_mm=np.mean([self.minpoint.sigma, self.maxpoint.sigma])
         )
 
-    def warp(self, space):
+    def warp(self, space: Union[str, Dict, "Space"]):
         """Returns a new bounding box obtained by warping the
         min- and maxpoint of this one into the new target space.
 
         TODO process the sigma values o the points
         """
         from ..core.space import Space
-        spaceobj = Space.get_instance(space)
+
+        spaceobj = space if isinstance(space, Space) else Space.get_instance(space)
         if spaceobj == self.space:
             return self
         else:

@@ -19,7 +19,7 @@ import re
 import json
 import numbers
 import hashlib
-from typing import Tuple, Union
+from typing import Tuple, Union, Dict, TYPE_CHECKING
 
 import numpy as np
 
@@ -27,6 +27,9 @@ from . import location, pointcloud
 from ..commons import logger
 from ..retrieval.requests import HttpRequest
 from ..exceptions import SpaceWarpingFailedError, NoneCoordinateSuppliedError
+
+if TYPE_CHECKING:
+    from ..core.space import Space
 
 
 class Point(location.Location):
@@ -118,13 +121,14 @@ class Point(location.Location):
         else:
             return self if other.intersection(self) else None
 
-    def warp(self, space):
+    def warp(self, space: Union[str, Dict, "Space"]):
         """
         Creates a new point by warping this point to another space
         TODO this needs to maintain the sigma parameter!
         """
         from ..core.space import Space
-        spaceobj = Space.get_instance(space)
+
+        spaceobj = space if isinstance(space, Space) else Space.get_instance(space)
         if spaceobj == self.space:
             return self
         if any(_ not in location.Location.SPACEWARP_IDS for _ in [self.space.id, spaceobj.id]):
