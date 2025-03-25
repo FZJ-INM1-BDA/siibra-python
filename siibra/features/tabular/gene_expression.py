@@ -225,6 +225,7 @@ class GeneExpressions(
             datasets=datasets
         )
         self.unit = "expression level"
+        self._genes = genes
 
     def plot(self, *args, backend="matplotlib", **kwargs):
         """
@@ -240,7 +241,7 @@ class GeneExpressions(
         """
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
         kwargs["title"] = kwargs.pop("title", None) \
-            or "\n".join(wrap(f"{self.modality} measured in {self.anchor._regionspec or self.anchor.location}", wrapwidth))
+            or "\n".join(wrap(f"{self.modality}\n{self.anchor._regionspec or self.anchor.location}", wrapwidth))
         kwargs["kind"] = "box"
         if backend == "matplotlib":
             for arg in ['yerr', 'y', 'ylabel', 'xlabel', 'width']:
@@ -248,8 +249,11 @@ class GeneExpressions(
             default_kwargs = {
                 "grid": True, "legend": False, 'by': "gene",
                 'column': ['level'], 'showfliers': False, 'ax': None,
-                'ylabel': 'expression level'
+                'ylabel': 'expression level',
+                'rot': 90 if len(self._genes) > 1 else 0,
             }
+            if kwargs.get("ax") is not None:
+                kwargs["ax"].set_title(kwargs.pop("title"))
             return self.data.plot(*args, **{**default_kwargs, **kwargs}, backend=backend)
         elif backend == "plotly":
             kwargs["title"] = kwargs["title"].replace('\n', "<br>")
