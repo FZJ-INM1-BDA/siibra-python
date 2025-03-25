@@ -27,7 +27,6 @@ reveal additional multimodal data features characterizing the ROIs.
 """
 
 # %%
-import re
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -175,63 +174,45 @@ for n, a in all_assignments.iterrows():
 # ^^^^^^^^^^^^^
 #
 # To demonstrate multimodal feature profiling, we only choose the first connected region.
+selected_region = siibra.get_region("julich 3.0.3", "Area hOc1 (V1, 17, CalcS) left")
+
+# %%
+# Let us first query receptor density fingerprint for this region
+receptor_fingerprints = siibra.features.get(selected_region, "receptor density fingerprint")[0]
+print(receptor_fingerprints.urls)
+receptor_fingerprints.plot()
+
+# %%
+# Now, query for gene expresssions for the same region
+genes = ["gabarapl1", "gabarapl2", "maoa", "tac1"]
+gene_expressions = siibra.features.get(selected_region, "gene expressions", gene=genes)[0]
+gene_expressions.plot()
+print(gene_expressions.urls)
+
+# %%
+# We can next obtain cell body density values for this region
+layerwsise_cellbody_density = siibra.features.get(selected_region, "layerwise cell density")[-1]  # TODO: fix hoc1 and hoc2 issue
+print(layerwsise_cellbody_density.urls)
+layerwsise_cellbody_density.plot()
+
+# %%
+# Lastly, we can obtain the regional profile of streamline count type
+# parcellation-based connectivity matrices
+conn = siibra.features.get(selected_region, "StreamlineCounts")[0]
+print(conn.urls)
 
 
-def shortname(region):
+def shorten_name(region):
+    # to simplify readibility
     return (
-        re.sub("\s*\(.*\)\s*|\s*Areaa\s*", " ", region.name)
+        region.replace("Area ", "")
+        .replace(" (GapMap)", "")
         .replace("left", "L")
         .replace("right", "R")
-        .strip()
     )
 
 
-def filter_features(feats, region):
-    return [f for f in feats if any(r.assign(region) for r in f.anchor.regions)]
-
-
-def plot_receptors(region, ax):
-    fts = filter_features(siibra.features.get(region, "ReceptorDensityFingerprint"), region)
-    fts[0].plot(ax=ax)
-
-
-def plot_celldensities(region, ax):
-    fts = filter_features(siibra.features.get(region, "LayerwiseCellDensity"), region)
-    fts[0].plot(ax=ax)
-
-
-def plot_gene_expressions(region, ax, genes):
-    fts = siibra.features.get(region, "GeneExpressions", gene=genes)
-    fts[0].plot(ax=ax)
-
-
-def plot_connectivity(region, ax):
-    fts = siibra.features.get(region, "StreamlineCounts")
-    conndata = fts[0][0].get_profile(region).data
-    conndata.rename(index={r: shortname(r) for r in conndata.index}, inplace=True)
-    conndata[:15].plot(kind="bar", ax=ax)
-    plt.xticks(ha="right")
-    plt.tight_layout()
-    plt.grid(True)
-    plt.title(f"Connectivity for {region.name}")
-
-
-# %%
-selected_region = siibra.get_region("julich 3.0.3", "Area hOc1 (V1, 17, CalcS) left")
-plot_funcs = [
-    lambda r, a: plot_receptors(r, a),
-    lambda r, a: plot_celldensities(r, a),
-    lambda r, a: plot_connectivity(r, a),
-    lambda r, a: plot_gene_expressions(
-        r, a, ["gabarapl1", "gabarapl2", "maoa", "tac1"]
-    ),
-]
-
-fig, axs = plt.subplots(1, len(plot_funcs), figsize=(3.5 * len(plot_funcs), 4))
-for ax, func in zip(axs.ravel(), plot_funcs):
-    func(r=selected_region, a=ax)
-    ax.grid(True)
-    xtl = ax.get_xticklabels()
-    ax.set_xticklabels(xtl, rotation=55, ha="right")
-plt.suptitle("")
-plt.tight_layout()
+ax = conn.plot(selected_region, max_rows=15, kind="bar", rot=90)
+ax.xaxis.set_ticklabels([shorten_name(t.get_text()) for t in ax.xaxis.get_majorticklabels()])
+plt.grid(True, 'minor')
+plt.title(f"Connectivity for {selected_region.name}")
