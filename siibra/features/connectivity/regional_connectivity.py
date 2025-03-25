@@ -278,7 +278,7 @@ class RegionalConnectivity(Feature, Compoundable):
 
         name = self.modality
         series: pd.Series = matrix[regions[0]]
-        last_index = len(series) - 1 if max_rows is None else min(max_rows, len(series) - 1)
+        last_index = len(series) if max_rows is None else min(max_rows, len(series))
         data = (
             series
             .to_frame(name=name)
