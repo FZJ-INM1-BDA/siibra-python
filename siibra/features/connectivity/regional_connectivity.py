@@ -273,29 +273,29 @@ class RegionalConnectivity(Feature, Compoundable):
         regions = [r for r in matrix.index if matches(r, region)]
         if len(regions) == 0:
             raise ValueError(f"Invalid region specification: {region}")
-        elif len(regions) > 1:
+        if len(regions) > 1:
             raise ValueError(f"Region specification {region} matched more than one profile: {regions}")
-        else:
-            name = self.modality
-            series = matrix[regions[0]]
-            last_index = len(series) - 1 if max_rows is None \
-                else min(max_rows, len(series) - 1)
-            return Tabular(
-                description=self.description,
-                modality=f"{self.modality} {self.cohort}",
-                anchor=_anchor.AnatomicalAnchor(
-                    species=list(self.anchor.species)[0],
-                    region=regions[0]
-                ),
-                data=(
-                    series[:last_index]
-                    .to_frame(name=name)
-                    .query(f'`{name}` > {min_connectivity}')
-                    .sort_values(by=name, ascending=False)
-                    .rename_axis('Target regions')
-                ),
-                datasets=self.datasets
-            )
+
+        name = self.modality
+        series: pd.Series = matrix[regions[0]]
+        last_index = len(series) - 1 if max_rows is None else min(max_rows, len(series) - 1)
+        data = (
+            series
+            .to_frame(name=name)
+            .query(f'`{name}` > {min_connectivity}')
+            .sort_values(by=name, ascending=False)
+            .rename_axis('Target regions')
+        )[:last_index]
+        return Tabular(
+            description=self.description,
+            modality=f"{self.modality} {self.cohort}",
+            anchor=_anchor.AnatomicalAnchor(
+                species=list(self.anchor.species)[0],
+                region=regions[0]
+            ),
+            data=data,
+            datasets=self.datasets
+        )
 
     def plot(
         self,
