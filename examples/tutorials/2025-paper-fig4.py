@@ -23,7 +23,6 @@ The tutorial shows how maps and mutimodal regional measurements are obtained usi
 # %%
 import matplotlib.pyplot as plt
 from nilearn import plotting
-import pandas as pd
 import re
 import seaborn as sns
 import siibra
@@ -107,25 +106,20 @@ def shorten_name(n):
     )
 
 
-fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(3.6 * len(regions), 4.1))
-plotkwargs = {"kind": "bar", "width": 0.85, "logy": True}
+plotkwargs = {
+    "kind": "bar",
+    "width": 0.85,
+    "logscale": True,
+    "xlabel": "",
+    "ylabel": "temporal correlation",
+    "rot": 90,
+}
+fig, axs = plt.subplots(1, len(regions))
 for i, region in enumerate(regions):
-    # aggregate connectivity profiles for first region across subjects
-    conn_profile = (
-        pd.concat([c.get_profile(region).data for c in conn], axis=1)
-        .agg(["mean", "std"], axis=1)
-        .sort_values(by="mean", ascending=False)
-    )
-    plotkwargs.update({
-        "yerr": conn_profile.iloc[:17]["std"],
-        "ylabel": "temporal correlation",
-        "title": shorten_name(region.name),
-        "ax": axs[i]
-    })
-    conn_profile.iloc[:17]["mean"].plot(**plotkwargs)
-    axs[i].xaxis.set_ticklabels(
-        [shorten_name(t.get_text()) for t in axs[i].xaxis.get_majorticklabels()]
-    )
+    plotkwargs["ax"] = axs[i]
+    conn.plot(region, max_rows=17, **plotkwargs)
+    axs[i].xaxis.set_ticklabels([shorten_name(t.get_text()) for t in axs[i].xaxis.get_majorticklabels()])
+    axs[i].set_title(region.name.replace("Area ", ""))
     axs[i].grid(True, 'minor')
 plt.suptitle("Functional Connectivity")
 
