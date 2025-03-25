@@ -96,20 +96,6 @@ for i, region in enumerate(regions):
 conn = siibra.features.get(regions[0], "functional connectivity")[1]
 print(conn.urls)  # TODO: add publication to conn json
 
-# aggregate connectivity profiles for first region across subjects
-D1 = (
-    pd.concat([c.get_profile(regions[0]).data for c in conn], axis=1)
-    .agg(["mean", "std"], axis=1)
-    .sort_values(by="mean", ascending=False)
-)
-
-# aggregate connectivity profiles for second region across subjects
-D2 = (
-    pd.concat([c.get_profile(regions[1]).data for c in conn], axis=1)
-    .agg(["mean", "std"], axis=1)
-    .sort_values(by="mean", ascending=False)
-)
-
 
 # plot both average connectivity profiles to target regions
 def shorten_name(n):
@@ -121,27 +107,27 @@ def shorten_name(n):
     )
 
 
-fig, (a1, a2) = plt.subplots(1, 2, sharey=True, figsize=(3.6 * len(regions), 4.1))
-kwargs = {"kind": "bar", "width": 0.85, "logy": True}
-D1.iloc[:17]["mean"].plot(
-    **kwargs, yerr=D1.iloc[:17]["std"], ax=a1, ylabel=shorten_name(regions[0].name)
-)
-D2.iloc[:17]["mean"].plot(
-    **kwargs, yerr=D2.iloc[:17]["std"], ax=a2, ylabel=shorten_name(regions[1].name)
-)
-a1.set_ylabel("temporal correlation")
-a1.xaxis.set_ticklabels(
-    [shorten_name(t.get_text()) for t in a1.xaxis.get_majorticklabels()]
-)
-a2.xaxis.set_ticklabels(
-    [shorten_name(t.get_text()) for t in a2.xaxis.get_majorticklabels()]
-)
-a1.grid(True, 'minor')
-a2.grid(True, 'minor')
-a1.set_title(regions[0].name.replace("Area ", ""))
-a2.set_title(regions[1].name.replace("Area ", ""))
+fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(3.6 * len(regions), 4.1))
+plotkwargs = {"kind": "bar", "width": 0.85, "logy": True}
+for i, region in enumerate(regions):
+    # aggregate connectivity profiles for first region across subjects
+    conn_profile = (
+        pd.concat([c.get_profile(region).data for c in conn], axis=1)
+        .agg(["mean", "std"], axis=1)
+        .sort_values(by="mean", ascending=False)
+    )
+    plotkwargs.update({
+        "yerr": conn_profile.iloc[:17]["std"],
+        "ylabel": "temporal correlation",
+        "title": shorten_name(region.name),
+        "ax": axs[i]
+    })
+    conn_profile.iloc[:17]["mean"].plot(**plotkwargs)
+    axs[i].xaxis.set_ticklabels(
+        [shorten_name(t.get_text()) for t in axs[i].xaxis.get_majorticklabels()]
+    )
+    axs[i].grid(True, 'minor')
 plt.suptitle("Functional Connectivity")
-plt.tight_layout()
 
 # %%
 # For both brain areas, sample representative cortical image patches at 1µm
