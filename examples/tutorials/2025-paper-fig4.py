@@ -85,6 +85,7 @@ genes = ["CHRM1", "CHRM2", "CHRM3", "HTR1A", "HTR2A", "DRD1"]
 fig, axs = plt.subplots(1, len(regions), sharey=True)
 for i, region in enumerate(regions):
     gene_expressions = siibra.features.get(region, "gene expressions", gene=genes)
+    assert len(gene_expressions) == 1
     gene_expressions[0].plot(ax=axs[i])
     print(gene_expressions[0].urls)
 
