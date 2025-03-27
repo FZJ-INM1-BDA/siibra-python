@@ -487,6 +487,10 @@ class Factory:
             return volume_of_interest.LSFMVolumeOfInterest(
                 modality="Light Sheet Fluorescence Microscopy", **kwargs
             )
+        elif modality == "morphometry":
+            return volume_of_interest.MorphometryVolumeOfInterest(
+                modality="Morphometry", **kwargs
+            )
         else:
             raise ValueError(
                 f"No method for building image section feature type {modality}."

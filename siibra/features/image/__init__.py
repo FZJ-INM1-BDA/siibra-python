@@ -21,7 +21,8 @@ from .volume_of_interest import (
     MRIVolumeOfInterest,
     XPCTVolumeOfInterest,
     LSFMVolumeOfInterest,
-    DTIVolumeOfInterest
+    DTIVolumeOfInterest,
+    MorphometryVolumeOfInterest,
 )
 from .sections import (
     CellbodyStainedSection,
