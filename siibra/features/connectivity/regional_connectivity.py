@@ -104,6 +104,7 @@ class RegionalConnectivity(Feature, Compoundable):
         self._matrix = None
         self._subject = subject
         self._feature = feature
+        self._matrix_std = None  # only used for compound feature
 
     @property
     def subject(self):
@@ -169,6 +170,9 @@ class RegionalConnectivity(Feature, Compoundable):
         ]
         merged._matrix = elements[0]._arraylike_to_dataframe(
             np.stack(all_arrays).mean(0)
+        )
+        merged._matrix_std = elements[0]._arraylike_to_dataframe(
+            np.stack(all_arrays).std(0)
         )
         return merged
 
@@ -258,10 +262,14 @@ class RegionalConnectivity(Feature, Compoundable):
             non-symmetric matrices. ('column' or 'row')
         """
         matrix = self.data
+        assert isinstance(matrix, pd.DataFrame)
+        matrix_std = self._matrix_std
         if direction.lower() not in ['column', 'row']:
             raise ValueError("Direction can only be 'column' or 'row'")
         if direction.lower() == 'row':
             matrix = matrix.transpose()
+            if matrix_std is not None:
+                matrix_std = matrix_std.transpose()
 
         def matches(r1, r2):
             if isinstance(r1, tuple):
@@ -270,32 +278,38 @@ class RegionalConnectivity(Feature, Compoundable):
                 assert isinstance(r1, _region.Region)
                 return r1.matches(r2)
 
-        regions = [r for r in matrix.index if matches(r, region)]
-        if len(regions) == 0:
+        # decode region spec
+        region_candidates = [r for r in matrix.index if matches(r, region)]
+        if len(region_candidates) == 0:
             raise ValueError(f"Invalid region specification: {region}")
-        elif len(regions) > 1:
-            raise ValueError(f"Region specification {region} matched more than one profile: {regions}")
-        else:
-            name = self.modality
-            series = matrix[regions[0]]
-            last_index = len(series) - 1 if max_rows is None \
-                else min(max_rows, len(series) - 1)
-            return Tabular(
-                description=self.description,
-                modality=f"{self.modality} {self.cohort}",
-                anchor=_anchor.AnatomicalAnchor(
-                    species=list(self.anchor.species)[0],
-                    region=regions[0]
-                ),
-                data=(
-                    series[:last_index]
-                    .to_frame(name=name)
-                    .query(f'`{name}` > {min_connectivity}')
-                    .sort_values(by=name, ascending=False)
-                    .rename_axis('Target regions')
-                ),
-                datasets=self.datasets
-            )
+        if len(region_candidates) > 1:
+            raise ValueError(f"Region specification {region} matched more than one profile: {region_candidates}")
+        region = region_candidates[0]
+
+        # create DataFrame
+        data = matrix[region].to_frame('mean')
+        if matrix_std is not None:
+            data = pd.concat([data, matrix_std[region].rename('std')], axis=1)
+
+        last_index = len(data) if max_rows is None else min(max_rows, len(data))
+
+        data = (
+            data
+            .query(f'`mean` > {min_connectivity}')
+            .sort_values(by="mean", ascending=False)
+            .rename_axis('Target regions')
+        )[:last_index]
+
+        return Tabular(
+            description=self.description,
+            modality=f"{self.modality} {self.cohort}",
+            anchor=_anchor.AnatomicalAnchor(
+                species=list(self.anchor.species)[0],
+                region=region
+            ),
+            data=data,
+            datasets=self.datasets
+        )
 
     def plot(
         self,
@@ -336,8 +350,8 @@ class RegionalConnectivity(Feature, Compoundable):
         profile = self.get_profile(regions, min_connectivity, max_rows, direction)
         kwargs["kind"] = kwargs.get("kind", "barh")
         if backend == "matplotlib":
-            kwargs["logx"] = kwargs.get("logx", logscale)
-            return profile.data.plot(*args, backend=backend, **kwargs)
+            kwargs["logy"] = kwargs.get("logy", logscale)
+            return profile.plot(*args, backend=backend, **kwargs)
         elif backend == "plotly":
             kwargs.update({
                 "color": kwargs.get("color", profile.data.columns[0]),

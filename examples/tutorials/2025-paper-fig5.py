@@ -151,4 +151,4 @@ ax.scatter(X, Z, c=patch_probs, s=10)
 X, _, Z = patch.profile.coordinates.T
 ax.plot(X, Z, "r-", lw=2)
 
-# sphinx_gallery_thumbnail_number = -2
+# sphinx_gallery_thumbnail_number = -1

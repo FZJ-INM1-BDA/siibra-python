@@ -22,6 +22,7 @@ import numpy as np
 
 from . import query as _query
 from ..core import structure
+from ..core.region import Region
 from ..features import anchor as _anchor
 from ..features.tabular.gene_expression import GeneExpressions
 from ..commons import logger, Species
@@ -173,6 +174,8 @@ class AllenBrainAtlasQuery(_query.LiveQuery, args=['gene'], FeatureType=GeneExpr
             explanation=explanation
         )]
         anchor._last_matched_concept = concept
+        if isinstance(concept, Region):
+            anchor._regionspec = concept.name
 
         return [GeneExpressions(
             anchor=anchor,

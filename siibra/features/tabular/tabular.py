@@ -106,7 +106,7 @@ class Tabular(feature.Feature):
             )
             kwargs["grid"] = kwargs.get("grid", True)
             kwargs["legend"] = kwargs.get("legend", False)
-            xticklabel_rotation = kwargs.get("xticklabel_rotation", 60)
+            xticklabel_rotation = kwargs.get("rot", 60)
             ax = self.data.plot(*args, backend=backend, **kwargs)
             ax.set_title(ax.get_title(), fontsize="medium")
             ax.set_xticklabels(
