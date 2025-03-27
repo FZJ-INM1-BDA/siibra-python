@@ -173,7 +173,7 @@ for n, a in all_assignments.iterrows():
 # Find features
 # ^^^^^^^^^^^^^
 #
-# To demonstrate multimodal feature profiling, we only choose the first connected region.
+# To demonstrate multimodal feature profiling, we choose one of the connected regions.
 selected_region = siibra.get_region("julich 3.0.3", "Area hOc1 (V1, 17, CalcS) left")
 
 # %%
@@ -183,7 +183,7 @@ print(receptor_fingerprints.urls)
 receptor_fingerprints.plot()
 
 # %%
-# Now, query for gene expresssions for the same region
+# Now, query for gene expressions for the same region
 genes = ["gabarapl1", "gabarapl2", "maoa", "tac1"]
 gene_expressions = siibra.features.get(selected_region, "gene expressions", gene=genes)[0]
 gene_expressions.plot()
@@ -203,7 +203,7 @@ print(conn.urls)
 
 
 def shorten_name(region):
-    # to simplify readibility
+    # to simplify readability
     return (
         region.replace("Area ", "")
         .replace(" (GapMap)", "")
