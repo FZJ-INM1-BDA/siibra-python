@@ -92,7 +92,13 @@ for i, region in enumerate(regions):
 # For each of the two brain areas, collect functional connectivity profiles referring to
 # temporal correlation of fMRI timeseries of several hundred subjects from the Human Connectome
 # Project. We show the strongest connections per brain area for the average connectivity patterns
-conn = siibra.features.get(regions[0], "functional connectivity")[1]
+fts = siibra.features.get(jubrain, "functional connectivity")
+for cf in fts:
+    if cf.cohort != "HCP":
+        continue
+    if cf.paradigm == "Resting state (EmpCorrFC concatenated)":
+        conn = cf
+        break
 print(conn.urls)  # TODO: add publication to conn json
 
 
