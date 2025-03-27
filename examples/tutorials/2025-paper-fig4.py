@@ -120,6 +120,7 @@ plotkwargs = {
     "xlabel": "",
     "ylabel": "temporal correlation",
     "rot": 90,
+    "ylim": (0.3, 1.1)
 }
 fig, axs = plt.subplots(1, len(regions), sharey=True)
 for i, region in enumerate(regions):
