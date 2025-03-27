@@ -58,7 +58,7 @@ for r in regions:
 
 # %%
 # For each of the two brain areas, query for layer-specific distributions of cell bodies.
-fig, axs = plt.subplots(1, len(regions))
+fig, axs = plt.subplots(1, len(regions), sharey=True)
 for i, region in enumerate(regions):
     layerwsise_cellbody_densities = siibra.features.get(region, "layerwise cell density")
     layerwsise_cellbody_densities[-1].plot(ax=axs[i])  # TODO: fix hoc1 and hoc2 issue
@@ -69,7 +69,7 @@ for i, region in enumerate(regions):
 # Next, retrieve average densities of a selection of monogenetic
 # neurotransmitter receptors.
 receptors = ["M1", "M2", "M3", "D1", "5-HT1A", "5-HT2"]
-fig, axs = plt.subplots(1, len(regions))
+fig, axs = plt.subplots(1, len(regions), sharey=True)
 for i, region in enumerate(regions):
     receptor_fingerprints = siibra.features.get(region, "receptor density fingerprint")
     receptor_fingerprints[0].plot(receptors=receptors, ax=axs[i])
@@ -82,7 +82,7 @@ for i, region in enumerate(regions):
 # Now, for further insight, query for expressions of a selection of genes coding
 # for these receptors.
 genes = ["CHRM1", "CHRM2", "CHRM3", "HTR1A", "HTR2A", "DRD1"]
-fig, axs = plt.subplots(1, len(regions))
+fig, axs = plt.subplots(1, len(regions), sharey=True)
 for i, region in enumerate(regions):
     gene_expressions = siibra.features.get(region, "gene expressions", gene=genes)
     gene_expressions[0].plot(ax=axs[i])
@@ -114,7 +114,7 @@ plotkwargs = {
     "ylabel": "temporal correlation",
     "rot": 90,
 }
-fig, axs = plt.subplots(1, len(regions))
+fig, axs = plt.subplots(1, len(regions), sharey=True)
 for i, region in enumerate(regions):
     plotkwargs["ax"] = axs[i]
     conn.plot(region, max_rows=17, **plotkwargs)
@@ -129,7 +129,7 @@ plt.suptitle("Functional Connectivity")
 # The image patches display clearly the differences in laminar structure of the two regions
 
 selected_sections = [4950, 1345]
-fig, axs = plt.subplots(1, len(regions))
+fig, axs = plt.subplots(1, len(regions), sharey=True)
 for r, sn, ax in zip(regions, selected_sections, axs):
     # find 1 micron sections intersecting the region
     pmap = pmaps.get_volume(r)
