@@ -61,8 +61,8 @@ for r in regions:
 fig, axs = plt.subplots(1, len(regions), sharey=True)
 for i, region in enumerate(regions):
     layerwsise_cellbody_densities = siibra.features.get(region, "layerwise cell density")
-    layerwsise_cellbody_densities[-1].plot(ax=axs[i])  # TODO: fix hoc1 and hoc2 issue
-    print(layerwsise_cellbody_densities[-1].urls)
+    layerwsise_cellbody_densities[0].plot(ax=axs[i])
+    print(layerwsise_cellbody_densities[0].urls)
     axs[i].set_ylim(0, 150)
 
 # %%
