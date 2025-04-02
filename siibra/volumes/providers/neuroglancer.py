@@ -21,8 +21,10 @@ import json
 import numpy as np
 import nibabel as nib
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset, PrecomputedIO
+from neuroglancer_scripts.accessor import DataAccessError
 from neuroglancer_scripts.http_accessor import HttpAccessor
 from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
+from nilearn.image.resampling import BoundingBoxError
 
 from . import provider as _provider
 from ...retrieval import requests, cache
@@ -205,27 +207,29 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
         **kwargs
     ) -> nib.Nifti1Image:
         with QUIET:
-            bbox = self.get_boundingbox(
+            bbox = voi if voi is not None else self.get_boundingbox(
                 clip=False,
                 background=0,
                 resolution_mm=resolution_mm,
-                voi=voi
             )
 
         num_conflicts = 0
         result = None
-        for frag_vol in self._fragments.values():
+        for frag_name, frag_vol in self._fragments.items():
             frag_scale = frag_vol._select_scale(
                 resolution_mm=resolution_mm,
                 bbox=voi,
                 max_bytes=kwargs.pop("maxbytes", NeuroglancerVolume.MAX_BYTES)
             )
             img = frag_scale.fetch(voi=voi)
+            if img is None:
+                logger.info(f"Fragment {frag_name} did not provide content for fetching.")
+                continue
             if result is None:
                 # build the empty result image with its own affine and voxel space
-                s0 = np.identity(4)
-                s0[:3, -1] = list(bbox.minpoint.transform(np.linalg.inv(img.affine)))
-                result_affine = np.dot(img.affine, s0)  # adjust global bounding box offset to get global affine
+                transl = np.identity(4)
+                transl[:3, -1] = list(bbox.minpoint.transform(np.linalg.inv(img.affine)))
+                result_affine = np.dot(img.affine, transl)  # adjust global bounding box offset to get global affine
                 voxdims = np.asanyarray(np.ceil(
                     bbox.transform(np.linalg.inv(result_affine)).shape  # transform to the voxel space
                 ), dtype="int")
@@ -233,7 +237,11 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
                 result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine)
 
             # resample to merge template and update it
-            resampled_img = resample_img_to_img(source_img=img, target_img=result)
+            try:
+                resampled_img = resample_img_to_img(source_img=img, target_img=result)
+            except BoundingBoxError:
+                logger.debug(f"Skipping fragment {frag_name} due to bounding box error")
+                continue
             arr = np.asanyarray(resampled_img.dataobj)
             nonzero_voxels = arr != 0
             num_conflicts += np.count_nonzero(result_arr[nonzero_voxels])
@@ -255,8 +263,6 @@ class NeuroglancerVolume:
     MAX_BYTES = SIIBRA_MAX_FETCH_SIZE_GIB * 1024 ** 3  # Number of bytes at which an image array is considered to large to fetch
 
     def __init__(self, url: str):
-        # TODO do we still need VolumeProvider.__init__ ? given it's not a subclass of VolumeProvider?
-        _provider.VolumeProvider.__init__(self)
         assert isinstance(url, str)
         self.url = url
         self._scales_cached = None
@@ -537,16 +543,24 @@ class NeuroglancerScale:
 
         # create requested data volume, and fill it with the required chunk data
         shape_zyx = np.array([gz1 - gz0, gy1 - gy0, gx1 - gx0]) * self.chunk_sizes[::-1]
-        data_zyx = np.zeros(shape_zyx, dtype=self.volume.dtype)
+        data_zyx = None
         for gx in range(gx0, gx1):
             x0 = (gx - gx0) * self.chunk_sizes[0]
             for gy in range(gy0, gy1):
                 y0 = (gy - gy0) * self.chunk_sizes[1]
                 for gz in range(gz0, gz1):
+                    try:
+                        chunk = self._read_chunk(gx, gy, gz, kwargs.get("channel"))
+                    except DataAccessError:
+                        continue
+                    if data_zyx is None:
+                        data_zyx = np.zeros(shape_zyx, dtype=self.volume.dtype)
                     z0 = (gz - gz0) * self.chunk_sizes[2]
-                    chunk = self._read_chunk(gx, gy, gz, kwargs.get("channel"))
                     z1, y1, x1 = np.array([z0, y0, x0]) + chunk.shape
                     data_zyx[z0:z1, y0:y1, x0:x1] = chunk
+
+        if data_zyx is None:
+            return None
 
         # determine the remaining offset from the "chunk mosaic" to the
         # exact bounding box requested, to cut off undesired borders
