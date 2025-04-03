@@ -37,7 +37,6 @@ the full resolution image data for the identified cortical patch from the underl
 # %%
 from nilearn import plotting
 import matplotlib.pyplot as plt
-import numpy as np
 import siibra
 
 assert siibra.__version__ >= "1.0.1"
@@ -67,9 +66,7 @@ patch = patches[0]
 # siibra samples the patch in upright position, but keeps its
 # original orientation in the affine transformation encoded in the NIfTI.
 # Let's first plot the pure voxel data of the patch to see that.
-plt.imshow(
-    patch.fetch().get_fdata().squeeze(), cmap='gray'
-)
+plt.imshow(patch.fetch().get_fdata().squeeze(), cmap='gray')
 
 # %%
 # To understand where and how siibra actually sampled this patch,
@@ -88,15 +85,18 @@ roi = patch_locations.boundingbox.zoom(1.5)
 
 # fetch the section at reduced resolution for plotting.
 section_img = patch.section.fetch(resolution_mm=0.2)
+fig = plt.figure(figsize=(6, 5))
 display = plotting.plot_img(
-    section_img, display_mode="y", cmap='gray', annotate=False,
+    section_img,
+    display_mode="y",
+    cmap='gray',
+    annotate=False,
+    title=f"BigBrain section #{patch.bigbrain_section}",
+    figure=fig,
 )
-display.title(f"BigBrain section #{patch.bigbrain_section}", size=8)
-
 # Annotate the region of interest bounding box
-ax = list(display.axes.values())[0].ax
 (x, w), _, (z, d) = zip(roi.minpoint, roi.shape)
-ax.add_patch(plt.Rectangle((x, z), w, d, ec='k', fc='none', lw=1))
+fig.axes[1].add_patch(plt.Rectangle((x, z), w, d, ec='k', fc='none', lw=1))
 
 
 # %%
@@ -111,9 +111,11 @@ for dim, size in enumerate(roi.shape):
         roi.maxpoint[dim] = patch.get_boundingbox().maxpoint[dim]
 
 # Fetch the region of interest from the section, and plot it.
+fig = plt.figure(figsize=(6, 5))
 roi_img = patch.section.fetch(voi=roi, resolution_mm=-1)
-display = plotting.plot_img(roi_img, display_mode="y", cmap='gray', annotate=False)
-ax = list(display.axes.values())[0].ax
+display = plotting.plot_img(
+    roi_img, display_mode="y", cmap='gray', annotate=False, figure=fig
+)
 
 # Intersect cortical layer surfaces with the image plane
 plane = siibra.Plane.from_image(patch)
@@ -129,26 +131,27 @@ for layername, contours in layer_contours.items():
     layercolor = layermap.get_colormap().colors[layermap.get_index(layername).label]
     for contour in contours:
         for segment in contour.crop(roi):
-            X, _, Z = segment.coordinates.T
-            ax.plot(X, Z, "-", ms=4, color=layercolor)
+            fig.axes[1].plot(
+                segment.coordinates.T[0, :], segment.coordinates.T[2, :],
+                "-", ms=4, color=layercolor
+            )
 
 # %%
 # Plot the region of interest again, this time with the cortical profile that
 # defined the patch, as well as other candidate patch's locations
 # with their relevance scores, ie. probabilities.
-display = plotting.plot_img(roi_img, display_mode="y", cmap='gray', annotate=False)
-ax = list(display.axes.values())[0].ax
+fig = plt.figure(figsize=(6, 5))
+display = plotting.plot_img(
+    roi_img, display_mode="y", cmap='gray', annotate=False, figure=fig
+)
 
 # Concatenate all coordinates of the layer 4 intersected contours.
 layer = "cortical layer 4 right"
-XYZ = np.vstack([c.coordinates for c in layer_contours[layer]])
-layerpoints = siibra.PointCloud(XYZ, space='bigbrain')
+layerpoints = siibra.PointCloud.union(*[c for c in layer_contours[layer]])
 patch_probs = region_map.evaluate_points(layerpoints)
-X, _, Z = layerpoints.coordinates.T
-ax.scatter(X, Z, c=patch_probs, s=10)
+fig.axes[1].scatter(layerpoints.coordinates.T[0, :], layerpoints.coordinates.T[2, :], c=patch_probs, s=10)
 
 # plot the cortical profile in red
-X, _, Z = patch.profile.coordinates.T
-ax.plot(X, Z, "r-", lw=2)
+fig.axes[1].plot(patch.profile.coordinates.T[0, :], patch.profile.coordinates.T[2, :], "r-", lw=2)
 
 # sphinx_gallery_thumbnail_number = -1

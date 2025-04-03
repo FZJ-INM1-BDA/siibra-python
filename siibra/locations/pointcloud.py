@@ -358,7 +358,7 @@ class Contour(PointCloud):
     def __init__(self, coordinates, space=None, sigma_mm=0, labels: list = None):
         PointCloud.__init__(self, coordinates, space, sigma_mm, labels)
 
-    def crop(self, voi: "_boundingbox.BoundingBox"):
+    def crop(self, voi: "_boundingbox.BoundingBox") -> List["Contour"]:
         """
         Crop the contour with a volume of interest.
         Since the contour might be split from the cropping,
