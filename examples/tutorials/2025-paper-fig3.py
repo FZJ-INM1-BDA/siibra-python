@@ -205,7 +205,7 @@ conn.plot(selected_region, ax=axs, max_rows=15, kind="bar", rot=50, width=0.7)
 axs.set_ylabel(
     f"{conn.modality}: Mean \u00b1 std in {len(conn.elements)} {conn.indexing_attributes[0]}s", 
     wrap=True)
-axs.xaxis.set_ticklabels([shorten_name(t.get_text()) for t in ax.xaxis.get_majorticklabels()])
+axs.xaxis.set_ticklabels([shorten_name(t.get_text()) for t in axs.xaxis.get_majorticklabels()])
 plt.grid(True, 'minor')
 plt.title(f"Connectivity for {selected_region.name}")
 
