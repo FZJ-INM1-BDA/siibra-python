@@ -15,8 +15,8 @@
 
 import numpy as np
 import pandas as pd
+from textwrap import wrap
 
-from . import cortical_profile
 from . import tabular, cell_reader, layer_reader
 from .. import anchor as _anchor
 from ... import commons
@@ -57,13 +57,13 @@ class LayerwiseCellDensity(
             id=id,
             prerelease=prerelease,
         )
-        self.unit = "# detected cells/0.1mm3"
+        self.unit = "# detected cells / $0.1mm^3$"
         self._filepairs = list(zip(segmentfiles, layerfiles))
         self._densities = None
 
     def _load_densities(self):
-        density_dict = {}
-        for i, (cellfile, layerfile) in enumerate(self._filepairs):
+        data = []
+        for cellfile, layerfile in self._filepairs:
             try:
                 cells = requests.HttpRequest(cellfile, func=cell_reader).data
                 layers = requests.HttpRequest(layerfile, func=layer_reader).data
@@ -72,22 +72,68 @@ class LayerwiseCellDensity(
                 commons.logger.error(f"Skipping to bootstrap a {self.__class__.__name__} feature, cannot access file resource.")
                 continue
             counts = cells.layer.value_counts()
-            areas = layers["Area(micron**2)"]
-            indices = np.intersect1d(areas.index, counts.index)
-            density_dict[i] = counts[indices] / areas * 100 ** 2 * 5
-        return pd.DataFrame(density_dict)
+            shrinkage_axial = np.cbrt(1.931)
+            areas = layers["Area(micron**2)"] / 100 ** 2 / 5 * shrinkage_axial
+            fields = cellfile.split("/")
+            for layer in areas.index:
+                data.append({
+                    'layer': layer,
+                    'layername': layers["Name"].loc[layer],
+                    'counts': counts.loc[layer],
+                    'area': areas.loc[layer],
+                    'density': counts.loc[layer] / areas.loc[layer],
+                    'regionspec': fields[-5],
+                    'section': int(fields[-3]),
+                    'patch': int(fields[-2]),
+                })
+        return pd.DataFrame(data)
 
     @property
     def data(self):
         if self._data_cached is None:
-            densities = self._load_densities()
-            self._data_cached = pd.DataFrame(
-                np.array([
-                    list(densities.mean(axis=1)),
-                    list(densities.std(axis=1))
-                ]).T,
-                columns=['mean', 'std'],
-                index=[cortical_profile.CorticalProfile.LAYERS[_] for _ in densities.index]
-            )
-            self._data_cached.index.name = 'layer'
+            self._data_cached = self._load_densities()
+            # self._data_cached.index.name = 'layer'
         return self._data_cached
+
+    def plot(self, *args, backend="matplotlib", **kwargs):
+        wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
+        kwargs["title"] = kwargs.pop(
+            "title",
+            "\n".join(wrap(
+                f"{self.modality} in {self.anchor._regionspec or self.anchor.location}",
+                wrapwidth
+            ))
+        )
+        kwargs["kind"] = kwargs.get("kind", "box")
+        kwargs["ylabel"] = kwargs.get(
+            "ylabel",
+            f"\n{self.unit}" if hasattr(self, 'unit') else ""
+        )
+        if backend == "matplotlib":
+            if kwargs["kind"] == "box":
+                from matplotlib.pyplot import tight_layout, scatter
+                title = kwargs.pop("title")
+                default_kwargs = {
+                    "grid": True,
+                    'by': "layername",
+                    'column': ['density'],
+                    'showfliers': False,
+                    'xlabel': 'layer',
+                    'color': 'dimgray',
+                }
+                ax, *_ = self.data.plot(*args, backend=backend, **{**default_kwargs, **kwargs})
+                for i, (layer, d) in enumerate(self.data.groupby('layername')):
+                    scatter(
+                        np.random.normal(i + 1, 0.05, len(d.density)),
+                        d.density,
+                        c='b', s=3
+                    )
+                ax.set_title(title)
+                tight_layout()
+                return ax
+            return self.data.plot(*args, backend=backend, **kwargs)
+        elif backend == "plotly":
+            kwargs["title"] = kwargs["title"].replace('\n', "<br>")
+            return self.data.plot(y='density', x='layer', backend=backend, **kwargs)
+        else:
+            return self.data.plot(*args, backend=backend, **kwargs)

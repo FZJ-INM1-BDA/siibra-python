@@ -260,6 +260,7 @@ class GeneExpressions(
                     'showfliers': False,
                     'ylabel': 'expression level',
                     'xlabel': 'gene',
+                    'color': 'dimgray',
                     'rot': 90 if len(self._genes) > 1 else 0,
                 }
                 ax, *_ = self.data.plot(*args, backend=backend, **{**default_kwargs, **kwargs})
