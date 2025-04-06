@@ -134,11 +134,11 @@ for cl in clusterlabels:
     with siibra.QUIET:
         df = pmaps.assign(clustermap)
     df.query(f"correlation >= {min_correlation}", engine="python", inplace=True)
-    df['cluster'] = cl
-    assignments.append(df[["cluster", "region", "correlation", "map value"]])
+    df['id'] = cl
+    assignments.append(df[["id", "region", "correlation", "map value"]])
 
 all_assignments = pd.concat(assignments).sort_values(by="correlation", ascending=False)
-all_assignments[:9]
+all_assignments[:9].round(2)
 
 # %%
 # plot the three primary assigned probability maps
