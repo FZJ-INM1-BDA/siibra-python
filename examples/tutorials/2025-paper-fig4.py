@@ -58,35 +58,40 @@ for r in regions:
 
 # %%
 # For each of the two brain areas, query for layer-specific distributions of cell bodies.
-fig, axs = plt.subplots(1, len(regions), sharey=True)
+fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(8, 2.7))
 for i, region in enumerate(regions):
-    layerwsise_cellbody_densities = siibra.features.get(region, "layerwise cell density")
-    layerwsise_cellbody_densities[0].plot(ax=axs[i])
-    print(layerwsise_cellbody_densities[0].urls)
-    axs[i].set_ylim(0, 150)
+    layerwise_cellbody_densities = siibra.features.get(region, "layerwise cell density")
+    layerwise_cellbody_densities[0].plot(ax=axs[i])
+    print(layerwise_cellbody_densities[0].urls)
+    axs[i].set_ylim(25, 115)
 
 # %%
 # Next, retrieve average densities of a selection of monogenetic
 # neurotransmitter receptors.
-receptors = ["M1", "M2", "M3", "D1", "5-HT1A", "5-HT2"]
-fig, axs = plt.subplots(1, len(regions), sharey=True)
+receptors = ["M1", "M2", "M3",  "5-HT1A", "5-HT2", "D1"]
+fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(8, 3.5))
 for i, region in enumerate(regions):
     receptor_fingerprints = siibra.features.get(region, "receptor density fingerprint")
     receptor_fingerprints[0].plot(receptors=receptors, ax=axs[i])
     print(receptor_fingerprints[0].urls)
     axs[i].set_ylim(0, 1000)
-    transmitters = [re.sub(r"(^.*\()|(\))", "", n) for n in receptor_fingerprints[0].neurotransmitters]
+    axs[i].title.set_size(12)
+    transmitters = [
+        siibra.vocabularies.RECEPTOR_SYMBOLS[r]['neurotransmitter']['name']
+        for r in receptors
+    ]
     axs[i].set_xticklabels([f"{r}\n({n})" for r, n in zip(receptors, transmitters)])
 
 # %%
 # Now, for further insight, query for expressions of a selection of genes coding
 # for these receptors.
 genes = ["CHRM1", "CHRM2", "CHRM3", "HTR1A", "HTR2A", "DRD1"]
-fig, axs = plt.subplots(1, len(regions), sharey=True)
+fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(7, 3))
 for i, region in enumerate(regions):
     gene_expressions = siibra.features.get(region, "gene expressions", gene=genes)
     assert len(gene_expressions) == 1
     gene_expressions[0].plot(ax=axs[i])
+    axs[i].title.set_size(11)
     print(gene_expressions[0].urls)
 
 # %%
@@ -120,14 +125,15 @@ plotkwargs = {
     "xlabel": "",
     "ylabel": "temporal correlation",
     "rot": 90,
-    "ylim": (0.3, 1.1)
+    "ylim": (0.3, 1.1),
+    "capsize": 2,
 }
-fig, axs = plt.subplots(1, len(regions), sharey=True)
+fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(7, 4.5))
 for i, region in enumerate(regions):
     plotkwargs["ax"] = axs[i]
     conn.plot(region, max_rows=17, **plotkwargs)
     axs[i].xaxis.set_ticklabels([shorten_name(t.get_text()) for t in axs[i].xaxis.get_majorticklabels()])
-    axs[i].set_title(region.name.replace("Area ", ""))
+    axs[i].set_title(region.name.replace("Area ", ""), fontsize=8)
     axs[i].grid(True, 'minor')
 plt.suptitle("Functional Connectivity")
 

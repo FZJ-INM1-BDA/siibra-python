@@ -123,7 +123,7 @@ class LayerwiseCellDensity(
                 }
                 ax, *_ = self.data.plot(*args, backend=backend, **{**default_kwargs, **kwargs})
                 for i, (layer, d) in enumerate(self.data.groupby('layername')):
-                    scatter(
+                    ax.scatter(
                         np.random.normal(i + 1, 0.05, len(d.density)),
                         d.density,
                         c='b', s=3
