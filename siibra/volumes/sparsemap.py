@@ -373,6 +373,7 @@ class SparseMap(parcellationmap.Map):
                 target_shape=self.shape,
                 interpolation=interp,
                 force_resample=True,
+                copy_header=True
             )
             querydata = np.asanyarray(queryimg.dataobj).squeeze()
 
