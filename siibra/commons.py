@@ -540,6 +540,7 @@ def resample_img_to_img(
         target_img=target_img,
         interpolation=interpolation,
         force_resample=True,  # False is intended for testing. see nilearn docs
+        copy_header=True  # use new nilearn behavior in older versions
     )
     return resampled_img
 
