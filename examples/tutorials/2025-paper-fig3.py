@@ -134,10 +134,11 @@ for cl in clusterlabels:
     with siibra.QUIET:
         df = pmaps.assign(clustermap)
     df.query(f"correlation >= {min_correlation}", engine="python", inplace=True)
-    assignments.append(df[["region", "correlation", "map value"]])
+    df['cluster'] = cl
+    assignments.append(df[["cluster", "region", "correlation", "map value"]])
 
 all_assignments = pd.concat(assignments).sort_values(by="correlation", ascending=False)
-all_assignments
+all_assignments[:9]
 
 # %%
 # plot the three primary assigned probability maps
@@ -203,7 +204,7 @@ def shorten_name(region):
 fig, axs = plt.subplots(1, 1, figsize=(4, 4.5))
 conn.plot(selected_region, ax=axs, max_rows=15, kind="bar", rot=50, width=0.7)
 axs.set_ylabel(
-    f"{conn.modality}: Mean \u00b1 std in {len(conn.elements)} {conn.indexing_attributes[0]}s", 
+    f"Mean of {conn.modality} \u00b1 std in {len(conn.elements)} {conn.indexing_attributes[0]}s", 
     wrap=True)
 axs.xaxis.set_ticklabels([shorten_name(t.get_text()) for t in axs.xaxis.get_majorticklabels()])
 plt.grid(True, 'minor')
