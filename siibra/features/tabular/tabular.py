@@ -113,10 +113,7 @@ class Tabular(feature.Feature):
             kwargs["color"] = kwargs.get('color', 'darkgrey')
 
             xticklabel_rotation = kwargs.get("rot", 60)
-            print(args)
-            print(kwargs)
             ax = self.data.plot(*args, backend=backend, **kwargs)
-            print("sind durch!")
             ax.set_title(ax.get_title(), fontsize="medium")
             ax.set_xticklabels(
                 ax.get_xticklabels(),

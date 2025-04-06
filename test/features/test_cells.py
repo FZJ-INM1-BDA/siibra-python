@@ -30,9 +30,9 @@ class TestCorticalCellDistribution(unittest.TestCase):
         )
         assert len(features) > 0
         feature = features[0]
-        layer_density = feature.data["mean"]["I"]
+        layer_density = feature.data[feature.data["layername"] == "I"]["density"]
         assert layer_density is not None
-        layer_density = feature.data["mean"]["VI"]
+        layer_density = feature.data[feature.data["layername"] == "VI"]["density"]
         assert layer_density is not None
 
 
