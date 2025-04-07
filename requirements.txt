@@ -4,7 +4,7 @@ appdirs
 scikit-image
 requests
 neuroglancer-scripts
-nilearn>=0.11.0
+nilearn
 typing-extensions; python_version < "3.8"
 filelock
 ebrains-drive >= 0.6.0
