@@ -83,7 +83,7 @@ class SearchResult(Generic[T]):
     def build_summary_table(items: List[T]):
         """
         Returns a dataframe where user can inspect/evaluate how to further narrow down
-        the search result. Similar to AttributeCollection.data_recipe_table.
+        the search result. Similar to AttributeCollection.data_recipes_table.
 
         The returned dataframe, even if items were an empty list, would contain columns:
         - name

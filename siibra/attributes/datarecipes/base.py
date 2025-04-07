@@ -123,9 +123,10 @@ class DataRecipe(Attribute):
     def ops(self, value):
         raise RuntimeError("Please use reconfigure instance method")
 
-    def describe(self):
-        description = describe_operations(self.ops, detail=True)
-        return description
+    @property
+    def readme(self):
+        readme = describe_operations(self.ops, detail=True)
+        return readme
 
     def get_parameters(self, *arg, **kwargs):
         import pandas as pd
