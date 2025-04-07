@@ -188,8 +188,8 @@ cell_densities[0].plot(ax=axs)
 # %%
 # Lastly, we can obtain the regional profile of streamline count type
 # parcellation-based connectivity matrices
-connectivity_profiles = siibra.features.get(selected_region, "StreamlineCounts")
-conn = connectivity_profiles[0]
+connectivity_matrices = siibra.features.get(selected_region, "StreamlineCounts")
+conn = connectivity_matrices[0].get_element("000")  # select the first set of matrices and the first subject
 print("\n".join(conn.urls))
 
 
