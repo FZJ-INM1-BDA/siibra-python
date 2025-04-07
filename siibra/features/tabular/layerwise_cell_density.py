@@ -37,6 +37,7 @@ class LayerwiseCellDensity(
         "detected cells in that layer with the area covered by the layer. Therefore, each profile contains 6 measurement points. "
         "The cortical depth is estimated from the measured layer thicknesses."
     )
+    BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR = 1.931
 
     def __init__(
         self,
@@ -72,7 +73,7 @@ class LayerwiseCellDensity(
                 commons.logger.error(f"Skipping to bootstrap a {self.__class__.__name__} feature, cannot access file resource.")
                 continue
             counts = cells.layer.value_counts()
-            shrinkage_axial = np.cbrt(1.931)
+            shrinkage_axial = np.cbrt(self.BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR)
             areas = layers["Area(micron**2)"] / 100 ** 2 / 5 * shrinkage_axial
             fields = cellfile.split("/")
             for layer in areas.index:
