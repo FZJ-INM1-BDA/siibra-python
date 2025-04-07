@@ -111,7 +111,8 @@ class LayerwiseCellDensity(
         )
         if backend == "matplotlib":
             if kwargs["kind"] == "box":
-                from matplotlib.pyplot import tight_layout, scatter
+                from matplotlib.pyplot import tight_layout
+
                 title = kwargs.pop("title")
                 default_kwargs = {
                     "grid": True,

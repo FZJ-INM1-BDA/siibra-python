@@ -166,7 +166,7 @@ receptor_fingerprints = siibra.features.get(selected_region, "receptor density f
 fp = receptor_fingerprints[0]
 print("\n".join(fp.urls))
 fig, axs = plt.subplots(1, 1, figsize=(4, 3.2))
-fp.plot(ax=axs, capsize=4);
+fp.plot(ax=axs, capsize=4)
 
 
 # %%
@@ -175,7 +175,7 @@ genes = ["gabarapl1", "gabarapl2", "maoa", "tac1"]
 gene_expressions = siibra.features.get(selected_region, "gene expressions", gene=genes)
 print("\n".join(gene_expressions[0].urls))
 fig, axs = plt.subplots(1, 1, figsize=(4, 3.5))
-gene_expressions[0].plot(ax=axs);
+gene_expressions[0].plot(ax=axs)
 
 
 # %%
