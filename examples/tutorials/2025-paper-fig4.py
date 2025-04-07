@@ -23,7 +23,6 @@ The tutorial shows how maps and mutimodal regional measurements are obtained usi
 # %%
 import matplotlib.pyplot as plt
 from nilearn import plotting
-import re
 import seaborn as sns
 import siibra
 
@@ -68,7 +67,7 @@ for i, region in enumerate(regions):
 # %%
 # Next, retrieve average densities of a selection of monogenetic
 # neurotransmitter receptors.
-receptors = ["M1", "M2", "M3",  "5-HT1A", "5-HT2", "D1"]
+receptors = ["M1", "M2", "M3", "5-HT1A", "5-HT2", "D1"]
 fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(8, 3.5))
 for i, region in enumerate(regions):
     receptor_fingerprints = siibra.features.get(region, "receptor density fingerprint")
