@@ -360,8 +360,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     "Map provides multiple volumes and no specification is"
                     " provided. Resampling all volumes to the space."
                 )
-                merged_volume = _volume.merge(self.volumes, labels, **kwargs)
                 labels = list(range(1, len(self.volumes) + 1))
+                merged_volume = _volume.ReducedVolume(self.volumes, labels)
                 return merged_volume
             else:
                 raise exceptions.NoVolumeFound("Map provides no volumes.")
