@@ -82,7 +82,7 @@ These examples use real data and include both the code and the produced expected
 They can be accessed at https://siibra-python.readthedocs.io/en/latest/examples.html, and are
 automatically tested and updated whenever a new version of ``siibra-python`` is published.
 As a new user, it is recommended to go through these examples - they are easy and will quickly provide you with the right code snippets that get you started.
-The documentation on readthedocs further includes introductory explanations and an API documenation.
+The documentation on readthedocs further includes introductory explanations and an API reference.
 
 If you run into issues, please open a ticket on `EBRAINS support <https://ebrains.eu/support/>`__ or file bugs and
 feature requests on `github <https://github.com/FZJ-INM1-BDA/siibra-python/issues>`__.
