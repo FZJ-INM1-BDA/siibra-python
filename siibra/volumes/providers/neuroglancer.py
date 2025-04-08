@@ -207,11 +207,10 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
         **kwargs
     ) -> nib.Nifti1Image:
         with QUIET:
-            bbox = voi if voi is not None else self.get_boundingbox(
-                clip=False,
-                background=0,
-                resolution_mm=resolution_mm,
-            )
+            if voi is not None:
+                bbox = voi
+            else:
+                bbox = self.get_boundingbox(clip=False, background=0, resolution_mm=resolution_mm)
 
         num_conflicts = 0
         result = None
@@ -223,7 +222,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             )
             img = frag_scale.fetch(voi=voi)
             if img is None:
-                logger.info(f"Fragment {frag_name} did not provide content for fetching.")
+                logger.debug(f"Fragment {frag_name} did not provide content for fetching.")
                 continue
             if result is None:
                 # build the empty result image with its own affine and voxel space
@@ -240,7 +239,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             try:
                 resampled_img = resample_img_to_img(source_img=img, target_img=result)
             except BoundingBoxError:
-                logger.debug(f"Skipping fragment {frag_name} due to bounding box error")
+                logger.debug(f"Bounding box outside the fragment {frag_name}.")
                 continue
             arr = np.asanyarray(resampled_img.dataobj)
             nonzero_voxels = arr != 0
@@ -552,6 +551,7 @@ class NeuroglancerScale:
                     try:
                         chunk = self._read_chunk(gx, gy, gz, kwargs.get("channel"))
                     except DataAccessError:
+                        logger.debug(f"voi: {voi}", exc_info=1)
                         continue
                     if data_zyx is None:
                         data_zyx = np.zeros(shape_zyx, dtype=self.volume.dtype)
@@ -559,6 +559,7 @@ class NeuroglancerScale:
                     z1, y1, x1 = np.array([z0, y0, x0]) + chunk.shape
                     data_zyx[z0:z1, y0:y1, x0:x1] = chunk
 
+        # no voxel values in voi
         if data_zyx is None:
             return None
 
