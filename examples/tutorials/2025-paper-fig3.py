@@ -182,15 +182,15 @@ gene_expressions[0].plot(ax=axs)
 # We can next obtain cell body density values for this region
 cell_densities = siibra.features.get(selected_region, "LayerwiseCellDensity")
 print("\n".join(cell_densities[0].urls))
-fig, axs = plt.subplots(1, 1, figsize=(4, 3.2))
-cell_densities[0].plot(ax=axs)
+fig, axs = plt.subplots(1, 1, figsize=(4, 2.8))
+cell_densities[0].plot(ax=axs, textwrap=30)
+# axs.set_title(axs.get_title().replace("in", "\n"))
 
 # %%
 # Lastly, we can obtain the regional profile of streamline count type
 # parcellation-based connectivity matrices
 connectivity_matrices = siibra.features.get(selected_region, "StreamlineCounts")
 conn = connectivity_matrices[0]  # select the first set of matrices
-conn0 = conn.get_element("000")  # select the first subject
 print("\n".join(conn.urls))
 
 
@@ -205,10 +205,9 @@ def shorten_name(region):
 
 
 fig, axs = plt.subplots(1, 1, figsize=(4, 4.5))
-conn0.plot(selected_region, ax=axs, max_rows=15, kind="bar", rot=50, width=0.7)
+conn.plot(selected_region, ax=axs, max_rows=15, kind="bar", rot=50, width=0.7)
 axs.set_ylabel(
-    f"{conn0.modality} for {conn.indexing_attributes[0]} {conn0.subject}",
-    wrap=True
+    f"Mean of {conn.modality} \u00b1 std \n in {len(conn.elements)} {conn.indexing_attributes[0]}s"
 )
 axs.xaxis.set_ticklabels([shorten_name(t.get_text()) for t in axs.xaxis.get_majorticklabels()])
 plt.grid(True, 'minor')

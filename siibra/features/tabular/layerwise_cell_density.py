@@ -73,16 +73,24 @@ class LayerwiseCellDensity(
                 commons.logger.error(f"Skipping to bootstrap a {self.__class__.__name__} feature, cannot access file resource.")
                 continue
             counts = cells.layer.value_counts()
-            shrinkage_axial = np.cbrt(self.BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR)
-            areas = layers["Area(micron**2)"] / 100 ** 2 / 5 * shrinkage_axial
+            # compute the volumetric shrinkage corrections in the same ways as it was used
+            # for the pdf reports in the underlying dataset
+            shrinkage_volumetric = self.BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR
+            layer_volumes = (
+                layers["Area(micron**2)"]  # this is the number of pixels, shrinkage corrected from the dataset
+                * 20  # go to cube micrometer in one patch with 20 micron thickness
+                * np.cbrt(shrinkage_volumetric)  # compensate linear shrinkage for 3rd dimension
+                / 100 ** 3  # go to 0.1 cube millimeter
+            )
             fields = cellfile.split("/")
-            for layer in areas.index:
+            for layer in layer_volumes.index:
                 data.append({
                     'layer': layer,
                     'layername': layers["Name"].loc[layer],
                     'counts': counts.loc[layer],
-                    'area': areas.loc[layer],
-                    'density': counts.loc[layer] / areas.loc[layer],
+                    'area_mu2': layers["Area(micron**2)"].loc[layer],
+                    'volume': layer_volumes.loc[layer],
+                    'density': counts.loc[layer] / layer_volumes.loc[layer],
                     'regionspec': fields[-5],
                     'section': int(fields[-3]),
                     'patch': int(fields[-2]),
