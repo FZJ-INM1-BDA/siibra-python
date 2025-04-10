@@ -122,7 +122,7 @@ class LayerwiseCellDensity(
             if kwargs["kind"] == "box":
                 from matplotlib.pyplot import tight_layout
 
-                np.random.seed(np.floor(self.data["density"].mean()))
+                np.random.seed(int(self.data["density"].mean()))
 
                 title = kwargs.pop("title")
                 default_kwargs = {
