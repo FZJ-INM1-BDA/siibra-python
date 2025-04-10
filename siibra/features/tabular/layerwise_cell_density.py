@@ -122,6 +122,8 @@ class LayerwiseCellDensity(
             if kwargs["kind"] == "box":
                 from matplotlib.pyplot import tight_layout
 
+                np.random.seed(self.data["density"].mean().__floor__())
+
                 title = kwargs.pop("title")
                 default_kwargs = {
                     "grid": True,
@@ -144,6 +146,9 @@ class LayerwiseCellDensity(
             return self.data.plot(*args, backend=backend, **kwargs)
         elif backend == "plotly":
             kwargs["title"] = kwargs["title"].replace('\n', "<br>")
-            return self.data.plot(y='density', x='layer', backend=backend, **kwargs)
+            yaxis_title = kwargs.pop("ylabel")
+            fig = self.data.plot(y='density', x='layer', points="all", backend=backend, **kwargs)
+            fig.update_layout(yaxis_title=yaxis_title)
+            return fig
         else:
             return self.data.plot(*args, backend=backend, **kwargs)
