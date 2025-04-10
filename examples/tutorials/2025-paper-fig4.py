@@ -104,7 +104,7 @@ for cf in fts:
     if cf.paradigm == "Resting state (EmpCorrFC concatenated)":
         conn = cf
         break
-print(conn.urls)  # TODO: add publication to conn json
+print(conn.urls)
 
 
 # plot both average connectivity profiles to target regions
