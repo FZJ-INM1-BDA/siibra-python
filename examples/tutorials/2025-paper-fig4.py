@@ -30,13 +30,6 @@ assert siibra.__version__ >= "1.0.1"
 
 sns.set_style("dark")
 
-# %% test
-v1 = siibra.get_region("julich", "hOc1 left")
-layerwise_cellbody_densities = siibra.features.get(v1, "layerwise cell density")
-fig, axs = plt.subplots(1, 1, sharey=True, figsize=(4, 2.7))
-layerwise_cellbody_densities[0].plot(ax=axs)
-df = layerwise_cellbody_densities[0].data.query("section==256")
-
 # %%
 # Instantiate parcellation and reference space from the human brain atlas
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
