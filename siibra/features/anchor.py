@@ -176,9 +176,7 @@ class AnatomicalAnchor:
                 assignments.append(region.assign(concept))
             self._assignments[concept] = sorted(a for a in assignments if a is not None)
 
-        self._last_matched_concept = concept \
-            if len(self._assignments[concept]) > 0 \
-            else None
+        self._last_matched_concept = concept if len(self._assignments[concept]) > 0 else None
         return self._assignments[concept]
 
     def matches(self, concept: Union[BrainStructure, Space]) -> bool:

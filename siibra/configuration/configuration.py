@@ -185,5 +185,4 @@ class Configuration:
 
 
 if SIIBRA_USE_CONFIGURATION:
-    logger.warning(f"config.SIIBRA_USE_CONFIGURATION defined, use configuration at {SIIBRA_USE_CONFIGURATION}")
     Configuration.use_configuration(SIIBRA_USE_CONFIGURATION)

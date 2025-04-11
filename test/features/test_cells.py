@@ -19,10 +19,8 @@ class TestCorticalCellDistribution(unittest.TestCase):
         )
         assert len(features) > 0
         feature = features[0]
-        assert (feature.data["mean"].mean() > 90) and (
-            feature.data["mean"].mean() < 100
-        )
-        assert feature.data.shape == (6, 2)
+        assert feature.data["density"].mean() == 78.86556888985415
+        assert feature.data.shape == (60, 9)
 
     def test_check_layer_density_with_valid_range(self):
         features = siibra.features.get(
@@ -30,9 +28,9 @@ class TestCorticalCellDistribution(unittest.TestCase):
         )
         assert len(features) > 0
         feature = features[0]
-        layer_density = feature.data["mean"]["I"]
+        layer_density = feature.data[feature.data["layername"] == "I"]["density"]
         assert layer_density is not None
-        layer_density = feature.data["mean"]["VI"]
+        layer_density = feature.data[feature.data["layername"] == "VI"]["density"]
         assert layer_density is not None
 
 

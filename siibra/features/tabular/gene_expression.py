@@ -225,6 +225,7 @@ class GeneExpressions(
             datasets=datasets
         )
         self.unit = "expression level"
+        self._genes = list(set(genes))
 
     def plot(self, *args, backend="matplotlib", **kwargs):
         """
@@ -239,18 +240,34 @@ class GeneExpressions(
             Keyword arguments are passed on to the plot command.
         """
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
-        kwargs["title"] = kwargs.pop("title", None) \
-            or "\n".join(wrap(f"{self.modality} measured in {self.anchor._regionspec or self.anchor.location}", wrapwidth))
-        kwargs["kind"] = "box"
+        kwargs["title"] = kwargs.pop(
+            "title",
+            "\n".join(wrap(
+                f"{self.modality}\n{self.anchor._regionspec or self.anchor.location}",
+                wrapwidth
+            ))
+        )
+        kwargs["kind"] = kwargs.get("kind", "box")
         if backend == "matplotlib":
-            for arg in ['yerr', 'y', 'ylabel', 'xlabel', 'width']:
-                assert arg not in kwargs
-            default_kwargs = {
-                "grid": True, "legend": False, 'by': "gene",
-                'column': ['level'], 'showfliers': False, 'ax': None,
-                'ylabel': 'expression level'
-            }
-            return self.data.plot(*args, **{**default_kwargs, **kwargs}, backend=backend)
+            if kwargs["kind"] == "box":
+                from matplotlib.pyplot import tight_layout
+
+                title = kwargs.pop("title")
+                default_kwargs = {
+                    "grid": True,
+                    'by': "gene",
+                    'column': ['level'],
+                    'showfliers': False,
+                    'ylabel': 'expression level',
+                    'xlabel': 'gene',
+                    'color': 'dimgray',
+                    'rot': 90 if len(self._genes) > 1 else 0,
+                }
+                ax, *_ = self.data.plot(*args, backend=backend, **{**default_kwargs, **kwargs})
+                ax.set_title(title)
+                tight_layout()
+                return ax
+            return self.data.plot(*args, backend=backend, **kwargs)
         elif backend == "plotly":
             kwargs["title"] = kwargs["title"].replace('\n', "<br>")
             return self.data.plot(y='level', x='gene', backend=backend, **kwargs)

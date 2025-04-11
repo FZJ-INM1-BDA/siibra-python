@@ -4,17 +4,15 @@
 siibra - Software interface for interacting with brain atlases
 ==============================================================
 
-Copyright 2018-2024, Forschungszentrum Jülich GmbH
+Copyright 2018-2025, Forschungszentrum Jülich GmbH
 
 *Authors: Big Data Analytics Group, Institute of Neuroscience and
 Medicine (INM-1), Forschungszentrum Jülich GmbH*
 
 .. intro-start
 
-``siibra`` is a Python client to a brain atlas framework that integrates brain parcellations and reference spaces at different spatial scales, and connects them with a broad range of multimodal regional data features. 
+``siibra-python`` is a Python client to a brain atlas framework that integrates brain parcellations and reference spaces at different spatial scales, and connects them with a broad range of multimodal regional data features. 
 It aims to facilitate programmatic and reproducible incorporation of brain parcellations and brain region features from different sources into neuroscience workflows.
-
-    **Note:** ``siibra-python`` *is still in development. While care is taken that it works reliably, its API is not yet stable and you may still encounter bugs when using it.*
 
 ``siibra`` provides structured access to parcellation schemes in different brain reference spaces, including volumetric reference templates at  macroscopic and microscopic resolutions as well as surface representations. 
 It supports both discretely labelled and statistical (probabilistic) parcellation maps, which can be used to assign brain regions to spatial locations and image signals, to retrieve region-specific neuroscience datasets from multiple online repositories, and to sample information from high-resolution image data. 
@@ -45,10 +43,26 @@ Installation
 
 ``siibra`` is available on pypi. 
 To install the latest released version, simply run ``pip install siibra``. 
+The installation typically takes about 2 minutes on a standard computer where Python is already installed.
 In order to work with the latest version from github, use ``pip install git+https://github.com/FZJ-INM1-BDA/siibra-python.git@main``.
 
-There is also an image based on jupyter:scipy-notebook, which already includes ``siibra``.
+``siibra-python`` should be installable on recent versions of Windows, Linux and Mac OS in a recent Python 3 environment.
+We run continuous integration tests for versions 3.7 - 3.12 on recent Ubuntu images. 
 
+The library requires a couple of open source packages, namely:
+```
+anytree >= 2.12.1
+nibabel >= 5.3.2
+appdirs >= 1.4.4
+scikit-image >= 0.25.0
+requests >= 2.32.3
+neuroglancer-scripts >= 1.2.0
+nilearn >= 0.11.0
+filelock >= 3.16.1
+ebrains-drive >= 0.6.0
+```
+
+You can also install a docker image with all dependencies included:
 .. code-block:: sh
 
   docker run -dit \
@@ -58,19 +72,20 @@ There is also an image based on jupyter:scipy-notebook, which already includes `
         docker-registry.ebrains.eu/siibra/siibra-python:latest
 
 
+
 Documentation & Help
 ====================
 
 ``siibra-python``\ ’s documentation is hosted on https://siibra-python.readthedocs.io.
 The documentation includes a catalogue of documented code examples that walk you through the different concepts and functionalities.
+These examples use real data and include both the code and the produced expected outputs.
+They can be accessed at https://siibra-python.readthedocs.io/en/latest/examples.html, and are
+automatically tested and updated whenever a new version of ``siibra-python`` is published.
 As a new user, it is recommended to go through these examples - they are easy and will quickly provide you with the right code snippets that get you started.
-Furthermore, a set of jupyter notebooks demonstrating more extensive example use cases are maintained in the `siibra-tutorials <https://github.com/FZJ-INM1-BDA/siibra-tutorials>`__ repository.
-We are working on a full API documentation of the library. You find the current status on readthedocs, but be aware that it is not yet complete and as up-to-date as the code examples.
+The documentation on readthedocs further includes introductory explanations and an API reference.
 
 If you run into issues, please open a ticket on `EBRAINS support <https://ebrains.eu/support/>`__ or file bugs and
 feature requests on `github <https://github.com/FZJ-INM1-BDA/siibra-python/issues>`__.
-Please keep in mind that ``siibra-python`` is still in development.
-While care is taken to make everything work reliably, the API of the library is not yet stable, and the software is not yet fully tested.
 
 .. getting-started-end
 

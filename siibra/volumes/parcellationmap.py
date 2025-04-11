@@ -761,10 +761,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 f"{no_predefined_color}"
             )
 
+        max_label_index = max(index[0].label for index in self._indices.values())
+
         palette = np.array(
             [
                 list(colors[i]) + [1] if i in colors else [0, 0, 0, 0]
-                for i in range(max(colors.keys()) + 1)
+                for i in range(max_label_index + 1)
             ]
         ) / [255, 255, 255, 1]
         return ListedColormap(palette)

@@ -18,11 +18,10 @@ from os import path, makedirs
 from typing import Dict, List
 
 import numpy as np
-from nilearn import image
 
 from . import parcellationmap, volume as _volume
 from .providers import provider
-from ..commons import MapIndex, logger, connected_components, siibra_tqdm
+from ..commons import MapIndex, logger, connected_components, siibra_tqdm, resample_img_to_img
 from ..locations import boundingbox
 from ..retrieval.cache import CACHE
 from ..retrieval.requests import HttpRequest, FileLoader
@@ -353,30 +352,23 @@ class SparseMap(parcellationmap.Map):
         split_components: bool, default: True
             Whether to split the query volume into disjoint components.
         """
+        from nibabel import Nifti1Image
+
         queryimg = queryvolume.fetch()
-        imgdata = np.asanyarray(queryimg.dataobj)
-        imgaffine = queryimg.affine
+        assert isinstance(queryimg, Nifti1Image)
         assignments = []
 
-        # resample query image into this image's voxel space, if required
-        if (imgaffine - self.affine).sum() == 0:
-            querydata = imgdata.squeeze()
-        else:
-            if issubclass(imgdata.dtype.type, np.integer):
-                interp = "nearest"
-            else:
-                interp = "linear"
-            from nibabel import Nifti1Image
-            queryimg = image.resample_img(
-                Nifti1Image(imgdata, imgaffine),
-                target_affine=self.affine,
-                target_shape=self.shape,
-                interpolation=interp,
+        # resample query image into this image's voxel space, if required (nilearn checks)
+        queryimg = resample_img_to_img(
+            source_img=queryimg,
+            target_img=Nifti1Image(
+                np.zeros(self.shape), affine=self.affine, dtype=queryimg.dataobj.dtype
             )
-            querydata = np.asanyarray(queryimg.dataobj).squeeze()
+        )
+        self.space.get_template()
+        querydata = np.asanyarray(queryimg.dataobj).squeeze()
 
-        iter_func = connected_components if split_components \
-            else lambda img: [(1, img)]
+        iter_func = connected_components if split_components else lambda img: [(1, img)]
 
         for mode, modemask in iter_func(querydata):
 
