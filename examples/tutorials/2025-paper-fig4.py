@@ -23,8 +23,6 @@ The tutorial shows how maps and mutimodal regional measurements are obtained usi
 # %%
 import matplotlib.pyplot as plt
 from nilearn import plotting
-import pandas as pd
-import re
 import seaborn as sns
 import siibra
 
@@ -38,6 +36,7 @@ sns.set_style("dark")
 
 jubrain = siibra.parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_ATLAS_V3_0_3
 pmaps = jubrain.get_map(space="mni152", maptype="statistical")
+print(jubrain.publications[0]['citation'])
 
 # %%
 # Obtain definitions and probabilistic maps in MNI asymmetric space of area IFG 44
@@ -53,73 +52,59 @@ for r in regions:
         colorbar=False,
         annotate=False,
         symmetric_cbar=True,
+        title=r.name,
     )
-    plt.savefig(f"{r.key}.png")
 
 # %%
-# For each of the two brain areas, retrieve average densities of a selection of monogenetic
-# neurotransmitter receptors, layer-specific distributions of cell bodies, as well as expressions
-# of a selection of genes coding for these receptors.
-
-receptors = ["M1", "M2", "M3", "D1", "5-HT1A", "5-HT2"]
-genes = ["CHRM1", "CHRM2", "CHRM3", "HTR1A", "HTR2A", "DRD1"]
-modalities = [
-    ("receptor density fingerprint", {}, {"receptors": receptors, "rot": 90}),
-    ("layerwise cell density", {}, {"rot": 0}),
-    ("gene expressions", {"gene": genes}, {"rot": 90}),
-]
-fig, axs = plt.subplots(
-    len(modalities) + 1, len(regions), figsize=(4 * len(regions), 11), sharey="row"
-)
-ymax = [1000, 150, None]
-
+# For each of the two brain areas, query for layer-specific distributions of cell bodies.
+fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(8, 2.7))
 for i, region in enumerate(regions):
-    axs[0, i].imshow(plt.imread(f"{region.key}.png"))
-    axs[0, i].set_title(f'{region.name.replace("Area ", "")}')
-    axs[0, i].axis("off")
-    for j, (modality, kwargs, plotargs) in enumerate(modalities):
-        fts = siibra.features.get(region, modality, **kwargs)
-        assert len(fts) > 0
-        if len(fts) > 1:
-            print(f"More than one feature found for {modality}, {region.name}")
-        f = fts[0]
-        f.plot(ax=axs[j + 1, i], **plotargs)
-        if modality == "receptor density fingerprint":
-            # add neurotransmitter names to  receptor names in xtick labels
-            transmitters = [re.sub(r"(^.*\()|(\))", "", n) for n in f.neurotransmitters]
-            axs[j + 1, i].set_xticklabels(
-                [f"{r}\n({n})" for r, n in zip(receptors, transmitters)]
-            )
-        if ymax[j] is not None:
-            axs[j + 1, i].set_ylim(0, ymax[j])
-        if "std" in axs[j + 1, i].yaxis.get_label_text():
-            axs[j + 1, i].set_ylabel(
-                axs[j + 1, i].yaxis.get_label_text().replace("std", "std\n")
-            )
-        axs[j + 1, i].set_title(f"{fts[0].modality}")
-fig.suptitle("")
-fig.tight_layout()
+    layerwise_cellbody_densities = siibra.features.get(region, "layerwise cell density")
+    layerwise_cellbody_densities[0].plot(ax=axs[i], textwrap=25)
+    print(layerwise_cellbody_densities[0].urls)
+    axs[i].set_ylim(25, 115)
+
+# %%
+# Next, retrieve average densities of a selection of monogenetic
+# neurotransmitter receptors.
+receptors = ["M1", "M2", "M3", "5-HT1A", "5-HT2", "D1"]
+fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(8, 3.5))
+for i, region in enumerate(regions):
+    receptor_fingerprints = siibra.features.get(region, "receptor density fingerprint")
+    receptor_fingerprints[0].plot(receptors=receptors, ax=axs[i])
+    print(receptor_fingerprints[0].urls)
+    axs[i].set_ylim(0, 1000)
+    axs[i].title.set_size(12)
+    transmitters = [
+        siibra.vocabularies.RECEPTOR_SYMBOLS[r]['neurotransmitter']['name']
+        for r in receptors
+    ]
+    axs[i].set_xticklabels([f"{r}\n({n})" for r, n in zip(receptors, transmitters)])
+
+# %%
+# Now, for further insight, query for expressions of a selection of genes coding
+# for these receptors.
+genes = ["CHRM1", "CHRM2", "CHRM3", "HTR1A", "HTR2A", "DRD1"]
+fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(7, 3))
+for i, region in enumerate(regions):
+    gene_expressions = siibra.features.get(region, "gene expressions", gene=genes)
+    assert len(gene_expressions) == 1
+    gene_expressions[0].plot(ax=axs[i])
+    axs[i].title.set_size(11)
+    print(gene_expressions[0].urls)
 
 # %%
 # For each of the two brain areas, collect functional connectivity profiles referring to
 # temporal correlation of fMRI timeseries of several hundred subjects from the Human Connectome
 # Project. We show the strongest connections per brain area for the average connectivity patterns
-fts = siibra.features.get(regions[0], "functional connectivity")
-conn = fts[1]
-
-# aggregate connectivity profiles for first region across subjects
-D1 = (
-    pd.concat([c.get_profile(regions[0]).data for c in conn], axis=1)
-    .agg(["mean", "std"], axis=1)
-    .sort_values(by="mean", ascending=False)
-)
-
-# aggregate connectivity profiles for second region across subjects
-D2 = (
-    pd.concat([c.get_profile(regions[1]).data for c in conn], axis=1)
-    .agg(["mean", "std"], axis=1)
-    .sort_values(by="mean", ascending=False)
-)
+fts = siibra.features.get(jubrain, "functional connectivity")
+for cf in fts:
+    if cf.cohort != "HCP":
+        continue
+    if cf.paradigm == "Resting state (EmpCorrFC concatenated)":
+        conn = cf
+        break
+print(conn.urls)
 
 
 # plot both average connectivity profiles to target regions
@@ -132,27 +117,24 @@ def shorten_name(n):
     )
 
 
-fig, (a1, a2) = plt.subplots(1, 2, sharey=True, figsize=(3.6 * len(regions), 4.1))
-kwargs = {"kind": "bar", "width": 0.85, "logy": True}
-D1.iloc[:17]["mean"].plot(
-    **kwargs, yerr=D1.iloc[:17]["std"], ax=a1, ylabel=shorten_name(regions[0].name)
-)
-D2.iloc[:17]["mean"].plot(
-    **kwargs, yerr=D2.iloc[:17]["std"], ax=a2, ylabel=shorten_name(regions[1].name)
-)
-a1.set_ylabel("temporal correlation")
-a1.xaxis.set_ticklabels(
-    [shorten_name(t.get_text()) for t in a1.xaxis.get_majorticklabels()]
-)
-a2.xaxis.set_ticklabels(
-    [shorten_name(t.get_text()) for t in a2.xaxis.get_majorticklabels()]
-)
-a1.grid(True)
-a2.grid(True)
-a1.set_title(regions[0].name.replace("Area ", ""))
-a2.set_title(regions[1].name.replace("Area ", ""))
+plotkwargs = {
+    "kind": "bar",
+    "width": 0.85,
+    "logscale": True,
+    "xlabel": "",
+    "ylabel": "temporal correlation",
+    "rot": 90,
+    "ylim": (0.3, 1.1),
+    "capsize": 2,
+}
+fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(7, 4.5))
+for i, region in enumerate(regions):
+    plotkwargs["ax"] = axs[i]
+    conn.plot(region, max_rows=17, **plotkwargs)
+    axs[i].xaxis.set_ticklabels([shorten_name(t.get_text()) for t in axs[i].xaxis.get_majorticklabels()])
+    axs[i].set_title(region.name.replace("Area ", ""), fontsize=8)
+    axs[i].grid(True, 'minor')
 plt.suptitle("Functional Connectivity")
-plt.tight_layout()
 
 # %%
 # For both brain areas, sample representative cortical image patches at 1µm
@@ -160,7 +142,7 @@ plt.tight_layout()
 # The image patches display clearly the differences in laminar structure of the two regions
 
 selected_sections = [4950, 1345]
-fig, axs = plt.subplots(1, len(regions))
+fig, axs = plt.subplots(1, len(regions), sharey=True)
 for r, sn, ax in zip(regions, selected_sections, axs):
     # find 1 micron sections intersecting the region
     pmap = pmaps.get_volume(r)
@@ -175,7 +157,5 @@ for r, sn, ax in zip(regions, selected_sections, axs):
     ax.imshow(patchdata, cmap="gray", vmin=0, vmax=2**16)
     ax.axis("off")
     ax.set_title(r.name)
-
-plt.tight_layout()
 
 # sphinx_gallery_thumbnail_number = 2

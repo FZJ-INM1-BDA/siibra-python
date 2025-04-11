@@ -15,8 +15,8 @@
 
 import numpy as np
 import pandas as pd
+from textwrap import wrap
 
-from . import cortical_profile
 from . import tabular, cell_reader, layer_reader
 from .. import anchor as _anchor
 from ... import commons
@@ -37,6 +37,7 @@ class LayerwiseCellDensity(
         "detected cells in that layer with the area covered by the layer. Therefore, each profile contains 6 measurement points. "
         "The cortical depth is estimated from the measured layer thicknesses."
     )
+    BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR = 1.931
 
     def __init__(
         self,
@@ -57,13 +58,13 @@ class LayerwiseCellDensity(
             id=id,
             prerelease=prerelease,
         )
-        self.unit = "# detected cells/0.1mm3"
+        self.unit = "# detected cells / $0.1mm^3$"
         self._filepairs = list(zip(segmentfiles, layerfiles))
         self._densities = None
 
     def _load_densities(self):
-        density_dict = {}
-        for i, (cellfile, layerfile) in enumerate(self._filepairs):
+        data = []
+        for cellfile, layerfile in self._filepairs:
             try:
                 cells = requests.HttpRequest(cellfile, func=cell_reader).data
                 layers = requests.HttpRequest(layerfile, func=layer_reader).data
@@ -72,22 +73,82 @@ class LayerwiseCellDensity(
                 commons.logger.error(f"Skipping to bootstrap a {self.__class__.__name__} feature, cannot access file resource.")
                 continue
             counts = cells.layer.value_counts()
-            areas = layers["Area(micron**2)"]
-            indices = np.intersect1d(areas.index, counts.index)
-            density_dict[i] = counts[indices] / areas * 100 ** 2 * 5
-        return pd.DataFrame(density_dict)
+            # compute the volumetric shrinkage corrections in the same ways as it was used
+            # for the pdf reports in the underlying dataset
+            shrinkage_volumetric = self.BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR
+            layer_volumes = (
+                layers["Area(micron**2)"]  # this is the number of pixels, shrinkage corrected from the dataset
+                * 20  # go to cube micrometer in one patch with 20 micron thickness
+                * np.cbrt(shrinkage_volumetric)  # compensate linear shrinkage for 3rd dimension
+                / 100 ** 3  # go to 0.1 cube millimeter
+            )
+            fields = cellfile.split("/")
+            for layer in layer_volumes.index:
+                data.append({
+                    'layer': layer,
+                    'layername': layers["Name"].loc[layer],
+                    'counts': counts.loc[layer],
+                    'area_mu2': layers["Area(micron**2)"].loc[layer],
+                    'volume': layer_volumes.loc[layer],
+                    'density': counts.loc[layer] / layer_volumes.loc[layer],
+                    'regionspec': fields[-5],
+                    'section': int(fields[-3]),
+                    'patch': int(fields[-2]),
+                })
+        return pd.DataFrame(data)
 
     @property
     def data(self):
         if self._data_cached is None:
-            densities = self._load_densities()
-            self._data_cached = pd.DataFrame(
-                np.array([
-                    list(densities.mean(axis=1)),
-                    list(densities.std(axis=1))
-                ]).T,
-                columns=['mean', 'std'],
-                index=[cortical_profile.CorticalProfile.LAYERS[_] for _ in densities.index]
-            )
-            self._data_cached.index.name = 'layer'
+            self._data_cached = self._load_densities()
+            # self._data_cached.index.name = 'layer'
         return self._data_cached
+
+    def plot(self, *args, backend="matplotlib", **kwargs):
+        wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
+        kwargs["title"] = kwargs.pop(
+            "title",
+            "\n".join(wrap(
+                f"{self.modality} in {self.anchor._regionspec or self.anchor.location}",
+                wrapwidth
+            ))
+        )
+        kwargs["kind"] = kwargs.get("kind", "box")
+        kwargs["ylabel"] = kwargs.get(
+            "ylabel",
+            f"\n{self.unit}" if hasattr(self, 'unit') else ""
+        )
+        if backend == "matplotlib":
+            if kwargs["kind"] == "box":
+                from matplotlib.pyplot import tight_layout
+
+                np.random.seed(int(self.data["density"].mean()))
+
+                title = kwargs.pop("title")
+                default_kwargs = {
+                    "grid": True,
+                    'by': "layername",
+                    'column': ['density'],
+                    'showfliers': False,
+                    'xlabel': 'layer',
+                    'color': 'dimgray',
+                }
+                ax, *_ = self.data.plot(*args, backend=backend, **{**default_kwargs, **kwargs})
+                for i, (layer, d) in enumerate(self.data.groupby('layername')):
+                    ax.scatter(
+                        np.random.normal(i + 1, 0.05, len(d.density)),
+                        d.density,
+                        c='b', s=3
+                    )
+                ax.set_title(title)
+                tight_layout()
+                return ax
+            return self.data.plot(*args, backend=backend, **kwargs)
+        elif backend == "plotly":
+            kwargs["title"] = kwargs["title"].replace('\n', "<br>")
+            yaxis_title = kwargs.pop("ylabel")
+            fig = self.data.plot(y='density', x='layer', points="all", backend=backend, **kwargs)
+            fig.update_layout(yaxis_title=yaxis_title)
+            return fig
+        else:
+            return self.data.plot(*args, backend=backend, **kwargs)

@@ -99,14 +99,20 @@ class Tabular(feature.Feature):
             if kwargs.get("error_y") is None:
                 kwargs["yerr"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
                 yerr_label = f" \u00b1 {kwargs.get('yerr')}" if kwargs.get('yerr') else ''
-            kwargs["width"] = kwargs.get("width", 0.95)
+            if kwargs.get('kind') == 'bar':
+                kwargs["width"] = kwargs.get("width", 0.8)
+                kwargs["edgecolor"] = kwargs.get('edgecolor', 'black')
+                kwargs["linewidth"] = kwargs.get('linewidth', 1.0)
+                kwargs["capsize"] = kwargs.get('capsize', 4)
             kwargs["ylabel"] = kwargs.get(
                 "ylabel",
                 f"{kwargs['y']}{yerr_label}" + f"\n{self.unit}" if hasattr(self, 'unit') else ""
             )
             kwargs["grid"] = kwargs.get("grid", True)
             kwargs["legend"] = kwargs.get("legend", False)
-            xticklabel_rotation = kwargs.get("xticklabel_rotation", 60)
+            kwargs["color"] = kwargs.get('color', 'darkgrey')
+
+            xticklabel_rotation = kwargs.get("rot", 60)
             ax = self.data.plot(*args, backend=backend, **kwargs)
             ax.set_title(ax.get_title(), fontsize="medium")
             ax.set_xticklabels(
@@ -114,6 +120,8 @@ class Tabular(feature.Feature):
                 rotation=xticklabel_rotation,
                 ha='center' if xticklabel_rotation % 90 == 0 else 'right'
             )
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
             plt.tight_layout()
             return ax
         elif backend == "plotly":
