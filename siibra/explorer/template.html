@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Siibra Explorer Plugin</title>
+</head>
+<body>
+    This is a companion plugin for siibra-python.
+	You can safely minimize (NOT close!) this plugin, and control it via python.
+</body>
+<script>
+	let parent, parentOrigin
+	function send(){
+		if (parent) {
+			fetch("http://localhost:7099/ping")
+			.then(res => res.json())
+			.then(arr => {
+				for (const item of arr){
+					console.log("setnind", item)
+					parent.postMessage(item, parentOrigin)
+				}
+			})
+		}
+		// Use settimeout rather than setinterval
+		// this way, the /ping endpoint will be polled at MOST once every second
+		setTimeout(() => send(), 1000);
+	}
+	setTimeout(() => send(), 1000);
+	
+    const requestMap = new Map()
+    window.onmessage = handleMessage
+    function handleMessage(msg){
+		console.log("received message!!!!", msg)
+        const { source, data, origin } = msg
+		const { id, method, params, result, error } = data
+		if (!!result || !!error ) {
+			if (!id) {
+				throw new Error(`expecting result/error to have id`)
+			}
+			if (!requestMap.has(id)) {
+				throw new Error(`expecting requestMap to have id ${id}, but it does not.`)
+			}
+			
+			const { rs, rj } = requestMap.get(id)
+			requestMap.delete(id)
+
+			if (result) return rs(result)
+			if (error) return rj(error)
+		}
+		if (!/^sxplr/.test(method)) return
+		switch (method) {
+			case 'sxplr.init': {
+				source.postMessage({
+					id,
+					jsonrpc: '2.0',
+					result: {
+						name: 'siibra-python companion'
+					}
+				}, origin)
+				parent = source
+				parentOrigin = origin
+				break
+			}
+			case 'sxplr.on.atlasSelected': {
+				const atlasId = params['@id'] || params.id
+				break
+			}
+			case 'sxplr.on.templateSelected': {
+				const spaceId = params['@id'] || params.id
+
+				break
+			}
+			case 'sxplr.on.parcellationSelected': {
+				const parcId = params['@id'] || params.id
+
+				break
+			}
+		}
+    }
+</script>
+</html>
