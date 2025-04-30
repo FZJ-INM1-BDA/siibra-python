@@ -52,7 +52,7 @@ This must be remedied, as getting data out from siibra objects to interoprable o
 
     - `data_recipe.get_parameters() -> pd.DataFrame`: Non-blocking call[1]. Returns a pandas dataframe, listing which parameters can be used to _reconfigure_ (see below) the data recipe.
 
-    - `data_recipe.reconfigure(**kwargs) -> DataRecipe`: Non-blocking call[1]. Returns a _new instance_ of data recipe, which are reconfigured based on the _kwargs_ provided.
+    - `data_recipe.reconfigure(**kwargs) -> DataRecipe`: Non-blocking call[1]. Returns a _new instance_ of data recipe, which are reconfigured based on the _kwargs_ provided. _kwargs_ are not validated by design. Users who call this method should ensure the correct keyword arguments are provided.
 
     > note: `DataRecipe` are designed to be immutable. Reconfigure is the only way supported way to modify a recipe.
 
