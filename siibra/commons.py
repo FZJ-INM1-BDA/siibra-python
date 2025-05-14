@@ -534,13 +534,21 @@ def resample_img_to_img(
     -------
     Nifti1Image
     """
+    from nilearn._version import version as nilearn_version
+    from packaging.version import Version
+
     interpolation = "nearest" if np.array_equal(np.unique(source_img.dataobj), [0, 1]) else "linear"
-    resampled_img = resample_to_img(
+    kwargs = dict(
         source_img=source_img,
         target_img=target_img,
         interpolation=interpolation,
         force_resample=True,  # False is intended for testing. see nilearn docs
     )
+    if Version(nilearn_version) >= Version("0.11.0"):
+        # because nilearn>=0.11.0 don't support "copy_header" and python <= 3.8
+        kwargs["copy_header"] = True  # use new default in nilearn >= 0.11.0
+
+    resampled_img = resample_to_img(**kwargs)
     return resampled_img
 
 

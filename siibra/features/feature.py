@@ -583,7 +583,10 @@ class Feature:
         # with the query concept.
         live_instances = feature_type._livequery(concept, **kwargs)
 
-        results = list(dict.fromkeys(preconfigured_instances + live_instances))
+        results = sorted(
+            dict.fromkeys(preconfigured_instances + live_instances),  # to remove duplicates
+            key=lambda f: min(f.last_match_result) if f.last_match_result else False,  # to order according to assignmnent ranking
+        )
         return CompoundFeature._compound(results, concept)
 
     @classmethod
