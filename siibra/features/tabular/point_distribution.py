@@ -18,9 +18,9 @@ from ..feature import Compoundable
 from .. import anchor as _anchor
 
 from ...retrieval.requests import HttpRequest
-from ...locations import PointSet
+from ...locations import PointCloud
 from ...core.space import Space
-from ...volumes.volume import from_pointset
+from ...volumes.volume import from_pointcloud
 
 from typing import Callable, TYPE_CHECKING, Union, List
 
@@ -77,15 +77,15 @@ class PointDistribution(
 
     def __len__(self):
         """Total number of coordinates."""
-        return len(self.as_pointset())
+        return len(self.as_pointcloud())
 
-    def as_pointset(
+    def as_pointcloud(
         self,
         sigma_mm: Union[float, List[float]] = 0.0,
         labels: List[int] = None
-    ) -> "PointSet":
+    ) -> "PointCloud":
         """
-        Return the coordinates as a siibra PointSet.
+        Return the coordinates as a siibra PointCloud.
 
         Parameters
         ----------
@@ -96,7 +96,7 @@ class PointDistribution(
             coordinates are passed on.
         """
         coordinates = self.data.iloc[:, :3].to_numpy()
-        return PointSet(
+        return PointCloud(
             coordinates=coordinates,
             space=self.anchor.space,
             sigma_mm=sigma_mm,
@@ -105,7 +105,7 @@ class PointDistribution(
 
     @property
     def boundingbox(self) -> "BoundingBox":
-        return self.as_pointset().boundingbox
+        return self.as_pointcloud().boundingbox
 
     @property
     def data(self) -> 'DataFrame':
@@ -148,8 +148,8 @@ class PointDistribution(
         -------
         Volume
         """
-        return from_pointset(
-            points=self.as_pointset(),
+        return from_pointcloud(
+            points=self.as_pointcloud(),
             target=self.anchor.space.get_template(template_kwargs.pop("variant", None)),
             normalize=normalize,
             min_num_point=1,
