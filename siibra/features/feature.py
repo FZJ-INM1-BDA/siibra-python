@@ -232,11 +232,10 @@ class Feature:
         from ..configuration.configuration import Configuration
         conf = Configuration()
         Configuration.register_cleanup(cls._clean_instances)
-        try:
-            assert cls._configuration_folder in conf.folders
-        except AssertionError:
-            logger.info(f"'{cls._configuration_folder}' has no configuration jsons.")
+        if cls._configuration_folder not in conf.folders:
+            logger.debug(f"{cls._configuration_folder} is not in current configuration")
             return []
+
         cls._preconfigured_instances = [
             o for o in conf.build_objects(cls._configuration_folder)
             if isinstance(o, cls)
@@ -582,7 +581,10 @@ class Feature:
         # with the query concept.
         live_instances = feature_type._livequery(concept, **kwargs)
 
-        results = list(dict.fromkeys(preconfigured_instances + live_instances))
+        results = sorted(
+            dict.fromkeys(preconfigured_instances + live_instances),  # to remove duplicates
+            key=lambda f: min(f.last_match_result) if f.last_match_result else False,  # to order according to assignmnent ranking
+        )
         return CompoundFeature._compound(results, concept)
 
     @classmethod

@@ -78,3 +78,12 @@ class LSFMVolumeOfInterest(
 ):
     def __init__(self, modality, **kwargs):
         image.Image.__init__(self, **kwargs, modality=modality)
+
+
+class MorphometryVolumeOfInterest(
+    image.Image,
+    configuration_folder="features/images/vois/morphometry",
+    category="macrostructural"
+):
+    def __init__(self, modality, **kwargs):
+        image.Image.__init__(self, **kwargs, modality=modality)
