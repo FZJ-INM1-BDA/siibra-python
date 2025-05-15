@@ -40,6 +40,19 @@ The order represent the relative priorities of the philosophies. If an architect
 
 ## Architecture design guidelines
 
+### Summary table
+
+| filename | Description |
+|----------|---------|
+| ADR000-use-adr-records.md | Employ architectural design records |
+| ADR001-use-ecs.md | Core concepts are attribute collection (entity) composed of attributes (component) modelled after entity-component-system |
+| ADR002-datarecipe.md | Data recipes (lazy loading with transparency) |
+| | Schemas that describe siibra content and attributes |
+| | Entity matching (including Point/Volume to parcellation map assignment) |
+| | Factory (constructing content lazily) |
+| | (To be discussed) caching strategies in terms of speed vs memory efficiency. choose default |
+| | (To be discussed) handling uncertainty of locations and resolution |
+
 ### Data feature class design
 
 Siibra data features should not defined by what they _are_, but by what they _have_ (i.e. do **not** extend `Feature` class). [[adr001]](ADR001-use-ecs.md)
