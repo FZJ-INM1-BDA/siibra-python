@@ -6,9 +6,6 @@ jobs:
     runs-on: ubuntu-20.04  # use ubuntu-latest when python 3.7 is dropped
     env:
       # unit tests should not need tokens
-      
-      # KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
-      # KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
       SIIBRA_LOG_LEVEL: DEBUG
     strategy:
       fail-fast: false
