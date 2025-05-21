@@ -18,6 +18,7 @@ from .parcellationmap import Map
 from .neuroglancer import NeuroglancerProvider, NeuroglancerMesh
 from .nifti import NiftiProvider
 from .gifti import GiftiSurfaceLabeling, GiftiMesh
+from .freesurfer import FreesurferAnnot, ZippedFreesurferAnnot
 
 
 def warm_cache():
