@@ -7,19 +7,15 @@ from siibra.core.structure import BrainStructure
 from siibra.core.space import Space
 from siibra.features.image.image import Image
 
-PRERELEASE_FEATURES_W_NO_DATASET = [
-    "The Enriched Connectome - Block face images of full sagittal human brain sections (blockface)",
-    "The Enriched Connectome - 3D polarized light imaging connectivity data of full sagittal human brain sections (HSV fibre orientation map)",
-]
 all_image_features = [f for ft in siibra.features.Feature._SUBCLASSES[siibra.features.image.image.Image] for f in ft._get_instances()]
 
 
 @pytest.mark.parametrize("feature", all_image_features)
 def test_feature_has_datasets(feature: Image):
-    if feature.name in PRERELEASE_FEATURES_W_NO_DATASET:
+    if feature._prerelease is True:
         if len(feature.datasets) > 0:
             pytest.fail(f"Feature '{feature}' was listed as prerelease previously but now have dataset information. Please update `PRERELEASE_FEATURES_W_NO_DATASET`")
-        pytest.skip(f"Feature '{feature}' has no datasets yet as it is a prerelease data.")
+        pytest.xfail(f"Feature '{feature}' has no datasets yet as it is a prerelease data.")
     assert len(feature.datasets) > 0, f"{feature} has no datasets"
 
 
