@@ -84,17 +84,20 @@ class LayerwiseCellDensity(
             )
             fields = cellfile.split("/")
             for layer in layer_volumes.index:
-                data.append({
-                    'layer': layer,
-                    'layername': layers["Name"].loc[layer],
-                    'counts': counts.loc[layer],
-                    'area_mu2': layers["Area(micron**2)"].loc[layer],
-                    'volume': layer_volumes.loc[layer],
-                    'density': counts.loc[layer] / layer_volumes.loc[layer],
-                    'regionspec': fields[-5],
-                    'section': int(fields[-3]),
-                    'patch': int(fields[-2]),
-                })
+                try:
+                    data.append({
+                        'layer': layer,
+                        'layername': layers["Name"].loc[layer],
+                        'counts': counts.loc[layer],
+                        'area_mu2': layers["Area(micron**2)"].loc[layer],
+                        'volume': layer_volumes.loc[layer],
+                        'density': counts.loc[layer] / layer_volumes.loc[layer],
+                        'regionspec': fields[-5],
+                        'section': int(fields[-3]),
+                        'patch': int(fields[-2]),
+                    })
+                except KeyError:
+                    continue
         return pd.DataFrame(data)
 
     @property
