@@ -59,10 +59,15 @@ class FreesurferAnnot(volume.VolumeProvider, srctype="freesurfer-annot"):
 
         return {"labels": np.hstack(vertex_labels)}
 
-    def get_boundingbox(self, clip=False, background=0.0) -> '_boundingbox.BoundingBox':
+    @property
+    def boundingbox(self) -> '_boundingbox.BoundingBox':
         raise NotImplementedError(
             f"Bounding box access to {self.__class__.__name__} objects not yet implemented."
         )
+
+    @property
+    def fragments(self):
+        return [k for k in self._loaders if k is not None]
 
     @property
     def _url(self) -> Union[str, Dict[str, str]]:
@@ -103,10 +108,15 @@ class ZippedFreesurferAnnot(volume.VolumeProvider, srctype="zip/freesurfer-annot
 
         return {"labels": np.hstack(vertex_labels)}
 
-    def get_boundingbox(self, clip=False, background=0.0) -> '_boundingbox.BoundingBox':
+    @property
+    def boundingbox(self) -> '_boundingbox.BoundingBox':
         raise NotImplementedError(
             f"Bounding box access to {self.__class__.__name__} objects not yet implemented."
         )
+
+    @property
+    def fragments(self):
+        return [k for k in self._loaders if k is not None]
 
     @property
     def _url(self) -> Union[str, Dict[str, str]]:
