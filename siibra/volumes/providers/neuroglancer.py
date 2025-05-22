@@ -219,7 +219,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             frag_scale = frag_vol._select_scale(
                 resolution_mm=resolution_mm,
                 bbox=voi,
-                max_bytes=kwargs.pop("maxbytes", NeuroglancerVolume.MAX_BYTES)
+                max_bytes=kwargs.pop("max_bytes", NeuroglancerVolume.MAX_BYTES)
             )
             img = frag_scale.fetch(voi=voi)
             if img is None:
