@@ -165,7 +165,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
                     result.affine,
                     dtype='uint8',
                 )
-            result.set_qform(result.affine)
+            # result.set_qform(result.affine)  # TODO: needs to be investigated further
 
         return result
 
