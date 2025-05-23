@@ -38,9 +38,8 @@ class AxisAlignedPatch(pointcloud.PointCloud):
             coordinates=corners.coordinates,
             space=corners.space,
             sigma_mm=corners.sigma_mm,
-            labels=corners.labels
+            labels=corners.labels,
         )
-        # self.corners = corners
 
     def __str__(self):
         return f"Patch with boundingbox {self.boundingbox}"
@@ -94,11 +93,7 @@ class AxisAlignedPatch(pointcloud.PointCloud):
         affine_rot = np.dot(rot_phys, patch.affine)
 
         # crop in the rotated space
-        pixels = (
-            np.dot(np.linalg.inv(affine_rot), self.homogeneous.T)
-            .astype("int")
-            .T
-        )
+        pixels = np.dot(np.linalg.inv(affine_rot), self.homogeneous.T).astype("int").T
         # keep a pixel distance to avoid black border pixels
         xmin, ymin, zmin = pixels.min(0)[:3] + 1
         xmax, ymax, zmax = pixels.max(0)[:3] - 1
