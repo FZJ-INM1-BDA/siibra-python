@@ -373,7 +373,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     "Conflicting specifications for fetching volume fragment: "
                     f"{mapindex.fragment} / {kwargs_fragment}"
                 )
-            mapindex.fragment = kwargs_fragment
 
         if mapindex.volume is None:
             mapindex.volume = 0
@@ -387,7 +386,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         return _volume.FilteredVolume(
             parent_volume=self.volumes[mapindex.volume],
             label=mapindex.label,
-            fragment=mapindex.fragment,
+            fragment=kwargs_fragment,
         )
 
     def fetch(
