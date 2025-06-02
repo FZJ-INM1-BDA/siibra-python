@@ -370,8 +370,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if kwargs_fragment is not None:
             if (mapindex.fragment is not None) and (kwargs_fragment != mapindex.fragment):
                 raise exceptions.ConflictingArgumentException(
-                    "Conflicting specifications for fetching volume fragment: "
-                    f"{mapindex.fragment} / {kwargs_fragment}"
+                    f"Conflicting specifications for fetching volume fragment{f' for region {region}'}: "
+                    f"supplied: {kwargs_fragment}, preconfigured: {mapindex.fragment}"
                 )
 
         if mapindex.volume is None:
@@ -386,7 +386,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         return _volume.FilteredVolume(
             parent_volume=self.volumes[mapindex.volume],
             label=mapindex.label,
-            fragment=kwargs_fragment,
+            fragment=kwargs_fragment or mapindex.fragment,
         )
 
     def fetch(
