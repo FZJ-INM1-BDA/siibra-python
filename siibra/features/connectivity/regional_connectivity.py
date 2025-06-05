@@ -54,7 +54,7 @@ class RegionalConnectivity(Feature, Compoundable):
         description: str = "",
         datasets: list = [],
         subject: str = "average",
-        feature: str = None,
+        filekey: str = None,
         id: str = None,
         prerelease: bool = False,
     ):
@@ -103,7 +103,7 @@ class RegionalConnectivity(Feature, Compoundable):
         self.regions = regions
         self._matrix = None
         self._subject = subject
-        self._feature = feature
+        self._feature = filekey
         self._matrix_std = None  # only used for compound feature
 
     @property

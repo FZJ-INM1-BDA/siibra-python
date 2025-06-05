@@ -142,9 +142,8 @@ class Factory:
             location = None
 
         if (region is None) and (location is None):
-            print(spec)
             raise RuntimeError(
-                "Spec provides neither region or location - no anchor can be extracted."
+                "Spec provides neither region or location - no anchor can be extracted"
             )
 
         if "species" in spec:
@@ -152,7 +151,7 @@ class Factory:
         elif "ebrains" in spec:
             species = Species.decode(spec["ebrains"])
         else:
-            raise ValueError(f"No species information found in spec {spec}")
+            raise ValueError("No species information found in spec.")
 
         return anchor.AnatomicalAnchor(
             region=region, location=location, species=species
@@ -497,6 +496,7 @@ class Factory:
             )
 
     @classmethod
+    @build_type("siibra/feature/streamlinefiberbundles/v0.1")
     @build_type("siibra/feature/connectivitymatrix/v0.3")
     def build_connectivity_matrix(cls, spec):
         files = spec.get("files", {})
@@ -514,10 +514,15 @@ class Factory:
         )
         if repo_connector is None:
             base_url = spec.get("base_url", "")
+
+        if isinstance(spec["regions"], str):
+            regions = base_url + spec["regions"]
+        else:
+            regions = spec["regions"]
         kwargs = {
             "cohort": spec.get("cohort", ""),
             "modality": modality,
-            "regions": spec["regions"],
+            "regions": regions,
             "connector": repo_connector,
             "decode_func": decoder_func,
             "anchor": cls.extract_anchor(spec),
@@ -528,20 +533,27 @@ class Factory:
         paradigm = spec.get("paradigm")
         if paradigm:
             kwargs["paradigm"] = paradigm
+        if spec.get("transform"):
+            kwargs["transform"] = spec.get("transform")
         files_indexed_by = spec.get("files_indexed_by", "subject")
-        assert files_indexed_by in ["subject", "feature"]
+        assert files_indexed_by in ["subject", "feature", "bundle"]
         conn_by_file = []
         for fkey, filename in files.items():
             kwargs.update(
                 {
                     "filename": filename,
-                    "subject": fkey if files_indexed_by == "subject" else "average",
-                    "feature": fkey if files_indexed_by == "feature" else None,
+                    "subject": (
+                        fkey
+                        if files_indexed_by == "subject"
+                        else ("average" if files_indexed_by != "bundle" else None)
+                    ),
+                    "filekey": fkey if files_indexed_by in ["feature", "bundle"] else None,
                     "connector": repo_connector or base_url + filename,
                     "id": spec.get("@id", None),
                 }
             )
             conn_by_file.append(conn_cls(**kwargs))
+
         return conn_by_file
 
     @classmethod
