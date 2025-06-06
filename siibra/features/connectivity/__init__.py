@@ -21,6 +21,7 @@ from .functional_connectivity import (
 from .streamline_counts import StreamlineCounts
 from .streamline_lengths import StreamlineLengths
 from .tracing_connectivity import TracingConnectivity
+from .streamline_tracks import StreamlineFiberBundle
 
 
 def __dir__():
@@ -29,5 +30,6 @@ def __dir__():
         "StreamlineCounts",
         "StreamlineLengths",
         "TracingConnectivity",
-        "AnatomoFunctionalConnectivity"
+        "AnatomoFunctionalConnectivity",
+        "StreamlineFiberBundle"
     ]
