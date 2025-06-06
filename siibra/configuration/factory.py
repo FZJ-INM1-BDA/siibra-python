@@ -30,6 +30,7 @@ from ..features.tabular import (
     cell_density_profile,
     layerwise_cell_density,
     regional_timeseries_activity,
+    functional_fingerprint,
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -379,6 +380,25 @@ class Factory:
         space_spec = bboxspec.get("space")
         coords = [tuple(c) for c in bboxspec.get("coordinates")]
         return boundingbox.BoundingBox(coords[0], coords[1], space=space_spec)
+
+    @classmethod
+    @build_type("siibra/feature/fingerprint/functional/v0.1")
+    def build_functional_fingerprint(cls, spec):
+        base_url = spec["base_url"]
+
+        ffp_by_file = []
+        for regionname, filename in spec["files"].items():
+            kwargs = dict(
+                region=regionname,
+                file=f"{base_url}/{filename}",
+                decoder=cls.extract_decoder(spec),
+                anchor=cls.extract_anchor(spec),
+                datasets=cls.extract_datasets(spec),
+                id=spec.get("@id", None),
+                prerelease=spec.get("prerelease", False),
+            )
+            ffp_by_file.append(functional_fingerprint.FunctionalFingerprint(**kwargs))
+        return ffp_by_file
 
     @classmethod
     @build_type("siibra/feature/fingerprint/receptor/v0.1")
