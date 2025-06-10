@@ -266,7 +266,7 @@ class BigBrain1MicronPatchQuery(
     """
 
     def __init__(self, lower_threshold=0.):
-        self.layermap = get_registry("Map").get("cortical layers bigbrain")
+        self.layermap = get_registry("Map").get("BIGBRAIN_CORTICAL_LABELLED")
         self.lower_threshold = lower_threshold
         query.LiveQuery.__init__(self)
 
