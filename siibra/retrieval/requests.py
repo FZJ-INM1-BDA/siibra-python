@@ -90,6 +90,7 @@ DECODERS = {
     ".png": lambda b: skimage_io.imread(BytesIO(b)),
     ".npy": lambda b: np.load(BytesIO(b)),
     ".annot": lambda b: read_as_bytesio(freesurfer.read_annot, '.annot', BytesIO(b)),
+    ".tif": lambda b: skimage_io.imread(BytesIO(b)),
 }
 
 
