@@ -16,6 +16,7 @@
 from . import tabular
 from ..feature import Compoundable
 from .. import anchor as _anchor
+from ...commons import logger
 
 from ...retrieval.requests import HttpRequest
 from ...locations import PointCloud
@@ -34,7 +35,7 @@ class PointDistribution(
     tabular.Tabular,
     Compoundable,
     configuration_folder="features/tabular/point_distribution",
-    category='cellular'
+    category="cellular",
 ):
     """
     Represents a data frame with at least 3 columns (x, y, z, value#0, value#1,...)
@@ -52,13 +53,15 @@ class PointDistribution(
         filename: str,
         description: str = "",
         decoder: Callable = None,
-        datasets: list = []
+        datasets: list = [],
     ):
-        space = Space.get_instance(space_spec.get('@id') or space_spec.get('name'))
+        space = Space.get_instance(space_spec.get("@id") or space_spec.get("name"))
+        self.transform = space_spec.get("transform", None)
+
         anchor = _anchor.AnatomicalAnchor(
             species=space.species,
             location=space.get_template().get_boundingbox(clip=False),
-            region=None
+            region=None,
         )
         tabular.Tabular.__init__(
             self,
@@ -80,9 +83,7 @@ class PointDistribution(
         return len(self.as_pointcloud())
 
     def as_pointcloud(
-        self,
-        sigma_mm: Union[float, List[float]] = 0.0,
-        labels: List[int] = None
+        self, sigma_mm: Union[float, List[float]] = 0.0, labels: List[int] = None
     ) -> "PointCloud":
         """
         Return the coordinates as a siibra PointCloud.
@@ -96,42 +97,49 @@ class PointDistribution(
             coordinates are passed on.
         """
         coordinates = self.data.iloc[:, :3].to_numpy()
-        return PointCloud(
+        ptcld = PointCloud(
             coordinates=coordinates,
             space=self.anchor.space,
             sigma_mm=sigma_mm,
-            labels=labels
+            labels=labels,
         )
+        if self.transform is not None:
+            return ptcld.transform(self.transform)
+        return ptcld
 
     @property
     def boundingbox(self) -> "BoundingBox":
         return self.as_pointcloud().boundingbox
 
     @property
-    def data(self) -> 'DataFrame':
+    def data(self) -> "DataFrame":
         """
         Return a pandas DataFrame representing the coordinates and values
         associated with them. (x, y, z, value#0, value#1, ...)
         """
         if self._data_cached is None:
             self._data_cached = self._loader.get()
+            if self.transform is not None:
+                import numpy as np
+
+                logger.info(f"Transforming coordinates with {self.transform}")
+                coords = self._data_cached.values[:, :3]
+                self._data_cached.values[:, :3] = [
+                    np.matmul(np.array(coor.tolist() + [1]).T, self.transform)[:3]
+                    for coor in coords
+                ]
         return self._data_cached.copy()
 
-    def plot(self, *args, backend='matplotlib', **kwargs):
+    def plot(self, *args, backend="matplotlib", **kwargs):
         if self.data.shape[1] <= 3:
-            raise NotImplementedError(
+            logger. NotImplementedError(
                 "The point distribution does not contain any value data."
+                "You can obtain and plot kernel density using: `get_kde_volume`."
             )
-        kind = kwargs.pop('kind', "hist")
-        return self.data.iloc[:, 3:].plot(
-            *args, backend=backend, kind=kind, **kwargs
-        )
+        kind = kwargs.pop("kind", "hist")
+        return self.data.iloc[:, 3:].plot(*args, backend=backend, kind=kind, **kwargs)
 
-    def get_kde_volume(
-        self,
-        normalize: bool = True,
-        **template_kwargs
-    ) -> "Volume":
+    def get_kde_volume(self, normalize: bool = True, **template_kwargs) -> "Volume":
         """
         Get the kernel density estimate from the points using their average
         uncertainty on the reference space template the coordinates belongs to.
@@ -153,5 +161,15 @@ class PointDistribution(
             target=self.anchor.space.get_template(template_kwargs.pop("variant", None)),
             normalize=normalize,
             min_num_point=1,
-            **template_kwargs
+            **template_kwargs,
         )
+
+    @classmethod
+    def _merge_elements(
+        cls,
+        elements: List["PointDistribution"],
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor,
+    ):
+        pass
