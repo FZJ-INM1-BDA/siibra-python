@@ -83,15 +83,22 @@ class FunctionalFingerprint(
         # merged = cls(
         # )
 
-    def plot(self, region: str, **kwargs):
-        self.data.plot(
-            x=region,
-            backend="plotly",
-            color_continuous_scale="BlueRed",
-            kind="barh",
-            labels={"labels": "contrast"},
-            **kwargs,
-        )
+    def plot(self, *args, backend="matplotlib", **kwargs):
+        if backend == "matplotlib":
+            return super().plot(*args, backend=backend, **kwargs)
+        elif backend == "plotly":
+            df_2_plot = self.data.reset_index('task')
+            return df_2_plot.plot(
+                x=self.region.name,
+                color="task",
+                backend="plotly",
+                color_continuous_scale="jet",
+                kind="barh",
+                labels={"labels": "contrast"},
+                **kwargs,
+            )
+        else:
+            return self.data.plot(*args, backend=backend, **kwargs)
 
     # def plot_results(
     #     table: pd.DataFrame, mp: siibra._parcellationmap.Map, task: str, contrast: str
