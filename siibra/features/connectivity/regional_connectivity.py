@@ -150,7 +150,7 @@ class RegionalConnectivity(Feature, Compoundable):
             decode_func=elements[0]._decode_func,
             filename="",
             subject="average",
-            feature="average",
+            filekey="average",
             description=description,
             modality=modality,
             anchor=anchor,
