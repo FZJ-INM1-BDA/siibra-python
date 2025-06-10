@@ -21,7 +21,7 @@ from .functional_connectivity import (
 from .streamline_counts import StreamlineCounts
 from .streamline_lengths import StreamlineLengths
 from .tracing_connectivity import TracingConnectivity
-from .streamline_tracks import StreamlineFiberBundle
+from .streamline_bundles import StreamlineFiberBundle
 
 
 def __dir__():
