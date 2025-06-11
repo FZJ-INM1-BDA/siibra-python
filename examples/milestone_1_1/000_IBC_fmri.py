@@ -15,6 +15,7 @@
 
 """
 IBC - fMRI Data
+~~~~~~~~~~~~~~~
 """
 # %%
 # We start by loading the library

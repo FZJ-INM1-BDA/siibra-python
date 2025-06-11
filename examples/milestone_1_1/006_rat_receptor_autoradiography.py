@@ -14,7 +14,8 @@
 # limitations under the License.
 
 """
-Mice point dist
+Rat receptor autoradiography
+~~~~~~~~~~~~~~~
 """
 
 # %%

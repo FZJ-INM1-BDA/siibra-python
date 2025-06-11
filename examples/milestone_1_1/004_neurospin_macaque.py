@@ -15,6 +15,7 @@
 
 """
 NeuroSpin hi-res macaque anatomical MRI
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%

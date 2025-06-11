@@ -15,6 +15,7 @@
 
 """
 dMRI streamline bundles
+~~~~~~~~~~~~~~~~~~~~~~~
 """
 # %%
 # We start by loading the library
