@@ -28,4 +28,4 @@ space = siibra.spaces.get("waxholm")
 # %%
 fts = siibra.features.get(space, "autoradiography")
 img = fts[0].fetch()
-plotting.plot_img(img, bg_img=None, cmap="magma")
+plotting.plot_img(img, bg_img=siibra.get_template('wax').fetch(resolution_mm=-1), cmap="magma")
