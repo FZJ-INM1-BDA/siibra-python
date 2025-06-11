@@ -26,6 +26,6 @@ from nilearn import plotting
 space = siibra.spaces.get("waxholm")
 
 # %%
-fts = siibra.features.molecular.Autoradiography._get_instances()
+fts = siibra.features.get(space, "autoradiography")
 img = fts[0].fetch()
 plotting.plot_img(img, bg_img=None, cmap="magma")

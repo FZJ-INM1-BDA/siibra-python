@@ -280,9 +280,14 @@ class Tif2DNiftiProvider(_provider.VolumeProvider, srctype="tif/2d"):
         _provider.VolumeProvider.__init__(self)
         req = requests.HttpRequest(src["url"])
         self._loader = lambda req=req: loader(req.data, src["transform"])
+        self._affine = src["transform"]
 
         # required for self._url property
         self._init_url = src["url"]
+
+    @property
+    def affine(self):
+        return self._affine
 
     @property
     def _url(self) -> str:
@@ -294,4 +299,8 @@ class Tif2DNiftiProvider(_provider.VolumeProvider, srctype="tif/2d"):
         return self._loader()
 
     def get_boundingbox(self, clip=True, background=0):
-        raise NotImplementedError
+        img = self._loader()
+        shape = img.shape
+        return _boundingbox.BoundingBox(
+            (0, 0, 0), shape, space=None
+        ).transform(self._affine)
