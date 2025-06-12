@@ -79,37 +79,34 @@ class FunctionalFingerprint(
         modality: str,
         anchor: "AnatomicalAnchor",
     ):
-        assert len({f.cohort for f in elements}) == 1
-        # merged = cls(
-        # )
+        assert len({e.parcellation for e in elements}) == 1
+        assert len({"/".join(elements[0]._loader.url.split("/")[:-1]) for e in elements}) == 1
+        merged = cls(
+            anchor=anchor,
+            file="/".join(elements[0]._loader.url.split("/")[:-1])
+            + "/functional_profile.csv",
+            region=elements[0].parcellation,
+            decoder=elements[0]._loader.func,
+        )
+        return merged
 
     def plot(self, *args, backend="matplotlib", **kwargs):
         if backend == "matplotlib":
             return super().plot(*args, backend=backend, **kwargs)
         elif backend == "plotly":
-            df_2_plot = self.data.reset_index('task')
+            df_2_plot = self.data.reset_index()
+            df_2_plot["labels/task"] = df_2_plot["labels"] + "/" + df_2_plot["task"]
             return df_2_plot.plot(
                 x=self.region.name,
+                y="labels/task",
                 color="task",
                 backend="plotly",
                 color_continuous_scale="jet",
                 kind="barh",
                 labels={"labels": "contrast"},
+                width=800,
+                height=3000,
                 **kwargs,
             )
         else:
             return self.data.plot(*args, backend=backend, **kwargs)
-
-    # def plot_results(
-    #     table: pd.DataFrame, mp: siibra._parcellationmap.Map, task: str, contrast: str
-    # ):
-    #     from nilearn import plotting
-
-    #     table.set_index("labels", inplace=True)
-    #     task_table = table[table["task"] == task].drop(columns=["task"]).T
-
-    #     plotting.view_img(
-    #         mp.colorize(task_table[contrast].to_dict()).fetch(),
-    #         symmetric_cmap=False,
-    #         cmap="magma",
-    #     ).open_in_browser()

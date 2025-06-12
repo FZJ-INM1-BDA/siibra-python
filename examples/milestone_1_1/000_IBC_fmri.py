@@ -18,8 +18,8 @@ IBC - fMRI Data
 ~~~~~~~~~~~~~~~
 """
 # %%
-# We start by loading the library
 import siibra
+from nilearn import plotting
 
 # %%
 p = siibra.parcellations["von economo"]
@@ -36,3 +36,19 @@ f.data
 
 # %%
 f.plot(backend="plotly")
+
+# %%
+functional_fingerprints.data
+
+# %%
+selected_task_and_label = ("ArchiSocial", "triangle_mental-random")
+mp = p.get_map("MNI 152")
+colored_map = mp.colorize(
+    functional_fingerprints.data.loc[selected_task_and_label].to_dict()
+).fetch()
+plotting.view_img(
+    colored_map,
+    symmetric_cmap=False,
+    cmap="magma",
+    resampling_interpolation="nearest",
+).open_in_browser()
