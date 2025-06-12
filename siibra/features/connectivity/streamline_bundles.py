@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List, TypedDict
+from typing import Callable, List, TypedDict, Dict
 import numpy as np
 import pandas as pd
 
@@ -81,28 +81,30 @@ class StreamlineFiberBundle(
         return self._bundle_id
 
     @property
-    def data(self) -> List[Contour]:
+    def fibers(self) -> Dict[str, Contour]:
         if self._fibers is None:
-            if isinstance(self._connector, HttpRequest):
-                fibers_df = self._connector.data
-            else:
-                fibers_df = self._connector.get(
-                    self._filename, decode_func=self._decode_func
-                )
-
-            assert isinstance(fibers_df, pd.DataFrame)
-            self._fibers = []
-            for fiber_id in fibers_df.index.unique():
+            assert isinstance(self.data, pd.DataFrame)
+            self._fibers = dict()
+            for fiber_id in self.data.index.unique():
                 fiber = Contour(
-                    fibers_df.loc[fiber_id],
+                    self.data.loc[fiber_id],
                     space=self.transform["space"]
                 )
                 if self.transform["affine"] is not None:
                     fiber = fiber.transform(
                         self.transform["affine"], space=self.transform["space"]
                     )
-                self._fibers.append(fiber)
+                self._fibers[fiber_id] = fiber
         return self._fibers
+
+    @property
+    def data(self) -> pd.DataFrame:
+        if isinstance(self._connector, HttpRequest):
+            return self._connector.data
+        else:
+            return self._connector.get(
+                self._filename, decode_func=self._decode_func
+            )
 
     @property
     def regions(self) -> List[str]:

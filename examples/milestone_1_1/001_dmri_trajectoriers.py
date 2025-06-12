@@ -20,6 +20,7 @@ dMRI streamline bundles
 # %%
 # We start by loading the library
 import siibra
+from nilearn import plotting
 
 # %%
 p = siibra.parcellations["julich 3.1"]
@@ -46,3 +47,15 @@ print(type(bundle_rh_0000000001.data[0]))
 
 # %%
 bundle_rh_0000000001.plot()
+
+# %%
+bigbrain = siibra.spaces["bigbrain"]
+fiber_id = next(iter(bundle_rh_0000000001.fibers.keys()))
+warped_fiber = bundle_rh_0000000001.fibers[fiber_id].warp(space=bigbrain)
+display = plotting.plot_img(
+    img=bigbrain.fetch(resolution_mm=1),
+    bg_img=None,
+    cmap="gray",
+    title=f"Bundle: {bundle_rh_0000000001} - fiber: {fiber_id}",
+)
+display.add_markers(warped_fiber.coordinates)
