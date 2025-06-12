@@ -15,6 +15,7 @@ import sys
 from sphinx_gallery.sorting import FileNameSortKey
 import sphinx_book_theme  # this import must be kept to make sphinx_rtd_theme function
 import sphinx_autopackagesummary  # this import must be kept to make autopackagesummary function
+import plotly.io as pio
 
 print("sphinx-book-theme:", sphinx_book_theme.__version__)
 print("sphinx-autopackagesummary", sphinx_autopackagesummary.__version__)
@@ -22,6 +23,8 @@ print("sphinx-autopackagesummary", sphinx_autopackagesummary.__version__)
 os.environ["SIIBRA_LOG_LEVEL"] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
+
+pio.renderers.default = "browser"
 
 
 def is_allen_api_microarray_service_available():
