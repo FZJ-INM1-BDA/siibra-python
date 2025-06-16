@@ -33,7 +33,7 @@ from ...commons import (
     logger,
     MapType,
     merge_meshes,
-    SIIBRA_MAX_FETCH_SIZE_GIB,
+    SIIBRA_MAX_FETCH_SIZE_BYTES,
     QUIET,
     resample_img_to_img
 )
@@ -90,9 +90,10 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
     def fetch(
         self,
         fragment: str = None,
-        resolution_mm: float = None,
+        resolution_mm: float = -1,
         voi: _boundingbox.BoundingBox = None,
-        **kwargs
+        max_bytes: float = SIIBRA_MAX_FETCH_SIZE_BYTES,
+        **kwargs,
     ) -> nib.Nifti1Image:
         """
         Fetch 3D image data from neuroglancer volume.
@@ -103,11 +104,8 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             The name of a fragment volume to fetch, if any. For example,
             some volumes are split into left and right hemisphere fragments.
             See :func:`~siibra.volumes.Volume.fragments`
-        resolution_mm: float, default: None (i.e, lowest)
+        resolution_mm: float, default: -1 (i.e, the highest possible given max_bytes)
             Desired resolution in millimeters.
-            Tip
-            ---
-            Set to -1 to get the highest resolution. (might need to set max_bytes)
         voi: BoundingBox
             optional specification of a volume of interest to fetch.
         max_bytes: float: Default: NeuroglancerVolume.MAX_BYTES
@@ -130,7 +128,12 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
                     f"Merging fragments [{', '.join(self._fragments.keys())}]. "
                     f"You can select one using `fragment` kwarg."
                 )
-                result = self._merge_fragments(resolution_mm=resolution_mm, voi=voi, **kwargs)
+                result = self._merge_fragments(
+                    resolution_mm=resolution_mm,
+                    voi=voi,
+                    max_bytes=max_bytes,
+                    **kwargs
+                )
             else:
                 matched_names = [n for n in self._fragments if fragment.lower() in n.lower()]
                 if len(matched_names) != 1:
@@ -203,9 +206,9 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
 
     def _merge_fragments(
         self,
-        resolution_mm: float = None,
+        resolution_mm: float = -1,
         voi: _boundingbox.BoundingBox = None,
-        **kwargs
+        maxbytes: float = SIIBRA_MAX_FETCH_SIZE_BYTES,
     ) -> nib.Nifti1Image:
         with QUIET:
             if voi is not None:
@@ -219,7 +222,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             frag_scale = frag_vol._select_scale(
                 resolution_mm=resolution_mm,
                 bbox=voi,
-                max_bytes=kwargs.pop("max_bytes", NeuroglancerVolume.MAX_BYTES)
+                max_bytes=maxbytes,
             )
             img = frag_scale.fetch(voi=voi)
             if img is None:
@@ -260,7 +263,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
 class NeuroglancerVolume:
 
     USE_CACHE = False  # Whether to keep fetched data in local cache
-    MAX_BYTES = SIIBRA_MAX_FETCH_SIZE_GIB * 1024 ** 3  # Number of bytes at which an image array is considered to large to fetch
+    MAX_BYTES = SIIBRA_MAX_FETCH_SIZE_BYTES  # Number of bytes at which an image array is considered to large to fetch
 
     def __init__(self, url: str):
         assert isinstance(url, str)
@@ -348,7 +351,7 @@ class NeuroglancerVolume:
 
     def fetch(
         self,
-        resolution_mm: float = None,
+        resolution_mm: float = -1,
         voi: _boundingbox.BoundingBox = None,
         max_bytes: float = MAX_BYTES,
         **kwargs
