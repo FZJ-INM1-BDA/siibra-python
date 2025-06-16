@@ -775,6 +775,8 @@ _TRIM_START_PATTERN = re.compile(r"^\.\/")
 _EXTRACT_BUCKETNAME = re.compile(r"https://data-proxy.ebrains.eu/api/v1/buckets/(?P<bucketname>[\w\-_]+)/?.*?$")
 _EXTRACT_BUCKETNAME2 = re.compile(r"https://data-proxy.ebrains.eu/(?P<bucketname>[\w\-_]+)(/\?)?.*?$")
 _EXTRACT_BUCKETNAME3 = re.compile(r"^(?P<bucketname>[\w\-_]+)$")
+
+
 class DataProxyConnector(RepositoryConnector):
     def __init__(self, bucketname: str):
         super().__init__(base_url=None)
@@ -790,16 +792,16 @@ class DataProxyConnector(RepositoryConnector):
             matched = _EXTRACT_BUCKETNAME3.search(bucketname)
             if matched:
                 _extracted_bucketname = matched.group('bucketname')
-        
-        assert _extracted_bucketname is not None, f"buccketname cannot be properly parsed"
+
+        assert _extracted_bucketname is not None, f"bucketname {bucketname} cannot be properly parsed"
 
         client = BucketApiClient()
         self.bucket = client.buckets.get_bucket(_extracted_bucketname)
         self.bucketname = _extracted_bucketname
 
-        def ls(prefix: str=""):
+        def ls(prefix: str = ""):
             return list(self.bucket.ls(prefix=prefix))
-            
+
         self._ls = cache_user_fn(ls)
 
     # only defined for typing purpose
@@ -807,11 +809,10 @@ class DataProxyConnector(RepositoryConnector):
     def _ls(self, prefix: str):
         return list(self.bucket.ls(prefix=prefix))
 
-    def search_files(self, folder, suffix, recursive = False):
+    def search_files(self, folder, suffix, recursive=False):
         if recursive is False:
             raise Exception("None recursive search file not yet implemented in dataproxy connector")
-        
-        
+
         prefix = _TRIM_START_PATTERN.sub("", folder)
         suffix = suffix or ""
 

@@ -14,9 +14,10 @@ def test_inputs(input_str: str, expected_bucketname: str):
     conn = DataProxyConnector(input_str)
     assert conn.bucketname == expected_bucketname
 
+
 @pytest.mark.parametrize("folder, suffix, item_count_min, item_count_max", [
-    ("", ".mp4", 20, 1e10), # slow first time, because searching root
-    ("", ".mp5", 0, 0), # slow first time, because searching root
+    ("", ".mp4", 20, 1e10),  # slow first time, because searching root
+    ("", ".mp5", 0, 0),  # slow first time, because searching root
     ("foo", "", 5, 1e10),
     ("./foo", "", 5, 1e10),
     ("./foo", ".txt", 5, 1e10),
@@ -36,7 +37,7 @@ def test_ls(folder: str, suffix: str, item_count_min: int, item_count_max: int):
     ("./", "./foo/bus_2.txt", "hello world\n"),
     (".", "./foo/bus_2.txt", "hello world\n"),
 ])
-def test_fetching(folder:str, filename:str, expected_str:str):
+def test_fetching(folder: str, filename: str, expected_str: str):
     conn = DataProxyConnector("test-sept-22")
     d = conn.get(filename, folder, decode_func=lambda b: b.decode("utf-8"))
     assert d == expected_str
