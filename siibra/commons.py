@@ -543,7 +543,6 @@ def resample_img_to_img(
         target_img=target_img,
         interpolation=interpolation,
         force_resample=True,  # False is intended for testing. see nilearn docs
-        copy_header=True,
     )
     if Version(nilearn_version) >= Version("0.11.0"):
         # because nilearn>=0.11.0 don't support "copy_header" and python <= 3.8
