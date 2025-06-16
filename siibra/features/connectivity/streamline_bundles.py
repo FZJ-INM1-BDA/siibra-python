@@ -31,10 +31,11 @@ class _Transform(TypedDict):
 
 class StreamlineFiberBundle(
     Feature,
+    Compoundable,
     configuration_folder="features/connectivity/streamlinefiberbundles",
     category="connectivity",
 ):
-    _filter_attrs = ["modality", "cohort", "subject"]
+    _filter_attrs = ["modality", "cohort", "subject", "bundle_id"]
     _compound_attrs = ["modality", "cohort"]
 
     def __init__(
@@ -86,10 +87,7 @@ class StreamlineFiberBundle(
             assert isinstance(self.data, pd.DataFrame)
             self._fibers = dict()
             for fiber_id in self.data.index.unique():
-                fiber = Contour(
-                    self.data.loc[fiber_id],
-                    space=self.transform["space"]
-                )
+                fiber = Contour(self.data.loc[fiber_id], space=self.transform["space"])
                 if self.transform["affine"] is not None:
                     fiber = fiber.transform(
                         self.transform["affine"], space=self.transform["space"]
@@ -102,9 +100,7 @@ class StreamlineFiberBundle(
         if isinstance(self._connector, HttpRequest):
             return self._connector.data
         else:
-            return self._connector.get(
-                self._filename, decode_func=self._decode_func
-            )
+            return self._connector.get(self._filename, decode_func=self._decode_func)
 
     @property
     def regions(self) -> List[str]:
@@ -128,5 +124,9 @@ class StreamlineFiberBundle(
     def plot(self, *args, backend="nilearn", **kwargs):
         from nilearn import plotting
 
-        coords = np.vstack([c.coordinates for c in self.data])
-        return plotting.plot_markers(self._connector.data.index.tolist(), coords)
+        coords = np.vstack([c.coordinates for c in self.fibers.values()])
+        return plotting.plot_markers(
+            self._connector.data.index.tolist(),
+            coords,
+            node_size=3,
+        )
