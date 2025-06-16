@@ -54,7 +54,7 @@ SIIBRA_LOG_LEVEL = os.getenv("SIIBRA_LOG_LEVEL", "INFO")
 SIIBRA_USE_CONFIGURATION = os.getenv("SIIBRA_USE_CONFIGURATION")
 SIIBRA_USE_LOCAL_SNAPSPOT = os.getenv("SIIBRA_USE_LOCAL_SNAPSPOT")
 SKIP_CACHEINIT_MAINTENANCE = os.getenv("SKIP_CACHEINIT_MAINTENANCE")
-SIIBRA_MAX_FETCH_SIZE_GIB = float(os.getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2))
+SIIBRA_MAX_FETCH_SIZE_BYTES = float(os.getenv("SIIBRA_MAX_FETCH_SIZE_BYTES", 0.2 * 1024 ** 3))
 
 with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
     __version__ = fp.read().strip()
@@ -543,6 +543,7 @@ def resample_img_to_img(
         target_img=target_img,
         interpolation=interpolation,
         force_resample=True,  # False is intended for testing. see nilearn docs
+        copy_header=True,
     )
     if Version(nilearn_version) >= Version("0.11.0"):
         # because nilearn>=0.11.0 don't support "copy_header" and python <= 3.8

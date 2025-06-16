@@ -35,6 +35,7 @@ from ..commons import (
     create_key,
     clear_name,
     InstanceTable,
+    QUIET,
 )
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
@@ -417,7 +418,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         space: Union[str, _space.Space],
         maptype: MapType = MapType.LABELLED,
         threshold: float = 0.0,
-    ) -> volume.FilteredVolume:
+    ) -> Union[volume.FilteredVolume, volume.ReducedVolume]:
         """
         Get a binary mask of this region in the given space,
         using the specified MapTypes.
@@ -476,11 +477,12 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                     descendant.get_regional_mask(space=space, maptype=maptype, threshold=threshold)
                     for descendant in mapped_descendants
                 ]
-                result = volume.FilteredVolume(
-                    volume.merge(descendant_volumes),
-                    label=1
-                )
-                name += f"'{result.space}' (built by merging the mask {threshold_info} of its descendants)"
+                with QUIET:
+                    result = volume.ReducedVolume(
+                        descendant_volumes,
+                        new_labels=[1] * len(descendant_volumes)
+                    )
+                name += f"'{result.space}' (built by merging the mask {threshold_info}of its descendants)"
             else:
                 raise e
         result._name = name
