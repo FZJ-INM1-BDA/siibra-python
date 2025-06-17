@@ -208,7 +208,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
         self,
         resolution_mm: float = -1,
         voi: _boundingbox.BoundingBox = None,
-        maxbytes: float = SIIBRA_MAX_FETCH_SIZE_BYTES,
+        max_bytes: float = SIIBRA_MAX_FETCH_SIZE_BYTES,
     ) -> nib.Nifti1Image:
         with QUIET:
             if voi is not None:
@@ -222,7 +222,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             frag_scale = frag_vol._select_scale(
                 resolution_mm=resolution_mm,
                 bbox=voi,
-                max_bytes=maxbytes,
+                max_bytes=max_bytes,
             )
             img = frag_scale.fetch(voi=voi)
             if img is None:
