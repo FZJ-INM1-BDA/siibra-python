@@ -47,7 +47,7 @@ modalities = [
 
 # %%
 # We iterate the regions and modalities to generate a grid plot.
-fig, axs = plt.subplots(len(modalities), len(regions))
+fig, axs = plt.subplots(len(modalities), len(regions), figsize=(8, 10))
 ymax = [4500, 150, 30000]
 for i, region in enumerate(regions):
     for j, modality in enumerate(modalities):
@@ -57,7 +57,6 @@ for i, region in enumerate(regions):
             fp = features[-1]
             fp.plot(ax=axs[j, i])
             axs[j, i].set_ylim(0, ymax[j])
-fig.tight_layout()
 
 # %%
 # For the same measurement types, we can also sample individual cortical profiles,
@@ -81,4 +80,3 @@ for i, region in enumerate(regions):
         p.plot(ax=axs[j, i])
 
 fig.set(figheight=15, figwidth=10)
-fig.tight_layout()

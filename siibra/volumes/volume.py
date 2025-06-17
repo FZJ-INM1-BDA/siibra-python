@@ -25,7 +25,14 @@ from nibabel import Nifti1Image
 from skimage import feature as skimage_feature, filters
 
 from . import providers as _providers
-from ..commons import resample_img_to_img, siibra_tqdm, affine_scaling, connected_components, logger
+from ..commons import (
+    resample_img_to_img,
+    siibra_tqdm,
+    affine_scaling,
+    connected_components,
+    logger,
+    QUIET,
+)
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError, EmptyPointCloudError
 from ..retrieval import requests
 from ..core import space as _space, structure
@@ -428,11 +435,7 @@ class Volume(structure.BrainStructure):
             except NoMapAvailableError:
                 return None
 
-    def fetch(
-        self,
-        format: str = None,
-        **kwargs
-    ):
+    def fetch(self, format: str = None, **kwargs):
         """
         Fetch a volumetric or surface representation from one of the providers.
 
@@ -701,6 +704,94 @@ class FilteredVolume(Volume):
             background=background,
             **fetch_kwargs
         )
+
+
+class ReducedVolume(Volume):
+    def __init__(
+        self,
+        source_volumes: List[Volume],
+        new_labels: List[int] = None,
+    ):
+        """
+        A prescribed Volume to fetch a list of source volumes in the same space,
+        with optionally new labels, and resampling them to the template of this
+        space to be merged into one image.
+
+        Parameters
+        ----------
+        source_volumes: List[Volume]
+        new_labels: List[int], default: None
+        """
+        assert len({v.space for v in source_volumes}) == 1, "Cannot merge volumes from different spaces."
+        if new_labels:
+            assert len(source_volumes) == len(new_labels), "Need to supply as many labels as volumes."
+        Volume.__init__(
+            self,
+            space_spec=source_volumes[0]._space_spec,
+            providers=[],
+            name=f"Volumes resampled to {source_volumes[0].space} template and merged: {','.join([v.name for v in source_volumes])}"
+        )
+        self.source_volumes = source_volumes
+        self.new_labels = new_labels
+
+    def fetch(self, format: str = None, **kwargs):
+        # determine dtype
+        if self.new_labels is not None:
+            logger.info(f"Relabling regions with labels: {self.new_labels}")
+            dtype = 'int32'
+        elif {type(v) for v in self.source_volumes} == {FilteredVolume}:
+            dtype = 'uint8'
+        else:
+            dtype = self.source_volumes[0].fetch().dataobj.dtype
+
+        # determine base image
+        template_img = self.space.get_template().fetch(**kwargs)
+        merged_array = np.zeros(template_img.shape, dtype=dtype)
+        for i, vol in siibra_tqdm(
+            enumerate(self.source_volumes),
+            unit=" volume",
+            desc=f"Resampling volumes to {self.space.name} and merging",
+            total=len(self.source_volumes),
+            disable=len(self.source_volumes) < 3,
+            leave=False,
+        ):
+            img = vol.fetch(format=format, **kwargs)
+            if img is None:
+                continue
+            resampled_arr = np.asanyarray(
+                resample_img_to_img(img, template_img).dataobj
+            )
+            nonzero_voxels = resampled_arr > 0
+            if self.new_labels:
+                merged_array[nonzero_voxels] = self.new_labels[i]
+            else:
+                merged_array[nonzero_voxels] = resampled_arr[nonzero_voxels]
+
+        result = Nifti1Image(merged_array, affine=template_img.affine, dtype=dtype)
+        if 'neuroglancer/precomputed' in self.formats:
+            result.set_qform(result.affine)
+        return result
+
+    def get_boundingbox(
+        self,
+        clip: bool = True,
+        background: float = 0.0,
+        **fetch_kwargs
+    ) -> boundingbox.BoundingBox:
+        if clip:
+            with QUIET:
+                return super().get_boundingbox(clip=clip, background=background, **fetch_kwargs)
+        else:
+            return boundingbox.BoundingBox.union(
+                *[
+                    v.get_boundingbox(clip=clip, background=background, **fetch_kwargs)
+                    for v in self.source_volumes
+                ]
+            )
+
+    @property
+    def formats(self) -> Set[str]:
+        return {fmt for v in self.source_volumes for fmt in v._providers}
 
 
 class Subvolume(Volume):

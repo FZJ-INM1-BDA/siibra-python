@@ -26,12 +26,12 @@ T = TypeVar("T")
 
 class Qualification(Enum):
     EXACT = 1
-    OVERLAPS = 2
-    CONTAINED = 3
-    CONTAINS = 4
-    APPROXIMATE = 5
-    HOMOLOGOUS = 6
-    OTHER_VERSION = 7
+    APPROXIMATE = 2
+    OTHER_VERSION = 3
+    CONTAINED = 4
+    CONTAINS = 5
+    OVERLAPS = 6
+    HOMOLOGOUS = 7
 
     @property
     def verb(self):
@@ -66,6 +66,17 @@ class Qualification(Enum):
         }
         assert self in inverses, f"{str(self)} inverses cannot be found."
         return inverses[self]
+
+    def __lt__(self, other: "Qualification"):
+        """
+        This is used to sort feature query results. Since it is very difficult
+        to determine a well-ordering principle and it is difficult to sort
+        without one, the enum values are used for sorting. This means
+        not all comparisons have logical basis but they are well-defined,
+        making it reproducible but also clearly distinguishes important
+        comparisons.
+        """
+        return self.value < other.value
 
     def __str__(self):
         return f"{self.__class__.__name__}={self.name.lower()}"
@@ -108,4 +119,4 @@ class AnatomicalAssignment(Generic[T]):
     def __lt__(self, other: 'AnatomicalAssignment'):
         if not isinstance(other, AnatomicalAssignment):
             raise ValueError(f"Cannot compare AnatomicalAssignment with instances of '{type(other)}'")
-        return self.qualification.value < other.qualification.value
+        return self.qualification < other.qualification

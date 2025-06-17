@@ -49,6 +49,7 @@ XFAIL_LIST = [
     ('Waxholm Space atlas of the Sprague Dawley rat brain (v3)', 'brainstem'),
     ('Waxholm Space atlas of the Sprague Dawley rat brain (v3)', 'ventricular system'),
     ('Waxholm Space atlas of the Sprague Dawley rat brain (v3)', 'spinal cord'),
+    ('[PRERELEASE] Marmoset Nencki-Monash Template (2020)', 'piriform cortex'),
 ]
 
 

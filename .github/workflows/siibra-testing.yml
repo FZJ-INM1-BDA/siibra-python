@@ -48,26 +48,26 @@ jobs:
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_importable.yaml
     with:
-      os: ubuntu-20.04  # use ubuntu-latest when python 3.7 is dropped
+      os: ubuntu-22.04  # use ubuntu-latest when python 3.8 is dropped
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.11", "3.10", "3.9", "3.8", "3.7"]
+        python-version: ["3.12", "3.11", "3.10", "3.9", "3.8"]
 
   unit-tests-full:
     if: ${{ github.event_name == 'pull_request' }}
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_unittest.yaml
     with:
-      os: ubuntu-20.04  # use ubuntu-latest when python 3.7 is dropped
+      os: ubuntu-22.04  # use ubuntu-latest when python 3.8 is dropped
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.11", "3.10", "3.9", "3.8", "3.7"]
+        python-version: ["3.12", "3.11", "3.10", "3.9", "3.8"]
 
   unit-tests-fast:
     if: ${{ github.event.pull_request == null }}
@@ -83,13 +83,13 @@ jobs:
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_e2e.yaml
     with:
-      os: ubuntu-20.04  # use ubuntu-latest when python 3.7 is dropped
+      os: ubuntu-22.04  # use ubuntu-latest when python 3.8 is dropped
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.11", "3.10", "3.9", "3.8", "3.7"]
+        python-version: ["3.12", "3.11", "3.10", "3.9", "3.8"]
 
   e2e-tests-fast:
     if: ${{ github.event.pull_request == null }}

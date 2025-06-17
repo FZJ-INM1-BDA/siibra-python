@@ -31,7 +31,8 @@ class Location(BrainStructure):
     """
 
     # backend for transforming coordinates between spaces
-    SPACEWARP_SERVER = "https://hbp-spatial-backend.apps.hbp.eu/v1"
+    # for detail, see https://github.com/HumanBrainProject/hbp-spatial-backend
+    SPACEWARP_SERVER = "https://siibra-spatial-backend.apps.ebrains.eu/v1"
 
     # lookup of space identifiers to be used by SPACEWARP_SERVER
     SPACEWARP_IDS = {
@@ -45,18 +46,24 @@ class Location(BrainStructure):
     _MASK_MEMO = {}  # cache region masks for Location._assign_region()
     _ASSIGNMENT_CACHE = {}  # caches assignment results, see Region.assign()
 
-    def __init__(self, spacespec: Union[str, Dict[str, str], "_space.Space"]):
+    def __init__(self, spacespec: Union[str, Dict[str, str], _space.Space]):
         self._space_spec = spacespec
         self._space_cached = None
 
     @property
-    def space(self) -> "_space.Space":
+    def space(self) -> _space.Space:
         if self._space_cached is None:
-            if isinstance(self._space_spec, dict):
+            if self._space_spec is None:
+                return None
+            elif isinstance(self._space_spec, _space.Space):
+                self._space_cached = self._space_spec
+            elif isinstance(self._space_spec, dict):
                 spec = self._space_spec.get("@id") or self._space_spec.get("name")
                 self._space_cached = _space.Space.get_instance(spec)
-            else:
+            elif isinstance(self._space_spec, str):
                 self._space_cached = _space.Space.get_instance(self._space_spec)
+            else:
+                raise ValueError(f"Invalid space spec type: '{type(self._space_spec)}'")
         return self._space_cached
 
     @abstractmethod

@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   coverage:
-    runs-on: ubuntu-20.04  # use ubuntu-latest when python 3.7 is dropped
+    runs-on: ubuntu-22.04  # use ubuntu-latest when python 3.7 is dropped
 
     steps:
     - uses: actions/checkout@v4

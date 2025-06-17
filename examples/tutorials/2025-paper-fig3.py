@@ -27,7 +27,6 @@ reveal additional multimodal data features characterizing the ROIs.
 """
 
 # %%
-import re
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -38,6 +37,7 @@ import siibra
 assert siibra.__version__ >= "1.0.1"
 
 sns.set_style("dark")
+
 
 # %%
 # Input: Activation map or other feature distribution as image volume in MNI space
@@ -72,7 +72,7 @@ plotting.plot_glass_brain(
 
 # %%
 # Split input volume into cluster components
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #
 # There are many ways to get components out of a feature map. Here we use siibra to
 # - draw random points from the distribution encoded by the input volume, then
@@ -105,11 +105,11 @@ view.add_markers(
 )
 
 # %%
-# Assign peaks and clusters to cytoarchitectonic regions
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# Assign clusters to cytoarchitectonic regions
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #
 # To assign the clusters to brain regions, we build feature maps from each cluster
-# and assign them to the Julich-Brain probabilistic maps. The assignemint is one-to-many
+# and assign them to the Julich-Brain probabilistic maps. The assignment is one-to-many
 # since the structures in the image and parcellation are continuous. Assignments
 # report correlation, intersection over union, and some other measures which we can use
 # to filter and sort them. The result is an assignment table from cluster components
@@ -120,24 +120,8 @@ min_map_value = 0.5
 pmaps = siibra.get_map(
     parcellation="julich 3.0.3", space="mni152", maptype="statistical"
 )
+
 assignments = []
-
-# assign peaks to regions
-peaks = input_volume.find_peaks(mindist=5, sigma_mm=0)
-with siibra.QUIET:
-    df = pmaps.assign(peaks)
-df.query(f"`map value` >= {min_map_value}", engine="python", inplace=True)
-df["type"] = "peak"
-df["id"] = df["input structure"]
-assignments.append(df[["type", "id", "region", "map value"]])
-
-view = plotting.plot_glass_brain(
-    input_volume.fetch(), alpha=1, cmap="RdBu", symmetric_cbar=True
-)
-view.add_markers(peaks.as_list(), marker_size=30)
-
-# %%
-# assign clusters to regions
 for cl in clusterlabels:
     clustermap = siibra.volumes.from_pointcloud(samples, label=cl, target=input_volume)
     plotting.plot_glass_brain(
@@ -150,12 +134,11 @@ for cl in clusterlabels:
     with siibra.QUIET:
         df = pmaps.assign(clustermap)
     df.query(f"correlation >= {min_correlation}", engine="python", inplace=True)
-    df["type"] = "cluster"
-    df["id"] = cl
-    assignments.append(df[["type", "id", "region", "correlation", "map value"]])
+    df['id'] = cl
+    assignments.append(df[["id", "region", "correlation", "map value"]])
 
 all_assignments = pd.concat(assignments).sort_values(by="correlation", ascending=False)
-all_assignments
+all_assignments[:9].round(2)
 
 # %%
 # plot the three primary assigned probability maps
@@ -174,64 +157,58 @@ for n, a in all_assignments.iterrows():
 # Find features
 # ^^^^^^^^^^^^^
 #
-# To demonstrate multimodal feature profiling, we only choose the first connected region.
+# To demonstrate multimodal feature profiling, we choose one of the connected regions.
+selected_region = siibra.get_region("julich 3.0.3", "Area hOc1 (V1, 17, CalcS) left")
 
-
-def shortname(region):
-    return (
-        re.sub("\s*\(.*\)\s*|\s*Areaa\s*", " ", region.name)
-        .replace("left", "L")
-        .replace("right", "R")
-        .strip()
-    )
-
-
-def filter_features(feats, region):
-    return [f for f in feats if any(r.assign(region) for r in f.anchor.regions)]
-
-
-def plot_receptors(region, ax):
-    fts = filter_features(siibra.features.get(region, "ReceptorDensityFingerprint"), region)
-    fts[0].plot(ax=ax)
-
-
-def plot_celldensities(region, ax):
-    fts = filter_features(siibra.features.get(region, "LayerwiseCellDensity"), region)
-    fts[0].plot(ax=ax)
-
-
-def plot_gene_expressions(region, ax, genes):
-    fts = siibra.features.get(region, "GeneExpressions", gene=genes)
-    fts[0].plot(ax=ax)
-
-
-def plot_connectivity(region, ax):
-    fts = siibra.features.get(region, "StreamlineCounts")
-    conndata = fts[0][0].get_profile(region).data
-    conndata.rename(index={r: shortname(r) for r in conndata.index}, inplace=True)
-    conndata[:15].plot(kind="bar", ax=ax)
-    plt.xticks(ha="right")
-    plt.tight_layout()
-    plt.grid(True)
-    plt.title(f"Connectivity for {region.name}")
+# %%
+# Let us first query receptor density fingerprint for this region
+receptor_fingerprints = siibra.features.get(selected_region, "receptor density fingerprint")
+fp = receptor_fingerprints[0]
+print("\n".join(fp.urls))
+fig, axs = plt.subplots(1, 1, figsize=(4, 3.2))
+fp.plot(ax=axs, capsize=4)
 
 
 # %%
-selected_region = siibra.get_region("julich 3.0.3", "Area hOc1 (V1, 17, CalcS) left")
-plot_funcs = [
-    lambda r, a: plot_receptors(r, a),
-    lambda r, a: plot_celldensities(r, a),
-    lambda r, a: plot_connectivity(r, a),
-    lambda r, a: plot_gene_expressions(
-        r, a, ["gabarapl1", "gabarapl2", "maoa", "tac1"]
-    ),
-]
+# Now, query for gene expressions for the same region
+genes = ["gabarapl1", "gabarapl2", "maoa", "tac1"]
+gene_expressions = siibra.features.get(selected_region, "gene expressions", gene=genes)
+print("\n".join(gene_expressions[0].urls))
+fig, axs = plt.subplots(1, 1, figsize=(4, 3.5))
+gene_expressions[0].plot(ax=axs)
 
-fig, axs = plt.subplots(1, len(plot_funcs), figsize=(3.5 * len(plot_funcs), 4))
-for ax, func in zip(axs.ravel(), plot_funcs):
-    func(r=selected_region, a=ax)
-    ax.grid(True)
-    xtl = ax.get_xticklabels()
-    ax.set_xticklabels(xtl, rotation=55, ha="right")
-plt.suptitle("")
-plt.tight_layout()
+
+# %%
+# We can next obtain cell body density values for this region
+cell_densities = siibra.features.get(selected_region, "LayerwiseCellDensity")
+print("\n".join(cell_densities[0].urls))
+fig, axs = plt.subplots(1, 1, figsize=(4, 2.8))
+cell_densities[0].plot(ax=axs, textwrap=30)
+# axs.set_title(axs.get_title().replace("in", "\n"))
+
+# %%
+# Lastly, we can obtain the regional profile of streamline count type
+# parcellation-based connectivity matrices
+connectivity_matrices = siibra.features.get(selected_region, "StreamlineCounts")
+conn = connectivity_matrices[0]  # select the first set of matrices
+print("\n".join(conn.urls))
+
+
+def shorten_name(region):
+    # to simplify readability
+    return (
+        region.replace("Area ", "")
+        .replace(" (GapMap)", "")
+        .replace("left", "L")
+        .replace("right", "R")
+    )
+
+
+fig, axs = plt.subplots(1, 1, figsize=(4, 4.5))
+conn.plot(selected_region, ax=axs, max_rows=15, kind="bar", rot=50, width=0.7)
+axs.set_ylabel(
+    f"Mean of {conn.modality} \u00b1 std \n in {len(conn.elements)} {conn.indexing_attributes[0]}s"
+)
+axs.xaxis.set_ticklabels([shorten_name(t.get_text()) for t in axs.xaxis.get_majorticklabels()])
+plt.grid(True, 'minor')
+plt.title(f"Connectivity for {selected_region.name}")

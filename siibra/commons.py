@@ -54,7 +54,7 @@ SIIBRA_LOG_LEVEL = os.getenv("SIIBRA_LOG_LEVEL", "INFO")
 SIIBRA_USE_CONFIGURATION = os.getenv("SIIBRA_USE_CONFIGURATION")
 SIIBRA_USE_LOCAL_SNAPSPOT = os.getenv("SIIBRA_USE_LOCAL_SNAPSPOT")
 SKIP_CACHEINIT_MAINTENANCE = os.getenv("SKIP_CACHEINIT_MAINTENANCE")
-SIIBRA_MAX_FETCH_SIZE_GIB = float(os.getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2))
+SIIBRA_MAX_FETCH_SIZE_BYTES = float(os.getenv("SIIBRA_MAX_FETCH_SIZE_BYTES", 0.2 * 1024 ** 3))
 
 with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
     __version__ = fp.read().strip()
@@ -534,13 +534,21 @@ def resample_img_to_img(
     -------
     Nifti1Image
     """
+    from nilearn._version import version as nilearn_version
+    from packaging.version import Version
+
     interpolation = "nearest" if np.array_equal(np.unique(source_img.dataobj), [0, 1]) else "linear"
-    resampled_img = resample_to_img(
+    kwargs = dict(
         source_img=source_img,
         target_img=target_img,
         interpolation=interpolation,
         force_resample=True,  # False is intended for testing. see nilearn docs
     )
+    if Version(nilearn_version) >= Version("0.11.0"):
+        # because nilearn>=0.11.0 don't support "copy_header" and python <= 3.8
+        kwargs["copy_header"] = True  # use new default in nilearn >= 0.11.0
+
+    resampled_img = resample_to_img(**kwargs)
     return resampled_img
 
 
@@ -725,6 +733,7 @@ class Species(Enum):
     MACACA_MULATTA = 5
     MACACA_FUSCATA = 6
     CHLOROCEBUS_AETHIOPS_SABAEUS = 7
+    CALLITHRIX_JACCHUS = 8
 
     UNSPECIFIED_SPECIES = 999
 
