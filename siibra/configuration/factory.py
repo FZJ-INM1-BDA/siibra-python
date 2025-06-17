@@ -177,6 +177,8 @@ class Factory:
                 project=repospec["project"],
                 reftag=repospec["branch"],
             )
+        if spectype == "siibra/repository/dataproxy/v1.0.0":
+            return repositories.DataProxyConnector(repospec["bucketname"])
 
         logger.warning(
             "Do not know how to create a repository "

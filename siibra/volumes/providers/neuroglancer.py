@@ -395,6 +395,8 @@ class NeuroglancerVolume:
                 )
 
         scale_changed = False
+        # TODO buggy, smallest bbox is larger than max_bytes
+        # double check the implementation of scale.next. this shouldn't happen
         while scale._estimate_nbytes(bbox) > max_bytes:
             scale = scale.next()
             scale_changed = True

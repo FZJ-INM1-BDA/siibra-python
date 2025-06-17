@@ -20,8 +20,11 @@ import pathlib
 import os
 from zipfile import ZipFile
 from typing import List
+import re
 
-from .cache import CACHE
+from ebrains_drive import BucketApiClient
+
+from .cache import CACHE, cache_user_fn
 from .requests import (
     HttpRequest,
     EbrainsRequest,
@@ -766,3 +769,64 @@ class EbrainsPublicDatasetConnectorMinds(RepositoryConnector):
         """Get a lazy loader for a file, for executing the query
         only once loader.data is accessed."""
         return HttpRequest(self._build_url(folder, filename), decode_func)
+
+
+_TRIM_START_PATTERN = re.compile(r"^\.\/")
+_EXTRACT_BUCKETNAME = re.compile(r"https://data-proxy.ebrains.eu/api/v1/buckets/(?P<bucketname>[\w\-_]+)/?.*?$")
+_EXTRACT_BUCKETNAME2 = re.compile(r"https://data-proxy.ebrains.eu/(?P<bucketname>[\w\-_]+)(/\?)?.*?$")
+_EXTRACT_BUCKETNAME3 = re.compile(r"^(?P<bucketname>[\w\-_]+)$")
+
+
+class DataProxyConnector(RepositoryConnector):
+    def __init__(self, bucketname: str):
+        super().__init__(base_url=None)
+        _extracted_bucketname = None
+        matched = _EXTRACT_BUCKETNAME.search(bucketname)
+        if matched:
+            _extracted_bucketname = matched.group('bucketname')
+        if not _extracted_bucketname:
+            matched = _EXTRACT_BUCKETNAME2.search(bucketname)
+            if matched:
+                _extracted_bucketname = matched.group('bucketname')
+        if not _extracted_bucketname:
+            matched = _EXTRACT_BUCKETNAME3.search(bucketname)
+            if matched:
+                _extracted_bucketname = matched.group('bucketname')
+
+        assert _extracted_bucketname is not None, f"bucketname {bucketname} cannot be properly parsed"
+
+        client = BucketApiClient()
+        self.bucket = client.buckets.get_bucket(_extracted_bucketname)
+        self.bucketname = _extracted_bucketname
+
+        def ls(prefix: str = ""):
+            return list(self.bucket.ls(prefix=prefix))
+
+        self._ls = cache_user_fn(ls)
+
+    # only defined for typing purpose
+    # actual ._ls is defined in __init__ function for joblib caching
+    def _ls(self, prefix: str):
+        return list(self.bucket.ls(prefix=prefix))
+
+    def search_files(self, folder, suffix, recursive=False):
+        if recursive is False:
+            raise Exception("None recursive search file not yet implemented in dataproxy connector")
+
+        prefix = _TRIM_START_PATTERN.sub("", folder)
+        suffix = suffix or ""
+
+        return [
+            f.name
+            for f in self._ls(prefix=prefix)
+            if f.name.endswith(suffix)
+        ]
+
+    def _build_url(self, folder, filename):
+        folder = _TRIM_START_PATTERN.sub("", folder)
+        filename = _TRIM_START_PATTERN.sub("", filename)
+        path = ""
+        if folder:
+            path += quote(folder) + "/"
+        path += quote(filename)
+        return f"https://data-proxy.ebrains.eu/api/v1/buckets/{self.bucketname}/{path}"
