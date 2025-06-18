@@ -588,12 +588,6 @@ class Factory:
             repo_connector = (
                 cls.extract_connector(spec) if spec.get("repository", None) else None
             )
-        if repo_connector is None:
-            base_url = spec.get("base_url", "")
-        if isinstance(spec["regions"], str):
-            regions = base_url + spec["regions"]
-        else:
-            regions = spec["regions"]
 
         kwargs = {
             "cohort": spec.get("cohort", ""),
@@ -619,9 +613,9 @@ class Factory:
             kwargs.update(
                 {
                     "filename": filename,
-                    "connector": repo_connector or base_url + filename,
                     "subject": fkey if files_indexed_by == "subject" else "average",
                     "feature": fkey if files_indexed_by == "feature" else None,
+                    "connector": repo_connector,
                     "id": spec.get("@id", None),
                 }
             )

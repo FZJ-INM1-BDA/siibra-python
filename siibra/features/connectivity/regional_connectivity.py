@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from zipfile import ZipFile
-from typing import Callable, Union, List, Tuple, Iterator
+from typing import Callable, Union, List, Tuple, Iterator, TYPE_CHECKING
 try:
     from typing import Literal
 except ImportError:  # support python 3.7
@@ -29,8 +29,9 @@ from ..tabular.tabular import Tabular
 from ...commons import logger, QUIET, siibra_tqdm
 from ...core import region as _region
 from ...locations import pointcloud
-from ...retrieval.repositories import RepositoryConnector
-from ...retrieval.requests import HttpRequest
+
+if TYPE_CHECKING:
+    from ...retrieval.repositories import RepositoryConnector
 
 
 class RegionalConnectivity(Feature, Compoundable):
@@ -47,7 +48,7 @@ class RegionalConnectivity(Feature, Compoundable):
         cohort: str,
         modality: str,
         regions: list,
-        connector: RepositoryConnector,
+        connector: "RepositoryConnector",
         decode_func: Callable,
         filename: str,
         anchor: _anchor.AnatomicalAnchor,
@@ -94,10 +95,7 @@ class RegionalConnectivity(Feature, Compoundable):
             prerelease=prerelease
         )
         self.cohort = cohort.upper()
-        if isinstance(connector, str) and connector:
-            self._connector = HttpRequest(connector, decode_func)
-        else:
-            self._connector = connector
+        self._connector = connector
         self._filename = filename
         self._decode_func = decode_func
         self.regions = regions
@@ -156,10 +154,7 @@ class RegionalConnectivity(Feature, Compoundable):
             anchor=anchor,
             **{"paradigm": "averaged (by siibra)"} if getattr(elements[0], "paradigm", None) else {}
         )
-        if isinstance(elements[0]._connector, HttpRequest):
-            getter = lambda elm: elm._connector.get()
-        else:
-            getter = lambda elm: elm._connector.get(elm._filename, decode_func=elm._decode_func)
+        getter = lambda elm: elm._connector.get(elm._filename, decode_func=elm._decode_func)
         all_arrays = [
             getter(elm)
             for elm in siibra_tqdm(
@@ -492,10 +487,7 @@ class RegionalConnectivity(Feature, Compoundable):
         """
         Extract connectivity matrix.
         """
-        if isinstance(self._connector, HttpRequest):
-            array = self._connector.data
-        else:
-            array = self._connector.get(self._filename, decode_func=self._decode_func)
+        array = self._connector.get(self._filename, decode_func=self._decode_func)
         nrows = array.shape[0]
         if array.shape[1] != nrows:
             raise RuntimeError(

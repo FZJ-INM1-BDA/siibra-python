@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List, TypedDict, Dict
+from typing import Callable, List, TypedDict, Dict, TYPE_CHECKING
 from hashlib import md5
 
 import numpy as np
@@ -22,8 +22,9 @@ import pandas as pd
 from ..feature import Feature, Compoundable
 from .. import anchor as _anchor
 from ...locations import Contour
-from ...retrieval.requests import HttpRequest
-from ...retrieval.repositories import RepositoryConnector
+
+if TYPE_CHECKING:
+    from ...retrieval.repositories import RepositoryConnector
 
 
 class _Transform(TypedDict):
@@ -44,7 +45,7 @@ class StreamlineFiberBundle(
         self,
         modality: str,
         regions: List[str],
-        connector: RepositoryConnector,
+        connector: "RepositoryConnector",
         decode_func: Callable,
         filename: str,
         filekey: str,
@@ -67,10 +68,7 @@ class StreamlineFiberBundle(
             prerelease=prerelease,
         )
         self.cohort = cohort.upper() if isinstance(cohort, str) else cohort
-        if isinstance(connector, str) and connector:
-            self._connector = HttpRequest(connector, decode_func)
-        else:
-            self._connector = connector
+        self._connector = connector
         self._regions = regions
         self._bundle_id = filekey
         self._filename = filename
@@ -103,18 +101,12 @@ class StreamlineFiberBundle(
 
     @property
     def data(self) -> pd.DataFrame:
-        if isinstance(self._connector, HttpRequest):
-            return self._connector.data
-        else:
-            return self._connector.get(self._filename, decode_func=self._decode_func)
+        return self._connector.get(self._filename, decode_func=self._decode_func)
 
     @property
     def regions(self) -> List[str]:
         if isinstance(self._regions, str):
-            if isinstance(self._connector, HttpRequest):
-                regions_df = HttpRequest(self._regions, self._decode_func).get()
-            else:
-                regions_df = self._connector.get(self._regions, self._decode_func)
+            regions_df = self._connector.get(self._regions, decode_func=self._decode_func)
             self._regions = (
                 regions_df.loc[self.bundle_id].loc[lambda s: s.eq(1)].index.tolist()
             )
@@ -132,7 +124,7 @@ class StreamlineFiberBundle(
 
         coords = np.vstack([c.coordinates for c in self.fibers.values()])
         return plotting.plot_markers(
-            self._connector.data.index.tolist(),
+            self.data.index.tolist(),
             coords,
             node_size=3,
         )
