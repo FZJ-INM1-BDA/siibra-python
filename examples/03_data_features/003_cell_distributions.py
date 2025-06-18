@@ -94,5 +94,4 @@ view2.add_markers(cf.anchor.location.coordinates, marker_size=5)
 
 # %%
 # Then, for comparison we can plot the profiles
-# %%
 cf[0].plot(backend="plotly")
