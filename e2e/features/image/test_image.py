@@ -7,15 +7,23 @@ from siibra.core.structure import BrainStructure
 from siibra.core.space import Space
 from siibra.features.image.image import Image
 
-all_image_features = [f for ft in siibra.features.Feature._SUBCLASSES[siibra.features.image.image.Image] for f in ft._get_instances()]
+all_image_features = [
+    f
+    for ft in siibra.features.Feature._SUBCLASSES[Image]
+    for f in ft._get_instances()
+]
 
 
 @pytest.mark.parametrize("feature", all_image_features)
 def test_feature_has_datasets(feature: Image):
     if feature._prerelease is True:
         if len(feature.datasets) > 0:
-            pytest.fail(f"Feature '{feature}' was listed as prerelease previously but now have dataset information. Please update `PRERELEASE_FEATURES_W_NO_DATASET`")
-        pytest.xfail(f"Feature '{feature}' has no datasets yet as it is a prerelease data.")
+            pytest.fail(
+                f"Feature '{feature}' was listed as prerelease previously but now have dataset information. Please update `PRERELEASE_FEATURES_W_NO_DATASET`"
+            )
+        pytest.xfail(
+            f"Feature '{feature}' has no datasets yet as it is a prerelease data."
+        )
     assert len(feature.datasets) > 0, f"{feature} has no datasets"
 
 
@@ -24,7 +32,9 @@ def test_images_datasets_names():
     all_ds_names = {ds.name for f in all_image_features for ds in f.datasets}
     end = time.time()
     duration = start - end
-    assert len(all_ds_names) == 10, "expected 10 distinct names"  # this must be updated if new datasets are added
+    assert (
+        len(all_ds_names) == 12
+    ), "expected 12 distinct names"  # this must be updated if new datasets are added
     assert duration < 1, "Expected getting dataset names to be less than 1s"
 
 
@@ -36,16 +46,14 @@ query_and_results = [
     (siibra.spaces["bigbrain"], "CellBodyStainedVolumeOfInterest", 2),
     (siibra.spaces["mni152"], "volume", 4),
     (siibra.spaces["colin27"], "volume", 0),
-    (siibra.get_region('julich 3.1', 'hoc1 left'), "CellbodyStainedSection", 45),
-    (siibra.get_region('julich 2.9', 'hoc1 left'), "CellbodyStainedSection", 41)
+    (siibra.get_region("julich 3.1", "hoc1 left"), "CellbodyStainedSection", 45),
+    (siibra.get_region("julich 2.9", "hoc1 left"), "CellbodyStainedSection", 41),
 ]
 
 
 @pytest.mark.parametrize("query_concept, feature_type, result_len", query_and_results)
 def test_image_query_results(
-    query_concept: Union[BrainStructure, Space],
-    feature_type: str,
-    result_len: int
+    query_concept: Union[BrainStructure, Space], feature_type: str, result_len: int
 ):
     query_results = siibra.features.get(query_concept, feature_type)
     assert len(query_results) == result_len

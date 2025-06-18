@@ -735,6 +735,7 @@ class ReducedVolume(Volume):
         self.source_volumes = source_volumes
         self.new_labels = new_labels
 
+    @lru_cache(2)
     def fetch(self, format: str = None, **kwargs):
         # determine dtype
         if self.new_labels is not None:
@@ -747,6 +748,9 @@ class ReducedVolume(Volume):
 
         # determine base image
         template_img = self.space.get_template().fetch(**kwargs)
+        template_res = min(template_img.header.get_zooms())
+        if "neuroglancer/precomputed" in self.formats:
+            kwargs["resolution_mm"] = kwargs.get("resolution_mm", template_res)
         merged_array = np.zeros(template_img.shape, dtype=dtype)
         for i, vol in siibra_tqdm(
             enumerate(self.source_volumes),
