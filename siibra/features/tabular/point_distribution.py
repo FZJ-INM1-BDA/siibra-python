@@ -13,17 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, TYPE_CHECKING, Union, List
+from hashlib import md5
+
 from . import tabular
 from ..feature import Compoundable
 from .. import anchor as _anchor
 from ...commons import logger
-
 from ...retrieval.requests import HttpRequest
 from ...locations import PointCloud
 from ...core.space import Space
 from ...volumes.volume import from_pointcloud
-
-from typing import Callable, TYPE_CHECKING, Union, List
 
 if TYPE_CHECKING:
     from ...volumes.volume import Volume
@@ -54,6 +54,7 @@ class PointDistribution(
         description: str = "",
         decoder: Callable = None,
         datasets: list = [],
+        id: str = None,
     ):
         space = Space.get_instance(space_spec.get("@id") or space_spec.get("name"))
         self.transform = space_spec.get("transform", None)
@@ -70,6 +71,7 @@ class PointDistribution(
             anchor=anchor,
             data=None,  # lazy loading below
             datasets=datasets,
+            id=id,
         )
         self._loader = HttpRequest(filename, decoder)
         self._subject = subject
@@ -77,6 +79,10 @@ class PointDistribution(
     @property
     def subject(self):
         return self._subject
+
+    @property
+    def id(self):
+        return super().id + "--" + md5(self.subject.encode("utf-8")).hexdigest()
 
     def __len__(self):
         """Total number of coordinates."""

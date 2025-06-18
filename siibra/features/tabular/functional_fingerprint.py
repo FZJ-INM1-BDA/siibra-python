@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from typing import List, TYPE_CHECKING, Callable
+from hashlib import md5
 
 from ..feature import Compoundable
 from .tabular import Tabular
@@ -66,6 +67,16 @@ class FunctionalFingerprint(
         return self.parcellation.get_region(self._region)
 
     @property
+    def id(self):
+        return (
+            super().id
+            + "--"
+            + md5(self.parcellation.key.encode("utf-8")).hexdigest()
+            + "--"
+            + md5(self.region.key.encode("utf-8")).hexdigest()
+        )
+
+    @property
     def data(self):
         if self._data_cached is None:
             self._data_cached = self._loader.data
@@ -80,7 +91,10 @@ class FunctionalFingerprint(
         anchor: "AnatomicalAnchor",
     ):
         assert len({e.parcellation for e in elements}) == 1
-        assert len({"/".join(elements[0]._loader.url.split("/")[:-1]) for e in elements}) == 1
+        assert (
+            len({"/".join(elements[0]._loader.url.split("/")[:-1]) for e in elements})
+            == 1
+        )
         merged = cls(
             anchor=anchor,
             file="/".join(elements[0]._loader.url.split("/")[:-1])

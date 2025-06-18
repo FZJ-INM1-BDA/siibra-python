@@ -14,6 +14,8 @@
 # limitations under the License.
 
 from typing import Callable, List, TypedDict, Dict
+from hashlib import md5
+
 import numpy as np
 import pandas as pd
 
@@ -80,6 +82,10 @@ class StreamlineFiberBundle(
     @property
     def bundle_id(self):
         return self._bundle_id
+
+    @property
+    def id(self):
+        return super().id + "--" + md5(self.bundle_id.encode("utf-8")).hexdigest()
 
     @property
     def fibers(self) -> Dict[str, Contour]:
