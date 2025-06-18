@@ -151,7 +151,10 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             if fragment is not None:
                 assert fragment.lower() in fragment_name.lower()
             result = ngvol.fetch(
-                resolution_mm=resolution_mm, voi=voi, **kwargs
+                resolution_mm=resolution_mm,
+                voi=voi,
+                max_bytes=max_bytes,
+                **kwargs
             )
 
         # if a label is specified, mask the resulting image.
