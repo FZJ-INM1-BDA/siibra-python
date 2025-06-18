@@ -619,16 +619,15 @@ class Factory:
             kwargs.update(
                 {
                     "filename": filename,
-                    "subject": (
-                        fkey
-                        if files_indexed_by == "subject"
-                        else ("average" if files_indexed_by != "bundle" else None)
-                    ),
-                    "filekey": fkey if files_indexed_by in ["feature", "bundle"] else None,
                     "connector": repo_connector or base_url + filename,
+                    "subject": fkey if files_indexed_by == "subject" else "average",
+                    "feature": fkey if files_indexed_by == "feature" else None,
                     "id": spec.get("@id", None),
                 }
             )
+            if files_indexed_by == "bundle":
+                kwargs["bundle_id"] = fkey
+
             conn_by_file.append(conn_cls(**kwargs))
 
         return conn_by_file
