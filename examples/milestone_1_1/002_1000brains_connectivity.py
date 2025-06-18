@@ -17,3 +17,21 @@
 1000 Brains connectivity
 ~~~~~~~~~~~~~~~~~~~~~~~~
 """
+
+# %%
+import siibra
+
+# %%
+p = siibra.parcellations.get("julich 3.1")
+cf = siibra.features.get(p, "streamlinecounts")[1]
+print(cf.cohort)
+
+# %%
+print(cf[0].name)
+print(cf[0].subject)
+
+# %%
+cf[0].data
+
+# %%
+cf[0].plot(region="hoc1 left")

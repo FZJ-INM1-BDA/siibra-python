@@ -554,7 +554,11 @@ class Factory:
     @build_type("bids/connectivitymatrix/v0.1")
     def build_connectivity_matrix_from_bids(cls, spec):
         spec["repository"] = cls.extract_connector(spec)
-        spec["regions"] = spec["repository"].get(filename=spec["regions"])["label"].to_list()
+        regions_df = spec["repository"].get(filename=spec["regions"])
+        spec["regions"] = list(map(
+            lambda lb, hs: f"{lb} {hs}",
+            regions_df["label"], regions_df["hemisphere"]
+        ))
         spec["files"] = dict()
         for fpath in spec["repository"].search_files(suffix=".tsv", recursive=True):
             if "relmat" not in fpath:
@@ -613,7 +617,7 @@ class Factory:
             kwargs.update(
                 {
                     "filename": filename,
-                    "subject": fkey if files_indexed_by == "subject" else "average",
+                    "subject": fkey if files_indexed_by in ["subject", "group"] else "average",
                     "feature": fkey if files_indexed_by == "feature" else None,
                     "connector": repo_connector,
                     "id": spec.get("@id", None),
