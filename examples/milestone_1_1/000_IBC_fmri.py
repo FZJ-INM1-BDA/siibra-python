@@ -51,4 +51,4 @@ plotting.view_img(
     symmetric_cmap=False,
     cmap="magma",
     resampling_interpolation="nearest",
-).open_in_browser()
+)
