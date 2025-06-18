@@ -48,13 +48,14 @@ class StreamlineFiberBundle(
         connector: "RepositoryConnector",
         decode_func: Callable,
         filename: str,
-        filekey: str,
+        bundle_id: str,
         anchor: _anchor.AnatomicalAnchor,
         transform: _Transform,
         description: str = "",
         datasets: list = [],
         cohort: str = None,
         subject: str = None,
+        feature: str = None,
         id: str = None,
         prerelease: bool = False,
     ):
@@ -67,13 +68,14 @@ class StreamlineFiberBundle(
             id=id,
             prerelease=prerelease,
         )
+        self._bundle_id = bundle_id
         self.cohort = cohort.upper() if isinstance(cohort, str) else cohort
         self._connector = connector
         self._regions = regions
-        self._bundle_id = filekey
         self._filename = filename
         self._decode_func = decode_func
         self._subject = subject
+        self.feature = feature
         self.transform = transform
         self._fibers: List[Contour] = None
 

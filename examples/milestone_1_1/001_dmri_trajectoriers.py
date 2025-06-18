@@ -20,6 +20,7 @@ dMRI streamline bundles
 # %%
 # We start by loading the library
 import siibra
+from siibra.volumes.volume import ReducedVolume
 from nilearn import plotting
 
 # %%
@@ -33,23 +34,33 @@ print(fiber_bundles[0].bundle_id)
 
 
 # %%
-bundle_rh_0000000001 = fiber_bundles[0]
 # regions this bundle passing through
-print(bundle_rh_0000000001.regions)
+bundle_rh_0000000168 = fiber_bundles[0]
+print(bundle_rh_0000000168.regions)
+mp = p.get_map("mni152")
+img_regions = ReducedVolume(
+    [mp.get_volume(r) for r in bundle_rh_0000000168.regions],
+    [mp.get_index(r).label for r in bundle_rh_0000000168.regions]
+).fetch()
+plotting.view_img(
+    img_regions,
+    symmetric_cmap=False,
+    cmap=p.get_map("mni152").get_colormap(bundle_rh_0000000168.regions)
+)
 
 # %%
 # Each bundle is represented as a dictionary of fibers which in turn are
 # represented as Contour objects. Countours are just PointClouds where the order
 # of the coordinates is important. (This enables warping the coordinates to
 # other spaces effeciently).
-bundle_rh_0000000001.fibers
+bundle_rh_0000000168.fibers
 
 # %%
 # Alternatively, the fibers are stored as DataFrame for interoperability
-bundle_rh_0000000001.data
+bundle_rh_0000000168.data
 
 # %%
-bundle_rh_0000000001.plot()
+bundle_rh_0000000168.plot()
 
 
 # %%
@@ -58,18 +69,18 @@ display = plotting.plot_img(
     img=siibra.get_template("mni152").fetch(resolution_mm=1),
     bg_img=None,
     cmap="gray",
-    title=f"Bundle: {bundle_rh_0000000001} - fiber: {fiber_id}",
-    cut_coords=bundle_rh_0000000001.fibers[fiber_id].coordinates[25],
+    title=f"Bundle: {bundle_rh_0000000168} - fiber: {fiber_id}",
+    cut_coords=bundle_rh_0000000168.fibers[fiber_id].coordinates[25],
 )
-display.add_markers(bundle_rh_0000000001.fibers[fiber_id].coordinates, marker_size=4)
+display.add_markers(bundle_rh_0000000168.fibers[fiber_id].coordinates, marker_size=4)
 
 # %%
-warped_fiber = bundle_rh_0000000001.fibers[fiber_id].warp("bigbrain")
+warped_fiber = bundle_rh_0000000168.fibers[fiber_id].warp("bigbrain")
 display = plotting.plot_img(
     img=siibra.get_template("bigbrain").fetch(resolution_mm=1),
     bg_img=None,
     cmap="gray",
-    title=f"Bundle: {bundle_rh_0000000001} - fiber: {fiber_id}",
+    title=f"Bundle: {bundle_rh_0000000168} - fiber: {fiber_id}",
     cut_coords=warped_fiber.coordinates[25],
 )
 display.add_markers(warped_fiber.coordinates, marker_size=4)
