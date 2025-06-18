@@ -825,8 +825,12 @@ class DataProxyConnector(RepositoryConnector):
         ]
 
     def _build_url(self, folder: str, filename: str):
-        if folder[:len(self.main_folder)] != self.main_folder:
-            folder = f"{self.main_folder}/{folder}"
+        if (
+            folder == ""
+            and not pathlib.Path(filename).is_relative_to(self.main_folder)
+        ):
+            folder = self.main_folder
+
         folder = self._TRIM_START_PATTERN.sub("", folder)
         filename = self._TRIM_START_PATTERN.sub("", filename)
         path = ""
