@@ -748,10 +748,8 @@ class ReducedVolume(Volume):
         # determine base image
         template_img = self.space.get_template().fetch(**kwargs)
         template_res = min(template_img.header.get_zooms())
-        resolution_mm = kwargs.pop(
-            "resolution_mm",
-            template_res if 'neuroglancer/precomputed' in self.formats else None
-        )
+        if "neuroglancer/precomputed" in self.formats:
+            kwargs["resolution_mm"] = kwargs.get("resolution_mm", template_res)
         merged_array = np.zeros(template_img.shape, dtype=dtype)
         for i, vol in siibra_tqdm(
             enumerate(self.source_volumes),
@@ -761,11 +759,7 @@ class ReducedVolume(Volume):
             disable=len(self.source_volumes) < 3,
             leave=False,
         ):
-            img = vol.fetch(
-                format=format,
-                resolution_mm=resolution_mm,
-                **kwargs
-            )
+            img = vol.fetch(format=format, **kwargs)
             if img is None:
                 continue
             resampled_arr = np.asanyarray(
