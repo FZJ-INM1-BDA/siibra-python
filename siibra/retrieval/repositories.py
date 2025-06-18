@@ -771,24 +771,23 @@ class EbrainsPublicDatasetConnectorMinds(RepositoryConnector):
         return HttpRequest(self._build_url(folder, filename), decode_func)
 
 
-_TRIM_START_PATTERN = re.compile(r"^\.\/")
-_EXTRACT_BUCKETNAME = re.compile(r"https://data-proxy.ebrains.eu/api/v1/buckets/(?P<bucketname>[\w\-_]+)/?.*?$")
-_EXTRACT_BUCKETNAME2 = re.compile(r"https://data-proxy.ebrains.eu/(?P<bucketname>[\w\-_]+)(/\?)?.*?$")
-_EXTRACT_BUCKETNAME3 = re.compile(r"^(?P<bucketname>[\w\-_]+)$")
-
-
 class DataProxyConnector(RepositoryConnector):
+    _TRIM_START_PATTERN = re.compile(r"^\.\/")
+    _EXTRACT_BUCKETNAME = re.compile(r"https://data-proxy.ebrains.eu/api/v1/buckets/(?P<bucketname>[\w\-_]+)/?.*?$")
+    _EXTRACT_BUCKETNAME2 = re.compile(r"https://data-proxy.ebrains.eu/(?P<bucketname>[\w\-_]+)(/\?)?.*?$")
+    _EXTRACT_BUCKETNAME3 = re.compile(r"^(?P<bucketname>[\w\-_]+)$")
+
     def __init__(self, bucketname: str, main_folder: str = ""):
         _extracted_bucketname = None
-        matched = _EXTRACT_BUCKETNAME.search(bucketname)
+        matched = self._EXTRACT_BUCKETNAME.search(bucketname)
         if matched:
             _extracted_bucketname = matched.group('bucketname')
         if not _extracted_bucketname:
-            matched = _EXTRACT_BUCKETNAME2.search(bucketname)
+            matched = self._EXTRACT_BUCKETNAME2.search(bucketname)
             if matched:
                 _extracted_bucketname = matched.group('bucketname')
         if not _extracted_bucketname:
-            matched = _EXTRACT_BUCKETNAME3.search(bucketname)
+            matched = self._EXTRACT_BUCKETNAME3.search(bucketname)
             if matched:
                 _extracted_bucketname = matched.group('bucketname')
 
@@ -816,7 +815,7 @@ class DataProxyConnector(RepositoryConnector):
         if recursive is False:
             raise Exception("None recursive search file not yet implemented in dataproxy connector")
 
-        prefix = _TRIM_START_PATTERN.sub("", self.main_folder + folder)
+        prefix = self._TRIM_START_PATTERN.sub("", self.main_folder + folder)
         suffix = suffix or ""
 
         return [
@@ -828,8 +827,8 @@ class DataProxyConnector(RepositoryConnector):
     def _build_url(self, folder: str, filename: str):
         if folder[:len(self.main_folder)] != self.main_folder:
             folder = f"{self.main_folder}/{folder}"
-        folder = _TRIM_START_PATTERN.sub("", folder)
-        filename = _TRIM_START_PATTERN.sub("", filename)
+        folder = self._TRIM_START_PATTERN.sub("", folder)
+        filename = self._TRIM_START_PATTERN.sub("", filename)
         path = ""
         if folder:
             path += quote(folder) + "/"
