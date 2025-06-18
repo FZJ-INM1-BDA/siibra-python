@@ -22,7 +22,7 @@ from functools import wraps
 import numpy as np
 import pandas as pd
 
-from ..commons import logger, Species
+from ..commons import logger, Species, get_bids_entities
 from ..features import anchor, connectivity
 from ..features.tabular import (
     receptor_density_profile,
@@ -178,7 +178,10 @@ class Factory:
                 reftag=repospec["branch"],
             )
         if spectype == "siibra/repository/dataproxy/v1.0.0":
-            return repositories.DataProxyConnector(repospec["bucketname"])
+            return repositories.DataProxyConnector(
+                repospec["bucketname"],
+                main_folder=repospec["folder"],
+            )
 
         logger.warning(
             "Do not know how to create a repository "
@@ -548,10 +551,28 @@ class Factory:
             )
 
     @classmethod
+    @build_type("bids/connectivitymatrix/v0.1")
+    def build_connectivity_matrix_from_bids(cls, spec):
+        spec["repository"] = cls.extract_connector(spec)
+        spec["regions"] = spec["repository"].get(filename=spec["regions"])["label"].to_list()
+        spec["files"] = dict()
+        for fpath in spec["repository"].search_files(suffix=".tsv", recursive=True):
+            if "relmat" not in fpath:
+                continue
+            filename = path.basename(fpath)[:-4]
+            entities = get_bids_entities(filename)
+            if entities["files_indexed_by"] != spec["files_indexed_by"]:
+                continue
+            spec["files"][filename] = fpath
+            spec["feature"] = entities["measure"]
+
+        return cls.build_connectivity_matrix(spec)
+
+    @classmethod
     @build_type("siibra/feature/streamlinefiberbundles/v0.1")
     @build_type("siibra/feature/connectivitymatrix/v0.3")
     def build_connectivity_matrix(cls, spec):
-        files = spec.get("files", {})
+        files = spec.get("files", dict())
         modality = spec["modality"]
         try:
             conn_cls = getattr(connectivity, modality)
@@ -561,16 +582,19 @@ class Factory:
             )
 
         decoder_func = cls.extract_decoder(spec)
-        repo_connector = (
-            cls.extract_connector(spec) if spec.get("repository", None) else None
-        )
+        if isinstance(spec.get("repository", None), repositories.RepositoryConnector):
+            repo_connector = spec["repository"]
+        else:
+            repo_connector = (
+                cls.extract_connector(spec) if spec.get("repository", None) else None
+            )
         if repo_connector is None:
             base_url = spec.get("base_url", "")
-
         if isinstance(spec["regions"], str):
             regions = base_url + spec["regions"]
         else:
             regions = spec["regions"]
+
         kwargs = {
             "cohort": spec.get("cohort", ""),
             "modality": modality,
@@ -587,8 +611,9 @@ class Factory:
             kwargs["paradigm"] = paradigm
         if spec.get("transform"):
             kwargs["transform"] = spec.get("transform")
+
         files_indexed_by = spec.get("files_indexed_by", "subject")
-        assert files_indexed_by in ["subject", "feature", "bundle"]
+        assert files_indexed_by in ["subject", "feature", "bundle", "group"]
         conn_by_file = []
         for fkey, filename in files.items():
             kwargs.update(

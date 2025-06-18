@@ -833,3 +833,24 @@ def y_rotation_matrix(alpha: float):
         [-math.sin(alpha), 0, math.cos(alpha), 0],
         [0, 0, 0, 1]
     ])
+
+
+def get_bids_entities(filename: str):
+    """
+    Given a filename, returns bids compatible metadata transcribed in the filename.
+    """
+    vals = filename.split("_")
+    entities = {"format": vals[-1]}
+    if vals[0].startswith("sub"):
+        entities["subject"] = vals[0].removeprefix("sub-")
+        entities["files_indexed_by"] = "subject"
+    else:
+        entities["files_indexed_by"] = vals[0]
+    for v in vals[1:-1]:
+        if v.startswith("ses"):
+            entities["session"] = v.removeprefix("ses-")
+        if v.startswith("meas"):
+            entities["measure"] = v.removeprefix("meas-")
+        if v.startswith("desc"):
+            entities["description"] = v.removeprefix("desc-")
+    return entities
