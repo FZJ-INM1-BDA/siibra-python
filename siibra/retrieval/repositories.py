@@ -778,8 +778,7 @@ _EXTRACT_BUCKETNAME3 = re.compile(r"^(?P<bucketname>[\w\-_]+)$")
 
 
 class DataProxyConnector(RepositoryConnector):
-    def __init__(self, bucketname: str):
-        super().__init__(base_url=None)
+    def __init__(self, bucketname: str, main_folder: str = ""):
         _extracted_bucketname = None
         matched = _EXTRACT_BUCKETNAME.search(bucketname)
         if matched:
@@ -795,25 +794,29 @@ class DataProxyConnector(RepositoryConnector):
 
         assert _extracted_bucketname is not None, f"bucketname {bucketname} cannot be properly parsed"
 
+        super().__init__(
+            base_url=f"https://data-proxy.ebrains.eu/api/v1/buckets/{_extracted_bucketname}"
+        )
         client = BucketApiClient()
-        self.bucket = client.buckets.get_bucket(_extracted_bucketname)
+        self._bucket = client.buckets.get_bucket(_extracted_bucketname)
         self.bucketname = _extracted_bucketname
+        self.main_folder = main_folder
 
         def ls(prefix: str = ""):
-            return list(self.bucket.ls(prefix=prefix))
+            return list(self._bucket.ls(prefix=prefix))
 
         self._ls = cache_user_fn(ls)
 
     # only defined for typing purpose
     # actual ._ls is defined in __init__ function for joblib caching
     def _ls(self, prefix: str):
-        return list(self.bucket.ls(prefix=prefix))
+        return list(self._bucket.ls(prefix=prefix))
 
-    def search_files(self, folder, suffix, recursive=False):
+    def search_files(self, folder: str = "", suffix: str = "", recursive: bool = False):
         if recursive is False:
             raise Exception("None recursive search file not yet implemented in dataproxy connector")
 
-        prefix = _TRIM_START_PATTERN.sub("", folder)
+        prefix = _TRIM_START_PATTERN.sub("", self.main_folder + folder)
         suffix = suffix or ""
 
         return [
@@ -822,11 +825,13 @@ class DataProxyConnector(RepositoryConnector):
             if f.name.endswith(suffix)
         ]
 
-    def _build_url(self, folder, filename):
+    def _build_url(self, folder: str, filename: str):
+        if folder[:len(self.main_folder)] != self.main_folder:
+            folder = f"{self.main_folder}/{folder}"
         folder = _TRIM_START_PATTERN.sub("", folder)
         filename = _TRIM_START_PATTERN.sub("", filename)
         path = ""
         if folder:
             path += quote(folder) + "/"
         path += quote(filename)
-        return f"https://data-proxy.ebrains.eu/api/v1/buckets/{self.bucketname}/{path}"
+        return f"{self.base_url}/{path}"
