@@ -592,7 +592,7 @@ class Factory:
         kwargs = {
             "cohort": spec.get("cohort", ""),
             "modality": modality,
-            "regions": regions,
+            "regions": spec["regions"],
             "connector": repo_connector,
             "decode_func": decoder_func,
             "anchor": cls.extract_anchor(spec),

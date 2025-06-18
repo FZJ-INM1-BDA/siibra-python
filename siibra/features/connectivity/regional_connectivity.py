@@ -98,11 +98,15 @@ class RegionalConnectivity(Feature, Compoundable):
         self._connector = connector
         self._filename = filename
         self._decode_func = decode_func
-        self.regions = regions
+        self._regions = regions
         self._matrix = None
         self._subject = subject
         self._feature = feature
         self._matrix_std = None  # only used for compound feature
+
+    @property
+    def regions(self):
+        return self._regions
 
     @property
     def subject(self):
@@ -143,7 +147,7 @@ class RegionalConnectivity(Feature, Compoundable):
         assert len({f.cohort for f in elements}) == 1
         merged = cls(
             cohort=elements[0].cohort,
-            regions=elements[0].regions,
+            regions=elements[0]._regions,
             connector=elements[0]._connector,
             decode_func=elements[0]._decode_func,
             filename="",
@@ -192,8 +196,8 @@ class RegionalConnectivity(Feature, Compoundable):
             https://nilearn.github.io/stable/modules/generated/nilearn.plotting.plot_matrix.html
         """
         if regions is None:
-            regions = self.regions
-        indices = [self.regions.index(r) for r in regions]
+            regions = self._regions
+        indices = [self._regions.index(r) for r in regions]
         matrix = self.data.iloc[indices, indices].to_numpy()  # nilearn.plotting.plot_matrix works better with a numpy array
 
         if logscale:
@@ -438,7 +442,7 @@ class RegionalConnectivity(Feature, Compoundable):
         assert len(parcellations) == 1
         parcmap = next(iter(parcellations)).get_map(space)
         all_centroids = parcmap.compute_centroids()
-        for regionname in self.regions:
+        for regionname in self._regions:
             region = parcmap.parcellation.get_region(regionname, allow_tuple=True)
             if isinstance(region, tuple):  # deal with sets of matched regions
                 found = [c for r in region for c in r if c.name in all_centroids]
@@ -469,7 +473,7 @@ class RegionalConnectivity(Feature, Compoundable):
         with QUIET:
             indexmap = {
                 i: parc.get_region(regionname, allow_tuple=True)
-                for i, regionname in enumerate(self.regions)
+                for i, regionname in enumerate(self._regions)
             }
         nrows = array.shape[0]
         try:
