@@ -23,8 +23,12 @@ import siibra
 
 # %%
 p = siibra.parcellations.get("julich 3.1")
-cf = siibra.features.get(p, "streamlinecounts")[1]
+for f in siibra.features.get(p, "streamlinecounts"):
+    if f.cohort == "100BRAINS":
+        cf = f
+        break
 print(cf.cohort)
+print(cf.name)
 
 # %%
 print(cf[0].name)
@@ -34,4 +38,7 @@ print(cf[0].subject)
 cf[0].data
 
 # %%
-cf[0].plot(region="hoc1 left")
+cf[0].plot(regions=cf[0].regions[0:50], reorder="average")
+
+# %%
+cf[0].plot(regions="3b left", backend="plotly")
