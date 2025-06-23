@@ -842,15 +842,15 @@ def get_bids_entities(filename: str):
     vals = filename.split("_")
     entities = {"format": vals[-1]}
     if vals[0].startswith("sub"):
-        entities["subject"] = vals[0].removeprefix("sub-")
+        entities["subject"] = vals[0][4:]
         entities["files_indexed_by"] = "subject"
     else:
         entities["files_indexed_by"] = vals[0]
     for v in vals[1:-1]:
         if v.startswith("ses"):
-            entities["session"] = v.removeprefix("ses-")
+            entities["session"] = v[4:]
         if v.startswith("meas"):
-            entities["measure"] = v.removeprefix("meas-")
+            entities["measure"] = v[5:]
         if v.startswith("desc"):
-            entities["description"] = v.removeprefix("desc-")
+            entities["description"] = v[5:]
     return entities
