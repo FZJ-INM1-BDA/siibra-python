@@ -410,8 +410,16 @@ class Factory:
         return ffp_by_file
 
     @classmethod
-    @build_type("siibra/feature/point_distribution/v0.1")
+    @build_type("siibra/feature/point_distribution/cell_distribution/v0.1")
+    @build_type("siibra/feature/point_distribution/tracing_connectivity_distribution/v0.1")
     def build_point_distribution(cls, spec):
+        modality = spec.get("modality")
+        try:
+            point_dist_cls = getattr(point_distribution, modality)
+        except Exception:
+            raise ValueError(
+                f"No method for building connectivity matrix of type {modality}."
+            )
         if "files" in spec:
             baseurl = spec.get("base_url", "")
             files = spec.pop("files")
@@ -422,14 +430,15 @@ class Factory:
                 for subject, fname in files.items()
             ]
 
-        return point_distribution.PointDistribution(
+        return point_dist_cls(
             modality=spec['modality'],
             space_spec=spec.get('space'),
             description=spec.get('description'),
             filename=spec['filename'],
             subject=spec['subject'],
             decoder=cls.extract_decoder(spec),
-            datasets=cls.extract_datasets(spec)
+            datasets=cls.extract_datasets(spec),
+            **(dict(tracer=spec["tracer"]) if "tracer" in spec else {})
         )
 
     @classmethod

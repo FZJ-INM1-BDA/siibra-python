@@ -26,14 +26,23 @@ from nilearn import plotting
 space = siibra.spaces.get("mouse")
 
 # %%
-fts = siibra.features.get(space, "PointDistribution")
-fts[0][0].data
+cf = siibra.features.get(space, "PointDistribution")[0]
+print(cf.modality)
+print(cf.tracer)
+cf[0].data
+
+
+# %%
+for f in cf:
+    print(f.subject)
 
 # %%
 display = plotting.plot_img(
     img=siibra.get_template("mouse").fetch(resolution_mm=-1),
     bg_img=None,
     cmap="gray",
-    title=fts[0][0].subject,
+    title=f"red: {cf[0].subject}, blue: {cf[-1].subject}",
+    cut_coords=cf[0].data.values.mean(axis=0)
 )
-display.add_markers(fts[0][0].data.values)
+display.add_markers(cf[0].data.values, marker_color="r")
+display.add_markers(cf[-1].data.values, marker_color="b")

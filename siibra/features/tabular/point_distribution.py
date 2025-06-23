@@ -31,12 +31,7 @@ if TYPE_CHECKING:
     from pandas import DataFrame
 
 
-class PointDistribution(
-    tabular.Tabular,
-    Compoundable,
-    configuration_folder="features/tabular/point_distribution",
-    category="cellular",
-):
+class PointDistribution(tabular.Tabular, Compoundable):
     """
     Represents a data frame with at least 3 columns (x, y, z, value#0, value#1,...)
     where the coordinates corresponds to a reference space,
@@ -138,7 +133,7 @@ class PointDistribution(
 
     def plot(self, *args, backend="matplotlib", **kwargs):
         if self.data.shape[1] <= 3:
-            logger. NotImplementedError(
+            logger.NotImplementedError(
                 "The point distribution does not contain any value data."
                 "You can obtain and plot kernel density using: `get_kde_volume`."
             )
@@ -179,3 +174,31 @@ class PointDistribution(
         anchor: _anchor.AnatomicalAnchor,
     ):
         pass
+
+
+class CellDistribution(
+    PointDistribution,
+    configuration_folder="features/tabular/point_distribution/cell_distribution",
+    category="cellular",
+):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class TracingConnectivityDistribution(
+    PointDistribution,
+    configuration_folder="features/tabular/point_distribution/tracing_connectivity_distribution",
+    category="connectivity",
+):
+
+    _filter_attrs = PointDistribution._filter_attrs + ["tracer"]
+    _compound_attrs = PointDistribution._compound_attrs + ["tracer"]
+
+    def __init__(self, tracer: str, **kwargs):
+        super().__init__(**kwargs)
+        self._tracer = tracer
+
+    @property
+    def tracer(self) -> str:
+        self._tracer
