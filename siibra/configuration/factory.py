@@ -425,7 +425,7 @@ class Factory:
             files = spec.pop("files")
             return [
                 cls.build_point_distribution(
-                    {**spec, "subject": subject, "filename": baseurl + fname}
+                    {**spec, "subject": subject, "file_url": f"{baseurl}/{fname}"}
                 )
                 for subject, fname in files.items()
             ]
@@ -434,11 +434,10 @@ class Factory:
             modality=spec['modality'],
             space_spec=spec.get('space'),
             description=spec.get('description'),
-            filename=spec['filename'],
+            file_url=spec['file_url'],
             subject=spec['subject'],
             decoder=cls.extract_decoder(spec),
             datasets=cls.extract_datasets(spec),
-            **(dict(tracer=spec["tracer"]) if "tracer" in spec else {})
         )
 
     @classmethod

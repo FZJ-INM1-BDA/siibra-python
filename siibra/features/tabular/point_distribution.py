@@ -45,7 +45,7 @@ class PointDistribution(tabular.Tabular, Compoundable):
         modality: str,
         space_spec: dict,
         subject: str,
-        filename: str,
+        file_url: str,
         description: str = "",
         decoder: Callable = None,
         datasets: list = [],
@@ -68,7 +68,7 @@ class PointDistribution(tabular.Tabular, Compoundable):
             datasets=datasets,
             id=id,
         )
-        self._loader = HttpRequest(filename, decoder)
+        self._loader = HttpRequest(file_url, decoder)
         self._subject = subject
 
     @property
@@ -192,13 +192,5 @@ class TracingConnectivityDistribution(
     category="connectivity",
 ):
 
-    _filter_attrs = PointDistribution._filter_attrs + ["tracer"]
-    _compound_attrs = PointDistribution._compound_attrs + ["tracer"]
-
-    def __init__(self, tracer: str, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._tracer = tracer
-
-    @property
-    def tracer(self) -> str:
-        self._tracer
