@@ -24,7 +24,7 @@ import siibra
 # %%
 p = siibra.parcellations.get("julich 3.1")
 for f in siibra.features.get(p, "streamlinecounts"):
-    if f.cohort == "100BRAINS":
+    if f.cohort == "1000BRAINS":
         cf = f
         break
 print(cf.cohort)
