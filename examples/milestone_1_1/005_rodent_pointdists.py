@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Mice point dist
-~~~~~~~~~~~~~~~
+Rodent tracing connectivity distribution
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
@@ -23,12 +23,12 @@ import siibra
 from nilearn import plotting
 
 # %%
-space = siibra.spaces.get("mouse")
+space = siibra.spaces.get("waxholm")
+print(space.name)
 
 # %%
-cf = siibra.features.get(space, "PointDistribution")[0]
+cf = siibra.features.get(space, "TracingConnectivityDistribution")[0]
 print(cf.modality)
-print(cf.tracer)
 cf[0].data
 
 
@@ -38,7 +38,7 @@ for f in cf:
 
 # %%
 display = plotting.plot_img(
-    img=siibra.get_template("mouse").fetch(resolution_mm=-1),
+    img=space.get_template().fetch(resolution_mm=-1),
     bg_img=None,
     cmap="gray",
     title=f"red: {cf[0].subject}, blue: {cf[-1].subject}",
