@@ -357,11 +357,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             elif len(self) > 1:
                 assert self.maptype == MapType.LABELLED, f"Cannot merge multiple volumes of map type {self.maptype}. Please specify a region or index."
                 logger.info(
-                    "Map provides multiple volumes and no specification is"
-                    " provided. Resampling all volumes to the space."
+                    "Map provides multiple volumes and no region specification is"
+                    " provided. Reducing them to a single volume resampled to space template."
                 )
-                labels = list(range(len(self.volumes)))
-                merged_volume = _volume.merge(self.volumes, labels, **kwargs)
+                labels = list(range(1, len(self.volumes) + 1)) if self.labels == {1} else None
+                merged_volume = _volume.ReducedVolume(self.volumes, labels)
                 return merged_volume
             else:
                 raise exceptions.NoVolumeFound("Map provides no volumes.")
@@ -370,10 +370,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if kwargs_fragment is not None:
             if (mapindex.fragment is not None) and (kwargs_fragment != mapindex.fragment):
                 raise exceptions.ConflictingArgumentException(
-                    "Conflicting specifications for fetching volume fragment: "
-                    f"{mapindex.fragment} / {kwargs_fragment}"
+                    f"Conflicting specifications for fetching volume fragment{f' for region {region}'}: "
+                    f"supplied: {kwargs_fragment}, preconfigured: {mapindex.fragment}"
                 )
-            mapindex.fragment = kwargs_fragment
 
         if mapindex.volume is None:
             mapindex.volume = 0
@@ -387,7 +386,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         return _volume.FilteredVolume(
             parent_volume=self.volumes[mapindex.volume],
             label=mapindex.label,
-            fragment=mapindex.fragment,
+            fragment=kwargs_fragment or mapindex.fragment,
         )
 
     def fetch(
@@ -728,6 +727,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         else:
             include_region_names = None
 
+        use_volindx = False
+        if len(self.volumes) > 1 and self.labels == {1}:
+            use_volindx = True
+            logger.info("Using sequential relabling determined by the order of volumes.")
+
         no_predefined_color = []
         for regionname, indices in self._indices.items():
             for index in indices:
@@ -739,7 +743,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 else:
                     region = self.get_region(index=index)
                     if region.rgb is not None:
-                        colors[index.label] = region.rgb
+                        if use_volindx:
+                            colors[index.volume + 1] = region.rgb
+                        else:
+                            colors[index.label] = region.rgb
                     elif fill_uncolored:
                         random_clr = [np.random.randint(0, 255) for r in range(3)]
                         while random_clr in list(colors.values()):
@@ -761,7 +768,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 f"{no_predefined_color}"
             )
 
-        max_label_index = max(index[0].label for index in self._indices.values())
+        max_label_index = max(colors.keys())
 
         palette = np.array(
             [
