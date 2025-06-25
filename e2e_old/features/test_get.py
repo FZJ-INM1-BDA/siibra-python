@@ -1,6 +1,12 @@
 import pytest
-import siibra
 from e2e.util import check_duplicate
+
+import siibra
+from siibra.locations import Location, PointCloud
+from siibra.livequeries.bigbrain import WagstylProfileLoader
+from siibra.features.feature import CompoundFeature
+
+import numpy as np
 
 
 # We get all registered subclasses of Feature
@@ -32,8 +38,9 @@ def test_feature_unique(Cls: siibra.features.Feature):
 
 selected_ids = [
     "lq0::EbrainsDataFeature::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::https://nexus.humanbrainproject.org/v0/data/minds/core/dataset/v1.0.0/3ff328fa-f48f-474b-bd81-b5ee7ca230b6",
-    "cf0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS)::acc39db40e08a9ce23d05bf75a4ce172::94768ccf7d23b640453fb56b4562c2d2",  # 2279 BigBrain Intensity Profile features
-    "lq0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS)::acc39db40e08a9ce23d05bf75a4ce172--3f5eae673d7380faa8b546bba118a7f3",  # BigBrain Intensity Profile: (-17.51020050048828, -42.08150100708008, 7.886569976806641)
+    # "cf0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::acc39db40e08a9ce23d05bf75a4ce172::0d023118e0b9923a11628642e6170d00",  # 1574 BigBrain Intensity Profile features
+    "cf0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::acc39db40e08a9ce23d05bf75a4ce172::560a3ae060014a2076210c84e31b5412",  # 1236 BigBrain Intensity Profile features
+    "lq0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::acc39db40e08a9ce23d05bf75a4ce172--4b4e7dea27709f3367dd468f9c9a96ed",  # BigBrain Intensity Profile: (4.848050117492676, -55.64030075073242, 1.999250054359436)
     "cf0::CellDensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS)::f2cd6b97-e42d-41af-a01b-5caf2d692e28::599f219267d5bdc3c5c04ddf31f36748",  # 10 Cell Density Profile features
     "f2cd6b97-e42d-41af-a01b-5caf2d692e28--5fc6ebfcbdf43c1c9fb36263eda160d2",  # Cell Density Profile: (19.09100914001465, -64.9000015258789, -0.36307409405708313)
     "cf0::ReceptorDensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS)::e715e1f7-2079-45c4-a67f-f76b102acfce::48ce018be081dafb160287031fbe08c3",  # 16 Receptor Density Profile features
@@ -65,10 +72,55 @@ def test_subclass_count(fid):
 
 def test_querying_with_volume():
     # Use features with location anchors only. Because hybrid ones will also
-    # employ sementic links between regions, potentially changing the result.
+    # employ semantic links between regions, potentially changing the result.
     region = siibra.get_region("julich 2.9", "ca1")
-    volume = region.extract_map('mni152')
+    volume = region.get_regional_mask("mni152")
     profiles_region = siibra.features.get(region, "BigBrainIntensityProfile")[0]
     profiles_volume = siibra.features.get(volume, "BigBrainIntensityProfile")[0]
-    # the ids will be diffent but the content has to be the same. Even the order.
-    assert [p.location for p in profiles_region] == [p.location for p in profiles_volume]
+    # the ids will be different but the content has to be the same. Even the order.
+    assert [p.location for p in profiles_region] == [
+        p.location for p in profiles_volume
+    ]
+
+
+WagstylProfileLoader._load()
+verts = WagstylProfileLoader._vertices
+np.random.seed(10)
+loc_queries = [
+    (
+        siibra.get_map("julich 2.9", "bigbrain")
+        .get_volume("hoc1 left")
+        .get_boundingbox(clip=True),
+        "BigBrainIntensityProfile",
+        14469,
+    ),
+    (
+        PointCloud(verts[np.random.randint(0, len(verts) - 1, 100)], space="bigbrain"),
+        "BigBrainIntensityProfile",
+        100,
+    ),
+    (
+        PointCloud(
+            np.concatenate(
+                [
+                    verts[np.random.randint(0, len(verts) - 1, 100)] + 1000,
+                    verts[np.random.randint(0, len(verts) - 1, 10)],
+                ]
+            ),
+            space="bigbrain",
+        ),
+        "BigBrainIntensityProfile",
+        10,
+    ),
+]
+
+
+@pytest.mark.parametrize("loc, feat_type, res_len", loc_queries)
+def test_query_w_locations(loc: Location, feat_type: str, res_len: int):
+    results = siibra.features.get(loc, feat_type)
+    assert len(results) > 0
+    assert results[0].data is not None
+    if len(results) == 1 and isinstance(results[0], CompoundFeature):
+        assert len(results[0]) == res_len
+    else:
+        assert len(results) == res_len

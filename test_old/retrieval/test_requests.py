@@ -1,5 +1,4 @@
-from siibra.operations.requests import EbrainsRequest, HttpRequest
-from siibra.cache import CACHE
+from siibra.retrieval.requests import EbrainsRequest, HttpRequest, CACHE
 
 import pytest
 import json

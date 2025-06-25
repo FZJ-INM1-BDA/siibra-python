@@ -11,14 +11,14 @@ selected_regions = [
     (siibra.get_region('julich 2.9', 'CA2 (Hippocampus) right'), 'mni152'),
     (siibra.get_region('julich 2.9', 'CA2 (Hippocampus) left'), 'colin27'),
     (siibra.get_region('julich 2.9', 'hoc1 left'), 'mni152'),
-    (siibra.get_region('julich 3', 'sts'), 'mni152')
+    (siibra.get_region('julich 3', 'superior temporal sulcus'), 'mni152'),
 ]
 
 
 @pytest.mark.parametrize("region, space", selected_regions)
 def test_region_intersection_with_its_own_volume(region, space):
     assert isinstance(region, Region)
-    volume = region.get_regional_map(space)
+    volume = region.get_regional_mask(space)
     intersection = region.intersection(volume)
     assert isinstance(intersection, Volume)
     assert np.all(

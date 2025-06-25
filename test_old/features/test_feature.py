@@ -13,6 +13,7 @@ class FooFeatureBase:
     def __init__(self, id) -> None:
         self.id = id
         self.other = "bla"
+        self.category = None
 
 
 class FooFeature(FooFeatureBase):
@@ -67,7 +68,7 @@ feature_name = "FooFeatures"
 
 @pytest.fixture
 def mock_parse_featuretype():
-    with patch.object(Feature, "parse_featuretype") as mock:
+    with patch.object(Feature, "_parse_featuretype") as mock:
         mock.return_value = [FooFeature, FooFeatureBase]
         yield mock
 
@@ -104,12 +105,12 @@ def mock_all(
 
 
 def test_mock_featuretype(mock_parse_featuretype):
-    feature_types = Feature.parse_featuretype()
+    feature_types = Feature._parse_featuretype()
     mock_parse_featuretype.assert_called_once()
     assert feature_types == [FooFeature, FooFeatureBase]
 
     mock_parse_featuretype.return_value = "foo"
-    feature_types = Feature.parse_featuretype()
+    feature_types = Feature._parse_featuretype()
     assert feature_types == "foo"
 
 
@@ -245,7 +246,8 @@ def test_deserialize_query_context(
 
 
 def test_wrap_feature():
-    new_feat = Feature._wrap_livequery_feature(feature_inst, "helloworld")
+    feature_inst.category = "vategory_before_wrapping"
+    new_feat = Feature._wrap_livequery_feature(feature_inst, fid="helloworld")
     assert new_feat.other == feature_inst.other
     assert new_feat.id != feature_inst.id
     assert new_feat.id == "helloworld"

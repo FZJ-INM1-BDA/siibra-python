@@ -70,7 +70,7 @@ def test_containedness(point, map: Map, query):
 
 
 def test_point_assignment_to_labelled():
-    mp = siibra.get_map('julich 3', 'mni152')
+    mp = siibra.get_map('julich 3.0.3', 'mni152')
     # certain point
     point = siibra.Point((25.5, -26.0, 72.0), space='mni152')
     assignments = mp.assign(point)
@@ -123,9 +123,27 @@ def test_fetching_merged_volume():
     _ = mp.fetch()
 
 
+@pytest.mark.parametrize(
+    "siibramap, bbox_points",
+    [
+        (siibra.get_map('layers', 'bigbrain'), ((-18.9, 10.8, 16.0), (7.0, 16.8, 29.3))),
+        (siibra.get_map('layers', 'bigbrain'), ((-1.3, 16.8, 31.0), (4.6, 20.8, 34.9))),
+        (siibra.get_map('julich 2.9', 'bigbrain'), ((-19.31, 16.80, 38.11), (-1.21, 13.80, 48.87))),
+        (siibra.get_map('julich 2.9', 'bigbrain'), ((14.19, 16.80, 38.20), (-1.21, 13.80, 48.87))),
+    ]
+)
+def test_fetching_voi_from_merged_volume(siibramap, bbox_points):
+    img = siibramap.fetch(
+        voi=siibra.BoundingBox(*bbox_points, siibramap.space),
+        resolution_mm=0.66
+    )
+    assert img is not None
+
+
+# TODO: add tests for jba 3.1
 @pytest.mark.parametrize("siibramap", [
-    siibra.get_map('julich 3', 'fsaverage'),
-    siibra.get_map('julich 3', 'mni152'),
+    siibra.get_map('julich 3.0.3', 'fsaverage'),
+    siibra.get_map('julich 3.0.3', 'mni152'),
 ])
 def test_fetching_mask(siibramap: Map):
     for fmt in siibramap.formats:

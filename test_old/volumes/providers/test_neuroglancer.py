@@ -1,7 +1,7 @@
 from unittest.mock import patch, MagicMock
 
 from siibra.volumes.providers.neuroglancer import NeuroglancerVolume
-from siibra.operations import requests
+from siibra.retrieval import requests
 
 
 @patch.object(requests, 'HttpRequest')
