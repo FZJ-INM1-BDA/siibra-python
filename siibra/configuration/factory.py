@@ -25,6 +25,7 @@ import pandas as pd
 from ..commons import logger, Species, get_bids_entities
 from ..features import anchor, connectivity
 from ..features.tabular import (
+    tabular,
     receptor_density_profile,
     receptor_density_fingerprint,
     cell_density_profile,
@@ -33,7 +34,7 @@ from ..features.tabular import (
     point_distribution,
     functional_fingerprint,
 )
-from ..features.image import sections, volume_of_interest
+from ..features.image import image, sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointcloud, boundingbox
 from ..retrieval import datasets, repositories
@@ -452,6 +453,19 @@ class Factory:
         )
 
     @classmethod
+    @build_type("siibra/feature/tabular/v0.1")
+    def build_generic_tabular(cls, spec):
+        return tabular.Tabular(
+            file=spec["file"],
+            description=spec.get("description"),
+            modality=spec.get("modality"),
+            anchor=cls.extract_anchor(spec),
+            datasets=cls.extract_datasets(spec),
+            id=spec.get("@id", None),
+            prerelease=spec.get("prerelease", False),
+        )
+
+    @classmethod
     @build_type("siibra/feature/fingerprint/celldensity/v0.1")
     def build_cell_density_fingerprint(cls, spec):
         return layerwise_cell_density.LayerwiseCellDensity(
@@ -557,6 +571,21 @@ class Factory:
             raise ValueError(
                 f"No method for building image section feature type {modality}."
             )
+
+    @build_type("siibra/feature/image/v0.1")
+    def build_generic_image_feature(cls, spec):
+        kwargs = {
+            "name": spec.get("name"),
+            "modality": spec.get("modality"),
+            "region": spec.get("region", None),
+            "space_spec": spec.get("space"),
+            "providers": cls.build_volumeproviders(spec.get("providers")),
+            "datasets": cls.extract_datasets(spec),
+            "bbox": cls.build_boundingbox(spec),
+            "id": spec.get("@id", None),
+            "prerelease": spec.get("prerelease", False),
+        }
+        return image.Image(**kwargs)
 
     @classmethod
     @build_type("bids/connectivitymatrix/v0.1")

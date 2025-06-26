@@ -37,7 +37,7 @@ from nilearn import plotting
 # reduced resolution.
 space = siibra.spaces['bigbrain']
 bigbrain_template = space.get_template()
-bigbrain_whole_img = bigbrain_template.fetch()
+bigbrain_whole_img = bigbrain_template.fetch(resolution_mm=1)
 plotting.view_img(bigbrain_whole_img, bg_img=None, cmap='gray')
 
 # %%
@@ -108,7 +108,7 @@ for f in features:
 # Now fetch the 1 micron section at a lower resolution, and display in 3D space.
 section1402 = features[3]
 plotting.plot_img(
-    section1402.fetch(),
+    section1402.fetch(resolution_mm=1),
     bg_img=bigbrain_whole_img,
     title="#1402",
     cmap='gray'
@@ -123,4 +123,4 @@ print(f"Size of the bounding box: {hoc5_bbox.shape}")
 # this is quite large, so we shrink it
 voi = hoc5_bbox.zoom(0.1)
 crop = section1402.fetch(voi=voi, resolution_mm=-1)
-plotting.plot_img(crop, bg_img=None, cmap='gray')
+plotting.plot_img(crop, bg_img=None, cmap="gray", display_mode="y")
