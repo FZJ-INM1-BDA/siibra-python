@@ -43,4 +43,4 @@ jobs:
     - name: Run test with pytest
       env:
         SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
-      run: pytest -rx
+      run: pytest -rx --durations=50
