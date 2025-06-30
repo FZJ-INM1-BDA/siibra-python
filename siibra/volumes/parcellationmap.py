@@ -676,7 +676,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 if index.volume != volidx:
                     continue
                 if result is None:
-                    result = np.zeros_like(img)
+                    result = np.zeros_like(
+                        img,
+                        dtype=next(iter({
+                            type(v) for v in values.values()
+                        }))
+                    )
                     affine = vol.affine
                 if index.label is None:
                     updates = img > maxarr
