@@ -397,6 +397,7 @@ class Factory:
     def build_generic_tabular(cls, spec):
         return tabular.Tabular(
             file=spec["file"],
+            decoder=cls.extract_decoder(spec) if "decoder" in spec else None,
             description=spec.get("description"),
             modality=spec.get("modality"),
             anchor=cls.extract_anchor(spec),

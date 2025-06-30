@@ -15,6 +15,7 @@
 """Base type of features in tabular formats."""
 
 from zipfile import ZipFile
+from typing import Callable
 
 import pandas as pd
 from textwrap import wrap
@@ -44,6 +45,7 @@ class Tabular(feature.Feature, category="generic", configuration_folder="feature
         modality: str,
         anchor: _anchor.AnatomicalAnchor,
         file: str = None,
+        decoder: Callable = None,
         data: pd.DataFrame = None,  # sample x feature dimension
         datasets: list = [],
         id: str = None,
@@ -58,7 +60,7 @@ class Tabular(feature.Feature, category="generic", configuration_folder="feature
             id=id,
             prerelease=prerelease
         )
-        self._loader = None if file is None else requests.HttpRequest(file)
+        self._loader = None if file is None else requests.HttpRequest(file, func=decoder)
         if file is not None:
             assert data is None
         self._data_cached = data
