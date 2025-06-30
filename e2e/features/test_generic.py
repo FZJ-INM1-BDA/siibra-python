@@ -95,7 +95,7 @@ def test_digestion(conf_path: str):
     with open(conf_path, 'rt') as fp:
         conf = json.load(fp)
     f = siibra.from_json(conf_path)
-    assert f.category == 'generic'
+    assert f.category == "generic"
     if conf["@type"] == "siibra/feature/image/v0.1":
         assert isinstance(f, siibra.features.generic.Image)
         assert isinstance(f.fetch(), (Nifti1Image, dict))
@@ -123,7 +123,7 @@ class TestCustomConfig:
     def test_generic_feature_query(self, query_params):
         query_concept, query_type = query_params
         if isinstance(query_concept, str):
-            query_concept = siibra.spaces.get(query_concept)  # TODO: check why match method fails
+            query_concept = siibra.spaces.get(query_concept)
         fts = [
             f
             for f in siibra.features.get(query_concept, query_type)

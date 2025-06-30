@@ -561,18 +561,21 @@ class Feature:
 
         # Collect any preconfigured instances of the requested feature type
         # which match the query concept
-        instances = [
-            instance
-            for f_type in cls._SUBCLASSES[feature_type]
-            for instance in f_type._get_instances()
-        ]
+        if feature_type.category == "generic":
+            feature_type_instances = feature_type._get_instances()
+        else:
+            feature_type_instances = [
+                instance
+                for f_type in cls._SUBCLASSES[feature_type]
+                for instance in f_type._get_instances()
+            ]
 
-        preconfigured_instances = [
+        matching_preconf_instances = [
             f for f in siibra_tqdm(
-                instances,
+                feature_type_instances,
                 desc=f"Matching {feature_type.__name__} to {concept}",
-                total=len(instances),
-                disable=(not instances)
+                total=len(feature_type_instances),
+                disable=(not feature_type_instances)
             )
             if f.matches(concept)
         ]
@@ -582,7 +585,7 @@ class Feature:
         live_instances = feature_type._livequery(concept, **kwargs)
 
         results = sorted(
-            dict.fromkeys(preconfigured_instances + live_instances),  # to remove duplicates
+            dict.fromkeys(matching_preconf_instances + live_instances),  # to remove duplicates
             key=lambda f: min(f.last_match_result) if f.last_match_result else False,  # to order according to assignmnent ranking
         )
         return CompoundFeature._compound(results, concept)

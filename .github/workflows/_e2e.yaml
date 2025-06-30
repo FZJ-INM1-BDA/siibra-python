@@ -45,4 +45,4 @@ jobs:
       env:
         SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
       shell: bash
-      run: pytest -rx e2e
+      run: pytest -rx e2e --durations=50
