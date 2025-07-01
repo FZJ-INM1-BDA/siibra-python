@@ -90,9 +90,9 @@ loc_queries = [
     (
         siibra.get_map("julich 2.9", "bigbrain")
         .get_volume("hoc1 left")
-        .get_boundingbox(clip=True),
+        .get_boundingbox(clip=True, resolution_mm=1),
         "BigBrainIntensityProfile",
-        14469,
+        13968,
     ),
     (
         PointCloud(verts[np.random.randint(0, len(verts) - 1, 100)], space="bigbrain"),
