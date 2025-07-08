@@ -811,7 +811,6 @@ class CompoundFeature(Feature):
 
     def _get_merged_feature(self) -> Feature:
         if self._merged_feature_cached is None:
-            logger.info(f"{self.__class__.__name__}.data averages the data of each element.")
             assert issubclass(self.feature_type, Compoundable)
             self._merged_feature_cached = self.feature_type._merge_elements(
                 elements=self.elements,
