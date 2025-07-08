@@ -32,7 +32,6 @@ from ..volumes import parcellationmap, volume
 from ..commons import (
     logger,
     MapType,
-    create_key,
     clear_name,
     InstanceTable,
     QUIET,
@@ -150,9 +149,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
     @property
     def id(self):
         if self.parent is None:
-            return create_key(self.name)
+            return self.key
         else:
-            return f"{self.parent.root.id}_{create_key(self.name)}"
+            return f"{self.root.key}_{self.key}"
 
     @property
     def parcellation(self):
