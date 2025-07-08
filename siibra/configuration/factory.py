@@ -127,6 +127,14 @@ class Factory:
             return None
 
     @classmethod
+    def decode_species(cls, spec):
+        if "species" in spec:
+            return Species.decode(spec["species"])
+        if "ebrains" in spec:
+            return Species.decode(spec["ebrains"])
+        raise ValueError("No species information found in spec.")
+
+    @classmethod
     def extract_anchor(cls, spec):
         if spec.get("region"):
             region = spec["region"]
@@ -153,12 +161,7 @@ class Factory:
                     f"anchor can be extracted. Supplied spec:\n{spec}"
                 )
 
-        if "species" in spec:
-            species = Species.decode(spec["species"])
-        elif "ebrains" in spec:
-            species = Species.decode(spec["ebrains"])
-        else:
-            raise ValueError("No species information found in spec.")
+        species = cls.decode_species(spec)
 
         return anchor.AnatomicalAnchor(
             region=region, location=location, species=species
@@ -612,6 +615,46 @@ class Factory:
 
     @classmethod
     @build_type("siibra/feature/streamlinefiberbundles/v0.1")
+    def build_fiber_bundle(cls, spec):
+        files = spec.get("files", dict())
+        modality = spec["modality"]
+        decoder_func = cls.extract_decoder(spec)
+        repo_connector = cls.extract_connector(spec)
+        assert repo_connector is not None
+        assert isinstance(spec["regions"], str)
+        regions_df = repo_connector.get(spec["regions"], decode_func=decoder_func)
+        kwargs = {
+            "modality": modality,
+            "cohort": spec.get("cohort", None),
+            "connector": repo_connector,
+            "decode_func": decoder_func,
+            "description": spec.get("description", ""),
+            "datasets": cls.extract_datasets(spec),
+            "prerelease": spec.get("prerelease", False),
+            "transform": spec.get("transform"),
+        }
+        species = cls.decode_species(spec)
+        bundle_by_file = []
+        for bundle_id, filename in files.items():
+            intersecting_regions = {
+                r: anchor.Qualification.OVERLAPS
+                for rname in regions_df.loc[bundle_id].loc[lambda s: s.eq(1)].index.tolist()
+                for r in parcellation.find_regions(rname)
+            }
+            kwargs.update(
+                {
+                    "anchor": anchor.AnatomicalAnchor(region=intersecting_regions, species=species),
+                    "filename": filename,
+                    "connector": repo_connector,
+                    "id": spec.get("@id", None),
+                    "bundle_id": bundle_id,
+                }
+            )
+            bundle_by_file.append(connectivity.StreamlineFiberBundle(**kwargs))
+
+        return bundle_by_file
+
+    @classmethod
     @build_type("siibra/feature/connectivitymatrix/v0.3")
     def build_connectivity_matrix(cls, spec):
         files = spec.get("files", dict())
@@ -645,11 +688,9 @@ class Factory:
         paradigm = spec.get("paradigm")
         if paradigm:
             kwargs["paradigm"] = paradigm
-        if spec.get("transform"):
-            kwargs["transform"] = spec.get("transform")
 
         files_indexed_by = spec.get("files_indexed_by", "subject")
-        assert files_indexed_by in ["subject", "feature", "bundle", "group"]
+        assert files_indexed_by in ["subject", "feature", "group"]
         conn_by_file = []
         for fkey, filename in files.items():
             kwargs.update(
@@ -661,8 +702,6 @@ class Factory:
                     "id": spec.get("@id", None),
                 }
             )
-            if files_indexed_by == "bundle":
-                kwargs["bundle_id"] = fkey
 
             conn_by_file.append(conn_cls(**kwargs))
 

@@ -13,13 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List, TypedDict, Dict, TYPE_CHECKING
-from hashlib import md5
+from typing import Callable, TypedDict, Dict, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 
-from ..feature import Feature, Compoundable
+from ..feature import Feature
 from .. import anchor as _anchor
 from ...locations import Contour
 
@@ -34,17 +33,13 @@ class _Transform(TypedDict):
 
 class StreamlineFiberBundle(
     Feature,
-    Compoundable,
     configuration_folder="features/connectivity/streamlinefiberbundles",
     category="connectivity",
 ):
-    _filter_attrs = ["modality", "cohort", "subject", "bundle_id"]
-    _compound_attrs = ["modality", "cohort"]
 
     def __init__(
         self,
         modality: str,
-        regions: List[str],
         connector: "RepositoryConnector",
         decode_func: Callable,
         filename: str,
@@ -54,8 +49,6 @@ class StreamlineFiberBundle(
         description: str = "",
         datasets: list = [],
         cohort: str = None,
-        subject: str = None,
-        feature: str = None,
         id: str = None,
         prerelease: bool = False,
     ):
@@ -71,55 +64,29 @@ class StreamlineFiberBundle(
         self._bundle_id = bundle_id
         self.cohort = cohort.upper() if isinstance(cohort, str) else cohort
         self._connector = connector
-        self._regions = regions
         self._filename = filename
         self._decode_func = decode_func
-        self._subject = subject
-        self.feature = feature
         self.transform = transform
-        self._fibers: List[Contour] = None
 
     @property
-    def bundle_id(self):
-        return self._bundle_id
+    def name(self):
+        return f"{self.bundle_id} - {super().name}"
 
-    @property
-    def id(self):
-        return super().id + "--" + md5(self.bundle_id.encode("utf-8")).hexdigest()
+    def __len__(self):
+        return len(self.data.index.unique())
 
-    @property
-    def fibers(self) -> Dict[str, Contour]:
-        if self._fibers is None:
-            assert isinstance(self.data, pd.DataFrame)
-            self._fibers = dict()
-            for fiber_id in self.data.index.unique():
-                fiber = Contour(self.data.loc[fiber_id], space=self.transform["space"])
-                if self.transform["affine"] is not None:
-                    fiber = fiber.transform(
-                        self.transform["affine"], space=self.transform["space"]
-                    )
-                self._fibers[fiber_id] = fiber
-        return self._fibers
+    def get_fibers(self) -> Dict[str, Contour]:
+        fiber_ids = self.data.index.unique()
+        return {
+            fiber_id: Contour(self.data.loc[fiber_id], space=None).transform(
+                self.transform["affine"], space=self.transform["space"]
+            )  # TODO: remove the need for transformation
+            for fiber_id in fiber_ids
+        }
 
     @property
     def data(self) -> pd.DataFrame:
         return self._connector.get(self._filename, decode_func=self._decode_func)
-
-    @property
-    def regions(self) -> List[str]:
-        if isinstance(self._regions, str):
-            regions_df = self._connector.get(self._regions, decode_func=self._decode_func)
-            self._regions = (
-                regions_df.loc[self.bundle_id].loc[lambda s: s.eq(1)].index.tolist()
-            )
-        return self._regions
-
-    @property
-    def subject(self):
-        return self._subject
-
-    def _merge_elements(self):
-        pass
 
     def plot(self, *args, backend="nilearn", **kwargs):
         from nilearn import plotting

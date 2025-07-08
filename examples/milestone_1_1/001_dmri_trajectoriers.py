@@ -25,27 +25,32 @@ from nilearn import plotting
 
 # %%
 p = siibra.parcellations["julich 3.1"]
-fiber_bundles = siibra.features.get(
-    p, siibra.features.connectivity.StreamlineFiberBundle
-)[0]
+r = p.get_region("Area 3b (PostCG) left")
+bundles_passing_3bleft = siibra.features.get(
+    r, siibra.features.connectivity.StreamlineFiberBundle
+)
+print(len(bundles_passing_3bleft))
 
 # %%
-print(fiber_bundles[0].bundle_id)
+print(bundles_passing_3bleft[0].name)
+print(bundles_passing_3bleft[0].modality)
+print(bundles_passing_3bleft[0].description)
 
 
 # %%
 # regions this bundle passing through
-bundle_rh_0000000168 = fiber_bundles[0]
-print(bundle_rh_0000000168.regions)
+bundle = bundles_passing_3bleft[0]
+regionnames = {r.name for r in bundle.anchor.regions}
 mp = p.get_map("mni152")
 img_regions = ReducedVolume(
-    [mp.get_volume(r) for r in bundle_rh_0000000168.regions],
-    [mp.get_index(r).label for r in bundle_rh_0000000168.regions]
+    [mp.get_volume(r) for r in regionnames],
+    [mp.get_index(r).label for r in regionnames],
 ).fetch()
 plotting.view_img(
     img_regions,
     symmetric_cmap=False,
-    cmap=p.get_map("mni152").get_colormap(bundle_rh_0000000168.regions)
+    colorbar=False,
+    cmap=p.get_map("mni152").get_colormap(regionnames),
 )
 
 # %%
@@ -53,15 +58,12 @@ plotting.view_img(
 # represented as Contour objects. Countours are just PointClouds where the order
 # of the coordinates is important. (This enables warping the coordinates to
 # other spaces effeciently).
-bundle_rh_0000000168.fibers
+fibers = bundle.get_fibers()
+fibers
 
 # %%
 # Alternatively, the fibers are stored as DataFrame for interoperability
-bundle_rh_0000000168.data
-
-# %%
-bundle_rh_0000000168.plot()
-
+bundle.data
 
 # %%
 fiber_id = 0
@@ -69,18 +71,18 @@ display = plotting.plot_img(
     img=siibra.get_template("mni152").fetch(resolution_mm=1),
     bg_img=None,
     cmap="gray",
-    title=f"Bundle: {bundle_rh_0000000168} - fiber: {fiber_id}",
-    cut_coords=bundle_rh_0000000168.fibers[fiber_id].coordinates[25],
+    title=f"Bundle: {bundle} - fiber: {fiber_id}",
+    cut_coords=fibers[fiber_id].coordinates[25],
 )
-display.add_markers(bundle_rh_0000000168.fibers[fiber_id].coordinates, marker_size=4)
+display.add_markers(fibers[fiber_id].coordinates, marker_size=2)
 
 # %%
-warped_fiber = bundle_rh_0000000168.fibers[fiber_id].warp("bigbrain")
+warped_fiber = fibers[fiber_id].warp("bigbrain")
 display = plotting.plot_img(
     img=siibra.get_template("bigbrain").fetch(resolution_mm=1),
     bg_img=None,
     cmap="gray",
-    title=f"Bundle: {bundle_rh_0000000168} - fiber: {fiber_id}",
+    title=f"Bundle: {bundle} - fiber: {fiber_id}",
     cut_coords=warped_fiber.coordinates[25],
 )
-display.add_markers(warped_fiber.coordinates, marker_size=4)
+display.add_markers(warped_fiber.coordinates, marker_size=2)
