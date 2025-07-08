@@ -398,8 +398,8 @@ class Factory:
 
         ffp_by_file = []
         for regionname, filename in spec["files"].items():
+            spec["region"] = regionname
             kwargs = dict(
-                region=regionname,
                 file=f"{base_url}/{filename}",
                 decoder=cls.extract_decoder(spec),
                 anchor=cls.extract_anchor(spec),

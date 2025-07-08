@@ -13,10 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable
 from hashlib import md5
 
-from ..feature import Compoundable
 from .tabular import Tabular
 from ...retrieval import HttpRequest
 
@@ -26,19 +25,14 @@ if TYPE_CHECKING:
 
 class FunctionalFingerprint(
     Tabular,
-    Compoundable,
     category="functional",
     configuration_folder="features/tabular/fingerprints/functional",
 ):
-
-    _filter_attrs = ["modality", "parcellation", "region"]
-    _compound_attrs = ["modality", "parcellation"]
 
     def __init__(
         self,
         anchor: "AnatomicalAnchor",
         file: str,
-        region: str,
         decoder: Callable = None,
         datasets: list = [],
         id: str = None,
@@ -55,25 +49,13 @@ class FunctionalFingerprint(
             description=None,
         )
         self._loader = HttpRequest(file, func=decoder)
-        self._region = region
-
-    @property
-    def parcellation(self):
-        assert len(self.anchor.parcellations) == 1
-        return self.anchor.parcellations[0]
-
-    @property
-    def region(self):
-        return self.parcellation.get_region(self._region)
 
     @property
     def id(self):
         return (
             super().id
             + "--"
-            + md5(self.parcellation.key.encode("utf-8")).hexdigest()
-            + "--"
-            + md5(self.region.key.encode("utf-8")).hexdigest()
+            + md5(self.anchor._regionspec.encode("utf-8")).hexdigest()
         )
 
     @property
@@ -82,36 +64,14 @@ class FunctionalFingerprint(
             self._data_cached = self._loader.data
         return self._data_cached.copy()
 
-    @classmethod
-    def _merge_elements(
-        cls,
-        elements: List["FunctionalFingerprint"],
-        description: str,
-        modality: str,
-        anchor: "AnatomicalAnchor",
-    ):
-        assert len({e.parcellation for e in elements}) == 1
-        assert (
-            len({"/".join(elements[0]._loader.url.split("/")[:-1]) for e in elements})
-            == 1
-        )
-        merged = cls(
-            anchor=anchor,
-            file="/".join(elements[0]._loader.url.split("/")[:-1])
-            + "/functional_profile.csv",
-            region=elements[0].parcellation,
-            decoder=elements[0]._loader.func,
-        )
-        return merged
-
     def plot(self, *args, backend="matplotlib", **kwargs):
         if backend == "matplotlib":
             return super().plot(*args, backend=backend, **kwargs)
         elif backend == "plotly":
-            df_2_plot = self.data.reset_index()
+            df_2_plot = self.data.reset_index()  # plotly backend does not support multiindex atm
             df_2_plot["labels/task"] = df_2_plot["labels"] + "/" + df_2_plot["task"]
             return df_2_plot.plot(
-                x=self.region.name,
+                x=self.anchor._regionspec,
                 y="labels/task",
                 color="task",
                 backend="plotly",

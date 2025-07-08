@@ -20,31 +20,36 @@ IBC - fMRI Data
 # %%
 import siibra
 from nilearn import plotting
+import pandas as pd
 
 # %%
-p = siibra.parcellations["von economo"]
+voneconomo = siibra.parcellations["von economo"]
+r = voneconomo.get_region("FC: Area frontalis intermedia left")
 functional_fingerprints = siibra.features.get(
-    p, siibra.features.functional.FunctionalFingerprint
-)[0]
-
-
-# %%
-f = functional_fingerprints.get_element(
-    p.get_region("FC: Area frontalis intermedia left")
+    r, siibra.features.functional.FunctionalFingerprint
 )
-f.data
+for f in functional_fingerprints:
+    print(f.region)
+fe_left_fp = functional_fingerprints[0]
 
 # %%
-f.plot(backend="plotly")
+fe_left_fp.data
 
 # %%
-functional_fingerprints.data
+fe_left_fp.plot(backend="plotly")
+
+# %%
+functional_fingerprints = siibra.features.get(
+    voneconomo, siibra.features.functional.FunctionalFingerprint
+)
+functional_fingerprints_ve = pd.concat((f.data for f in functional_fingerprints), axis=1)
+functional_fingerprints_ve
 
 # %%
 selected_task_and_label = ("ArchiSocial", "triangle_mental-random")
-mp = p.get_map("MNI 152")
-colored_map = mp.colorize(
-    functional_fingerprints.data.loc[selected_task_and_label].to_dict()
+voneconomo_map = voneconomo.get_map("MNI 152")
+colored_map = voneconomo_map.colorize(
+    functional_fingerprints_ve.loc[selected_task_and_label].to_dict()
 ).fetch()
 plotting.view_img(
     colored_map,
