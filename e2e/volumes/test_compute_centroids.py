@@ -28,7 +28,8 @@ if not TEST_ALL_MAPS:
 
 @pytest.mark.parametrize(
     "mp",
-    preconfiugres_maps if TEST_ALL_MAPS else randomly_selected_maps
+    preconfiugres_maps if TEST_ALL_MAPS else randomly_selected_maps,
+    ids=lambda mp: mp.name
 )
 def test_compute_centroids(mp: Map):
     if mp in BLACKLIST.keys():
@@ -40,7 +41,10 @@ def test_compute_centroids(mp: Map):
             f"Currently, centroid computation for meshes is not implemented. Skipping '{mp.name}'"
         )
     try:
-        _ = mp.compute_centroids()
+        fetch_kwargs = {}
+        if "neuroglancer/precomputed" in mp.formats:
+            fetch_kwargs["resolution_mm"] = 1
+        _ = mp.compute_centroids(**fetch_kwargs)
     except NoneCoordinateSuppliedError:
         pytest.fail(f"None or NaN centroid calculated for the map '{mp.name}.")
     except Exception as e:
