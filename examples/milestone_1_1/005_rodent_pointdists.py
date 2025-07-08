@@ -39,14 +39,14 @@ for f in cf:
 
 # %%
 display = plotting.plot_img(
-    img=space.get_template().fetch(resolution_mm=-1),
+    img=space.get_template().fetch(),
     bg_img=None,
     cmap="gray",
     title=f"red: {cf[0].subject}, blue: {cf[-1].subject}",
-    cut_coords=cf[0].data.values.mean(axis=0)
+    cut_coords=cf[0].as_pointcloud().coordinates.mean(axis=0)
 )
-display.add_markers(cf[0].data.values, marker_color="r")
-display.add_markers(cf[-1].data.values, marker_color="b")
+display.add_markers(cf[0].as_pointcloud().coordinates, marker_color="r", marker_size=1)
+display.add_markers(cf[-1].as_pointcloud().coordinates, marker_color="b", marker_size=1)
 
 # %%
 space = siibra.spaces.get("mouse")
@@ -64,13 +64,12 @@ for f in cf:
     print(f.subject)
 
 # %%
-# TODO: uncomment after fixing the affine
-# display = plotting.plot_img(
-#     img=space.get_template().fetch(resolution_mm=-1),
-#     bg_img=None,
-#     cmap="gray",
-#     title=f"red: {cf[0].subject}, blue: {cf[-1].subject}",
-#     cut_coords=cf[0].data.values.mean(axis=0)
-# )
-# display.add_markers(cf[0].data.values, marker_color="r")
-# display.add_markers(cf[-1].data.values, marker_color="b")
+display = plotting.plot_img(
+    img=space.get_template().fetch(resolution_mm=-1),
+    bg_img=None,
+    cmap="gray",
+    title=f"red: {cf[0].subject}, blue: {cf[-1].subject}",
+    cut_coords=cf[0].as_pointcloud().coordinates.mean(axis=0)
+)
+display.add_markers(cf[0].as_pointcloud().coordinates, marker_color="r", marker_size=1)
+display.add_markers(cf[-1].as_pointcloud().coordinates, marker_color="b", marker_size=1)
