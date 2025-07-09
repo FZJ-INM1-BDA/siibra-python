@@ -571,6 +571,8 @@ class Factory:
             return volume_of_interest.MorphometryVolumeOfInterest(
                 modality="Morphometry", **kwargs
             )
+        elif "autoradiography" in modality.lower():
+            return volume_of_interest.AutoradiographyVolumeOfInterest(modality=modality, **kwargs)
         else:
             raise ValueError(
                 f"No method for building image section feature type {modality}."

@@ -12,20 +12,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Multimodal data features in volume or image formats."""
 
-from .volume_of_interest import (
-    CellBodyStainedVolumeOfInterest,
-    BlockfaceVolumeOfInterest,
-    PLIVolumeOfInterest,
-    MRIVolumeOfInterest,
-    XPCTVolumeOfInterest,
-    LSFMVolumeOfInterest,
-    DTIVolumeOfInterest,
-    MorphometryVolumeOfInterest,
-    AutoradiographyVolumeOfInterest,
-)
-from .sections import (
-    CellbodyStainedSection,
-    BigBrain1MicronPatch
+"""
+Human receptor autoradiography
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+"""
+
+
+# %%
+import siibra
+from nilearn import plotting
+
+# %%
+gaba_autoradiography = siibra.features.get(
+    siibra.spaces['mn152'],
+    siibra.features.molecular.AutoradiographyVolumeOfInterest
+)[0]
+print(gaba_autoradiography.modality)
+
+plotting.view_img(
+    gaba_autoradiography.fetch(),
+    cmap="magma",
+    symmetric_cmap=False,
 )
