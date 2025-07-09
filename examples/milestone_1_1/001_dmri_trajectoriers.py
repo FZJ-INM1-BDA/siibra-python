@@ -25,9 +25,9 @@ from nilearn import plotting
 
 # %%
 p = siibra.parcellations["julich 3.1"]
-r = p.get_region("Area 3b (PostCG) left")
+area3b_left = p.get_region("Area 3b (PostCG) left")
 bundles_passing_3bleft = siibra.features.get(
-    r, siibra.features.connectivity.StreamlineFiberBundle
+    area3b_left, siibra.features.connectivity.StreamlineFiberBundle
 )
 print(len(bundles_passing_3bleft))
 
@@ -38,9 +38,11 @@ print(bundles_passing_3bleft[0].description)
 
 
 # %%
-# regions this bundle passing through
 bundle = bundles_passing_3bleft[0]
-regionnames = {r.name for r in bundle.anchor.regions}
+regionnames = {
+    r.name for r in bundle.anchor.regions
+}  # regions this bundle passing through
+print(regionnames)
 mp = p.get_map("mni152")
 img_regions = ReducedVolume(
     [mp.get_volume(r) for r in regionnames],
@@ -59,7 +61,6 @@ plotting.view_img(
 # of the coordinates is important. (This enables warping the coordinates to
 # other spaces effeciently).
 fibers = bundle.get_fibers()
-fibers
 
 # %%
 # Alternatively, the fibers are stored as DataFrame for interoperability
@@ -86,3 +87,10 @@ display = plotting.plot_img(
     cut_coords=warped_fiber.coordinates[25],
 )
 display.add_markers(warped_fiber.coordinates, marker_size=2)
+
+# %%
+area44_right = p.get_region("Area 44 right")
+bundles_passing_both = [
+    f for f in bundles_passing_3bleft if area44_right in f.anchor.regions
+]
+print(len(bundles_passing_both))

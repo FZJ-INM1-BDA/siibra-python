@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, TypedDict, Dict, TYPE_CHECKING
+from typing import Callable, Dict, TYPE_CHECKING
+from hashlib import md5
 
 import numpy as np
 import pandas as pd
@@ -24,11 +25,6 @@ from ...locations import Contour
 
 if TYPE_CHECKING:
     from ...retrieval.repositories import RepositoryConnector
-
-
-class _Transform(TypedDict):
-    affine: np.array
-    space: dict
 
 
 class StreamlineFiberBundle(
@@ -45,7 +41,6 @@ class StreamlineFiberBundle(
         filename: str,
         bundle_id: str,
         anchor: _anchor.AnatomicalAnchor,
-        transform: _Transform,
         description: str = "",
         datasets: list = [],
         cohort: str = None,
@@ -66,11 +61,21 @@ class StreamlineFiberBundle(
         self._connector = connector
         self._filename = filename
         self._decode_func = decode_func
-        self.transform = transform
+
+    @property
+    def _transform(self):
+        return self._connector.get("transform.json")
 
     @property
     def name(self):
-        return f"{self.bundle_id} - {super().name}"
+        name = f"{self._bundle_id} - {self.modality}"
+        if self.cohort:
+            name += f" - cohort: {self.cohort}"
+        return name
+
+    @property
+    def id(self):
+        return super().id + "--" + md5(self.anchor._regionspec.encode("utf-8")).hexdigest()
 
     def __len__(self):
         return len(self.data.index.unique())
@@ -78,20 +83,26 @@ class StreamlineFiberBundle(
     def get_fibers(self) -> Dict[str, Contour]:
         fiber_ids = self.data.index.unique()
         return {
-            fiber_id: Contour(self.data.loc[fiber_id], space=None).transform(
-                self.transform["affine"], space=self.transform["space"]
-            )  # TODO: remove the need for transformation
+            fiber_id: Contour(self.data.loc[fiber_id], space=self._transform["target_space"])
             for fiber_id in fiber_ids
         }
 
     @property
     def data(self) -> pd.DataFrame:
-        return self._connector.get(self._filename, decode_func=self._decode_func)
+        df = self._connector.get(self._filename, decode_func=self._decode_func)
+        df["h"] = 1
+        assert isinstance(df, pd.DataFrame)
+        df.iloc[:, :3] = np.dot(self._transform["affine"], df.T)[:3, :].T
+        df.drop(columns=["h"], inplace=True)
+        return df
 
     def plot(self, *args, backend="nilearn", **kwargs):
+        if backend != "nilearn":
+            raise NotImplementedError
+
         from nilearn import plotting
 
-        coords = np.vstack([c.coordinates for c in self.fibers.values()])
+        coords = np.vstack([c.coordinates for c in self.get_fibers().values()])
         return plotting.plot_markers(
             self.data.index.tolist(),
             coords,

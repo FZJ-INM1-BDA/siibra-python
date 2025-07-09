@@ -631,7 +631,6 @@ class Factory:
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
             "prerelease": spec.get("prerelease", False),
-            "transform": spec.get("transform"),
         }
         species = cls.decode_species(spec)
         bundle_by_file = []
