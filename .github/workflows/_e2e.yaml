@@ -5,9 +5,6 @@ on:
       os:
         required: true
         type: string
-      python-version:
-        required: true
-        type: string
       use-cfg:
         required: false
         type: string
@@ -22,10 +19,6 @@ jobs:
     runs-on: ${{ inputs.os }}
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python ${{ inputs.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ inputs.python-version }}
 
     - if: ${{ inputs.use-cfg != '' }}
       uses: './.github/workflows/setup-custom-cfg'
