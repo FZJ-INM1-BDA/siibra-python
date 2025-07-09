@@ -29,7 +29,7 @@ functional_fingerprints = siibra.features.get(
     r, siibra.features.functional.FunctionalFingerprint
 )
 for f in functional_fingerprints:
-    print(f.region)
+    print(f.anchor)
 fe_left_fp = functional_fingerprints[0]
 
 # %%
