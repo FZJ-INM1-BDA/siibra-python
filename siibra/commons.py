@@ -753,7 +753,7 @@ class Species(Enum):
         OPENMINDS_IDS = {
             "97c070c6-8e1f-4ee8-9d28-18c7945921dd": 1,
             "ab532423-1fd7-4255-8c6f-f99dc6df814f": 2,
-            "d9875ebd-260e-4337-a637-b62fed4aa91d:": 3,
+            "d9875ebd-260e-4337-a637-b62fed4aa91d": 3,
             "0b6df2b3-5297-40cf-adde-9443d3d8214a": 4,
             "3ad33ec1-5152-497d-9352-1cf4497e0edd": 5,
             "2ab3ecf5-76cc-46fa-98ab-309e3fd50f57": 6,
