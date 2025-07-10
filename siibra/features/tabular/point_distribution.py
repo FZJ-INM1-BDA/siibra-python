@@ -14,15 +14,14 @@
 # limitations under the License.
 
 from typing import Callable, TYPE_CHECKING, Union, List
-from hashlib import md5
+
+import numpy as np
 
 from . import tabular
-from ..feature import Compoundable
 from .. import anchor as _anchor
 from ...commons import logger
 from ...retrieval.requests import HttpRequest
 from ...locations import PointCloud
-from ...core.space import Space
 from ...volumes.volume import from_pointcloud
 
 if TYPE_CHECKING:
@@ -31,34 +30,24 @@ if TYPE_CHECKING:
     from pandas import DataFrame
 
 
-class PointDistribution(tabular.Tabular, Compoundable):
+class PointDistribution(tabular.Tabular):
     """
     Represents a data frame with at least 3 columns (x, y, z, value#0, value#1,...)
     where the coordinates corresponds to a reference space,
     """
 
-    _filter_attrs = ["modality", "subject"]
-    _compound_attrs = ["modality"]
-
     def __init__(
         self,
         modality: str,
-        space_spec: dict,
         subject: str,
         file_url: str,
+        anchor: "_anchor.AnatomicalAnchor",
+        transform: dict = None,
         description: str = "",
         decoder: Callable = None,
         datasets: list = [],
         id: str = None,
     ):
-        space = Space.get_instance(space_spec.get("@id") or space_spec.get("name"))
-        self.transform = space_spec.get("transform", None)
-
-        anchor = _anchor.AnatomicalAnchor(
-            species=space.species,
-            location=space.get_template().get_boundingbox(clip=False),
-            region=None,
-        )
         tabular.Tabular.__init__(
             self,
             description=description,
@@ -68,20 +57,17 @@ class PointDistribution(tabular.Tabular, Compoundable):
             datasets=datasets,
             id=id,
         )
+        self._transform = transform
         self._loader = HttpRequest(file_url, decoder)
         self._subject = subject
 
     @property
-    def subject(self):
-        return self._subject
-
-    @property
-    def id(self):
-        return super().id + "--" + md5(self.subject.encode("utf-8")).hexdigest()
+    def name(self):
+        return self._subject + " - " + super().name
 
     def __len__(self):
         """Total number of coordinates."""
-        return len(self.as_pointcloud())
+        return len(self.data)
 
     def as_pointcloud(
         self, sigma_mm: Union[float, List[float]] = 0.0, labels: List[int] = None
@@ -100,12 +86,10 @@ class PointDistribution(tabular.Tabular, Compoundable):
         coordinates = self.data.iloc[:, :3].to_numpy()
         ptcld = PointCloud(
             coordinates=coordinates,
-            space=self.anchor.space,
+            space=self._transform["target_space_id"],
             sigma_mm=sigma_mm,
             labels=labels,
         )
-        if self.transform is not None:
-            return ptcld.transform(self.transform)
         return ptcld
 
     @property
@@ -120,15 +104,10 @@ class PointDistribution(tabular.Tabular, Compoundable):
         """
         if self._data_cached is None:
             self._data_cached = self._loader.get()
-            if self.transform is not None:
-                import numpy as np
-
-                logger.info(f"Transforming coordinates with {self.transform}")
-                coords = self._data_cached.values[:, :3]
-                self._data_cached.values[:, :3] = [
-                    np.matmul(np.array(coor.tolist() + [1]).T, self.transform)[:3]
-                    for coor in coords
-                ]
+            if self._transform is not None:
+                coords = self._data_cached.iloc[:, :3]
+                coords.loc[:, "h"] = 1
+                self._data_cached.iloc[:, :3] = np.dot(self._transform["affine"], coords.T)[:3, :].T
         return self._data_cached.copy()
 
     def plot(self, *args, backend="matplotlib", **kwargs):
@@ -164,16 +143,6 @@ class PointDistribution(tabular.Tabular, Compoundable):
             min_num_point=1,
             **template_kwargs,
         )
-
-    @classmethod
-    def _merge_elements(
-        cls,
-        elements: List["PointDistribution"],
-        description: str,
-        modality: str,
-        anchor: _anchor.AnatomicalAnchor,
-    ):
-        pass
 
 
 class CellDistribution(

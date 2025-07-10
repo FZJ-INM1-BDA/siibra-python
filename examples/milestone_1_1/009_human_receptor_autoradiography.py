@@ -25,7 +25,7 @@ from nilearn import plotting
 
 # %%
 gaba_autoradiography = siibra.features.get(
-    siibra.spaces['mn152'],
+    siibra.spaces['mni152'],
     siibra.features.molecular.AutoradiographyVolumeOfInterest
 )[0]
 print(gaba_autoradiography.modality)

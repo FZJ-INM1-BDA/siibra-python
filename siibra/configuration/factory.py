@@ -415,7 +415,9 @@ class Factory:
 
     @classmethod
     @build_type("siibra/feature/point_distribution/cell_distribution/v0.1")
-    @build_type("siibra/feature/point_distribution/tracing_connectivity_distribution/v0.1")
+    @build_type(
+        "siibra/feature/point_distribution/tracing_connectivity_distribution/v0.1"
+    )
     def build_point_distribution(cls, spec):
         modality = spec.get("modality")
         try:
@@ -435,11 +437,12 @@ class Factory:
             ]
 
         return point_dist_cls(
-            modality=spec['modality'],
-            space_spec=spec.get('space'),
-            description=spec.get('description'),
-            file_url=spec['file_url'],
-            subject=spec['subject'],
+            modality=spec["modality"],
+            transform=spec.get("transform"),
+            description=spec.get("description"),
+            anchor=cls.extract_anchor(spec),
+            file_url=spec["file_url"],
+            subject=spec["subject"],
             decoder=cls.extract_decoder(spec),
             datasets=cls.extract_datasets(spec),
         )

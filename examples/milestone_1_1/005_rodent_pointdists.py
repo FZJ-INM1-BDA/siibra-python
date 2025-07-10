@@ -22,54 +22,62 @@ Rodent tracing connectivity distribution
 import siibra
 from nilearn import plotting
 
-# %%
-space = siibra.spaces.get("waxholm")
-print(space.name)
 
 # %%
-cf = siibra.features.get(space, "TracingConnectivityDistribution")[0]
-print(cf[0].datasets[0].id)
-print(cf.modality)
-cf[0].data
-
+region = siibra.get_region(
+    "waxholm rat", "Primary somatosensory area, forelimb representation"
+)
+tracing_conns = siibra.features.get(region, "TracingConnectivityDistribution")
+print(len(tracing_conns))
+for f in tracing_conns:
+    print(f.name)
 
 # %%
-for f in cf:
-    print(f.subject)
+print(tracing_conns[0].name)
+print(tracing_conns[0].datasets[0].name)
+print(tracing_conns[0].modality)
+tracing_conns[0].data
 
 # %%
 display = plotting.plot_img(
-    img=space.get_template().fetch(),
+    img=siibra.get_template("waxholm").fetch(),
     bg_img=None,
     cmap="gray",
-    title=f"red: {cf[0].subject}, blue: {cf[-1].subject}",
-    cut_coords=cf[0].as_pointcloud().coordinates.mean(axis=0)
+    title=f"red: {tracing_conns[0].name}, blue: {tracing_conns[-1].name}",
+    cut_coords=tracing_conns[0].as_pointcloud().coordinates.mean(axis=0),
 )
-display.add_markers(cf[0].as_pointcloud().coordinates, marker_color="r", marker_size=1)
-display.add_markers(cf[-1].as_pointcloud().coordinates, marker_color="b", marker_size=1)
-
-# %%
-space = siibra.spaces.get("mouse")
-print(space.name)
-
-# %%
-cf = siibra.features.get(space, "TracingConnectivityDistribution")[0]
-print(cf[0].datasets[0].id)
-print(cf.modality)
-cf[0].data
+display.add_markers(
+    tracing_conns[0].as_pointcloud().coordinates, marker_color="r", marker_size=1
+)
+display.add_markers(
+    tracing_conns[-1].as_pointcloud().coordinates, marker_color="b", marker_size=1
+)
 
 
 # %%
-for f in cf:
-    print(f.subject)
+region = siibra.get_region("mouse", "Supplemental somatosensory area")
+tracing_conns = siibra.features.get(region, "TracingConnectivityDistribution")
+print(len(tracing_conns))
+for f in tracing_conns:
+    print(f.name)
+
+# %%
+print(tracing_conns[0].name)
+print(tracing_conns[0].datasets[0].name)
+print(tracing_conns[0].modality)
+tracing_conns[0].data
 
 # %%
 display = plotting.plot_img(
-    img=space.get_template().fetch(resolution_mm=-1),
+    img=siibra.get_template("mouse").fetch(),
     bg_img=None,
     cmap="gray",
-    title=f"red: {cf[0].subject}, blue: {cf[-1].subject}",
-    cut_coords=cf[0].as_pointcloud().coordinates.mean(axis=0)
+    title=f"red: {tracing_conns[0].name}, blue: {tracing_conns[-1].name}",
+    cut_coords=tracing_conns[0].as_pointcloud().coordinates.mean(axis=0),
 )
-display.add_markers(cf[0].as_pointcloud().coordinates, marker_color="r", marker_size=1)
-display.add_markers(cf[-1].as_pointcloud().coordinates, marker_color="b", marker_size=1)
+display.add_markers(
+    tracing_conns[0].as_pointcloud().coordinates, marker_color="r", marker_size=1
+)
+display.add_markers(
+    tracing_conns[-1].as_pointcloud().coordinates, marker_color="b", marker_size=1
+)
