@@ -14,7 +14,7 @@
 # limitations under the License.
 """Handles the relation between study targets and BrainStructures."""
 
-from typing import Union, List, Dict, Iterable
+from typing import Union, List, Dict, Iterable, Set
 
 from ..commons import Species, logger
 from ..core.structure import BrainStructure
@@ -71,6 +71,10 @@ class AnatomicalAnchor:
                 if region is not None:
                     raise ValueError(f"Invalid region specification: {region}")
         self._aliases_cached = None
+        self._parcellation_version: Parcellation = None  # specific parcellation this anchor is anchored to
+
+    def _filter_w_parc_version(self, r: Region):
+        return True if self._parcellation_version is None else r in self._parcellation_version
 
     @property
     def location(self) -> Location:
@@ -78,11 +82,11 @@ class AnatomicalAnchor:
         return self._location_cached
 
     @property
-    def parcellations(self) -> List[Parcellation]:
+    def parcellations(self) -> Set[Parcellation]:
         """
         Return any parcellation objects that regions of this anchor belong to.
         """
-        return list({region.root for region in self.regions})
+        return set({region.root for region in self.regions if self._filter_w_parc_version(region.root)})
 
     @property
     def space(self) -> Space:
@@ -136,7 +140,7 @@ class AnatomicalAnchor:
                         if r not in regions:
                             regions[r] = Qualification[qualificationspec.upper()]
 
-            self.__class__._MATCH_MEMO[match_key] = regions
+            self.__class__._MATCH_MEMO[match_key] = set(filter(self._filter_w_parc_version, regions))
         self._regions_cached = self.__class__._MATCH_MEMO[match_key]
 
         return self._regions_cached

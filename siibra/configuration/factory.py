@@ -136,16 +136,16 @@ class Factory:
 
     @classmethod
     def extract_anchor(cls, spec):
-        if spec.get("region"):
+        parc_spec = None
+        region = None
+        if "region" in spec:
             region = spec["region"]
-        elif spec.get("parcellation", {}).get("@id"):
+        if "parcellation" in spec:
             # a parcellation is a special region,
             # and can be used if no region is found
-            region = spec["parcellation"]["@id"]
-        elif spec.get("parcellation", {}).get("name"):
-            region = spec["parcellation"]["name"]
-        else:
-            region = None
+            parc_spec = spec["parcellation"].get("@id") or spec["parcellation"].get("name")
+            if "region" not in spec:
+                region = parc_spec
 
         if "location" in spec:
             location = cls.from_json(spec["location"])
@@ -163,9 +163,12 @@ class Factory:
 
         species = cls.decode_species(spec)
 
-        return anchor.AnatomicalAnchor(
+        anchor_ = anchor.AnatomicalAnchor(
             region=region, location=location, species=species
         )
+        if parc_spec is not None:
+            anchor_._parcellation_version = parcellation.Parcellation.registry().get(parc_spec)
+        return anchor_
 
     @classmethod
     def extract_connector(cls, spec):
