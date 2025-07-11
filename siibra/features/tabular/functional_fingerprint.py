@@ -14,7 +14,6 @@
 # limitations under the License.
 
 from typing import TYPE_CHECKING, Callable
-from hashlib import md5
 
 from .tabular import Tabular
 from ...retrieval import HttpRequest
@@ -51,12 +50,8 @@ class FunctionalFingerprint(
         self._loader = HttpRequest(file, func=decoder)
 
     @property
-    def id(self):
-        return (
-            super().id
-            + "--"
-            + md5(self.anchor._regionspec.encode("utf-8")).hexdigest()
-        )
+    def name(self):
+        return f"{super().name}: {self.anchor._regionspec} ({self.anchor._parcellation_version})"
 
     @property
     def data(self):
