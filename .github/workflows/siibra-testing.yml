@@ -86,6 +86,7 @@ jobs:
       os: ubuntu-22.04  # use ubuntu-latest when python 3.8 is dropped
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -99,6 +100,10 @@ jobs:
       os: ubuntu-latest
       python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
+      test_folder: ${{ matrix.test_folder }}
+    strategy:
+      matrix:
+        test_folder: ["e2e/core", "e2e/volumes", "e2e/retrieval", "e2e/locations", "e2e/features/activity_timeseries", "e2e/features/connectivity", "e2e/features/image", "e2e/features/external", "e2e/features/molecular", "e2e/features/test_get.py e2e/features/test_plot.py e2e/features/test_generic.py"]
 
   test-examples:
     needs: 'use-custom-cfg'

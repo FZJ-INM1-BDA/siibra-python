@@ -16,6 +16,10 @@ on:
         required: false
         type: string
         default: "INFO_WO_PROGRESS_BARS"
+      test_folder:
+        required: false
+        type: string
+        default: "e2e"
 
 jobs:
   e2e:
@@ -45,4 +49,4 @@ jobs:
       env:
         SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
       shell: bash
-      run: pytest -rx e2e --durations=50
+      run: pytest -rx ${{inputs.test_folder}} --durations=50
