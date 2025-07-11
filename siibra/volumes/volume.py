@@ -763,6 +763,8 @@ class ReducedVolume(Volume):
             leave=False,
         ):
             img = vol.fetch(format=format, **kwargs)
+            if img is None:
+                continue
             resampled_arr = np.asanyarray(
                 resample_img_to_img(img, template_img).dataobj
             )
