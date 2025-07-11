@@ -14,7 +14,7 @@
 # limitations under the License.
 """Handles the relation between study targets and BrainStructures."""
 
-from typing import Union, List, Dict, Iterable, Set
+from typing import Union, List, Dict, Iterable
 
 from ..commons import Species, logger
 from ..core.structure import BrainStructure
@@ -82,11 +82,11 @@ class AnatomicalAnchor:
         return self._location_cached
 
     @property
-    def parcellations(self) -> Set[Parcellation]:
+    def parcellations(self) -> List[Parcellation]:
         """
         Return any parcellation objects that regions of this anchor belong to.
         """
-        return set({region.root for region in self.regions if self._filter_w_parc_version(region.root)})
+        return list({region.root for region in self.regions if self._filter_w_parc_version(region.root)})
 
     @property
     def space(self) -> Space:
@@ -129,7 +129,7 @@ class AnatomicalAnchor:
             regions = {
                 region: Qualification.EXACT
                 for region in find_regions(self._regionspec, filter_children=True, find_topmost=False)
-                if region.species in self.species
+                if region.species in self.species and self._filter_w_parc_version(region)
             }
             # add more regions from possible aliases of the region spec
             for alt_species, aliases in self.region_aliases.items():
@@ -137,10 +137,10 @@ class AnatomicalAnchor:
                     for r in find_regions(alias_regionspec, filter_children=True, find_topmost=False):
                         if r.species != alt_species:
                             continue
-                        if r not in regions:
+                        if r not in regions and self._filter_w_parc_version(r):
                             regions[r] = Qualification[qualificationspec.upper()]
 
-            self.__class__._MATCH_MEMO[match_key] = set(filter(self._filter_w_parc_version, regions))
+            self.__class__._MATCH_MEMO[match_key] = regions
         self._regions_cached = self.__class__._MATCH_MEMO[match_key]
 
         return self._regions_cached
