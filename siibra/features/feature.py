@@ -295,9 +295,10 @@ class Feature:
             if hasattr(ds, "id"):
                 prefix = ds.id + '--'
                 break
-        return prefix + md5(
+        self._id = prefix + md5(
             f"{name_} - {self.anchor}".encode("utf-8")
         ).hexdigest()
+        return self._id
 
     def _to_zip(self, fh: ZipFile):
         """
