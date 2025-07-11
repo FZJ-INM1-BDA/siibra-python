@@ -92,18 +92,44 @@ jobs:
       matrix:
         python-version: ["3.12", "3.11", "3.10", "3.9", "3.8"]
 
+  get-e2e-folders:
+    runs-on: ubuntu-latest
+    outputs:
+      e2e_paths: ${{ steps.forward.outputs.e2e_paths }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: find test paths
+        id: find_paths
+        run: |
+          entries=$(
+            find e2e -type f -name 'test_*.py' -printf '%h\n' | sort -u | while read dir; do
+              if (find "$dir" -maxdepth 1 -type f -name 'test_*.py' | grep -q .) && (find "$dir" -mindepth 1 -type d -name '[a-z]*' | grep -q .); then
+                find "$dir" -maxdepth 1 -type f -name 'test_*.py' | sort | xargs
+              else
+                echo "$dir"
+              fi
+            done
+          )
+          json=$(printf '%s\n' $entries | jq -R . | jq -s -c .)
+          echo "e2e_paths=$json" >> $GITHUB_OUTPUT
+      
+      - name: forward output
+        id: forward
+        run: echo "e2e_paths=${{ steps.find_paths.outputs.e2e_paths }}" >> $GITHUB_OUTPUT
+
   e2e-tests-fast:
-    if: ${{ github.event.pull_request == null }}
-    needs: "use-custom-cfg"
+    needs: ["get-e2e-folders", "use-custom-cfg"]
+    strategy:
+      matrix:
+        test_folder: ${{ fromJson(needs.get-e2e-folders.outputs.e2e_paths) }}
     uses: ./.github/workflows/_e2e.yaml
     with:
       os: ubuntu-latest
       python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
       test_folder: ${{ matrix.test_folder }}
-    strategy:
-      matrix:
-        test_folder: ["e2e/core", "e2e/volumes", "e2e/retrieval", "e2e/locations", "e2e/features/activity_timeseries", "e2e/features/connectivity", "e2e/features/image", "e2e/features/external", "e2e/features/molecular", "e2e/features/test_get.py e2e/features/test_plot.py e2e/features/test_generic.py"]
+    
+
 
   test-examples:
     needs: 'use-custom-cfg'
