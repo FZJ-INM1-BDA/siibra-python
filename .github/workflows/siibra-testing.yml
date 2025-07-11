@@ -86,19 +86,56 @@ jobs:
       os: ubuntu-22.04  # use ubuntu-latest when python 3.8 is dropped
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
+
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.12", "3.11", "3.10", "3.9", "3.8"]
 
+  get-e2e-folders:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-folder.outputs.folders }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find e2e folders
+        id: find-tests
+        run: |
+          entries=$(
+            find e2e -type f -name 'test_*.py' -printf '%h\n' | sort -u | while read dir; do
+              if find "$dir" -maxdepth 1 -type f -name 'test_*.py' | grep -q .; then
+                if find "$dir" -mindepth 1 -type d | grep -q .; then
+                  echo "$dir"
+                else
+                  find "$dir" -maxdepth 1 -type f -name 'test_*.py' | sort | xargs
+                fi
+              fi
+            done
+          )
+
+          # Convert space-separated entries to JSON array
+          json=$(jq -n --arg entries "$entries" '$entries | split("\n") | map(select(length > 0))')
+          echo "folders=$json" >> $GITHUB_OUTPUT
+
+      - name: Set test_folder
+        id: set-folder
+        run: |
+          echo "folders={\"test_folder\": ${{ steps.find-tests.outputs.folders }}}" >> $GITHUB_OUTPUT
+
   e2e-tests-fast:
     if: ${{ github.event.pull_request == null }}
-    needs: "use-custom-cfg"
+    needs: ["use-custom-cfg", "get-e2e-folders"]
     uses: ./.github/workflows/_e2e.yaml
     with:
       os: ubuntu-latest
       python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
+      test_folder: ${{ matrix.test_folder }}
+    strategy:
+      matrix:
+        test_folder: ${{ fromJson(needs.get-test-folders.outputs.folders) }}
+
 
   test-examples:
     needs: 'use-custom-cfg'
