@@ -563,7 +563,15 @@ class Feature:
         # Collect any preconfigured instances of the requested feature type
         # which match the query concept
         if feature_type.category == "generic":
-            feature_type_instances = feature_type._get_instances()
+            modality = kwargs.pop("modality", "")
+            feature_type_instances = [
+                f
+                for f in feature_type._get_instances()
+                if all(
+                    w in f.modality.lower()
+                    for w in modality.lower().split(" ")
+                )
+            ]
         else:
             feature_type_instances = [
                 instance
