@@ -23,16 +23,17 @@ import siibra
 
 # %%
 p = siibra.parcellations.get("julich 3.1")
-for f in siibra.features.get(p, "streamlinecounts"):
-    if f.cohort == "1000BRAINS":
-        cf = f
-        break
-print(cf.cohort)
+features = siibra.features.get(p, "streamlinecounts")
+for f in features:
+    print(f.cohort)
+
+# %%
+cf = list(filter(lambda f: f.cohort == "1000BRAINS", features))[0]
 print(cf.name)
 
 # %%
-print(cf[0].name)
-print(cf[0].subject)
+for f in cf:
+    print(f.subject)
 
 # %%
 cf[0].data
