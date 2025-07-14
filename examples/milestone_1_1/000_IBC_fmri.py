@@ -23,32 +23,32 @@ from nilearn import plotting
 import pandas as pd
 
 # %%
-voneconomo = siibra.parcellations["von economo"]
-r = voneconomo.get_region("FC: Area frontalis intermedia left")
+julichbrain = siibra.parcellations["julich 3.1"]
+r = julichbrain.get_region("area 3b left")
 functional_fingerprints = siibra.features.get(
     r, siibra.features.functional.FunctionalFingerprint
 )
 for f in functional_fingerprints:
     print(f.anchor)
-fe_left_fp = functional_fingerprints[0]
+area3b_left_fp = functional_fingerprints[0]
 
 # %%
-fe_left_fp.data
+area3b_left_fp.data
 
 # %%
-fe_left_fp.plot(backend="plotly")
+area3b_left_fp.plot(backend="plotly")
 
 # %%
 functional_fingerprints = siibra.features.get(
-    voneconomo, siibra.features.functional.FunctionalFingerprint
+    julichbrain, siibra.features.functional.FunctionalFingerprint
 )
 functional_fingerprints_ve = pd.concat((f.data for f in functional_fingerprints), axis=1)
 functional_fingerprints_ve
 
 # %%
 selected_task_and_label = ("ArchiSocial", "triangle_mental-random")
-voneconomo_map = voneconomo.get_map("MNI 152")
-colored_map = voneconomo_map.colorize(
+julichbrain_mni152_map = julichbrain.get_map("MNI 152")
+colored_map = julichbrain_mni152_map.colorize(
     functional_fingerprints_ve.loc[selected_task_and_label].to_dict()
 ).fetch()
 plotting.view_img(
