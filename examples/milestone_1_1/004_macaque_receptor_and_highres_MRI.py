@@ -14,13 +14,53 @@
 # limitations under the License.
 
 """
-NeuroSpin hi-res macaque anatomical MRI
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Macaque receptor mapping and high-resolution MRI
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
+
 
 # %%
 import siibra
 from nilearn import plotting
+
+# %%
+parc = siibra.parcellations["mebrains"]
+print(parc.name)
+
+# %%
+receptor_density = siibra.features.get(
+    parc, siibra.features.generic.Tabular,
+    modality="neurotransmitter"
+)[0]
+print(receptor_density.modality)
+
+# %%
+receptor_density.data
+
+# %%
+receptor = "AMPA"
+receptor_density.plot(y=receptor, backend="plotly")
+
+# %%
+mp = parc.get_map("mebrains")
+region_density_lookup = {}
+for r in receptor_density.data.index:
+    try:
+        region_density_lookup[
+            parc.get_region(r.replace("area_", "")).name + " left"
+        ] = receptor_density.data[receptor].loc[r]
+        region_density_lookup[
+            parc.get_region(r.replace("area_", "")).name + " right"
+        ] = receptor_density.data[receptor].loc[r]
+    except ValueError as e:
+        print(e)
+receptor_denisty_map = mp.colorize(region_density_lookup)
+plotting.view_img(
+    receptor_denisty_map.fetch(),
+    bg_img=mp.get_resampled_template().fetch(),
+    cmap="magma",
+    symmetric_cmap=False,
+)
 
 # %%
 space = siibra.spaces.get("mebrains")
@@ -46,3 +86,6 @@ plotting.view_img(
     cmap="gray",
     symmetric_cmap=False,
 )
+
+
+# TODO: also add map from fMRI data
