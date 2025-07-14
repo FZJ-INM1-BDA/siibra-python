@@ -14,7 +14,7 @@
 # limitations under the License.
 
 import os
-from typing import Union, Dict, Tuple
+from typing import Union, Dict, Tuple, Literal
 
 import numpy as np
 import nibabel as nib
@@ -272,15 +272,16 @@ class Tif2DNiftiProvider(_provider.VolumeProvider, srctype="tif/2d"):
         """
         Construct a new NIfTI volume from tif images
         """
-        def loader(arr: np.ndarray, affine: np.ndarray):
+        def loader(arr: np.ndarray, affine: np.ndarray, slicing_axis: Literal[0, 1, 2]):
             assert len(arr.shape) == 2
-            reshaped_arr = arr.reshape(arr.shape + (1,))
+
+            reshaped_arr = np.expand_dims(arr, axis=slicing_axis)
             return nib.nifti1.Nifti1Image(reshaped_arr, affine)
 
         _provider.VolumeProvider.__init__(self)
         req = requests.HttpRequest(src["url"])
-        self._loader = lambda req=req: loader(req.data, src["transform"])
         self._affine = src["transform"]
+        self._loader = lambda req=req: loader(req.data, src["transform"], src["slicing_axis"])
 
         # required for self._url property
         self._init_url = src["url"]
