@@ -604,10 +604,13 @@ class Factory:
     def build_connectivity_matrix_from_bids(cls, spec):
         spec["repository"] = cls.extract_connector(spec)
         regions_df = spec["repository"].get(filename=spec["regions"])
-        spec["regions"] = list(map(
-            lambda lb, hs: f"{lb} {hs}",
-            regions_df["label"], regions_df["hemisphere"]
-        ))
+        if "hemisphere" in regions_df.columns:
+            spec["regions"] = list(map(
+                lambda lb, hs: f"{lb} {hs}",
+                regions_df["label"], regions_df["hemisphere"]
+            ))
+        else:
+            spec["regions"] = regions_df["label"].to_list()
         spec["files"] = dict()
         for fpath in spec["repository"].search_files(suffix=".tsv", recursive=True):
             if "relmat" not in fpath:
