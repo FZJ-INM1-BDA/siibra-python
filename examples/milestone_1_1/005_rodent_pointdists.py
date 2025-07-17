@@ -23,10 +23,10 @@ import siibra
 from nilearn import plotting
 
 # %%
-region = siibra.get_region(
+injection_region = siibra.get_region(
     "waxholm rat", "Primary somatosensory area, forelimb representation"
 )
-tracing_conns = siibra.features.get(region, "TracingConnectivityDistribution")
+tracing_conns = siibra.features.get(injection_region, "TracingConnectivityDistribution")
 print(len(tracing_conns))
 for f in tracing_conns:
     print(f.name)
@@ -50,8 +50,8 @@ display.add_markers(tracing_conns[4].data, marker_color="b", marker_size=1)
 
 
 # %%
-region = siibra.get_region("mouse", "Supplemental somatosensory area")
-tracing_conns = siibra.features.get(region, "TracingConnectivityDistribution")
+injection_region = siibra.get_region("mouse", "Supplemental somatosensory area")
+tracing_conns = siibra.features.get(injection_region, "TracingConnectivityDistribution")
 print(len(tracing_conns))
 for f in tracing_conns:
     print(f.name)
@@ -73,3 +73,28 @@ display = plotting.plot_img(
 )
 display.add_markers(tracing_conns[3].data, marker_color="r", marker_size=1)
 display.add_markers(tracing_conns[7].data, marker_color="b", marker_size=1)
+
+
+# %%
+cell_locations = siibra.features.get(injection_region, "CellDistribution")
+print(len(cell_locations))
+for f in cell_locations:
+    print(f.name)
+
+# %%
+print(cell_locations[0].name)
+print(cell_locations[0].datasets[0].name)
+print(cell_locations[0].modality)
+print(cell_locations[0].description)
+cell_locations[0].data
+
+# %%
+display = plotting.plot_img(
+    img=siibra.get_template("mouse").fetch(),
+    bg_img=None,
+    cmap="gray",
+    title=f"red: {cell_locations[0].name}\nblue: {cell_locations[1].name}",
+    cut_coords=cell_locations[0].data.mean(axis=0),
+)
+display.add_markers(cell_locations[0].data, marker_color="r", marker_size=1)
+display.add_markers(cell_locations[1].data, marker_color="b", marker_size=1)
