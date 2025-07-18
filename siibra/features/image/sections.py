@@ -105,7 +105,7 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
         return p.extract_volume(self._section, resolution_mm=resolution_mm).fetch()
 
 
-class Autoradiography(
+class AutoradiographySection(
     image.Image,
     configuration_folder="features/images/sections/autoradiography",
     category="molecular",

@@ -529,7 +529,7 @@ class Factory:
         if modality == "cell body staining":
             return sections.CellbodyStainedSection(**kwargs)
         elif "autoradiography" in modality:
-            return sections.Autoradiography(**kwargs)
+            return sections.AutoradiographySection(**kwargs)
         else:
             raise ValueError(
                 f"No method for building image section feature type {modality}."
