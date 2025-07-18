@@ -20,7 +20,6 @@ IBC - fMRI Data
 # %%
 import siibra
 from nilearn import plotting
-import pandas as pd
 
 # %%
 julichbrain = siibra.parcellations["julich 3.1"]
@@ -39,20 +38,18 @@ area3b_left_fp.data
 area3b_left_fp.plot(backend="plotly")
 
 # %%
+selected_task_and_label = ("ArchiSocial", "triangle_mental-random")
 functional_fingerprints = siibra.features.get(
     julichbrain, siibra.features.functional.FunctionalFingerprint
 )
-functional_fingerprints_ve = pd.concat((f.data for f in functional_fingerprints), axis=1)
-functional_fingerprints_ve
-
-# %%
-selected_task_and_label = ("ArchiSocial", "triangle_mental-random")
 julichbrain_mni152_map = julichbrain.get_map("MNI 152")
-colored_map = julichbrain_mni152_map.colorize(
-    functional_fingerprints_ve.loc[selected_task_and_label].to_dict()
-).fetch()
+values_per_region = {
+    f.data.name: f.data.loc[selected_task_and_label]
+    for f in functional_fingerprints
+}
+colored_map = julichbrain_mni152_map.colorize(values_per_region)
 plotting.view_img(
-    colored_map,
+    colored_map.fetch(),
     symmetric_cmap=False,
     cmap="magma",
     resampling_interpolation="nearest",
