@@ -853,4 +853,7 @@ def get_bids_entities(filename: str):
             entities["measure"] = v[5:]
         if v.startswith("desc"):
             entities["description"] = v[5:]
+        else:
+            parts = v.split('-')
+            entities[parts[0]] = ' '.join(parts[1:])
     return entities

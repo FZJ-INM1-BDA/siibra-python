@@ -513,6 +513,30 @@ class Factory:
         )
 
     @classmethod
+    @build_type("siibra/feature/profile/celldensity_v2/v0.1")
+    def build_cell_density_profile_v2(cls, spec):
+        cell_density_profiles = []
+        spec["repository"] = cls.extract_connector(spec)
+        for fpath in spec["repository"].search_files(suffix=".tsv", recursive=True):
+            entities = get_bids_entities(path.basename(fpath)[:-4])
+            spec["region"] = entities["description"].replace("-", " ")
+
+            cell_density_profiles.append(
+                cell_density_profile.CellDensityProfileV2(
+                    section=entities["sample"],
+                    chunk=entities["chunk"],
+                    loader=spec["repository"].get_loader(
+                        fpath, decode_func=cls.extract_decoder(spec)
+                    ),
+                    anchor=cls.extract_anchor(spec),
+                    datasets=cls.extract_datasets(spec),
+                    id=spec.get("@id", "CellDensityProfileV2-" + fpath),
+                    prerelease=spec.get("prerelease", False),
+                )
+            )
+        return cell_density_profiles
+
+    @classmethod
     @build_type("siibra/feature/section/v0.1")
     def build_section(cls, spec):
         kwargs = {
