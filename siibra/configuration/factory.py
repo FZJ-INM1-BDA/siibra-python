@@ -514,17 +514,28 @@ class Factory:
 
     @classmethod
     @build_type("siibra/feature/profile/celldensity_v2/v0.1")
-    def build_cell_density_profile_v2(cls, spec):
-        cell_density_profiles = []
+    @build_type("siibra/feature/fingerprint/celldensity_v2/v0.1")
+    def build_layerwise_cell_density_v2(cls, spec):
+        if "profile" in spec["@type"]:
+            feat_Cls = cell_density_profile.CellDensityProfileV2
+            fileformat = "CorticalProfile"
+        elif "fingerprint" in spec["@type"]:
+            feat_Cls = layerwise_cell_density.LayerwiseCellDensityV2
+            fileformat = "LayerStats"
+        else:
+            raise NotImplementedError("Could not discern the file format from the filename.")
+        cell_density_feats = []
         spec["repository"] = cls.extract_connector(spec)
         for fpath in spec["repository"].search_files(suffix=".tsv", recursive=True):
             entities = get_bids_entities(
                 path.basename(fpath.split('/')[-1])[:-4]
             )
+            if entities["format"] != fileformat:
+                continue
             spec["region"] = entities["description"].replace("-", " ")
 
-            cell_density_profiles.append(
-                cell_density_profile.CellDensityProfileV2(
+            cell_density_feats.append(
+                feat_Cls(
                     section=entities["sample"],
                     chunk=entities["chunk"],
                     loader=spec["repository"].get_loader(
@@ -536,7 +547,7 @@ class Factory:
                     prerelease=spec.get("prerelease", False),
                 )
             )
-        return cell_density_profiles
+        return cell_density_feats
 
     @classmethod
     @build_type("siibra/feature/section/v0.1")

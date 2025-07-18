@@ -15,10 +15,15 @@
 """Multimodal data features in tabular formats."""
 
 from .bigbrain_intensity_profile import BigBrainIntensityProfile
-from .cell_density_profile import CellDensityProfile, cell_reader, layer_reader
+from .cell_density_profile import (
+    CellDensityProfile,
+    cell_reader,
+    layer_reader,
+    CellDensityProfileV2,
+)
 from .gene_expression import GeneExpressions
 from .layerwise_bigbrain_intensities import LayerwiseBigBrainIntensities
-from .layerwise_cell_density import LayerwiseCellDensity
+from .layerwise_cell_density import LayerwiseCellDensity, LayerwiseCellDensityV2
 from .receptor_density_fingerprint import ReceptorDensityFingerprint
 from .receptor_density_profile import ReceptorDensityProfile
 from .regional_timeseries_activity import RegionalBOLD

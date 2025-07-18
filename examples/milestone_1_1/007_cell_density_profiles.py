@@ -28,10 +28,21 @@ profiles = siibra.features.get(
 for pf in profiles:
     print(pf.name)
 
-
 # %%
 pf.data
 
+# %%
+pf.plot(y='density_mean', error_y='density_std', backend='plotly', kind='line')
 
 # %%
-pf.plot(y="cell_size_mean_um2", error_y="cell_size_std_um2", backend="plotly")
+layerwise = siibra.features.get(
+    siibra.get_region("julich 3.1", "spl 7m"), "layer cell density v2"
+)
+for lf in layerwise:
+    print(lf.name)
+
+# %%
+lf.data
+
+# %%
+lf.plot(y="cell_size_mean_um2", error_y="cell_size_std_um2", backend="plotly")

@@ -155,3 +155,39 @@ class LayerwiseCellDensity(
             return fig
         else:
             return self.data.plot(*args, backend=backend, **kwargs)
+
+
+class LayerwiseCellDensityV2(
+    tabular.Tabular,
+    configuration_folder="features/tabular/layerstatistics/celldensity",
+    category='cellular',
+):
+    def __init__(
+        self,
+        section: int,
+        chunk: int,
+        loader: str,
+        anchor: _anchor.AnatomicalAnchor,
+        datasets: list = [],
+        id: str = None,
+        prerelease: bool = False,
+    ):
+        tabular.Tabular.__init__(
+            self,
+            description="",
+            modality="Segmented cell body density profiles",
+            anchor=anchor,
+            datasets=datasets,
+            id=id,
+            prerelease=prerelease,
+        )
+        self._loader = loader
+        self.section = section
+        self.chunk = chunk
+
+    @property
+    def name(self):
+        return super().name.replace(
+            "V2",
+            f"- section: {self.section} - chunk: {self.chunk}"
+        )
