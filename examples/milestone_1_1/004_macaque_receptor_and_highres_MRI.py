@@ -29,8 +29,7 @@ print(parc.name)
 
 # %%
 receptor_density = siibra.features.get(
-    parc, siibra.features.generic.Tabular,
-    modality="neurotransmitter"
+    parc, siibra.features.generic.Tabular, modality="neurotransmitter"
 )[0]
 print(receptor_density.modality)
 
@@ -88,4 +87,12 @@ plotting.view_img(
 )
 
 
-# TODO: also add map from fMRI data
+# %%
+p = siibra.parcellations.get("combined macaque atlas")
+mp = p.get_map("mebrains")
+plotting.view_img(
+    mp.fetch(),
+    bg_img=mp.space.get_template().fetch(),
+    cmap=mp.get_colormap(),
+    symmetric_cmap=False,
+)
