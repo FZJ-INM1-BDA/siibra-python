@@ -24,7 +24,7 @@ import siibra
 from nilearn import plotting
 
 # %%
-parc = siibra.parcellations["mebrains"]
+parc = siibra.parcellations.MEBRAINS_POPULATION_BASED_MONKEY_PARCELLATION
 print(parc.name)
 
 # %%
