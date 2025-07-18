@@ -23,19 +23,16 @@ import siibra
 from siibra.volumes.volume import ReducedVolume
 from nilearn import plotting
 
-# %%
-p = siibra.parcellations["julich 3.1"]
+
+p = siibra.parcellations["julich 2.9"]
 area3b_left = p.get_region("Area 3b (PostCG) left")
 bundles_passing_3bleft = siibra.features.get(
     area3b_left, siibra.features.connectivity.StreamlineFiberBundle
 )
 print(len(bundles_passing_3bleft))
-
-# %%
 print(bundles_passing_3bleft[0].name)
 print(bundles_passing_3bleft[0].modality)
 print(bundles_passing_3bleft[0].description)
-
 
 # %%
 bundle = bundles_passing_3bleft[0]
@@ -89,8 +86,31 @@ display = plotting.plot_img(
 display.add_markers(warped_fiber.coordinates, marker_size=2)
 
 # %%
-area44_right = p.get_region("Area 44 right")
+area44_left = p.get_region("Area 44 left")
 bundles_passing_both = [
-    f for f in bundles_passing_3bleft if area44_right in f.anchor.regions
+    f for f in bundles_passing_3bleft if area44_left in f.anchor.regions
 ]
-print(len(bundles_passing_both))
+for bundle in bundles_passing_both:
+    print(bundle.name)
+
+# %%
+img = ReducedVolume(
+    [mp.get_volume(r) for r in [area44_left, area3b_left]],
+    [mp.get_index(r).label for r in [area44_left, area3b_left]],
+).fetch()
+display = plotting.plot_glass_brain(
+    img,
+    title=f"Bundle: {bundle.name}",
+    cmap=mp.get_colormap([area44_left, area3b_left])
+)
+display.add_markers(bundle.data.values, marker_size=1)
+
+
+# %%
+display = plotting.plot_glass_brain(
+    img,
+    title=f"Bundle: {bundle.name}",
+    cmap=mp.get_colormap([area44_left, area3b_left])
+)
+display.add_markers(bundle.data.values, marker_size=1, marker_color=bundle.data.index)
+# %%
