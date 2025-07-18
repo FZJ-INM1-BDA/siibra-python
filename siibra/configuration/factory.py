@@ -518,7 +518,9 @@ class Factory:
         cell_density_profiles = []
         spec["repository"] = cls.extract_connector(spec)
         for fpath in spec["repository"].search_files(suffix=".tsv", recursive=True):
-            entities = get_bids_entities(path.basename(fpath)[:-4])
+            entities = get_bids_entities(
+                path.basename(fpath.split('/')[-1])[:-4]
+            )
             spec["region"] = entities["description"].replace("-", " ")
 
             cell_density_profiles.append(

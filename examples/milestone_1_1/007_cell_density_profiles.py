@@ -22,9 +22,6 @@ Cell density Profiles
 import siibra
 
 # %%
-space = siibra.spaces.get("waxholm")
-
-# %%
 profiles = siibra.features.get(
     siibra.get_region("julich 3.1", "spl 7m"), "cell density profile"
 )
@@ -37,4 +34,4 @@ pf.data
 
 
 # %%
-pf.plot(backend="plotly")
+pf.plot(y="cell_size_mean_um2", error_y="cell_size_std_um2", backend="plotly")
