@@ -42,4 +42,4 @@ cf[0].data
 cf[0].plot(regions=cf[0].regions[0:50], reorder="average")
 
 # %%
-cf[0].plot(regions="3b left", backend="plotly")
+cf[0].plot(regions="3b left", backend="plotly", min_connectivity=400)
