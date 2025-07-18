@@ -28,12 +28,22 @@ sulci_atlas = siibra.parcellations.get("sulci atlas")
 sulci_atlas.render_tree()
 
 # %%
-for s in siibra.maps.dataframe.query(f'parcellation == "{p.name}"')["space"]:
-    mp = p.get_map(s)
+fig, axs = plt.subplots(3, 1, figsize=(10, 9))
+for i, space in enumerate(
+    siibra.maps.dataframe.query(f'parcellation == "{sulci_atlas.name}"')["space"]
+):
+    mp = sulci_atlas.get_map(space)
+    cmap = mp.get_colormap()
+    img = mp.fetch(resolution_mm=-1)
     plotting.plot_img(
-        img=mp.fetch(resolution_mm=1),
-        bg_img=mp.space.get_template().fetch(resolution_mm=1),
-        cmap=mp.get_colormap(),
+        img=img,
+        bg_img=mp.space.get_template().fetch(resolution_mm=0.4, max_bytes=3 * 1024**3),
+        cmap=cmap,
         title=mp.name,
+        axes=axs[i],
+    )
+    mesh = mp.fetch(region="Right calloso-marginal posterior fissure", format="mesh")
+    plotting.view_surf(
+        surf_mesh=[mesh["verts"], mesh["faces"]],
     )
 plt.show()
