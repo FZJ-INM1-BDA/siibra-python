@@ -24,8 +24,8 @@ from nilearn import plotting
 import matplotlib.pyplot as plt
 
 # %%
-p = siibra.parcellations.get("Sulci atlas")
-p.render_tree()
+sulci_atlas = siibra.parcellations.get("sulci atlas")
+sulci_atlas.render_tree()
 
 # %%
 for s in siibra.maps.dataframe.query(f'parcellation == "{p.name}"')["space"]:
