@@ -44,7 +44,7 @@ functional_fingerprints = siibra.features.get(
 )
 julichbrain_mni152_map = julichbrain.get_map("MNI 152")
 values_per_region = {
-    str(f.anchor): f.data.loc[selected_task_and_label]
+    str(f.anchor): f.data.loc[selected_task_and_label].iloc[0]
     for f in functional_fingerprints
 }
 colored_map = julichbrain_mni152_map.colorize(values_per_region)
