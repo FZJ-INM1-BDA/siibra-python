@@ -105,9 +105,13 @@ class PointDistribution(tabular.Tabular):
         if self._data_cached is None:
             self._data_cached = self._loader.get()
             if self._transform is not None:
-                coords = self._data_cached.iloc[:, :3]
-                coords.loc[:, "h"] = 1
-                self._data_cached.iloc[:, :3] = np.dot(self._transform["affine"], coords.T)[:3, :].T
+                coords_homogeneous = np.c_[
+                    self._data_cached.iloc[:, :3].to_numpy(),
+                    np.ones(len(self._data_cached)),
+                ]
+                self._data_cached.iloc[:, :3] = np.dot(
+                    self._transform["affine"], coords_homogeneous.T
+                )[:3, :].T
         return self._data_cached.copy()
 
     def plot(self, *args, backend="matplotlib", **kwargs):
