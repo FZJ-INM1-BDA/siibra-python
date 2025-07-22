@@ -19,7 +19,6 @@ import numpy as np
 
 from . import tabular
 from .. import anchor as _anchor
-from ...commons import logger
 from ...retrieval.requests import HttpRequest
 from ...locations import PointCloud
 from ...volumes.volume import from_pointcloud
@@ -106,22 +105,17 @@ class PointDistribution(tabular.Tabular):
             self._data_cached = self._loader.get()
             if self._transform is not None:
                 coords_homogeneous = np.c_[
-                    self._data_cached.iloc[:, :3].to_numpy(),
+                    self._data_cached.loc[:, ["x", "y", "z"]].to_numpy(),
                     np.ones(len(self._data_cached)),
                 ]
-                self._data_cached.iloc[:, :3] = np.dot(
+                self._data_cached.loc[:, ["x", "y", "z"]] = np.dot(
                     self._transform["affine"], coords_homogeneous.T
                 )[:3, :].T
         return self._data_cached.copy()
 
-    def plot(self, *args, backend="matplotlib", **kwargs):
-        if self.data.shape[1] <= 3:
-            logger.NotImplementedError(
-                "The point distribution does not contain any value data."
-                "You can obtain and plot kernel density using: `get_kde_volume`."
-            )
+    def plot(self, *args, column_name: str, backend="matplotlib", **kwargs):
         kind = kwargs.pop("kind", "hist")
-        return self.data.iloc[:, 3:].plot(*args, backend=backend, kind=kind, **kwargs)
+        return self.data.loc[:, column_name].plot(*args, backend=backend, kind=kind, **kwargs)
 
     def get_kde_volume(self, normalize: bool = True, **template_kwargs) -> "Volume":
         """
