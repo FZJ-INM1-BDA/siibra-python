@@ -21,29 +21,27 @@ sulci atlas
 # %%
 import siibra
 from nilearn import plotting
-import matplotlib.pyplot as plt
 
 # %%
 sulci_atlas = siibra.parcellations.get("sulci atlas")
 sulci_atlas.render_tree()
 
 # %%
-fig, axs = plt.subplots(3, 1, figsize=(10, 9))
+cut_coords = siibra.Point((50, 9, 34), "colin27")
 for i, space in enumerate(
     siibra.maps.dataframe.query(f'parcellation == "{sulci_atlas.name}"')["space"]
 ):
     mp = sulci_atlas.get_map(space)
     cmap = mp.get_colormap()
-    img = mp.fetch(resolution_mm=-1)
+    sulci_img = mp.fetch(max_bytes=0.4 * 1024**3)
+    template_img = mp.space.get_template().fetch(
+        resolution_mm=sulci_img.header.get_zooms()[0], max_bytes=0.4 * 1024**3
+    )
     plotting.plot_img(
-        img=img,
-        bg_img=mp.space.get_template().fetch(resolution_mm=0.4, max_bytes=3 * 1024**3),
+        sulci_img,
+        bg_img=template_img,
         cmap=cmap,
         title=mp.name,
-        axes=axs[i],
+        cut_coords=cut_coords.warp(space).coordinate,
+        resampling_interpolation="nearest"
     )
-    mesh = mp.fetch(region="Right calloso-marginal posterior fissure", format="mesh")
-    plotting.view_surf(
-        surf_mesh=[mesh["verts"], mesh["faces"]],
-    )
-plt.show()
