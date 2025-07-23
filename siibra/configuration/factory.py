@@ -694,12 +694,13 @@ class Factory:
             "prerelease": spec.get("prerelease", False),
         }
         species = cls.decode_species(spec)
+        parc = parcellation.Parcellation.registry().get(spec["parcellation"].get("@id"))
         bundle_by_file = []
         for bundle_id, filename in files.items():
             intersecting_regions = {
                 r: anchor.Qualification.OVERLAPS
                 for rname in regions_df.loc[bundle_id].loc[lambda s: s.eq(1)].index.tolist()
-                for r in parcellation.find_regions(rname)
+                for r in parc.get_region(rname)
             }
             kwargs.update(
                 {
