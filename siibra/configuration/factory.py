@@ -451,6 +451,21 @@ class Factory:
         )
 
     @classmethod
+    @build_type("siibra/feature/point_distribution/cell_distribution_bids/v0.1")
+    def cell_distribution_bids(cls, spec: Dict):
+        cell_dists = []
+        repo = cls.extract_connector(spec)
+        spec["@type"] = "siibra/feature/point_distribution/cell_distribution/v0.1"
+        for fpath in repo.search_files(suffix="_CellInstances.tsv", recursive=True):
+            entities = get_bids_entities(path.basename(fpath)[:-4])
+            spec["region"] = entities["description"].replace("-", " ")
+            spec["subject"] = entities["subject"]
+            spec["file_url"] = repo._build_url("", filename=fpath)
+            cell_dists.append(cls.build_point_distribution(spec))
+
+        return cell_dists
+
+    @classmethod
     @build_type("siibra/feature/fingerprint/receptor/v0.1")
     def build_receptor_density_fingerprint(cls, spec):
         return receptor_density_fingerprint.ReceptorDensityFingerprint(
@@ -527,9 +542,7 @@ class Factory:
         cell_density_feats = []
         spec["repository"] = cls.extract_connector(spec)
         for fpath in spec["repository"].search_files(suffix=".tsv", recursive=True):
-            entities = get_bids_entities(
-                path.basename(fpath.split('/')[-1])[:-4]
-            )
+            entities = get_bids_entities(path.basename(fpath)[:-4])
             if entities["format"] != fileformat:
                 continue
             spec["region"] = entities["description"].replace("-", " ")
