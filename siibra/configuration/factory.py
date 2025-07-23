@@ -427,7 +427,7 @@ class Factory:
             point_dist_cls = getattr(point_distribution, modality)
         except Exception:
             raise ValueError(
-                f"No method for building connectivity matrix of type {modality}."
+                f"No method for building point distribution of type {modality}."
             )
         if "files" in spec:
             baseurl = spec.get("base_url", "")
