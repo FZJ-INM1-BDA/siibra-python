@@ -118,7 +118,22 @@ v1l_pmap = julich_pmaps.fetch(region="v1 left")
 plotting.plot_roi(v1l_pmap, title="v1 left", cmap='viridis')
 
 # %%
-# In addition to parcellation maps, `siibra` can produce binary masks of brain regions.
-hoc5L = siibra.get_region(parcellation='julich 2.9', region='hoc5 left')
-hoc5L_mask = hoc5L.get_regional_mask(space="mni152", maptype="labelled")
-plotting.plot_roi(hoc5L_mask.fetch(), title=f"Mask of {hoc5L.name}")
+# In addition to parcellation maps, `siibra` can produce binary masks of brain
+# regions. To demonstrate, let use von Economo & Koskinas atlas, that is widely
+# used.
+voneconomo = siibra.parcellations.get('von Economo & Koskinas')
+fdtL = voneconomo.get_region('FDT: Area frontalis granularis triangularis - left hemisphere')
+fdtL_mask = fdtL.get_regional_mask(space="mni152", maptype="labelled")
+plotting.plot_roi(fdtL_mask.fetch(), title=fdtL.name)
+
+# %%
+# Let us now show the same region in the full map context
+voneconomo_map = voneconomo.get_map('mni152')
+plotting.view_img(
+    voneconomo_map.fetch(),
+    cmap=voneconomo_map.get_colormap(),
+    symmetric_cmap=False,
+    title=voneconomo.name,
+    cut_coords=fdtL.compute_centroids('mni152')[0].coordinate,
+    resampling_interpolation="nearest",
+)
