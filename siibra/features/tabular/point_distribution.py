@@ -82,7 +82,7 @@ class PointDistribution(tabular.Tabular):
             Optional standard deviation of point locations. By default, only the
             coordinates are passed on.
         """
-        coordinates = self.data.iloc[:, :3].to_numpy()
+        coordinates = self.data.loc[:, ["x", "y", "z"]].to_numpy()
         ptcld = PointCloud(
             coordinates=coordinates,
             space=self._transform["target_space_id"],
@@ -103,7 +103,7 @@ class PointDistribution(tabular.Tabular):
         """
         if self._data_cached is None:
             self._data_cached = self._loader.get()
-            if self._transform is not None:
+            if self._transform.get("affine") is not None:
                 coords_homogeneous = np.c_[
                     self._data_cached.loc[:, ["x", "y", "z"]].to_numpy(),
                     np.ones(len(self._data_cached)),
