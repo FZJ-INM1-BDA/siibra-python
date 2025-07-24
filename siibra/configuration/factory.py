@@ -233,7 +233,7 @@ class Factory:
             version = parcellation.ParcellationVersion(
                 name=versionspec.get("name", None),
                 parcellation=p,
-                collection=versionspec.get("collectionName", None),
+                collection=versionspec.get("collection", None),
                 prev_id=versionspec.get("@prev", None),
                 next_id=versionspec.get("@next", None),
                 deprecated=versionspec.get("deprecated", False)

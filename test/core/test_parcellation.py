@@ -11,7 +11,7 @@ from itertools import product, starmap
 
 correct_json = {
     "name": "foobar",
-    "collectionName": "foobar-collection",
+    "collection": "foobar-collection",
     "@prev": "foobar-prev",
     "@next": "foobar-next",
     "deprecated": False,
@@ -57,7 +57,7 @@ class TestParcellationVersion(unittest.TestCase):
         return ParcellationVersion(
             parcellation=None,
             name=correct_json.get("name"),
-            collection=correct_json.get("collectionName"),
+            collection=correct_json.get("collection"),
             prev_id=correct_json.get("@prev"),
             next_id=correct_json.get("@next"),
             deprecated=correct_json.get("deprecated"),
@@ -70,7 +70,7 @@ class TestParcellationVersion(unittest.TestCase):
     def test_attr(self):
         self.assertTrue(self.parc_version.deprecated == correct_json["deprecated"])
         self.assertTrue(self.parc_version.name == correct_json["name"])
-        self.assertTrue(self.parc_version.collection == correct_json["collectionName"])
+        self.assertTrue(self.parc_version.collection == correct_json["collection"])
         self.assertTrue(self.parc_version.prev_id == correct_json["@prev"])
         self.assertTrue(self.parc_version.next_id == correct_json["@next"])
 
