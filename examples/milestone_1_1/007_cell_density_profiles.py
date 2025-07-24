@@ -20,11 +20,11 @@ Cell density Profiles
 
 # %%
 import siibra
+from nilearn import plotting
 
 # %%
-profiles = siibra.features.get(
-    siibra.get_region("julich 3.1", "spl 7m"), "cell density profile"
-)
+region = siibra.get_region("julich 3.1", "spl 7m")
+profiles = siibra.features.get(region, "cell density profile")
 for pf in profiles:
     print(pf.name)
 
@@ -32,12 +32,10 @@ for pf in profiles:
 pf.data
 
 # %%
-pf.plot(y='density_mean', error_y='density_std', backend='plotly', kind='line')
+pf.plot(y="density_mean", error_y="density_std", backend="plotly", kind="line")
 
 # %%
-layerwise = siibra.features.get(
-    siibra.get_region("julich 3.1", "spl 7m"), "layer cell density v2"
-)
+layerwise = siibra.features.get(region, "layer cell density v2")
 for lf in layerwise:
     print(lf.name)
 
@@ -46,3 +44,31 @@ lf.data
 
 # %%
 lf.plot(y="cell_size_mean_um2", error_y="cell_size_std_um2", backend="plotly")
+
+# %%
+cell_dists = siibra.features.get(region, siibra.features.cellular.CellDistribution)
+for cd in cell_dists:
+    print(cd.name)
+ptcld = cd.as_pointcloud()
+
+# %%
+mni152_tmpl_img_voi = siibra.get_template("bigbrain").fetch(voi=ptcld.boundingbox)
+display = plotting.plot_img(
+    img=mni152_tmpl_img_voi,
+    cut_coords=ptcld.centroid.coordinate,
+    cmap="gray",
+    display_mode="y",
+)
+display.add_markers(ptcld.coordinates, marker_size=1)
+
+# %%
+mni152_tmpl_img_voi = siibra.get_template("mni152").fetch()
+ptcld_warped = ptcld.warp('mni152')
+display = plotting.plot_img(
+    img=mni152_tmpl_img_voi,
+    cut_coords=ptcld_warped.centroid.coordinate,
+    cmap="gray",
+    display_mode="y",
+)
+display.add_markers(ptcld_warped.coordinates, marker_size=1)
+
