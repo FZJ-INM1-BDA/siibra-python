@@ -32,16 +32,16 @@ bundles_passing_3bleft = siibra.features.get(
     area3b_left, siibra.features.connectivity.StreamlineFiberBundle
 )
 print("Bundles found:", len(bundles_passing_3bleft))
-print(bundles_passing_3bleft[0].name)
-print(bundles_passing_3bleft[0].description)
+print(bundles_passing_3bleft[12].name)
+print(bundles_passing_3bleft[12].description)
 
 
 # %%
 # Each bundle is represented as a dictionary of fibers which in turn are
 # represented as Contour objects. Countours are just PointClouds where the order
 # of the coordinates is important. (This enables warping the coordinates to
-# other spaces effeciently). Let us choose the first bundle to demonstrate
-bundle = bundles_passing_3bleft[0]
+# other spaces effeciently). Let us choose a bundle to demonstrate
+bundle = bundles_passing_3bleft[12]
 bundle.data
 
 
@@ -59,13 +59,13 @@ plotting.plot_markers(
 fibers = bundle.get_fibers()
 print(type(fibers[0]))
 
-# $$
+# %%
 fiber_id = 0
 display = plotting.plot_img(
     img=siibra.get_template("mni152").fetch(resolution_mm=1),
     bg_img=None,
     cmap="gray",
-    title=f"Bundle: {bundle} - fiber: {fiber_id}",
+    title=f"Bundle: {bundle.name} - fiber: {fiber_id}",
     cut_coords=fibers[fiber_id].coordinates[25],
 )
 display.add_markers(fibers[fiber_id].coordinates, marker_size=2)
@@ -76,7 +76,7 @@ display = plotting.plot_img(
     img=siibra.get_template("bigbrain").fetch(resolution_mm=1),
     bg_img=None,
     cmap="gray",
-    title=f"Bundle: {bundle} - fiber: {fiber_id}",
+    title=f"Bundle: {bundle.name} - fiber: {fiber_id}",
     cut_coords=warped_fiber.coordinates[25],
 )
 display.add_markers(warped_fiber.coordinates, marker_size=2)
@@ -137,5 +137,3 @@ plotting.view_img(
     colorbar=False,
     cmap=julich_brain.get_map("mni152").get_colormap(regionnames),
 )
-
-# %%
