@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Rodent tracing connectivity distribution
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Mouse cell distribution and tracing connectivity 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
