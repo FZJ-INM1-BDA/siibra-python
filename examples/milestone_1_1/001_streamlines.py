@@ -83,37 +83,47 @@ display.add_markers(warped_fiber.coordinates, marker_size=2)
 
 
 # %%
-features = siibra.features.get(julich_brain, "streamlinecounts")
-for f in features:
-    print(f.cohort)
+# Next we will utilize streamline count matrices for further analysis
+streamline_count_matrices = siibra.features.get(julich_brain, "streamlinecounts")
+for sc in streamline_count_matrices:
+    print(sc.cohort)
 # %%
-cf = list(filter(lambda f: f.cohort == "1000BRAINS", features))[0]
-print(cf.name)
+# Now, filter out the 1000BRAINS cohort and check the subject fields. This
+# dataset is constructed for showcasing group averages and we will rely on this
+sc = list(filter(lambda f: f.cohort == "1000BRAINS", streamline_count_matrices))[0]
+print(sc.name)
+for s in sc:
+    print(s.subject)
 
 # %%
-for f in cf:
-    print(f.subject)
+youngest_group = sc.get_element("age-group-mean-18-24")
+youngest_group.plot(
+    regions=area3b_left, backend="plotly", min_connectivity=400, logscale=True
+)
 
 # %%
-cf[0].plot(regions=area3b_left, backend="plotly", min_connectivity=400)
+oldest_group = sc.get_element("age-group-mean-75-87")
+oldest_group.plot(
+    regions=area3b_left, backend="plotly", min_connectivity=400, logscale=True
+)
 
 # %%
-profile = cf[0].get_profile(region=area3b_left, min_connectivity=400).data
-profile.head()
-
-# %%
-area_1_left = profile.index[0]
+# interestingly, area 4p shows decreased connectivity. Let us examine the
+# bundles passing through both regions for further analysis
+profile = oldest_group.get_profile(region=area3b_left, min_connectivity=400).data
+area_4pleft = profile.index[2]
 bundles_passing_both = [
-    f for f in bundles_passing_3bleft if area_1_left in f.anchor.regions
+    f for f in bundles_passing_3bleft if area_4pleft in f.anchor.regions
 ]
 for bundle in bundles_passing_both:
     print(bundle.name)
 
 # %%
+# Let us now check the masks of each region and a bundle passing through both
 mp = julich_brain.get_map("mni152")
 img = ReducedVolume(
-    [mp.get_volume(r) for r in [area_1_left, area3b_left]],
-    [mp.get_index(r).label for r in [area_1_left, area3b_left]],
+    [mp.get_volume(r) for r in [area_4pleft, area3b_left]],
+    [mp.get_index(r).label for r in [area_4pleft, area3b_left]],
 ).fetch()
 display = plotting.plot_glass_brain(img, title=f"Bundle: {bundle.name}", cmap="Blues")
 display.add_markers(
@@ -121,7 +131,8 @@ display.add_markers(
 )
 
 # %%
-# Now, plot the masks of the regions overlapping with it
+# Now, plot the masks of the regions overlapping with the selected bundle to see
+# the path it takes
 regionnames = {
     r.name for r in bundle.anchor.regions
 }  # regions this bundle passing through
