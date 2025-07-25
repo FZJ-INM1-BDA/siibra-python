@@ -22,7 +22,7 @@ Macaque receptor mapping and high-resolution MRI
 # %%
 import siibra
 from nilearn import plotting
-# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/milestone_1_1_macaque_combined_atlas.png'
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/milestone_1_1_macaque_receptor_map.png'
 
 # %%
 parc = siibra.parcellations.MEBRAINS_POPULATION_BASED_MONKEY_PARCELLATION
@@ -84,16 +84,5 @@ plotting.view_img(
     fts[0].fetch(voi=voi, resolution_mm=-1),
     bg_img=None,
     cmap="gray",
-    symmetric_cmap=False,
-)
-
-
-# %%
-p = siibra.parcellations.get("combined macaque atlas")
-mp = p.get_map("mebrains")
-plotting.view_img(
-    mp.fetch(),
-    bg_img=mp.space.get_template().fetch(),
-    cmap=mp.get_colormap(),
     symmetric_cmap=False,
 )

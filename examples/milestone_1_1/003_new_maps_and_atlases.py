@@ -14,13 +14,30 @@
 # limitations under the License.
 
 """
-sulci atlas
-~~~~~~~~~~~
+New Maps and Atlases
+~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
 import siibra
 from nilearn import plotting
+import matplotlib.pyplot as plt
+
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/milestone_1_1_macaque_combined_atlas.png'
+
+# %%
+combined_macaque = siibra.parcellations.get("combined macaque atlas")
+combined_macaque.render_tree()
+
+# %%
+combined_macaque_map = combined_macaque.get_map("mebrains")
+plotting.view_img(
+    combined_macaque_map.fetch(),
+    bg_img=combined_macaque_map.space.get_template().fetch(),
+    cmap=combined_macaque_map.get_colormap(),
+    symmetric_cmap=False,
+)
+
 
 # %%
 sulci_atlas = siibra.parcellations.get("sulci atlas")
@@ -28,6 +45,7 @@ sulci_atlas.render_tree()
 
 # %%
 cut_coords = siibra.Point((50, 9, 34), "colin27")
+fig, axs = plt.subplots(3, 1, figsize=(15, 21))
 for i, space in enumerate(
     siibra.maps.dataframe.query(f'parcellation == "{sulci_atlas.name}"')["space"]
 ):
@@ -41,7 +59,24 @@ for i, space in enumerate(
         sulci_img,
         bg_img=template_img,
         cmap=cmap,
-        title=mp.name,
+        title=space,
         cut_coords=cut_coords.warp(space).coordinate,
-        resampling_interpolation="nearest"
+        resampling_interpolation="nearest",
+        axes=axs[i],
     )
+
+
+# %%
+marmoset = siibra.parcellations.get("marmoset")
+print(marmoset.publications)
+marmoset.render_tree()
+
+# %%
+marmoset_map = marmoset.get_map("marmoset")
+plotting.view_img(
+    marmoset_map.fetch(),
+    bg_img=marmoset_map.space.get_template().fetch(),
+    cmap=marmoset_map.get_colormap(),
+    symmetric_cmap=False,
+    resampling_interpolation="nearest",
+)
