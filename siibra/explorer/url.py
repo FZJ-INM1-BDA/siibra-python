@@ -162,6 +162,7 @@ class DecodedUrl:
 
 def decode_url(url: str, vp_length=1000):
     import siibra
+    from siibra.locations import Point, BoundingBox
 
     try:
         space_match = re.search(r"/t:(?P<space_id>[^/]+)", url)
@@ -171,7 +172,7 @@ def decode_url(url: str, vp_length=1000):
     except Exception as e:
         raise DecodeNavigationException from e
 
-    nav_match = re.search(r"/@:(?P<navigation_str>.+)/?", url)
+    nav_match = re.search(r"/@:(?P<navigation_str>[^/]+)/?", url)
     navigation_str = nav_match.group("navigation_str")
     for char in navigation_str:
         assert char in cipher or char in [
