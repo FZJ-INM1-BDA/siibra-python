@@ -1,7 +1,7 @@
 name: '[Docs] Build docs and upload artifacts'
 on:
   push:
-    branches: [ 'main', 'doc_*' ] 
+    branches: [ 'main', 'doc_*', 'ebrains2_milestone_1_1']
   release:
     types: [ 'published' ]
   workflow_dispatch:
