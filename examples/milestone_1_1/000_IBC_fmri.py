@@ -20,6 +20,7 @@ IBC - fMRI Data
 # %%
 import siibra
 from nilearn import plotting
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/milestone_1_1_functional_fingerprint.png'
 
 # %%
 julichbrain = siibra.parcellations["julich 3.1"]

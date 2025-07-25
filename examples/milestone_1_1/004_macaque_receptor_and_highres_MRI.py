@@ -22,6 +22,7 @@ Macaque receptor mapping and high-resolution MRI
 # %%
 import siibra
 from nilearn import plotting
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/milestone_1_1_macaque_combined_atlas.png'
 
 # %%
 parc = siibra.parcellations.MEBRAINS_POPULATION_BASED_MONKEY_PARCELLATION
