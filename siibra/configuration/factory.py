@@ -672,8 +672,7 @@ class Factory:
             entities = get_bids_entities(filename)
             if entities["files_indexed_by"] != spec["files_indexed_by"]:
                 continue
-            spec["files"][filename] = fpath
-            spec["feature"] = entities["measure"]
+            spec["files"][entities["description"]] = fpath
 
         return cls.build_connectivity_matrix(spec)
 
