@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-IBC - fMRI Data
-~~~~~~~~~~~~~~~
+IBC - fMRI fingerprints with tasks and contrast labels
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 # %%
 import siibra
