@@ -459,7 +459,10 @@ class Factory:
         for fpath in repo.search_files(suffix="_CellInstances.tsv", recursive=True):
             entities = get_bids_entities(path.basename(fpath)[:-4])
             spec["region"] = entities["description"].replace("-", " ")
-            spec["subject"] = entities["subject"]
+            spec["subject"] = " - ".join(
+                f"{k}: {v}" for k, v in entities.items()
+                if k not in ["format", "files_indexed_by"]
+            )
             spec["file_url"] = repo._build_url("", filename=fpath)
             cell_dists.append(cls.build_point_distribution(spec))
 
