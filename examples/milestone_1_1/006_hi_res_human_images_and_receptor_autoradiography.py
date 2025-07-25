@@ -66,9 +66,22 @@ intersection_mask = proton_density.intersection(fo1_R_mask).fetch()
 pd_img_masked_arr = np.asanyarray(pd_img.dataobj)
 pd_img_masked_arr[~np.asanyarray(intersection_mask.dataobj, dtype=bool)] = 0
 pd_img_masked = nibabel.Nifti1Image(pd_img_masked_arr, pd_img.affine)
+cut_coords = fo1_R.compute_centroids(mni152)[0].coordinate
 plotting.view_img(
     pd_img_masked,
     symmetric_cmap=False,
-    cut_coords=fo1_R.compute_centroids(mni152)[0].coordinate,
+    cut_coords=cut_coords,
     cmap="magma",
+)
+
+# %%
+voi = fo1_R_mask.get_boundingbox(clip=True)
+pd_img_hi_res_voi = proton_density.fetch(voi=voi)
+plotting.view_img(
+    pd_img_hi_res_voi,
+    bg_img=None,
+    black_bg=True,
+    symmetric_cmap=False,
+    cmap="magma",
+    cut_coords=cut_coords,
 )
