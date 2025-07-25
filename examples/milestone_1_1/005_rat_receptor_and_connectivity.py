@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Rodent tracing connectivity distribution
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Rat receptor autoradiogarphy and tracing connectivity distribution
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
