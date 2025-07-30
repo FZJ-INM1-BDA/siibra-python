@@ -9,7 +9,7 @@
 #   $PATH_SIIBRA_EXPLORER_ROOT_DIR \
 #   $PATH_TO_SIIBRA_PYTHON_EXPLORERAPI_DIR
 #
-# $$PATH_TO_SIIBRA_PYTHON_EXPLORERAPI_DIR is usually ~/siibra/explorer/api
+# $PATH_TO_SIIBRA_PYTHON_EXPLORERAPI_DIR is usually ~/siibra/explorer/api
 
 if [[ -z "$1" ]]
 then

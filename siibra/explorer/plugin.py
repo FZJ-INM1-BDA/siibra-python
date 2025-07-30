@@ -17,9 +17,17 @@ IDENTITY=[
     [0, 0, 0, 1],
 ]
 
+key_mapping = {
+    "field_id": "@id"
+}
+
+def custom_dict_factory(list_of_tuples):
+    updated = [(key_mapping.get(n, n), v) for n, v in list_of_tuples]
+    return dict(updated)
+
 def asdict(val_in: dict|list|str|int|float):
     if is_dataclass(val_in):
-        val_in = _asdict(val_in)
+        val_in = _asdict(val_in, dict_factory=custom_dict_factory)
     if isinstance(val_in, (str, int, float)):
         return val_in
     if isinstance(val_in, (list, tuple)):
@@ -127,18 +135,19 @@ class Explorer:
     def __exit__(self):
         self.stop()
 
-    def start(self):
+    def start(self, *, atlas_spec: str="human", space_spec: str="mni 152", parcellation_spec: str="julich 3"):
         from . import encode_url
         import siibra
         
-        atlas = siibra.atlases['human']
-        space = siibra.spaces['mni 152']
-        parc = siibra.parcellations['julich 3']
+        atlas = siibra.atlases[atlas_spec]
+        space = siibra.spaces[space_spec]
+        parc = siibra.parcellations[parcellation_spec]
         self.goto_url = encode_url(atlas, space, parc, root_url=self.root_url, query_params={
             "pl": '["http://localhost:7099/template.html"]'
         })
         print(f"Go to {self.goto_url}", file=sys.stderr)
         self.controller.start()
+        return self.goto_url
     
     def stop(self):
         self.controller.stop()
@@ -225,3 +234,50 @@ class Explorer:
                 )
             )
         )
+
+    def select(self, *, atlas_spec: str=None, template_spec: str=None, parcellation_spec: str=None):
+        assert (
+            bool(atlas_spec) + bool(template_spec) + bool(parcellation_spec) == 1,
+            f"""
+            Expected one and only one of {atlas_spec}, {template_spec}, and {parcellation_spec} to be set
+            """
+        )
+        import siibra
+        if bool(atlas_spec):
+            from .api.request.selectAtlas.request import Model, AtId
+            atlas = siibra.atlases[atlas_spec]
+            if atlas is None:
+                raise Exception(f"{atlas_spec} did not resolve to any atlas")
+            ReqHndl.sxplr_requests.append(
+                Model(
+                    id=str(uuid4()),
+                    params=AtId(field_id=atlas.id)
+                )
+            )
+            return
+            
+        if bool(template_spec):
+            from .api.request.selectTemplate.request import Model, AtId
+            space = siibra.spaces[template_spec]
+            if space is None:
+                raise Exception(f"{template_spec} did not resolve to any space")
+            ReqHndl.sxplr_requests.append(
+                Model(
+                    id=str(uuid4()),
+                    params=AtId(field_id=space.id)
+                )
+            )
+            return
+            
+        if bool(parcellation_spec):
+            from .api.request.selectParcellation.request import Model, AtId
+            parcellation = siibra.parcellations[parcellation_spec]
+            if parcellation is None:
+                raise Exception(f"{parcellation_spec} did not resolve to any parcellation")
+            ReqHndl.sxplr_requests.append(
+                Model(
+                    id=str(uuid4()),
+                    params=AtId(field_id=parcellation.id)
+                )
+            )
+            return

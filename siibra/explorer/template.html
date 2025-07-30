@@ -10,7 +10,9 @@
 	You can safely minimize (NOT close!) this plugin, and control it via python.
 </body>
 <script>
+	const POLL_FREQ_MS = 1000
 	let parent, parentOrigin
+    const requestMap = new Map()
 	function send(){
 		if (parent) {
 			fetch("http://localhost:7099/ping")
@@ -19,16 +21,18 @@
 				for (const item of arr){
 					console.log("setnind", item)
 					parent.postMessage(item, parentOrigin)
+					if (item.id) {
+						// TODO properly 
+					}
 				}
 			})
 		}
 		// Use settimeout rather than setinterval
 		// this way, the /ping endpoint will be polled at MOST once every second
-		setTimeout(() => send(), 1000);
+		setTimeout(() => send(), POLL_FREQ_MS);
 	}
-	setTimeout(() => send(), 1000);
+	setTimeout(() => send(), POLL_FREQ_MS);
 	
-    const requestMap = new Map()
     window.onmessage = handleMessage
     function handleMessage(msg){
 		console.log("received message!!!!", msg)
