@@ -53,5 +53,11 @@ setup(
         'typing-extensions; python_version < "3.8"',
         "filelock",
         "ebrains-drive >= 0.6.0",
+        'plotly; python_version >= "3.11"',
+        'zarr >= 3; python_version >= "3.11"',
+        'matplotlib; python_version >= "3.11"',
+        'scipy; python_version >= "3.11"',
+        'fsspec; python_version >= "3.11"',
+        'aiohttp; python_version >= "3.11"',
     ],
 )
