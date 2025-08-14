@@ -20,7 +20,8 @@ from ..features.tabular import (
     receptor_density_fingerprint,
     cell_density_profile,
     layerwise_cell_density,
-    regional_timeseries_activity
+    regional_timeseries_activity,
+    lfp,
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -524,6 +525,18 @@ class Factory:
             return regional_timeseries_activity.RegionalBOLD(**kwargs)
         else:
             raise ValueError(f"No method for building signal table of type {modality}.")
+
+    @classmethod
+    @build_type("siibra/feature/tabular/lfp/v0.1")
+    def build_lfp(cls, spec):
+        zarr3_url = spec.get("providers", {}).get("zarr/v3")
+        assert zarr3_url, f".['providers']['zarr/v3'] must be present in spec, but was not"
+
+        return lfp.LFP(zarr3_url,
+                       "No desc yet",
+                       "lfp",
+                       cls.extract_anchor(spec),
+                       None)
 
     @classmethod
     def from_json(cls, spec: dict):

@@ -24,7 +24,6 @@ from ..core import parcellation, region
 
 from collections import defaultdict
 import re
-from distutils.version import LooseVersion
 from tempfile import NamedTemporaryFile
 
 
@@ -121,8 +120,9 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
         # the newest one with older ones linked as a version history.
         for name, dsets in versioned_datasets.items():
             try:  # if possible, sort by version tag
+                from distutils.version import LooseVersion
                 sorted_versions = sorted(dsets.keys(), key=LooseVersion)
-            except TypeError:  # else sort lexicographically
+            except (TypeError, ImportError):  # else sort lexicographically
                 sorted_versions = sorted(dsets.keys())
 
             # chain the dataset versions
