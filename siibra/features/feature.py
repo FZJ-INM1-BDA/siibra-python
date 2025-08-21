@@ -146,6 +146,7 @@ class Feature:
         cls._live_queries = []
         cls._preconfigured_instances = None
         cls._configuration_folder = configuration_folder
+        logger.info('setting conf fold %s to %s', configuration_folder, str(cls))
         cls.category = category
         if category is not None:
             cls.CATEGORIZED[category].add(cls.__name__, cls)

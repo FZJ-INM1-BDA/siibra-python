@@ -13,9 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from textwrap import wrap
 from zipfile import ZipFile
 from ..feature import Feature
-from ..tabular.tabular import Tabular
+from ..tabular import tabular
 
 from .. import anchor as _anchor
 
@@ -34,7 +35,11 @@ except ImportError:  # support python 3.7
     from typing_extensions import Literal
 
 
-class InterarealConnectivityMatrix(Tabular):
+class InterarealConnectivityMatrix(
+    tabular.Tabular,
+    configuration_folder="features/tabular/connectivitystrength",
+    category="cellular",
+):
     """
     Parcellation-averaged connectivity, providing one or more matrices of a
     given modality for a given parcellation.
@@ -80,17 +85,14 @@ class InterarealConnectivityMatrix(Tabular):
         datasets : list[Dataset]
             list of datasets corresponding to this feature.
         """
-    def __init__(self, **kwargs):
-        image.Image.__init__(self, **kwargs, modality="cell body staining")
-        Feature.__init__(
+        tabular.Tabular.__init__(
             self,
             modality=modality,
             description=description or '\n'.join({ds.description for ds in datasets}),
             anchor=anchor,
             datasets=datasets,
+            data=None,  # lazy loading below
             prerelease=prerelease,
-            configuration_folder="features/tabular/connectivitystrength",
-            category="cellular",
             id=id,
         )
         self.cohort = cohort.upper()
@@ -266,7 +268,7 @@ class InterarealConnectivityMatrix(Tabular):
             series = matrix[regions[0]]
             last_index = len(series) - 1 if max_rows is None \
                 else min(max_rows, len(series) - 1)
-            return Tabular(
+            return tabular.Tabular(
                 description=self.description,
                 modality=f"{self.modality} {self.cohort}",
                 anchor=_anchor.AnatomicalAnchor(
@@ -407,6 +409,151 @@ class InterarealConnectivityMatrix(Tabular):
             )
         return self._arraylike_to_dataframe(array)
 
+
+    def plot(self, subject: str = None, regions: str = None,
+             logscale: bool = False, *args, backend="nilearn", **kwargs
+    ):
+        """
+        Plots the heatmap of the connectivity matrix using nilearn.plotting.
+
+        Parameters
+        ----------
+        subject: str
+            Name of the subject (see ConnectivityMatrix.subjects for available names).
+            If "mean" or None is given, the mean is taken in case of multiple
+            available matrices.
+        regions: list[str]
+            Display the matrix only for selected regions. By default, shows all the regions.
+            It can only be a subset of regions of the feature.
+        logscale: bool
+            Display the data in log10 scale
+        backend: str
+            "nilearn" or "plotly"
+        **kwargs:
+            Can take all the arguments `nilearn.plotting.plot_matrix` can take. See the doc at
+            https://nilearn.github.io/stable/modules/generated/nilearn.plotting.plot_matrix.html
+        """
+        if regions is None:
+            return None
+            #regions = self.regions
+        #indices = [self.regions.index(r) for r in regions]
+        m = self.get_matrix(subject=subject)
+        #matrix = self.get_matrix(subject=subject).iloc[indices, indices].to_numpy()  # nilearn.plotting.plot_matrix works better with a numpy array
+
+        d = m.rename(str, axis='columns').rename(str, axis='index')
+        d = d[d[regions] != 0][[regions]]
+        d.map(np.log10)
+        d.sort_values(by=[regions], inplace=True)
+        scale = [
+            (0, '#e6e6e6'),
+            (0.005, '#f4f78c'),
+            (0.13, '#e28b21'),
+            (0.28, '#d75223'),
+            (0.32, '#d44324'),
+            (0.74, '#7c5359'),
+            (0.92, '#513331'),
+            (1, '#513331')
+        ]
+        if backend == "plotly":
+            import plotly.express as px
+            fig = px.bar(d, x=regions, orientation='h', color=regions, color_continuous_scale=scale)
+            #fig.update_yaxes(autorange='reversed')
+            fig.update_layout(yaxis={'dtick': 1}, height=len(d) * 12)
+
+        return fig
+
+        if logscale:
+            matrix = np.log10(matrix)
+
+        # default kwargs
+        subject_title = subject or ""
+        kwargs["title"] = kwargs.get(
+            "title",
+            f"{subject_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}"
+        )
+        np.save('nm-matrix.npy', matrix)
+        if kwargs.get("reorder") or (backend == "nilearn"):
+            kwargs["figure"] = kwargs.get("figure", (15, 15))
+            from nilearn import plotting
+            plotting.plot_matrix(
+                matrix,
+                labels=regions,
+                **kwargs
+            )
+        elif backend == "plotly":
+            from plotly.express import imshow
+            return imshow(matrix, *args, x=regions, y=regions, **kwargs)
+        else:
+            raise NotImplementedError(
+                f"Plotting connectivity matrices with {backend} is not supported."
+            )
+
+    def plot3(self, *args, backend="matplotlib", **kwargs):
+        """
+        Create a bar plot of a columns of the data.
+        Parameters
+        ----------
+        backend: str
+            "matplotlib", "plotly", or others supported by pandas DataFrame
+            plotting backend.
+        **kwargs
+            takes Matplotlib.pyplot keyword arguments
+        """
+        wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
+        kwargs["title"] = kwargs.get(
+            "title",
+            "\n".join(wrap(
+                f"{self.modality} in {', '.join({_.name for _ in self.anchor.regions})}",
+                wrapwidth
+            ))
+        )
+        print ('self data is', self.data)
+        kwargs["kind"] = kwargs.get("kind", "bar")
+        kwargs["y"] = kwargs.get("y", self.data.columns[0])
+        if backend == "matplotlib":
+            try:
+                import matplotlib.pyplot as plt
+            except ImportError:
+                commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
+                return None
+            # default kwargs
+            if kwargs.get("error_y") is None:
+                kwargs["yerr"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
+                yerr_label = f" \u00b1 {kwargs.get('yerr')}" if kwargs.get('yerr') else ''
+            kwargs["width"] = kwargs.get("width", 0.95)
+            kwargs["ylabel"] = kwargs.get(
+                "ylabel",
+                f"{kwargs['y']}{yerr_label} {self.unit if hasattr(self, 'unit') else ''}"
+            )
+            kwargs["grid"] = kwargs.get("grid", True)
+            kwargs["legend"] = kwargs.get("legend", False)
+            ax = self.data.plot(*args, backend=backend, **kwargs)
+            ax.set_title(ax.get_title(), fontsize="medium")
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
+            plt.tight_layout()
+            return ax
+        elif backend == "plotly":
+            kwargs["title"] = kwargs["title"].replace("\n", "<br>")
+            kwargs["error_y"] = kwargs.get("error_y", 'std' if 'std' in self.data.columns else None)
+            error_y_label = f" &plusmn; {kwargs.get('error_y')}" if kwargs.get('error_y') else ''
+            kwargs["labels"] = {
+                "index": kwargs.pop("xlabel", None) or kwargs.pop("index", ""),
+                "value": kwargs.pop("ylabel", None) or kwargs.pop(
+                    "value",
+                    f"{kwargs.get('y')}{error_y_label} {self.unit if hasattr(self, 'unit') else ''}"
+                )
+            }
+            fig = self.data.plot(*args, backend=backend, **kwargs)
+            fig.update_layout(
+                yaxis_title=kwargs["labels"]['value'],
+                title=dict(
+                    automargin=True, yref="container", xref="container",
+                    pad=dict(t=40), xanchor="left", yanchor="top"
+                )
+            )
+            return fig
+        else:
+            return self.data.plot(*args, backend=backend, **kwargs)
 
     def plot2(self, *args, backend="matplotlib", **kwargs):
         """
