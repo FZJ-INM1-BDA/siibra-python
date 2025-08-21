@@ -3,12 +3,10 @@ name: '[test] unit test'
 on: [push]
 jobs:
   unit-tests:
-    runs-on: ubuntu-20.04  # use ubuntu-latest when python 3.7 is dropped
+    runs-on: ubuntu-22.04  # use ubuntu-latest when python 3.7 is dropped
     env:
       # unit tests should not need tokens
-      
-      # KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
-      # KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+
       SIIBRA_LOG_LEVEL: DEBUG
     strategy:
       fail-fast: false
@@ -53,8 +51,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ 'ubuntu-20.04', 'windows-latest' ]   # use ubuntu-latest when python 3.7 is dropped
-        python-version: [ '3.10', '3.9', '3.8', '3.7' ]
+        os: [ 'ubuntu-22.04', 'windows-latest' ]
+        python-version: [ '3.10', '3.9', '3.8']
 
     steps:
     - uses: actions/checkout@v3
@@ -92,14 +90,14 @@ jobs:
         pytest -rx e2e
 
   check-importable:
-    runs-on: ubuntu-20.04  # use ubuntu-latest when python 3.7 is dropped
+    runs-on: ubuntu-22.04
     env:
       KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
       KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ '3.10', '3.9', '3.8', '3.7' ]
+        python-version: [ '3.10', '3.9', '3.8']
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
