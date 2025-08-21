@@ -26,7 +26,8 @@ class Location(ABC):
     """
 
     # backend for transforming coordinates between spaces
-    SPACEWARP_SERVER = "https://hbp-spatial-backend.apps.hbp.eu/v1"
+    # for detail, see https://github.com/HumanBrainProject/hbp-spatial-backend
+    SPACEWARP_SERVER = "https://siibra-spatial-backend.apps.ebrains.eu/v1"
 
     # lookup of space identifiers to be used by SPACEWARP_SERVER
     SPACEWARP_IDS = {

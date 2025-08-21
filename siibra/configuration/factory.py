@@ -27,7 +27,7 @@ from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointset
 from ..retrieval import datasets, repositories
-from ..volumes import gifti, volume, nifti, neuroglancer, sparsemap, parcellationmap
+from ..volumes import gifti, volume, nifti, neuroglancer, freesurfer, sparsemap, parcellationmap
 
 from os import path
 import json
@@ -234,7 +234,7 @@ class Factory:
             version = parcellation.ParcellationVersion(
                 name=versionspec.get("name", None),
                 parcellation=p,
-                collection=versionspec.get("collectionName", None),
+                collection=versionspec.get("collection", None),
                 prev_id=versionspec.get("@prev", None),
                 next_id=versionspec.get("@next", None),
                 deprecated=versionspec.get("deprecated", False)
@@ -254,7 +254,9 @@ class Factory:
             nifti.NiftiProvider,
             nifti.ZipContainedNiftiProvider,
             gifti.GiftiMesh,
-            gifti.GiftiSurfaceLabeling
+            gifti.GiftiSurfaceLabeling,
+            freesurfer.FreesurferAnnot,
+            freesurfer.ZippedFreesurferAnnot,
         ]
 
         for srctype, provider_spec in spec.get("providers", {}).items():
