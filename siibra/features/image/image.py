@@ -53,7 +53,12 @@ class ImageAnchor(_anchor.AnatomicalAnchor):
         return f"Bounding box of image in {self.space.name}"
 
 
-class Image(feature.Feature, _volume.Volume):
+class Image(
+    feature.Feature,
+    _volume.Volume,
+    configuration_folder="features/images",
+    category="generic"
+):
 
     def __init__(
         self,
