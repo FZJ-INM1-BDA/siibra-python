@@ -213,6 +213,11 @@ class Feature:
         return name_ if not self._prerelease else f"[PRERELEASE] {name_}"
 
     @classmethod
+    def instances(cls, **kwargs) -> List['Feature']:
+        # public access to _get_instances, keep the latter for backwards compatibility
+        return cls._get_instances(**kwargs)
+
+    @classmethod
     def _get_instances(cls, **kwargs) -> List['Feature']:
         """
         Retrieve objects of a particular feature subclass.

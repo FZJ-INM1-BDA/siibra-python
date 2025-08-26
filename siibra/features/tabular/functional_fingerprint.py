@@ -63,19 +63,29 @@ class FunctionalFingerprint(
         if backend == "matplotlib":
             return super().plot(*args, backend=backend, **kwargs)
         elif backend == "plotly":
-            df_2_plot = self.data.reset_index()  # plotly backend does not support multiindex atm
-            df_2_plot["labels/task"] = df_2_plot["labels"] + "/" + df_2_plot["task"]
-            return df_2_plot.plot(
-                x=self.anchor._regionspec,
-                y="labels/task",
-                color="task",
+            df = self.data.reset_index().rename(
+                columns={self.anchor._regionspec: "activation", 'task': 'Task'})
+            df["task/label"] = df["Task"] + "/" + df["labels"]
+            y_pos = list(range(len(df)))
+            fig = df.plot(
+                x="activation",
+                y="task/label",
+                color="Task",
                 backend="plotly",
                 color_continuous_scale="jet",
                 kind="barh",
                 labels={"labels": "contrast"},
                 width=800,
-                height=3000,
+                height=2500,
                 **kwargs,
             )
+            fig.update_yaxes(
+                tickmode="array",
+                tickvals=y_pos,
+                ticktext=df["labels"],
+                autorange="reversed"
+            )
+            fig.update_yaxes(tickfont=dict(size=9))
+            return fig
         else:
             return self.data.plot(*args, backend=backend, **kwargs)
