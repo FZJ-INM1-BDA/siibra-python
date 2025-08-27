@@ -44,7 +44,7 @@ generic_feature_configs = [
             "modality": "any modality",
             "description": "this describes the feature",
             "species": "Homo sapiens",
-            "file": "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000045_receptors-human-7A_pub/v1.0/7A_pr_examples/5-HT1A/7A_pr_5-HT1A.tsv",
+            "file": "ttps://data-proxy.ebrains.eu/api/v1/buckets/p22717-hbp-d000045_receptors-human-7A_pub/v1.0/7A_pr_examples/5-HT1A/7A_pr_5-HT1A.tsv",
         },
         "queries": [
             (siibra.get_region("julich 3.1", "acbl"), siibra.features.generic.Tabular),
@@ -61,7 +61,7 @@ generic_feature_configs = [
             "modality": "any modality",
             "description": "this describes the feature",
             "species": "Rattus norvegicus",
-            "file": "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000045_receptors-human-7A_pub/v1.0/7A_pr_examples/5-HT1A/7A_pr_5-HT1A.tsv",
+            "file": "ttps://data-proxy.ebrains.eu/api/v1/buckets/p22717-hbp-d000045_receptors-human-7A_pub/v1.0/7A_pr_examples/5-HT1A/7A_pr_5-HT1A.tsv",
         },
         "queries": [
             (siibra.get_region("Waxholm 4", "Cochlear nucleus, ventral part"), siibra.features.generic.Tabular),
