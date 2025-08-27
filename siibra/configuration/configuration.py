@@ -18,7 +18,7 @@ from collections import defaultdict
 from requests.exceptions import ConnectionError
 from os import path
 
-from ..commons import logger, __version__, SIIBRA_USE_CONFIGURATION, siibra_tqdm
+from ..commons import logger, SIIBRA_USE_CONFIGURATION, siibra_tqdm
 from ..retrieval.repositories import GitlabConnector, RepositoryConnector, GithubConnector
 from ..retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
 from ..retrieval.requests import SiibraHttpRequestError

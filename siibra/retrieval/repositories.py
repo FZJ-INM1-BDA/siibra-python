@@ -827,7 +827,7 @@ class DataProxyConnector(RepositoryConnector):
     def _build_url(self, folder: str, filename: str):
         if (
             folder == ""
-            and pathlib.Path(self.main_folder) not in pathlib.Path(filename).parents 
+            and pathlib.Path(self.main_folder) not in pathlib.Path(filename).parents
         ):
             folder = self.main_folder
 
