@@ -23,7 +23,7 @@ import siibra
 from nilearn import plotting
 
 # %%
-region = siibra.get_region("julich 3.1", "spl 7m")
+region = siibra.get_region("julich 3.1", "hoc6")
 profiles = siibra.features.get(region, "cell density profile")
 for pf in profiles:
     print(pf.name)
