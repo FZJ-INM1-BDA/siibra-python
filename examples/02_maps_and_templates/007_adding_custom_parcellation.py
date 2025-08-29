@@ -37,7 +37,7 @@ from nilearn import plotting
 # to create a custom parcellation map inside siibra.
 
 # connect to the online zip file
-base_url = "https://object.cscs.ch/v1/AUTH_4791e0a3b3de43e2840fe46d9dc2b334/ext-d000069_AICHA_pub/v2.0"
+base_url = "https://data-proxy.ebrains.eu/api/v1/buckets/p4791e-ext-d000069_AICHA_pub/v2.0"
 
 # the NIfTI file is easily retrieved:
 nii = siibra.retrieval.requests.HttpRequest(f"{base_url}/AICHA1mm.nii").get()
