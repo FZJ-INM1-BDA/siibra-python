@@ -16,6 +16,6 @@ class AtId:
 @dataclass
 class Model:
     id: Optional[str] = None
-    jsonrpc: str = '2.0'
-    method: str = 'sxplr.selectParcellation'
+    jsonrpc: str = "2.0"
+    method: str = "sxplr.selectParcellation"
     params: Optional[AtId] = None

@@ -25,6 +25,6 @@ class PTAtlas:
 
 @dataclass
 class Model:
-    jsonrpc: str = '2.0'
-    method: str = 'sxplr.on.atlasSelected'
+    jsonrpc: str = "2.0"
+    method: str = "sxplr.on.atlasSelected"
     params: Optional[PTAtlas] = None

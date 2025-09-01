@@ -21,6 +21,6 @@ class Params:
 @dataclass
 class Model:
     id: Optional[str] = None
-    jsonrpc: str = '2.0'
-    method: str = 'sxplr.rmAnnotations'
+    jsonrpc: str = "2.0"
+    method: str = "sxplr.rmAnnotations"
     params: Optional[Params] = None

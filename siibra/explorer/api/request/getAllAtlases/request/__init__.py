@@ -11,6 +11,6 @@ from typing import Any, Optional
 @dataclass
 class Model:
     id: Optional[str] = None
-    jsonrpc: str = '2.0'
-    method: str = 'sxplr.getAllAtlases'
+    jsonrpc: str = "2.0"
+    method: str = "sxplr.getAllAtlases"
     params: Any = None

@@ -18,6 +18,7 @@ class AtlasSelectionNavigation:
     perspectiveOrientation: Optional[Len4num] = None
     perspectiveZoom: Optional[float] = None
 
+
 Len3num = List[float]
 
 

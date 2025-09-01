@@ -60,7 +60,7 @@ class Copyright:
     holder: List
     year: str
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
 
 
@@ -68,7 +68,7 @@ class Copyright:
 class HasTerminologyVersion:
     hasEntityVersion: List
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
     definedIn: Optional[List] = None
     ontologyIdentifier: Optional[List[str]] = None
@@ -79,7 +79,7 @@ class OtherContribution:
     contributionType: List
     contributor: Any
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
 
 
@@ -97,7 +97,7 @@ class BrainAtlasVersionModel:
     versionIdentifier: str
     versionInnovation: str
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
     abbreviation: Optional[str] = None
     atlasType: Optional[Dict[str, Any]] = None
@@ -134,6 +134,6 @@ class PTParcellation:
 
 @dataclass
 class Model:
-    jsonrpc: str = '2.0'
+    jsonrpc: str = "2.0"
     id: Optional[str] = None
     result: Optional[List[PTParcellation]] = None

@@ -24,6 +24,6 @@ PTRegion = Any
 
 @dataclass
 class Model:
-    jsonrpc: str = '2.0'
+    jsonrpc: str = "2.0"
     id: Optional[str] = None
     result: Optional[Union[PTRegion, Point]] = None

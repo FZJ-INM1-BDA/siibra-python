@@ -15,6 +15,6 @@ class Result:
 
 @dataclass
 class Model:
-    jsonrpc: str = '2.0'
+    jsonrpc: str = "2.0"
     id: Optional[str] = None
     result: Optional[Result] = None

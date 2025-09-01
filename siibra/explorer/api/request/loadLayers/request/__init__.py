@@ -25,6 +25,6 @@ class Params:
 @dataclass
 class Model:
     id: Optional[str] = None
-    jsonrpc: str = '2.0'
-    method: str = 'sxplr.loadLayers'
+    jsonrpc: str = "2.0"
+    method: str = "sxplr.loadLayers"
     params: Optional[Params] = None

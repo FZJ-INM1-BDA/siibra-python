@@ -22,7 +22,7 @@ class VocabModel:
 class ApiModelsOpenmindsSANDSV3MiscellaneousCoordinatePointCoordinates:
     value: float
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
     typeOfUncertainty: Optional[Any] = None
     uncertainty: Optional[List[float]] = None
@@ -36,7 +36,7 @@ class CoordinatePointModel:
     coordinateSpace: Dict[str, Any]
     coordinates: List[ApiModelsOpenmindsSANDSV3MiscellaneousCoordinatePointCoordinates]
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
 
 
@@ -55,6 +55,6 @@ class Params:
 @dataclass
 class Model:
     id: Optional[str] = None
-    jsonrpc: str = '2.0'
-    method: str = 'sxplr.addAnnotations'
+    jsonrpc: str = "2.0"
+    method: str = "sxplr.addAnnotations"
     params: Optional[Params] = None

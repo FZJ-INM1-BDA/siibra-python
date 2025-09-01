@@ -16,6 +16,6 @@ class AtId:
 @dataclass
 class Model:
     id: Optional[str] = None
-    jsonrpc: str = '2.0'
-    method: str = 'sxplr.selectTemplate'
+    jsonrpc: str = "2.0"
+    method: str = "sxplr.selectTemplate"
     params: Optional[AtId] = None

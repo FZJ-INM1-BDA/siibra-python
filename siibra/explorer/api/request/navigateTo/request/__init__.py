@@ -18,6 +18,6 @@ class Params(AtlasSelectionNavigation):
 @dataclass
 class Model:
     id: Optional[str] = None
-    jsonrpc: str = '2.0'
-    method: str = 'sxplr.navigateTo'
+    jsonrpc: str = "2.0"
+    method: str = "sxplr.navigateTo"
     params: Optional[Params] = None

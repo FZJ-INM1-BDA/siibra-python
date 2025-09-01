@@ -14,7 +14,7 @@ wanted_dialog = [
 
 
 def assess_roundtrip(pt: Point, space_spec: str):
-    
+
     explorer = Explorer(root_url="https://atlases.ebrains.eu/viewer-staging/")
     url = explorer.start(space_spec=pt.space)
     with sync_playwright() as playwrite:
@@ -27,19 +27,19 @@ def assess_roundtrip(pt: Point, space_spec: str):
         page.wait_for_timeout(1000)
 
         curr_url = page.url
-        
+
         for text, click in dismiss_preamble:
             dialog = page.get_by_role("dialog").filter(has_text=text)
             btn = dialog.locator("//button").filter(has_text=click)
             btn.click(force=True)
-        
+
         for text, click in wanted_dialog:
             dialog = page.get_by_role("dialog").filter(has_text=text)
             btn = dialog.locator("//button").filter(has_text=click)
             btn.click()
 
-        explorer.navigate(position=[coord * 1e6 for coord in pt]) # in nm
-        
+        explorer.navigate(position=[coord * 1e6 for coord in pt])  # in nm
+
         page.wait_for_timeout(5000)
         now_url = page.url
 
@@ -47,7 +47,6 @@ def assess_roundtrip(pt: Point, space_spec: str):
         page.wait_for_timeout(30000)
         space_specced_url = page.url
 
-        
         explorer.select(template_spec=pt.space)
         page.wait_for_timeout(5000)
         return_url = page.url
@@ -59,12 +58,13 @@ def assess_roundtrip(pt: Point, space_spec: str):
 
         print_result = zip(
             ("start", "navigated", "space_specced", "returned"),
-            (start, navigated, space_specced, returned), 
+            (start, navigated, space_specced, returned),
         )
 
         print("end")
         for name, bbox in print_result:
             print(name, bbox.bounding_box.center)
+
 
 if __name__ == "__main__":
     pt = Point([10, 10, 10], "colin 27")

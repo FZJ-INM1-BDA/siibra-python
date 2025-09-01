@@ -21,6 +21,6 @@ class Params:
 @dataclass
 class Model:
     id: Optional[str] = None
-    jsonrpc: str = '2.0'
-    method: str = 'sxplr.removeLayers'
+    jsonrpc: str = "2.0"
+    method: str = "sxplr.removeLayers"
     params: Optional[Params] = None

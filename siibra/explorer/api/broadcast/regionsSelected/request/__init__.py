@@ -17,7 +17,7 @@ class VocabModel:
 class QuantitativeOverlapItem:
     value: float
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
     typeOfUncertainty: Optional[Any] = None
     uncertainty: Optional[List[float]] = None
@@ -29,7 +29,7 @@ class QuantitativeOverlapItem1:
     maxValue: float
     minValue: float
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
     maxValueUnit: Optional[Any] = None
     minValueUnit: Optional[Any] = None
@@ -39,7 +39,7 @@ class QuantitativeOverlapItem1:
 class ApiModelsOpenmindsSANDSV3AtlasParcellationEntityVersionCoordinates:
     value: float
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
     typeOfUncertainty: Optional[Any] = None
     uncertainty: Optional[List[float]] = None
@@ -51,7 +51,7 @@ class RelationAssessmentItem:
     inRelationTo: Any
     qualitativeOverlap: Any
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
     criteria: Optional[Any] = None
 
@@ -61,7 +61,7 @@ class RelationAssessmentItem1:
     inRelationTo: Any
     quantitativeOverlap: Union[QuantitativeOverlapItem, QuantitativeOverlapItem1]
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
     criteria: Optional[Any] = None
 
@@ -73,7 +73,7 @@ class BestViewPoint:
         ApiModelsOpenmindsSANDSV3AtlasParcellationEntityVersionCoordinates
     ]
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
 
 
@@ -82,7 +82,7 @@ class HasAnnotation:
     criteriaQualityType: Any
     internalIdentifier: str
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
     bestViewPoint: Optional[BestViewPoint] = None
     criteria: Optional[Any] = None
@@ -98,7 +98,7 @@ class PTRegion:
     field_id: str
     versionIdentifier: str
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
     hasAnnotation: Optional[HasAnnotation] = None
     hasParent: Optional[List] = None
@@ -113,6 +113,6 @@ class PTRegion:
 
 @dataclass
 class Model:
-    jsonrpc: str = '2.0'
-    method: str = 'sxplr.on.regionsSelected'
+    jsonrpc: str = "2.0"
+    method: str = "sxplr.on.regionsSelected"
     params: Optional[List[PTRegion]] = None

@@ -38,7 +38,7 @@ class SiibraAtIdModel:
 class AxesOrigin:
     value: float
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
     typeOfUncertainty: Optional[Any] = None
     uncertainty: Optional[List[float]] = None
@@ -83,7 +83,7 @@ class PTSpace:
     shortName: str
     versionIdentifier: str
     field_context: Optional[VocabModel] = field(
-        default_factory=lambda: {'@vocab': 'https://openminds.ebrains.eu/vocab/'}
+        default_factory=lambda: {"@vocab": "https://openminds.ebrains.eu/vocab/"}
     )
     defaultImage: Optional[List[VolumeModel]] = None
     digitalIdentifier: Optional[Dict[str, Any]] = None
@@ -95,6 +95,6 @@ class PTSpace:
 
 @dataclass
 class Model:
-    jsonrpc: str = '2.0'
+    jsonrpc: str = "2.0"
     id: Optional[str] = None
     result: Optional[List[PTSpace]] = None

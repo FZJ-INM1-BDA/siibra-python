@@ -10,6 +10,6 @@ from typing import Optional
 
 @dataclass
 class Model:
-    jsonrpc: str = '2.0'
+    jsonrpc: str = "2.0"
     id: Optional[str] = None
-    result: str = 'OK'
+    result: str = "OK"

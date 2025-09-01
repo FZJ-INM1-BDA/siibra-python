@@ -11,6 +11,6 @@ from typing import Any, Optional
 @dataclass
 class Model:
     id: Optional[str] = None
-    jsonrpc: str = '2.0'
-    method: str = 'sxplr.getSupportedParcellations'
+    jsonrpc: str = "2.0"
+    method: str = "sxplr.getSupportedParcellations"
     params: Any = None
