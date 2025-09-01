@@ -123,7 +123,7 @@ class Explorer:
         root_url: str The viewer URL that will be launched
         port: int Port plugin is running
     """
-    
+
     def __init__(self, root_url="https://atlases.ebrains.eu/viewer/", port:int=7099) -> None:
         self.controller = ThreadedController(port)
         self.root_url = root_url
@@ -138,7 +138,7 @@ class Explorer:
     def start(self, *, atlas_spec: str="human", space_spec: str="mni 152", parcellation_spec: str="julich 3"):
         from . import encode_url
         import siibra
-        
+
         atlas = siibra.atlases[atlas_spec]
         space = siibra.spaces[space_spec]
         parc = siibra.parcellations[parcellation_spec]
@@ -148,7 +148,7 @@ class Explorer:
         print(f"Go to {self.goto_url}", file=sys.stderr)
         self.controller.start()
         return self.goto_url
-    
+
     def stop(self):
         self.controller.stop()
 
@@ -159,7 +159,7 @@ class Explorer:
     def navigate(self, *, position=None, orientation=None, zoom=None,
                  perspective_orientation=None, perspective_zoom=None):
         self._check_alive()
-        
+
         from .api.request.navigateTo.request import Model, Params
         ReqHndl.sxplr_requests.append(
             Model(
@@ -174,7 +174,7 @@ class Explorer:
                 )
             )
         )
-    
+
     def overlay(self, *, url: str, transform=IDENTITY):
         self._check_alive()
         from .api.request.loadLayers.request import Model, Params, AddableLayer
@@ -186,7 +186,6 @@ class Explorer:
                 ])
             )
         )
-    
 
     @staticmethod
     def _point_to_coords(point: 'Point', name="Untitled", color: str="#ffffff"):
@@ -206,7 +205,7 @@ class Explorer:
                 coordinates=[Coord(value=v) for v in point]
             )
         )
-    
+
     @staticmethod
     def _pointset_to_coords(pointset: 'PointSet', name="Untitled", color: str="#ff0000"):
         return [Explorer._point_to_coords(point, name, color)
@@ -237,11 +236,9 @@ class Explorer:
 
     def select(self, *, atlas_spec: str=None, template_spec: str=None, parcellation_spec: str=None):
         assert (
-            bool(atlas_spec) + bool(template_spec) + bool(parcellation_spec) == 1,
-            f"""
-            Expected one and only one of {atlas_spec}, {template_spec}, and {parcellation_spec} to be set
-            """
-        )
+            bool(atlas_spec) + bool(template_spec) + bool(parcellation_spec) == 1
+        ), f"""Expected one and only one of {atlas_spec}, {template_spec}, and {parcellation_spec} to be set"""
+
         import siibra
         if bool(atlas_spec):
             from .api.request.selectAtlas.request import Model, AtId
@@ -255,7 +252,7 @@ class Explorer:
                 )
             )
             return
-            
+
         if bool(template_spec):
             from .api.request.selectTemplate.request import Model, AtId
             space = siibra.spaces[template_spec]
@@ -268,7 +265,7 @@ class Explorer:
                 )
             )
             return
-            
+
         if bool(parcellation_spec):
             from .api.request.selectParcellation.request import Model, AtId
             parcellation = siibra.parcellations[parcellation_spec]
