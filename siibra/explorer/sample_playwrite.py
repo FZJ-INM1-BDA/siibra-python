@@ -1,9 +1,10 @@
 import sys
 from pathlib import Path
+from typing import Callable
 
 from siibra.locations import BoundingBox
 from siibra.explorer.plugin import Explorer
-from siibra.explorer.url import decode_url
+from siibra.explorer.url import decode_url, DecodeNavigationException, DecodedUrl
 from playwright.sync_api import sync_playwright
 
 dismiss_preamble = [
@@ -26,8 +27,17 @@ def access_region(space_spec: str, parc_spec: str, region_spec: str, *, to_space
 VIEWPORT_SIZE_WIDTH = 1600
 VIEWPORT_SIZE_HEIGHT = 800
 
-
 def assess_roundtrip(bbox: BoundingBox, space_spec: str, record_video_dir: str = None):
+
+    def try_decode_url(predicate: Callable[[DecodedUrl], bool]=lambda *args: True):
+        while True:
+            try:
+                deocded_url = decode_url(page.url, VIEWPORT_SIZE_WIDTH)
+                assert predicate(deocded_url)
+                return deocded_url
+                
+            except (DecodeNavigationException, AssertionError):
+                page.wait_for_timeout(1000)
 
     explorer = Explorer(root_url="https://atlases.ebrains.eu/viewer-staging/")
     url = explorer.start(space_spec=bbox.space)
@@ -61,27 +71,27 @@ def assess_roundtrip(bbox: BoundingBox, space_spec: str, record_video_dir: str =
         # convert to nm
         zoom = max_dimen * 1e6 / max_viewport_dimen
 
-        curr_url = page.url
+        start_decoded = try_decode_url()
         explorer.navigate(position=[coord * 1e6 for coord in bbox.center], zoom=zoom)  # in nm
         page.wait_for_timeout(10000)
-        now_url = page.url
+        navigated_decoded = try_decode_url(lambda b: b.bounding_box.center != start_decoded.bounding_box.center)
 
         explorer.select(template_spec=space_spec)
         page.wait_for_timeout(10000)
-        space_specced_url = page.url
+        space_seld_decoded = try_decode_url(lambda b: b.bounding_box.space.id != navigated_decoded.bounding_box.space.id)
 
         explorer.select(template_spec=bbox.space)
         page.wait_for_timeout(10000)
-        return_url = page.url
 
-        start = decode_url(curr_url)
-        navigated = decode_url(now_url)
-        space_specced = decode_url(space_specced_url)
-        returned = decode_url(return_url)
+        returned_decoded = try_decode_url(lambda b: b.bounding_box.space.id != space_seld_decoded.bounding_box.space.id)
 
         print_result = zip(
             ("start", "navigated", "space_specced", "returned"),
-            (start.bounding_box, navigated.bounding_box, space_specced.bounding_box, returned.bounding_box),
+            (
+                start_decoded.bounding_box,
+                navigated_decoded.bounding_box,
+                space_seld_decoded.bounding_box,
+                returned_decoded.bounding_box),
         )
 
         for name, bbox in print_result:
