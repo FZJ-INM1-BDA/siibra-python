@@ -44,8 +44,6 @@ def assess_roundtrip(bbox: BoundingBox, space_spec: str, record_video_dir: str =
         page.goto(url)
         page.wait_for_timeout(1000)
 
-        curr_url = page.url
-
         for text, click in dismiss_preamble:
             dialog = page.get_by_role("dialog").filter(has_text=text)
             btn = dialog.locator("//button").filter(has_text=click)
@@ -63,8 +61,8 @@ def assess_roundtrip(bbox: BoundingBox, space_spec: str, record_video_dir: str =
         # convert to nm
         zoom = max_dimen * 1e6 / max_viewport_dimen
 
+        curr_url = page.url
         explorer.navigate(position=[coord * 1e6 for coord in bbox.center], zoom=zoom)  # in nm
-
         page.wait_for_timeout(5000)
         now_url = page.url
 
