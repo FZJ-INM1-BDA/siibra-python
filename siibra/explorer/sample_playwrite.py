@@ -63,15 +63,15 @@ def assess_roundtrip(bbox: BoundingBox, space_spec: str, record_video_dir: str =
 
         curr_url = page.url
         explorer.navigate(position=[coord * 1e6 for coord in bbox.center], zoom=zoom)  # in nm
-        page.wait_for_timeout(5000)
+        page.wait_for_timeout(10000)
         now_url = page.url
 
         explorer.select(template_spec=space_spec)
-        page.wait_for_timeout(30000)
+        page.wait_for_timeout(10000)
         space_specced_url = page.url
 
         explorer.select(template_spec=bbox.space)
-        page.wait_for_timeout(5000)
+        page.wait_for_timeout(10000)
         return_url = page.url
 
         start = decode_url(curr_url)
@@ -81,7 +81,7 @@ def assess_roundtrip(bbox: BoundingBox, space_spec: str, record_video_dir: str =
 
         print_result = zip(
             ("start", "navigated", "space_specced", "returned"),
-            (start, navigated, space_specced, returned),
+            (start.bounding_box, navigated.bounding_box, space_specced.bounding_box, returned.bounding_box),
         )
 
         for name, bbox in print_result:
