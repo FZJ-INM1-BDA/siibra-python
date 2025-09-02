@@ -102,7 +102,7 @@ jobs:
     - name: "Install ctrl-sxplr dep"
       run: |
         pip install -r siibra/explorer/requirements.txt
-        python -m playwrite install chromium
+        python -m playwright install chromium
     - name: "Run test"
       run: |
         python siibra/explorer/sample_playwrite.py --video
