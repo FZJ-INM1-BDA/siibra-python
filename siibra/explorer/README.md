@@ -32,6 +32,8 @@ use [playwrite](https://playwright.dev/python/) to automate user interactions.
 
 n.b. this functionality will depend largely on network speed, and geographical closeness to the siibra data centers.
 
+note: despite stdout, do not interact with 
+
 ### Installation
 
 ```sh

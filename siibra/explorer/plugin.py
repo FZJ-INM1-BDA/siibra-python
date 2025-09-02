@@ -25,7 +25,7 @@ def custom_dict_factory(list_of_tuples):
     return dict(updated)
 
 
-def asdict(val_in: dict | list | str | int | float):
+def asdict(val_in):
     if is_dataclass(val_in):
         val_in = _asdict(val_in, dict_factory=custom_dict_factory)
     if isinstance(val_in, (str, int, float)):

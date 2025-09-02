@@ -11,7 +11,7 @@ from .util import encode_number, separator, cipher, neg, decode_number, post_pro
 if TYPE_CHECKING:
     from siibra.core.atlas import Atlas
     from siibra.core.space import Space
-    from siibra.locations import BoundingBox, Point
+    from siibra.locations import BoundingBox
     from siibra.core.parcellation import Parcellation
     from siibra.core.region import Region
     from siibra.features.feature import Feature
