@@ -88,6 +88,7 @@ def assess_roundtrip(bbox: BoundingBox, space_spec: str, record_video_dir: str =
 
         for name, bbox in print_result:
             print(name, bbox)
+        context.close()
 
 
 if __name__ == "__main__":

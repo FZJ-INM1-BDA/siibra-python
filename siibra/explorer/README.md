@@ -38,7 +38,7 @@ note: despite stdout, do not interact with
 
 ```sh
 pip install -r siibra/explorer/requirements.txt
-playwrite install chromium
+playwright install chromium
 ```
 
 ### Example
