@@ -26,57 +26,46 @@ import matplotlib.pyplot as plt
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/milestone_1_1_macaque_combined_atlas.png'
 
 # %%
-combined_macaque = siibra.parcellations.get("combined macaque atlas")
-combined_macaque.render_tree()
+for p in siibra.parcellations:
+    print(p)
 
 # %%
-combined_macaque_map = combined_macaque.get_map("mebrains")
-plotting.view_img(
-    combined_macaque_map.fetch(),
-    bg_img=combined_macaque_map.space.get_template().fetch(),
-    cmap=combined_macaque_map.get_colormap(),
-    symmetric_cmap=False,
-)
-
-
+new_parcellations = [
+    siibra.parcellations["Combined Macaque Brain Atlas: MEBRAINS, fMRI, CHARM"],
+    siibra.parcellations["Marmoset Nencki-Monash Atlas (2020)"],
+    siibra.parcellations["Sulci atlas"],
+]
 # %%
-sulci_atlas = siibra.parcellations.get("sulci atlas")
-sulci_atlas.render_tree()
-
-# %%
-cut_coords = siibra.Point((50, 9, 34), "colin27")
-fig, axs = plt.subplots(3, 1, figsize=(15, 21))
-for i, space in enumerate(
-    siibra.maps.dataframe.query(f'parcellation == "{sulci_atlas.name}"')["space"]
-):
-    mp = sulci_atlas.get_map(space)
-    cmap = mp.get_colormap()
-    sulci_img = mp.fetch(max_bytes=0.4 * 1024**3)
-    template_img = mp.space.get_template().fetch(
-        resolution_mm=sulci_img.header.get_zooms()[0], max_bytes=0.4 * 1024**3
-    )
-    plotting.plot_img(
-        sulci_img,
-        bg_img=template_img,
-        cmap=cmap,
-        title=space,
-        cut_coords=cut_coords.warp(space).coordinate,
-        resampling_interpolation="nearest",
-        axes=axs[i],
-    )
-
-
-# %%
-marmoset = siibra.parcellations.get("marmoset")
-print(marmoset.publications)
-marmoset.render_tree()
-
-# %%
-marmoset_map = marmoset.get_map("marmoset")
-plotting.view_img(
-    marmoset_map.fetch(),
-    bg_img=marmoset_map.space.get_template().fetch(),
-    cmap=marmoset_map.get_colormap(),
-    symmetric_cmap=False,
-    resampling_interpolation="nearest",
-)
+cut_coords = {
+    "MEBRAINS population-based monkey template": (13, -5, 16),
+    "Marmoset Nencki-Monash Template (Nissl Histology) 2020": (-4, 11, 10),
+    "BigBrain microscopic template (histology)": (19, 37, 26),
+    "MNI Colin 27": (9, 50, 34),
+    "MNI 152 ICBM 2009c Nonlinear Asymmetric": (11, 52, 30),
+}
+fig, axs = plt.subplots(5, 1, figsize=(15, 42))
+i = 0
+for parcellation in new_parcellations:
+    if not parcellation._prerelease:
+        print(parcellation.urls)
+        print(parcellation.LICENSE)
+        print(parcellation.description)
+    mapped_spaces = siibra.maps.dataframe.query(
+        f'parcellation == "{parcellation.name}"'
+    )["space"]
+    for space in mapped_spaces:
+        mp = parcellation.get_map(space)
+        cmap = mp.get_colormap()
+        fetch_kwargs = {"max_bytes": 0.4 * 1024 ** 3} if "neuroglancer/precomputed" in mp.formats else {}
+        img = mp.fetch(**fetch_kwargs)
+        template_img = siibra.get_template(space).fetch(resolution_mm=1)
+        plotting.plot_roi(
+            img,
+            bg_img=template_img,
+            cmap=cmap,
+            title=f"{mp.name}\n{space}\nnumber of regions: {len(mp.regions)}",
+            axes=axs[i],
+            black_bg=False,
+            cut_coords=cut_coords[space]
+        )
+        i += 1
