@@ -20,24 +20,27 @@ IBC - fMRI fingerprints with tasks and contrast labels
 # %%
 import siibra
 from nilearn import plotting
+
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/milestone_1_1_functional_fingerprint.png'
 
 # %%
-# The functional fingerprints are tabular data features, 
-# providing fMRI measurements of brain areas under a range of cognitive tasks. 
+# The functional fingerprints are tabular data features,
+# providing fMRI measurements of brain areas under a range of cognitive tasks.
 # For this example, we specificy a cytoarchitectonic brain region and
 # find the matching fingerprint with a fast custom filter.
-# The default `siibra.features.get()` approach will also work, 
+# The default `siibra.features.get()` approach will also work,
 # but it is slower as it cannot assume an explicit match.
 julichbrain = siibra.parcellations["julich 3.1"]
 r = julichbrain.get_region("area 3b left")
-functional_fingerprints = list(filter(
-    lambda f: (
-        r.matches(f.anchor._regionspec) and
-        julichbrain.matches(f.anchor._parcellation_version)
-    ),
-    siibra.features.functional.FunctionalFingerprint.instances()
-))
+functional_fingerprints = list(
+    filter(
+        lambda f: (
+            r.matches(f.anchor._regionspec)
+            and julichbrain.matches(f.anchor._parcellation_version)
+        ),
+        siibra.features.functional.FunctionalFingerprint.instances(),
+    )
+)
 # There is exactly one functional fingerprint given a region and parcellation
 assert len(functional_fingerprints) == 1
 area3b_left_fp = functional_fingerprints[0]
@@ -49,7 +52,7 @@ area3b_left_fp = functional_fingerprints[0]
 area3b_left_fp.data
 
 # %%
-# We plot the functional fingerprint as a horizontal bar chart, 
+# We plot the functional fingerprint as a horizontal bar chart,
 # color-grouped by task.
 area3b_left_fp.plot(backend="plotly")
 
