@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Human receptor autoradiography
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Hi-res multimodal images of human brain
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 
