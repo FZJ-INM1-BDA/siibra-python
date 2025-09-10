@@ -191,17 +191,6 @@ sphinx_gallery_conf = {
     "show_signature": True,
     "show_memory": True,
     "run_stale_examples": run_stale_examples,
-    "jupyter_cell_metadata_filter": lambda cell: {
-        "jupyter": {
-            "outputs_hidden": False,
-            "source_hidden": False
-        },
-        "tags": [],
-        "scrolled": True,
-        "outputCollapsed": False,
-        "collapsed": False,
-        "lineWrapping": True
-    },
 }
 
 if not is_allen_api_microarray_service_available():
