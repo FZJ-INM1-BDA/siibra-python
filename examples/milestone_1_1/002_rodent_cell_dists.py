@@ -26,14 +26,12 @@ import matplotlib.pyplot as plt
 # %%
 # In order to see all availabe cell distribution features for mice, query with
 # the whole mouse parcellation and display dataset information
-allen_mice_parc = siibra.parcellations[
-    "Allen Mouse Common Coordinate Framework v3 2017"
-]
-all_mice_cell_dists = siibra.features.get(allen_mice_parc, "cell distribution")
-print("Found:", len(all_mice_cell_dists), "cell distributions")
+allen_mice_parc = siibra.parcellations["Allen Mouse Common Coordinate Framework v3 2017"]
+mice_cell_dists = siibra.features.get(allen_mice_parc, "cell distribution")
+print("Found:", len(mice_cell_dists), "cell distributions")
 datasets = {
     "".join(ds.name for ds in cd.datasets): f"{cd.description}\nDOI: {''.join(cd.urls)}"
-    for cd in all_mice_cell_dists
+    for cd in mice_cell_dists
 }
 for name, desc in datasets.items():
     print("Name:", name)
@@ -43,38 +41,17 @@ for name, desc in datasets.items():
 # At the moment, all mice cell distributions come from the same dataset. To see
 # what differs among these features we print the anchored regions and subject
 # information
-for cd in all_mice_cell_dists:
+for cd in mice_cell_dists:
     print(f"Region: {cd.anchor}, subject specification: {cd.subject}")
 
 # %%
-# In exact same way, the cell distributions for rat brain can be queried.
-# Note that, at the moment one dataset investigating cell distributions is
-# available, and the features differ in region and subjects:
-waxholm_rat_parc = siibra.parcellations[
-    "Waxholm Space atlas of the Sprague Dawley rat brain (v4)"
-]
-all_rat_cell_dists = siibra.features.get(waxholm_rat_parc, "cell distribution")
-print("Found:", len(all_rat_cell_dists), "cell distributions")
-datasets = {
-    "".join(ds.name for ds in cd.datasets): f"{cd.description}\nDOI: {''.join(cd.urls)}"
-    for cd in all_rat_cell_dists
-}
-for name, desc in datasets.items():
-    print("Name:", name)
-    print("Description:", desc)
-
-for cd in all_rat_cell_dists:
-    print(f"Region: {cd.anchor}, subject specification: {cd.subject}")
-# %%
-# Given the comprehensive nature of the datasets, one can query similar regions
-# in rodents in order to observe potential similarities and differences in how
-# the cells are distributed between species. We get the cell distributions
-# for "olfactory bulb":
+# We get the cell distributions for "main olfactory bulb" and overaly that over
+# their masks
+main_olfactory_bulb = allen_mice_parc.get_region("main olfactory bulb")
+main_olfactory_bulb_mask = main_olfactory_bulb.get_regional_mask('allen').fetch()
 mice_olfactory_bulb_dists = [
     cd
-    for cd in siibra.features.get(
-        allen_mice_parc.get_region("main olfactory bulb"), "cell distribution"
-    )
+    for cd in siibra.features.get(main_olfactory_bulb, "cell distribution")
     if "-" not in cd.subject  # filter out specialized subselections
 ]
 allen_mouse_template = siibra.get_template("mouse").fetch()
@@ -84,21 +61,40 @@ for i, cd in enumerate(mice_olfactory_bulb_dists):
         img=allen_mouse_template,
         bg_img=None,
         cmap="gray",
-        title=cd.name,
+        title=f"{cd.name} - {cd.anchor._regionspec}",
         cut_coords=cd.data.mean(axis=0),
         axes=axs[i],
         draw_cross=False,
         black_bg=True,
     )
+    display.add_overlay(main_olfactory_bulb_mask, cmap="black_blue_r")
     display.add_markers(cd.data, marker_color="r", marker_size=1)
 
 # %%
+# In exact same way, the cell distributions for rat brain can be queried.
+# Note that, at the moment one dataset investigating cell distributions is
+# available, and the features differ in region and subjects:
+waxholm_rat_parc = siibra.parcellations["Waxholm Space atlas of the Sprague Dawley rat brain (v4)"]
+rat_cell_dists = siibra.features.get(waxholm_rat_parc, "cell distribution")
+print("Found:", len(rat_cell_dists), "cell distributions")
+datasets = {
+    "".join(ds.name for ds in cd.datasets): f"{cd.description}\nDOI: {''.join(cd.urls)}"
+    for cd in rat_cell_dists
+}
+for name, desc in datasets.items():
+    print("Name:", name)
+    print("Description:", desc)
+
+for cd in rat_cell_dists:
+    print(f"Region: {cd.anchor}, subject specification: {cd.subject}")
+
+# %%
 # Similarly, display the cells in olfactory bulb for rat
+olfactory_bulb = waxholm_rat_parc.get_region("olfactory bulb")
+olfactory_bulb_mask = olfactory_bulb.get_regional_mask("waxholm").fetch()
 rat_olfactory_bulb_dists = [
     cd
-    for cd in siibra.features.get(
-        waxholm_rat_parc.get_region("olfactory bulb"), "cell distribution"
-    )
+    for cd in siibra.features.get(olfactory_bulb, "cell distribution")
     if "-" not in cd.subject  # filter out specialized subselections
 ]
 wax_rat_template = siibra.get_template("Waxholm").fetch()
@@ -108,10 +104,11 @@ for i, cd in enumerate(rat_olfactory_bulb_dists):
         img=wax_rat_template,
         bg_img=None,
         cmap="gray",
-        title=cd.name,
+        title=f"{cd.name} - {cd.anchor._regionspec}",
         cut_coords=cd.data.mean(axis=0),
         axes=axs[i],
         draw_cross=False,
         black_bg=True,
     )
-    display.add_markers(cd.data, marker_color="b", marker_size=1)
+    display.add_overlay(olfactory_bulb_mask, cmap="black_blue_r")
+    display.add_markers(cd.data, marker_color="r", marker_size=1)
