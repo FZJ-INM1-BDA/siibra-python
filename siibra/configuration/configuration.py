@@ -42,7 +42,7 @@ class Configuration:
         conn(
             server_or_owner,
             project_or_repo,
-            reftag="ebrains2_milestone_1_1",
+            reftag="func_fingerprints_per_parcellation",
             skip_branchtest=True
         )
         for conn, server_or_owner, project_or_repo in CONFIG_REPOS

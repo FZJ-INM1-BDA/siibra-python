@@ -183,8 +183,14 @@ class AnatomicalAnchor:
         self._last_matched_concept = concept if len(self._assignments[concept]) > 0 else None
         return self._assignments[concept]
 
-    def matches(self, concept: Union[BrainStructure, Space]) -> bool:
-        return len(self.assign(concept)) > 0
+    def matches(self, concept: Union[BrainStructure, Space], exact_match: bool = False) -> bool:
+        if not exact_match:
+            return len(self.assign(concept)) > 0
+
+        if isinstance(concept, Region):
+            return concept.matches(self._regionspec)
+        if isinstance(concept, Location):
+            return concept == self.location
 
     def represented_parcellations(self) -> List[Parcellation]:
         """

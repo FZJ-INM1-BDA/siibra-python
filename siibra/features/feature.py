@@ -213,8 +213,11 @@ class Feature:
         return name_ if not self._prerelease else f"[PRERELEASE] {name_}"
 
     @classmethod
-    def instances(cls, **kwargs) -> List['Feature']:
-        # public access to _get_instances, keep the latter for backwards compatibility
+    def get_instances(cls, **kwargs) -> List['Feature']:
+        """
+        Retrieve objects of a particular feature subclass.
+        (Only for preconfigured features.)
+        """
         return cls._get_instances(**kwargs)
 
     @classmethod
@@ -263,13 +266,14 @@ class Feature:
     def matches(
         self,
         concept: Union[structure.BrainStructure, space.Space],
+        exact_match: bool = False,
     ) -> bool:
         """
         Match the features anatomical anchor against the given query concept.
         Record the most recently matched concept for inspection by the caller.
         """
         # TODO: storing the last matched concept. It is not ideal, might cause problems in multithreading
-        if self.anchor and self.anchor.matches(concept):
+        if self.anchor and self.anchor.matches(concept, exact_match=exact_match):
             self.anchor._last_matched_concept = concept
             return True
         self.anchor._last_matched_concept = None
@@ -510,6 +514,7 @@ class Feature:
         cls,
         concept: Union[structure.BrainStructure, space.Space],
         feature_type: Union[str, Type['Feature'], List['Feature']],
+        exact_match: bool = False,
         **kwargs
     ) -> List['Feature']:
         """
@@ -537,7 +542,7 @@ class Feature:
             ))
             return list(dict.fromkeys(
                 sum((
-                    cls._match(concept, t, **kwargs) for t in ftypes
+                    cls._match(concept, t, exact_match, **kwargs) for t in ftypes
                 ), [])
             ))
 
@@ -554,7 +559,7 @@ class Feature:
                 f"'{feature_type}' decoded as feature type/s: "
                 f"{[c.__name__ for c in ftype_candidates]}."
             )
-            return cls._match(concept, ftype_candidates, **kwargs)
+            return cls._match(concept, ftype_candidates, exact_match, **kwargs)
 
         assert issubclass(feature_type, Feature)
 
@@ -591,7 +596,7 @@ class Feature:
                 total=len(feature_type_instances),
                 disable=(not feature_type_instances)
             )
-            if f.matches(concept)
+            if f.matches(concept, exact_match=exact_match)
         ]
 
         # Then run any registered live queries for the requested feature type

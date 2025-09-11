@@ -31,15 +31,11 @@ from nilearn import plotting
 # The default `siibra.features.get()` approach will also work,
 # but it is slower as it cannot assume an explicit match.
 julichbrain = siibra.parcellations["julich 3.1"]
-r = julichbrain.get_region("area 3b left")
-functional_fingerprints = list(
-    filter(
-        lambda f: (
-            r.matches(f.anchor._regionspec)
-            and julichbrain.matches(f.anchor._parcellation_version)
-        ),
-        siibra.features.functional.FunctionalFingerprint.instances(),
-    )
+area3b_left = julichbrain.get_region("area 3b left")
+functional_fingerprints = siibra.features.get(
+    area3b_left,
+    siibra.features.functional.FunctionalFingerprint,
+    exact_match=True
 )
 # There is exactly one functional fingerprint given a region and parcellation
 assert len(functional_fingerprints) == 1
@@ -59,12 +55,15 @@ area3b_left_fp.plot(backend="plotly")
 # %%
 # Finally, we select a specific task label, retrieve its values
 # over all areas of the Julich-Brain atlas, and colorize a brain map in MNI space.
-q = "task=='ArchiSocial' & labels=='triangle_mental-random'"
-values_per_region = {
-    f.anchor._regionspec: f.data.query(q).iloc[0][f.anchor._regionspec]
-    for f in siibra.features.functional.FunctionalFingerprint.instances()
-    if julichbrain.matches(f.anchor._parcellation_version)
-}
+functional_fingerprints = siibra.features.get(
+    julichbrain,
+    siibra.features.functional.FunctionalFingerprint,
+    exact_match=True
+)
+assert len(functional_fingerprints) == 1
+julichbrain_functional_fingerprint = functional_fingerprints[0]
+q = "task == 'ArchiSocial' & labels == 'triangle_mental-random'"
+values_per_region = julichbrain_functional_fingerprint.data.query(q).iloc[0].to_dict()
 colored_map = julichbrain.get_map("MNI 152").colorize(values_per_region)
 plotting.view_img(
     colored_map.fetch(),
