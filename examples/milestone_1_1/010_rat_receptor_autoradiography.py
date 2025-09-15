@@ -20,7 +20,6 @@ Rat receptor autoradiogarphy
 
 # %%
 import siibra
-from nilearn import plotting
 import matplotlib.pyplot as plt
 
 # %%
