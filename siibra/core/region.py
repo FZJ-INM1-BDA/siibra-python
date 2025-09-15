@@ -353,7 +353,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             if isinstance(regionspec, str) else found_regions
         )
 
-    def matches(self, regionspec):
+    def matches(self, regionspec) -> bool:
         """
         Checks whether this region matches the given region specification.
 
