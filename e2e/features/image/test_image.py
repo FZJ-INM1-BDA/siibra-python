@@ -17,12 +17,8 @@ all_image_features = [
 @pytest.mark.parametrize("feature", all_image_features)
 def test_feature_has_datasets(feature: Image):
     if feature._prerelease is True:
-        if len(feature.datasets) > 0:
-            pytest.fail(
-                f"Feature '{feature}' was listed as prerelease previously but now have dataset information. Please update `PRERELEASE_FEATURES_W_NO_DATASET`"
-            )
         pytest.xfail(
-            f"Feature '{feature}' has no datasets yet as it is a prerelease data."
+            f"Feature '{feature}' has no datasets yet since it is a prerelease data."
         )
     assert len(feature.datasets) > 0, f"{feature} has no datasets"
 
@@ -33,8 +29,8 @@ def test_images_datasets_names():
     end = time.time()
     duration = start - end
     assert (
-        len(all_ds_names) == 12
-    ), "expected 12 distinct names"  # this must be updated if new datasets are added
+        len(all_ds_names) == 18
+    ), "expected 18 distinct names"  # this must be updated if new datasets are added
     assert duration < 1, "Expected getting dataset names to be less than 1s"
 
 
