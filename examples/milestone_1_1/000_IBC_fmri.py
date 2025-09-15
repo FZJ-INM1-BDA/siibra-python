@@ -35,7 +35,7 @@ area3b_left = julichbrain.get_region("area 3b left")
 functional_fingerprints = siibra.features.get(
     area3b_left,
     siibra.features.functional.FunctionalFingerprint,
-    exact_match=True
+    exact_match_only=True
 )
 # There is exactly one functional fingerprint given a region and parcellation
 assert len(functional_fingerprints) == 1
@@ -58,7 +58,7 @@ area3b_left_fp.plot(backend="plotly")
 functional_fingerprints = siibra.features.get(
     julichbrain,
     siibra.features.functional.FunctionalFingerprint,
-    exact_match=True
+    exact_match_only=True
 )
 assert len(functional_fingerprints) == 1
 julichbrain_functional_fingerprint = functional_fingerprints[0]

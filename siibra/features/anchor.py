@@ -183,14 +183,33 @@ class AnatomicalAnchor:
         self._last_matched_concept = concept if len(self._assignments[concept]) > 0 else None
         return self._assignments[concept]
 
-    def matches(self, concept: Union[BrainStructure, Space], exact_match: bool = False) -> bool:
-        if not exact_match:
+    def matches(self, concept: Union[BrainStructure, Space], exact_match_only: bool = False) -> bool:
+        if not exact_match_only:
             return len(self.assign(concept)) > 0
 
         if isinstance(concept, Region):
-            return concept.matches(self._regionspec)
+            is_exact = concept.matches(self._regionspec)
+            if is_exact:
+                regions = find_regions(
+                    self._regionspec, filter_children=True, find_topmost=False
+                )
+                for r in regions:
+                    self._assignments[concept] = AnatomicalAssignment(
+                        concept,
+                        r,
+                        Qualification.EXACT,
+                    )
+            return is_exact
+
         if isinstance(concept, Location):
-            return concept == self.location
+            is_exact = concept == self.location
+            if is_exact:
+                self._assignments[concept] = AnatomicalAssignment(
+                    concept, self.location, Qualification.EXACT
+                )
+            return is_exact
+
+        raise ValueError(f"Cannot query for exact match only wity objects of type {type(concept)}")
 
     def represented_parcellations(self) -> List[Parcellation]:
         """
