@@ -163,28 +163,61 @@ class AnatomicalAnchor:
         Match this anchor to a query concept. Assignments are cached at runtime,
         so repeated assignment with the same concept will be cheap.
         """
-        if isinstance(concept, Space):
-            if self.location is not None and self.location.space.matches(concept):
-                return [AnatomicalAssignment(concept, self.location, Qualification.CONTAINED)]
-            else:
-                return []
+        if concept in self._assignments:
+            return self._assignments[concept]
 
-        if concept not in self._assignments:
-            assignments: List[AnatomicalAssignment] = []
-            if self.location is not None:
-                try:
-                    assignments.append(self.location.assign(concept))
-                except SpaceWarpingFailedError as e:
-                    logger.debug(e)
-            for region in self.regions:
-                assignments.append(region.assign(concept))
-            self._assignments[concept] = sorted(a for a in assignments if a is not None)
+        if isinstance(concept, Space):  # shortcut if queried with a space and location is not None
+            if self.location is not None and self.location.space.matches(concept):
+                self._assignments[concept] = [
+                    AnatomicalAssignment(concept, self.location, Qualification.CONTAINED)
+                ]
+            else:
+                self._assignments[concept] = []
+            return self._assignments[concept]
+
+        assignments: List[AnatomicalAssignment] = []
+        if self.location is not None:
+            try:
+                assignments.append(self.location.assign(concept))
+            except SpaceWarpingFailedError as e:
+                logger.debug(e)
+        for region in self.regions:
+            assignments.append(region.assign(concept))
+        self._assignments[concept] = sorted(a for a in assignments if a is not None)
 
         self._last_matched_concept = concept if len(self._assignments[concept]) > 0 else None
         return self._assignments[concept]
 
-    def matches(self, concept: Union[BrainStructure, Space]) -> bool:
-        return len(self.assign(concept)) > 0
+    def matches(self, concept: Union[BrainStructure, Space], exact_match_only: bool = False) -> bool:
+        if not exact_match_only:
+            return len(self.assign(concept)) > 0
+
+        if concept in self._assignments:
+            return len(
+                q
+                for q in self._assignments[concept].values()
+                if q == Qualification.EXACT
+            ) > 0
+
+        if isinstance(concept, Region):
+            is_exact = concept.matches(self._regionspec)
+            if is_exact:
+                self._assignments[concept] = [
+                    AnatomicalAssignment(concept, r, Qualification.EXACT)
+                    for r, q in self.regions.items()
+                    if q == Qualification.EXACT
+                ]
+            return is_exact
+
+        if isinstance(concept, Location):
+            is_exact = concept == self.location
+            if is_exact:
+                self._assignments[concept] = [AnatomicalAssignment(
+                    concept, self.location, Qualification.EXACT
+                )]
+            return is_exact
+
+        raise ValueError(f"Cannot query for exact match only wity objects of type {type(concept)}")
 
     def represented_parcellations(self) -> List[Parcellation]:
         """
