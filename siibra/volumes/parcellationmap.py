@@ -207,6 +207,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         matches = self.find_indices(region)
         if len(matches) > 1:
+            # if there is an exact match, we still use it. If not, we cannot proceed.
+            regionname = region.name if isinstance(region, _region.Region) else region
+            for index, matched_name in matches.items():
+                if matched_name == regionname:
+                    return index
             raise NonUniqueIndexError(
                 f"The specification '{region}' matches multiple mapped "
                 f"structures in {str(self)}: {list(matches.values())}"
