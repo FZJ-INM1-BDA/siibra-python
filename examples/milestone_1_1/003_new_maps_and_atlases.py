@@ -23,7 +23,7 @@ import siibra
 from nilearn import plotting
 import matplotlib.pyplot as plt
 
-# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/milestone_1_1_macaque_combined_atlas.png'
+# sphinx_gallery_thumbnail_number = 1
 
 # %%
 for p in siibra.parcellations:
