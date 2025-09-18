@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 
 # %%
 # In order to see all availabe cell distribution features for mice, query with
-# the whole mouse parcellation and display dataset information
+# the whole mouse parcellation and display dataset information:
 allen_mice_parc = siibra.parcellations["Allen Mouse Common Coordinate Framework v3 2017"]
 mice_cell_dists = siibra.features.get(allen_mice_parc, "cell distribution")
 print("Found:", len(mice_cell_dists), "cell distributions")
@@ -38,9 +38,8 @@ for name, desc in datasets.items():
     print("Description:", desc)
 
 # %%
-# At the moment, all mice cell distributions come from the same dataset. To see
-# what differs among these features we print the anchored regions and subject
-# information
+# These cell distributions are coming from the same dataset. To see what differs
+# among these features we print the anchored regions and subject information
 for cd in mice_cell_dists:
     print(f"Region: {cd.anchor}, subject specification: {cd.subject}")
 
