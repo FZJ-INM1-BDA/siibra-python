@@ -491,6 +491,7 @@ class Factory:
             datasets=cls.extract_datasets(spec),
             id=spec.get("@id", None),
             prerelease=spec.get("prerelease", False),
+            unit=spec.get("unit", None),
         )
 
     @classmethod
