@@ -42,7 +42,7 @@ siibra.maps.dataframe.query('space == "MNI Colin 27"')
 
 # %%
 # We select the maximum probability map of Julich-Brain in MNI152 space,
-# which is a parcellation map with discrete labels. 
+# which is a parcellation map with discrete labels.
 # `get_map` assumes maptype='labelled' by default.
 julich_mpm = siibra.get_map(space="icbm 2009c", parcellation="julich 2.9", maptype="labelled")
 print(julich_mpm)
@@ -84,15 +84,16 @@ plotting.plot_roi(
 # once and then convert it to a sparse index format, that is much more
 # efficient to process and store. The sparse index is cached on the local disk,
 # therefore subsequent use of probability maps will be much faster.
-with siibra.QUIET:  # suppress progress output
-    julich_pmaps = siibra.get_map(
-        space="mni152", parcellation="julich", maptype="statistical"
-    )
+julich_pmaps = siibra.get_map(
+    space="mni152",
+    parcellation="julich 2.9",
+    maptype="statistical",
+)
 julich_pmaps
 
 # Since the statistical maps overlap, this map provides access to several
 # hundreds of brain volumes.
-print(len(julich_pmaps))
+print("Number of regions:", len(julich_pmaps))
 
 # We can iterate over all probability maps using `fetch_iter()`.
 # Here we just display the first map.
@@ -122,4 +123,3 @@ plotting.plot_roi(v1l_pmap, title="v1 left", cmap='viridis')
 hoc5L = siibra.get_region(parcellation='julich 2.9', region='hoc5 left')
 hoc5L_mask = hoc5L.fetch_regional_map(space="mni152", maptype="labelled")
 plotting.plot_roi(hoc5L_mask, title=f"Mask of {hoc5L.name}")
-

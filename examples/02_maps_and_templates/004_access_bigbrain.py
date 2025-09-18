@@ -81,7 +81,7 @@ plotting.view_img(mask, bg_img=bigbrain_chunk, opacity=.2, symmetric_cmap=False)
 # just note that `siibra` can employ spatial objects from different template spaces.
 # Here it automatically warps the centroid of the volume of interest to MNI space
 # for location assignment.
-julich_pmaps = siibra.get_map(space='mni152', parcellation='julich', maptype='statistical')
+julich_pmaps = siibra.get_map(space='mni152', parcellation='julich 2.9', maptype='statistical')
 assignments = julich_pmaps.assign(voi.center)
 assignments
 
@@ -89,7 +89,7 @@ assignments
 # 1 micron scans of BigBrain sections across the brain can be found as
 # VolumeOfInterest features. The result is a high-resolution image structure,
 # just like the bigbrain template.
-hoc5l = siibra.get_region('julich 2.9', 'hoc5 left')
+hoc5l = siibra.get_region('julich bigbrain', 'hoc5 left')
 features = siibra.features.get(
     hoc5l,
     siibra.features.cellular.CellbodyStainedSection
@@ -117,4 +117,4 @@ print(f"Size of the bounding box: {hoc5_bbox.shape}")
 # this is quite large, so we shrink it
 voi = hoc5_bbox.zoom(0.1)
 crop = section1402.fetch(voi=voi, resolution_mm=-1)
-plotting.plot_img(crop, bg_img=None, cmap='gray')
+plotting.plot_img(crop, bg_img=None, cmap='gray', display_mode='y')
