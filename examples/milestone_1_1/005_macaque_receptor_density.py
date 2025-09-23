@@ -42,6 +42,9 @@ receptor_density = siibra.features.get(
 print(receptor_density.modality)
 
 # %%
+receptor_density.datasets[0].description
+
+# %%
 receptor_density.data
 
 # %%
