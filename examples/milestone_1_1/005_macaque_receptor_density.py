@@ -26,31 +26,33 @@ from nilearn import plotting
 # sphinx_gallery_thumbnail_number = -1
 
 # %%
+# Query for tabular features anchored in MEBRAINS atlas
 mebrains = siibra.parcellations["MEBRAINS monkey"]
-print(mebrains.name)
-
-# %%
 for f in siibra.features.get(mebrains, siibra.features.generic.Tabular):
     print("Modality:", f.modality)
 
 # %%
+# Specify receptor density modality
 receptor_density = siibra.features.get(
     mebrains,
     siibra.features.generic.Tabular,
     modality="Neurotransmitter receptor density",
 )[0]
-print(receptor_density.modality)
+print(receptor_density.description)
+print("".join(receptor_density.urls))
 
 # %%
-receptor_density.datasets[0].description
-
-# %%
+# Fetch the data as a DataFrame with areas on the rows and receptors on the
+# columns
 receptor_density.data
 
 # %%
+# For a closer look, select a receptor
 receptor = "kainate"
 
 # %%
+# Plot the data for receptor "kainate". (Similarly, one can plot it for other
+# receptors).
 receptor_density.plot(
     kind="barh",
     y=receptor,
@@ -60,7 +62,9 @@ receptor_density.plot(
 )
 
 # %%
-mp = mebrains.get_map("mebrains")
+# Now, decipher the published masks of mebrains regions by iterating over
+# mebrains map:
+mebrains_map = mebrains.get_map("mebrains")
 mapped_regions = {}
 for r in receptor_density.data.index:
     try:
@@ -69,33 +73,51 @@ for r in receptor_density.data.index:
         print(f"Mask of {r} is not yet published.")
 
 # %%
+# Using `colorize()` method, we can color the regional masks with values in the
+# table for selected receptor. `view_img` allows us to view it dynamically.
 receptor_values = {}
 for r, v in receptor_density.data[receptor].items():
     if r in mapped_regions:
         receptor_values[mapped_regions[r] + " left"] = v
         receptor_values[mapped_regions[r] + " right"] = v
-receptor_density_map = mp.colorize(receptor_values, resolution_mm=-1)
+receptor_density_map = mebrains_map.colorize(receptor_values, resolution_mm=-1)
 plotting.view_img(
     receptor_density_map.fetch(),
-    bg_img=mp.space.get_template().fetch(),
+    bg_img=mebrains_map.space.get_template().fetch(),
     cmap="magma",
     symmetric_cmap=False,
     resampling_interpolation="nearest",
 )
 
 # %%
-for i, receptor in enumerate(receptor_density.data.columns):
-    # plt.subplot((i + 1, 1))
+# For demonstration, plot the all recoptor densities as static plots at the
+# centroid of area 8Bs left.
 
+# compute the centroid of 8Bs left
+centroid = (
+    mebrains_map.parcellation.get_region("8Bs left")
+    .compute_centroids("mebrains")[0]
+    .coordinate
+)
+# compute the max and min values of the intensities for a standard colarbar across the plots
+vmin = receptor_density.data.min().min()
+vmax = receptor_density.data.max().max()
+
+# color the map and plot the image per receptor
+for i, receptor in enumerate(receptor_density.data.columns):
     receptor_values = {}
     for r, v in receptor_density.data[receptor].items():
         if r in mapped_regions:
             receptor_values[mapped_regions[r] + " left"] = v
             receptor_values[mapped_regions[r] + " right"] = v
-    receptor_density_map = mp.colorize(receptor_values, resolution_mm=-1)
+    receptor_density_map = mebrains_map.colorize(receptor_values, resolution_mm=-1)
     plotting.plot_stat_map(
         receptor_density_map.fetch(),
-        bg_img=mp.space.get_template().fetch(),
+        bg_img=mebrains_map.space.get_template().fetch(),
         cmap="magma",
         resampling_interpolation="nearest",
+        cut_coords=centroid,
+        title=receptor,
+        vmin=vmin,
+        vmax=vmax,
     )
