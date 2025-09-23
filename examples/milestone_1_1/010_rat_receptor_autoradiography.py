@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-Rat receptor autoradiogarphy
+Rat receptor autoradiography
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
@@ -25,7 +25,7 @@ import numpy as np
 
 # %%
 # Receptor autoradiography sections are anchored in to bounding boxes in
-# reference spaces. To see all availabe options for rat, query for with waxholm
+# reference spaces. To see all available options for rat, query for with waxholm
 # space. Then, display dataset information:
 sections_at_HPWM = siibra.features.get(siibra.spaces["waxholm"], "autoradiography")
 datasets = {

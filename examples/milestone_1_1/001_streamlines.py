@@ -38,9 +38,9 @@ print(bundles_passing_3bleft[12].description)
 
 # %%
 # Each bundle is represented as a dictionary of fibers which in turn are
-# represented as Contour objects. Countours are just PointClouds where the order
+# represented as Contour objects. Contours are just PointClouds where the order
 # of the coordinates is important. (This enables warping the coordinates to
-# other spaces effeciently). Let us choose a bundle to demonstrate
+# other spaces efficiently). Let us choose a bundle to demonstrate
 bundle = bundles_passing_3bleft[12]
 bundle.data
 

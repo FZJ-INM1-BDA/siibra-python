@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 
 # %%
 # The tracing connectivity features are anchored at the injection regions.
-# To see all availabe options for mice, we query for tracing connectivity
+# To see all available options for mice, we query for tracing connectivity
 # distribution in the whole mouse atlas.
 parcellation = siibra.parcellations["Allen Mouse Common Coordinate Framework v3 2017"]
 all_rat_tracing_conn_dists = siibra.features.get(

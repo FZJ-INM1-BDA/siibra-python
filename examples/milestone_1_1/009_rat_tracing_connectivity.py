@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 
 # %%
 # The tracing connectivity features are anchored at the injection regions.
-# To see all availabe options, we query for tracing connectivity distribution
+# To see all available options, we query for tracing connectivity distribution
 # in the whole waxholm rat atlas.
 parcellation = siibra.parcellations["waxholm rat"]
 all_rat_tracing_conn_dists = siibra.features.get(
@@ -76,7 +76,7 @@ for i, tcd in enumerate(tracing_conn_dists):
 # Additionally, these features contain extra information in the subject names,
 # specifically the second part of the subject names corresponds to the tracer
 # used. This information can be found in the detailed data descriptor found by
-# following dois. So another comparsion can be made by based on the tracer of
+# following dois. So another comparison can be made by based on the tracer of
 # interests. As an example, filter out the features in which "Fr" tracer was
 # used and display them on the waxholm rat template:
 tcd_Fr = [conn for conn in tracing_conn_dists if conn.subject.split("_")[1] == "Fr"]

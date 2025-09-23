@@ -26,7 +26,7 @@ from nilearn import plotting
 # %%
 # The functional fingerprints are tabular data features,
 # providing fMRI measurements of brain areas under a range of cognitive tasks.
-# For this example, we specificy a cytoarchitectonic brain region and
+# For this example, we specify a cytoarchitectonic brain region and
 # find the matching fingerprint with a fast custom filter.
 # The default `siibra.features.get()` approach will also work,
 # but it is slower as it cannot assume an explicit match.

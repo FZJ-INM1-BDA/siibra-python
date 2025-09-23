@@ -24,7 +24,7 @@ from nilearn import plotting
 import matplotlib.pyplot as plt
 
 # %%
-# In order to see all availabe cell distribution features for mice, query with
+# In order to see all available cell distribution features for mice, query with
 # the whole mouse parcellation and display dataset information:
 allen_mice_parc = siibra.parcellations["Allen Mouse Common Coordinate Framework v3 2017"]
 mice_cell_dists = siibra.features.get(allen_mice_parc, "cell distribution")
