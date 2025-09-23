@@ -21,6 +21,8 @@ IBC - fMRI fingerprints with tasks and contrast labels
 import siibra
 from nilearn import plotting
 
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/ibc_thumbnail.png'
+
 # %%
 # The functional fingerprints are tabular data features,
 # providing fMRI measurements of brain areas under a range of cognitive tasks.

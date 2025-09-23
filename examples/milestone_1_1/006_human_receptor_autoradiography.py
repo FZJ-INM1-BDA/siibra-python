@@ -24,6 +24,8 @@ import siibra
 from nilearn import plotting
 import matplotlib.pyplot as plt
 
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/gaba_autoradiography.png'
+
 # %%
 mni152 = siibra.spaces["mni152"]
 autoradiography_images = siibra.features.get(
