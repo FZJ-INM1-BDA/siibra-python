@@ -2,7 +2,8 @@ import pytest
 import siibra
 
 selected_ids = [
-    "cf0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::acc39db40e08a9ce23d05bf75a4ce172::0d023118e0b9923a11628642e6170d00",  # 1574 BigBrain Intensity Profile features
+    # "cf0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::acc39db40e08a9ce23d05bf75a4ce172::0d023118e0b9923a11628642e6170d00",  # 1574 BigBrain Intensity Profile features
+    "cf0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::acc39db40e08a9ce23d05bf75a4ce172::560a3ae060014a2076210c84e31b5412",  # 1236 BigBrain Intensity Profile features
     "lq0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::acc39db40e08a9ce23d05bf75a4ce172--4b4e7dea27709f3367dd468f9c9a96ed",  # BigBrain Intensity Profile: (4.848050117492676, -55.64030075073242, 1.999250054359436)
     "cf0::CellDensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS)::f2cd6b97-e42d-41af-a01b-5caf2d692e28::599f219267d5bdc3c5c04ddf31f36748",  # 10 Cell Density Profile features
     "f2cd6b97-e42d-41af-a01b-5caf2d692e28--5fc6ebfcbdf43c1c9fb36263eda160d2",  # Cell Density Profile: (19.09100914001465, -64.9000015258789, -0.36307409405708313)
@@ -18,7 +19,7 @@ selected_ids = [
 
 
 @pytest.mark.parametrize("fid", selected_ids)
-def test_get_instance(fid):
+def test_feature_plotting(fid):
     feat = siibra.features.Feature._get_instance_by_id(fid)
     feat.plot()
     feat.plot(backend='plotly')
