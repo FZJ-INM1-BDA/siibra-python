@@ -193,11 +193,10 @@ class AnatomicalAnchor:
             return len(self.assign(concept)) > 0
 
         if concept in self._assignments:
-            return len(
-                q
-                for q in self._assignments[concept].values()
-                if q == Qualification.EXACT
-            ) > 0
+            return any(
+                assignment.qualification == Qualification.EXACT
+                for assignment in self._assignments[concept]
+            )
 
         if isinstance(concept, Region):
             is_exact = concept.matches(self._regionspec)
