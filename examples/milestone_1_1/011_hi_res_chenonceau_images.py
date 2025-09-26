@@ -37,19 +37,20 @@ for f in image_features:
 
 # %%
 # As we see from above, there are several modalities to choose from. For
-# demonstration, fetch the image for "proton density" modality and plot it
-proton_density = siibra.features.get(
-    mni152, siibra.features.generic.Image, modality="proton density"
+# demonstration, fetch the image for modality of fractional anisotropy and
+# plot it
+fractional_anisotropy = siibra.features.get(
+    mni152, siibra.features.generic.Image, modality="fractional anisotropy"
 )[0]
-pd_img = proton_density.fetch()
-plotting.plot_img(pd_img, cmap="magma", title=proton_density.name)
+fa_img = fractional_anisotropy.fetch()
+plotting.plot_img(fa_img, cmap="magma", title=fractional_anisotropy.name)
 
 # %%
 # The set of images integrated also contain T2-weighted anatomical images
 # of the Chenonceau brain. This can be used to overlay other modalities. Since
-# MNI 152 template is only in 1mm resolution, the the underlying anatomoical
+# MNI 152 template is only in 1mm resolution, the the underlying anatomical
 # structure is not present as it would be with Chenonceau 100um or 150um
-# images.
+# images. First, we plot 150um to see the details of the anatomical image
 t2_weighted_150um = [
     f
     for f in siibra.features.get(
@@ -59,13 +60,27 @@ t2_weighted_150um = [
     )
     if "150 micrometer" in f.name
 ][0]
+t2_weighted_150um_img = t2_weighted_150um.fetch()
 plotting.view_img(
-    pd_img,
-    bg_img=t2_weighted_150um.fetch(),
+    t2_weighted_150um_img,
+    bg_img=None,
     cmap="magma",
     symmetric_cmap=False,
-    title=f"{proton_density}\non {t2_weighted_150um}",
+    title=f"{fractional_anisotropy}\non {t2_weighted_150um}",
     vmin=1e-7,
     vmax=0.15,
-    opacity=0.5,
+    opacity=0.6,
+)
+
+# %%
+# Now, we overlay fractional anisotropy over the 150um anatomical image
+plotting.view_img(
+    fa_img,
+    bg_img=t2_weighted_150um_img,
+    cmap="magma",
+    symmetric_cmap=False,
+    title=f"{fractional_anisotropy}\non {t2_weighted_150um}",
+    vmin=1e-7,
+    vmax=0.15,
+    opacity=0.6,
 )
