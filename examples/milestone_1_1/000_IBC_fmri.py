@@ -44,7 +44,6 @@ area3b_left_fp = functional_fingerprints[0]
 # %%
 # The actual data is exposed as a pandas DataFrame with columns for the task and
 # task label, as well as the signal strength.
-# TODO Expose the unit of the values properly.
 area3b_left_fp.data
 
 # %%
@@ -62,11 +61,20 @@ functional_fingerprints = siibra.features.get(
 )
 assert len(functional_fingerprints) == 1
 julichbrain_functional_fingerprint = functional_fingerprints[0]
-q = "task == 'ArchiSocial' & labels == 'triangle_mental-random'"
-values_per_region = julichbrain_functional_fingerprint.data.query(q).iloc[0].to_dict()
-colored_map = julichbrain.get_map("MNI 152").colorize(values_per_region)
-plotting.view_img(
+
+# now set the task and label
+task = "ArchiSocial"
+label = "triangle_mental-random"
+
+# color julich brain
+values_per_region = julichbrain_functional_fingerprint.data.loc[(task, label)]
+colored_map = julichbrain.get_map("MNI 152").colorize(values_per_region.to_dict())
+
+# plot the colored map over MNI 152 template
+plotting.plot_stat_map(
     colored_map.fetch(),
     cmap="magma",
     resampling_interpolation="nearest",
+    title=f"task: {task}, label: {label}",
+    cut_coords=area3b_left.compute_centroids("mni152")[0].coordinate
 )
