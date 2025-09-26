@@ -46,6 +46,7 @@ class FunctionalFingerprint(
             id=id,
             prerelease=prerelease,
             description=None,
+            unit="z-score",
         )
         self._loader = HttpRequest(file, func=decoder)
 
@@ -60,6 +61,13 @@ class FunctionalFingerprint(
         return self._data_cached.copy()
 
     def plot(self, *args, backend="matplotlib", **kwargs):
+        if len(self.data.columns) > 1:
+            raise NotImplementedError(
+                "Plotting all functional fingerprints for a parcellation is ",
+                "currently not implemented. Query for a specific region to ",
+                "plot profiles."
+            )
+
         if backend == "matplotlib":
             return super().plot(*args, backend=backend, **kwargs)
         elif backend == "plotly":
@@ -74,7 +82,7 @@ class FunctionalFingerprint(
                 backend="plotly",
                 color_continuous_scale="jet",
                 kind="barh",
-                labels={"labels": "contrast"},
+                labels={"labels": "contrast", "activation": f"activation {self.unit}"},
                 width=800,
                 height=2500,
                 **kwargs,
