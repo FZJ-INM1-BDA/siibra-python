@@ -64,12 +64,10 @@ t2_weighted_150um_img = t2_weighted_150um.fetch()
 plotting.view_img(
     t2_weighted_150um_img,
     bg_img=None,
-    cmap="magma",
+    cmap="grey",
     symmetric_cmap=False,
     title=f"{fractional_anisotropy}\non {t2_weighted_150um}",
-    vmin=1e-7,
-    vmax=0.15,
-    opacity=0.6,
+    threshold=0,
 )
 
 # %%
@@ -80,7 +78,5 @@ plotting.view_img(
     cmap="magma",
     symmetric_cmap=False,
     title=f"{fractional_anisotropy}\non {t2_weighted_150um}",
-    vmin=1e-7,
-    vmax=0.15,
     opacity=0.6,
 )
