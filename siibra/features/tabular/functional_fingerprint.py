@@ -93,7 +93,6 @@ class FunctionalFingerprint(
                 ticktext=df["labels"],
                 autorange="reversed"
             )
-            fig.update_yaxes(tickfont=dict(size=9))
             return fig
         else:
             return self.data.plot(*args, backend=backend, **kwargs)
