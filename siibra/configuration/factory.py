@@ -701,9 +701,8 @@ class Factory:
         bundle_by_file = []
         for bundle_id, filename in files.items():
             intersecting_regions = {
-                r: anchor.Qualification.OVERLAPS
-                for rname in regions_df.loc[bundle_id].loc[lambda s: s.eq(1)].index.tolist()
-                for r in parc.get_region(rname)
+                parc.get_region(rname): anchor.Qualification.OVERLAPS
+                for rname in regions_df.loc[bundle_id].loc[lambda s: s.eq(1)].index
             }
             kwargs.update(
                 {
