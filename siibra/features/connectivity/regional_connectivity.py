@@ -430,7 +430,7 @@ class RegionalConnectivity(Feature, Compoundable):
         )
         return zip(
             profile.data.index.values,
-            [eval(c.removeprefix('rgb')) for c in colorscale]
+            [eval(c.replace("rgb", "")) for c in colorscale]
         )
 
     def __len__(self):
