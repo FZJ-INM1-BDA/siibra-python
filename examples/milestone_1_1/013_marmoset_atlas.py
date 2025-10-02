@@ -44,7 +44,7 @@ mp = marmoset_parc.get_map(marmoset_space)
 cmap = mp.get_colormap()
 img = mp.fetch(max_bytes=1024**3)
 template_img = marmoset_space.get_template().fetch(max_bytes=1024**3)
-plotting.plot_roi(
+plotting.view_img(
     img,
     bg_img=template_img,
     cmap=cmap,
@@ -55,10 +55,24 @@ plotting.plot_roi(
 
 # %%
 morphometry_volumes = siibra.features.get(marmoset_space, "morphometry")
-for vol in morphometry_volumes:
-    plotting.plot_img(
-        vol.fetch(max_bytes=1024**3),
-        bg_img=template_img,
-        black_bg=False,
-        title=vol.name
-    )
+for v in morphometry_volumes:
+    print(v.name)
+
+# %%
+cortical_thickness = [v for v in morphometry_volumes if "Cortical thickness map" in v.name][0]
+plotting.plot_stat_map(
+    cortical_thickness.fetch(max_bytes=1024**3),
+    bg_img=template_img,
+    black_bg=False,
+    title=cortical_thickness.name,
+    threshold=0,
+)
+# %%
+segmentation_confidence = [v for v in morphometry_volumes if "Segmentation confidence" in v.name][0]
+plotting.plot_stat_map(
+    segmentation_confidence.fetch(max_bytes=1024**3),
+    bg_img=template_img,
+    black_bg=False,
+    title=segmentation_confidence.name,
+    threshold=0,
+)
