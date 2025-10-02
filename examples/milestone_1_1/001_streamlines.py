@@ -67,10 +67,7 @@ terminal_region_map = siibra.volumes.volume.merge(
     [r.get_regional_map("mni152") for r in terminal_regions],
     labels=[1, 2]
 )
-display.add_overlay(
-    terminal_region_map.fetch(),
-    transparency=0.7,
-)
+display.add_overlay(terminal_region_map.fetch())
 
 # %%
 long_bundles_3bleft = [b for b in bundles_3bleft if "long" in b.modality]
@@ -80,7 +77,7 @@ for b in long_bundles_3bleft:
 # %%
 bundle = [b for b in long_bundles_3bleft if "Left_Arcuate" in b.name][0]
 print("Fiber count:", len(bundle.data.index.unique()))
-fig = plt.figure(figsize=(10, 4), dpi=600)
+fig = plt.figure(figsize=(10, 4), dpi=300)
 display = plotting.plot_markers(
     node_values=bundle.data.index,
     node_coords=bundle.data.values,
@@ -98,7 +95,4 @@ terminal_region_map = siibra.volumes.volume.merge(
     [r.get_regional_map("mni152") for r in terminal_regions],
     labels=list(range(len(terminal_regions)))
 )
-display.add_overlay(
-    terminal_region_map.fetch(),
-    transparency=0.7,
-)
+display.add_overlay(terminal_region_map.fetch())
