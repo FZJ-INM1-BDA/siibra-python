@@ -585,9 +585,9 @@ class Factory:
         elif "autoradiography" in modality:
             return sections.AutoradiographySection(**kwargs)
         else:
-            raise ValueError(
-                f"No method for building image section feature type {modality}."
-            )
+            logger.debug(f"No defined feature type for {modality}. Creating a generic image feature.")
+            kwargs["modality"] = spec.get("modality")
+            return image.Image(**kwargs)
 
     @classmethod
     @build_type("siibra/feature/voi/v0.1")
@@ -634,24 +634,9 @@ class Factory:
         elif "autoradiography" in modality.lower():
             return volume_of_interest.AutoradiographyVolumeOfInterest(modality=modality, **kwargs)
         else:
-            raise ValueError(
-                f"No method for building image section feature type {modality}."
-            )
-
-    @build_type("siibra/feature/image/v0.1")
-    def build_generic_image_feature(cls, spec):
-        kwargs = {
-            "name": spec.get("name"),
-            "modality": spec.get("modality"),
-            "region": spec.get("region", None),
-            "space_spec": spec.get("space"),
-            "providers": cls.build_volumeproviders(spec.get("providers")),
-            "datasets": cls.extract_datasets(spec),
-            "bbox": cls.build_boundingbox(spec),
-            "id": spec.get("@id", None),
-            "prerelease": spec.get("prerelease", False),
-        }
-        return image.Image(**kwargs)
+            logger.debug(f"No defined feature type for {modality}. Creating a generic image feature.")
+            kwargs["modality"] = spec.get("modality")
+            return image.Image(**kwargs)
 
     @classmethod
     @build_type("bids/connectivitymatrix/v0.1")
