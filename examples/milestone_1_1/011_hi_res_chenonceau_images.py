@@ -21,6 +21,7 @@ Hi-Res Human Brain Images - Chenonceau
 # %%
 import siibra
 from nilearn import plotting
+import matplotlib.pyplot as plt
 
 # %%
 # Query for images on MNI 152 2009c Aym Nonl space and filter out the ones from
@@ -66,8 +67,9 @@ plotting.view_img(
     bg_img=None,
     cmap="grey",
     symmetric_cmap=False,
-    title=f"{fractional_anisotropy}\non {t2_weighted_150um}",
-    threshold=0,
+    title=t2_weighted_150um.name,
+    black_bg=True,
+    colorbar=False,
 )
 
 # %%
@@ -79,4 +81,20 @@ plotting.view_img(
     symmetric_cmap=False,
     title=f"{fractional_anisotropy}\non {t2_weighted_150um}",
     opacity=0.6,
+    colorbar=False,
 )
+
+
+# %% compare histograms between regions and modalities
+julich_brain = siibra.parcellations["julich 3.1"]
+regions = [
+    julich_brain.get_region(spec)
+    for spec in ["4p right", "hoc1 right", "3b right"]
+]
+fig, axs = plt.subplots(1, 3, figsize=(10, 5), sharey=True, sharex=True)
+for i, r in enumerate(regions):
+    pmap = r.get_regional_map(mni152, "statistical")
+    samples = pmap.draw_samples(10000)
+    values = fractional_anisotropy.evaluate_points(samples)
+    axs[i].hist(values[values > 0], bins=50, density=True)
+    axs[i].set_title(r.name)
