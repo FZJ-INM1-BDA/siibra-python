@@ -357,11 +357,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             elif len(self) > 1:
                 assert self.maptype == MapType.LABELLED, f"Cannot merge multiple volumes of map type {self.maptype}. Please specify a region or index."
                 logger.info(
-                    "Map provides multiple volumes and no specification is"
-                    " provided. Resampling all volumes to the space."
+                    "Map provides multiple volumes and no region specification is"
+                    " provided. Reducing them to a single volume resampled to space template."
                 )
-                labels = list(range(len(self.volumes)))
-                merged_volume = _volume.merge(self.volumes, labels, **kwargs)
+                labels = list(range(1, len(self.volumes) + 1)) if self.labels == {1} else None
+                merged_volume = _volume.ReducedVolume(self.volumes, labels)
                 return merged_volume
             else:
                 raise exceptions.NoVolumeFound("Map provides no volumes.")
@@ -676,7 +676,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 if index.volume != volidx:
                     continue
                 if result is None:
-                    result = np.zeros_like(img)
+                    result = np.zeros_like(
+                        img,
+                        dtype=next(iter({
+                            type(v) for v in values.values()
+                        }))
+                    )
                     affine = vol.affine
                 if index.label is None:
                     updates = img > maxarr
@@ -727,6 +732,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         else:
             include_region_names = None
 
+        use_volindx = False
+        if len(self.volumes) > 1 and self.labels == {1}:
+            use_volindx = True
+            logger.info("Using sequential relabling determined by the order of volumes.")
+
         no_predefined_color = []
         for regionname, indices in self._indices.items():
             for index in indices:
@@ -738,7 +748,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 else:
                     region = self.get_region(index=index)
                     if region.rgb is not None:
-                        colors[index.label] = region.rgb
+                        if use_volindx:
+                            colors[index.volume + 1] = region.rgb
+                        else:
+                            colors[index.label] = region.rgb
                     elif fill_uncolored:
                         random_clr = [np.random.randint(0, 255) for r in range(3)]
                         while random_clr in list(colors.values()):
@@ -760,7 +773,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 f"{no_predefined_color}"
             )
 
-        max_label_index = max(index[0].label for index in self._indices.values())
+        max_label_index = max(colors.keys())
 
         palette = np.array(
             [

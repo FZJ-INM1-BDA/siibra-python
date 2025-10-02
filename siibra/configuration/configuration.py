@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union, List
+from typing import Union, List, Callable
 from collections import defaultdict
 from requests.exceptions import ConnectionError
 from os import path
@@ -48,9 +48,9 @@ class Configuration:
         for conn, server_or_owner, project_or_repo in CONFIG_REPOS
     ]
 
-    CONFIG_EXTENSIONS = []
+    CONFIG_EXTENSIONS: List[RepositoryConnector] = []
 
-    _cleanup_funcs = []
+    _cleanup_funcs: List[Callable] = []
 
     @staticmethod
     def get_folders(connector: RepositoryConnector):

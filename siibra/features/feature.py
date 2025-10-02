@@ -467,14 +467,12 @@ class Feature:
     def _parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
         ftypes = sorted({
             feattype
-            for FeatCls, feattypes in cls._SUBCLASSES.items()
-            if all(w.lower() in FeatCls.__name__.lower() for w in feature_type.split())
+            for FeatDataCls, feattypes in cls._SUBCLASSES.items()
+            if all(w.lower() in FeatDataCls.__name__.lower() for w in feature_type.split())
             for feattype in feattypes
+            if getattr(feattype, 'category')
         }, key=lambda t: t.__name__)
-        if len(ftypes) > 1:
-            return [ft for ft in ftypes if getattr(ft, 'category')]
-        else:
-            return list(ftypes)
+        return sorted(ftypes, key=lambda t: t.__name__)
 
     @classmethod
     def _livequery(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], **kwargs) -> List['Feature']:
@@ -505,7 +503,7 @@ class Feature:
     def _match(
         cls,
         concept: Union[structure.BrainStructure, space.Space],
-        feature_type: Union[str, Type['Feature'], list],
+        feature_type: Union[str, Type['Feature'], List['Feature']],
         **kwargs
     ) -> List['Feature']:
         """
@@ -527,13 +525,13 @@ class Feature:
         """
         if isinstance(feature_type, list):
             # a list of feature types is given, collect match results on those
-            assert all(
-                (isinstance(t, str) or issubclass(t, cls))
-                for t in feature_type
-            )
+            ftypes = list(dict.fromkeys(
+                cls._parse_featuretype(ft) if isinstance(ft, str) else ft
+                for ft in feature_type
+            ))
             return list(dict.fromkeys(
                 sum((
-                    cls._match(concept, t, **kwargs) for t in feature_type
+                    cls._match(concept, t, **kwargs) for t in ftypes
                 ), [])
             ))
 
@@ -563,18 +561,29 @@ class Feature:
 
         # Collect any preconfigured instances of the requested feature type
         # which match the query concept
-        instances = [
-            instance
-            for f_type in cls._SUBCLASSES[feature_type]
-            for instance in f_type._get_instances()
-        ]
+        if feature_type.category == "generic":
+            modality = kwargs.pop("modality", "")
+            feature_type_instances = [
+                f
+                for f in feature_type._get_instances()
+                if all(
+                    w in f.modality.lower()
+                    for w in modality.lower().split(" ")
+                )
+            ]
+        else:
+            feature_type_instances = [
+                instance
+                for f_type in cls._SUBCLASSES[feature_type]
+                for instance in f_type._get_instances()
+            ]
 
-        preconfigured_instances = [
+        matching_preconf_instances = [
             f for f in siibra_tqdm(
-                instances,
+                feature_type_instances,
                 desc=f"Matching {feature_type.__name__} to {concept}",
-                total=len(instances),
-                disable=(not instances)
+                total=len(feature_type_instances),
+                disable=(not feature_type_instances)
             )
             if f.matches(concept)
         ]
@@ -584,7 +593,7 @@ class Feature:
         live_instances = feature_type._livequery(concept, **kwargs)
 
         results = sorted(
-            dict.fromkeys(preconfigured_instances + live_instances),  # to remove duplicates
+            dict.fromkeys(matching_preconf_instances + live_instances),  # to remove duplicates
             key=lambda f: min(f.last_match_result) if f.last_match_result else False,  # to order according to assignmnent ranking
         )
         return CompoundFeature._compound(results, concept)

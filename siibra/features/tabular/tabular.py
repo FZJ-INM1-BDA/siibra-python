@@ -15,6 +15,7 @@
 """Base type of features in tabular formats."""
 
 from zipfile import ZipFile
+from typing import Callable
 
 import pandas as pd
 from textwrap import wrap
@@ -22,9 +23,10 @@ from textwrap import wrap
 from .. import feature
 from .. import anchor as _anchor
 from ...commons import logger
+from ...retrieval import requests
 
 
-class Tabular(feature.Feature):
+class Tabular(feature.Feature, category="generic", configuration_folder="features/tabular"):
     """
     Represents a table of different measures anchored to a brain location.
 
@@ -42,7 +44,9 @@ class Tabular(feature.Feature):
         description: str,
         modality: str,
         anchor: _anchor.AnatomicalAnchor,
-        data: pd.DataFrame,  # sample x feature dimension
+        file: str = None,
+        decoder: Callable = None,
+        data: pd.DataFrame = None,  # sample x feature dimension
         datasets: list = [],
         id: str = None,
         prerelease: bool = False,
@@ -56,10 +60,15 @@ class Tabular(feature.Feature):
             id=id,
             prerelease=prerelease
         )
+        self._loader = None if file is None else requests.HttpRequest(file, func=decoder)
+        if file is not None:
+            assert data is None
         self._data_cached = data
 
     @property
     def data(self):
+        if self._loader is not None:
+            self._data_cached = self._loader.get()
         return self._data_cached.copy()
 
     def _to_zip(self, fh: ZipFile):
