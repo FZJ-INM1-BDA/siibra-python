@@ -347,12 +347,26 @@ class RegionalConnectivity(Feature, Compoundable):
             )
 
         profile = self.get_profile(regions, min_connectivity, max_rows, direction)
-        kwargs["kind"] = kwargs.get("kind", "barh")
         if backend == "matplotlib":
             kwargs["logy"] = kwargs.get("logy", logscale)
+            kwargs["color"] = kwargs.get(
+                "color",
+                [
+                    [c / 255 for c in rgb]
+                    for _, rgb in self.get_profile_colorscale(
+                        region=regions,
+                        min_connectivity=min_connectivity,
+                        max_rows=max_rows,
+                        direction=direction,
+                    )
+                ],
+            )
+            kwargs["kind"] = kwargs.get("kind", "bar")
+            kwargs["rot"] = kwargs.get("rot", 90)
             return profile.plot(*args, backend=backend, **kwargs)
         elif backend == "plotly":
             kwargs.update({
+                "kind": kwargs.get("kind", "barh"),
                 "color": kwargs.get("color", profile.data.columns[0]),
                 "x": kwargs.get("x", profile.data.columns[0]),
                 "y": kwargs.get("y", [r.name for r in profile.data.index]),
