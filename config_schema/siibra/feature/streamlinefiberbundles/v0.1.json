@@ -1,0 +1,48 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_ebrainsrefs.json"
+    }],
+    "anyOf": [
+        {
+            "base_url": {
+                "type": "string"
+            }
+        },{
+            "$ref": "/config_schema/has_zipped_csv.json"
+        }
+    ],
+    "properties": {
+        "@type": {
+            "const": "siibra/feature/connectivitymatrix/v0.3"
+        },
+        "modality": {
+            "$ref": "#/definitions/connectivityModalities"
+        },
+        "paradigm": {
+            "type": "string"
+        },
+        "parcellation": {
+            "$ref": "/config_schema/at_id.json"
+        },
+        "regions": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "files_indexed_by": {
+            "type": "string"
+        }
+    },
+    "required": [
+    ],
+    "definitions": {
+        "connectivityModalities": {
+            "anyOf": [
+                {"const": "Streamline short fiber bundles"},
+                {"const": "Streamline long fiber bundles"}
+            ]
+        }
+    }
+}
