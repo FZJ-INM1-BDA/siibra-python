@@ -19,16 +19,15 @@ dMRI streamline matrices - 1000 Brains cohort
 """
 
 # %%
-# We start by loading the library
 import siibra
+import matplotlib.pyplot as plt
+from nilearn import plotting
 
 # %%
-# We choose a cortical region from Julich Brain and find fiber bundles
-# overlapping with this region
+# Connectivity matrices are averaged over regions from a reference parcellation.
+# Here, Julich Brain is used to query for streamline counts. The query returns
+# datasets based on two different cohorts.
 julich_brain = siibra.parcellations["julich 3.1"]
-area3b_left = julich_brain.get_region("Area 3b (PostCG) left")
-# %%
-# Next we will utilize streamline count matrices for further analysis
 streamline_count_matrices = siibra.features.get(julich_brain, "streamlinecounts")
 for sc in streamline_count_matrices:
     print(sc.cohort)
@@ -38,16 +37,50 @@ for sc in streamline_count_matrices:
 sc = list(filter(lambda f: f.cohort == "1000BRAINS", streamline_count_matrices))[0]
 print(sc.name)
 for s in sc:
-    print(s.subject)
+    print("matrix:", s.subject)
 
 # %%
-youngest_group = sc.get_element("age-group-mean-18-24")
-youngest_group.plot(
-    regions=area3b_left, backend="plotly", min_connectivity=400, logscale=True
-)
+hoc1left = julich_brain.get_region("hoc1 left")
+fig, axs = plt.subplots(1, 7, sharey=True)
+fig.set_size_inches(15, 6)
+for i, grp in enumerate(sc):
+    if "age" not in grp.subject:
+        continue
+    grp.plot(
+        regions=hoc1left,
+        backend="matplotlib",
+        min_connectivity=500,
+        max_rows=10,
+        ax=axs[i],
+        title=grp.subject,
+    )
 
 # %%
-oldest_group = sc.get_element("age-group-mean-75-87")
-oldest_group.plot(
-    regions=area3b_left, backend="plotly", min_connectivity=400, logscale=True
+hoc1right = julich_brain.get_region("hoc1 right")
+fig, axs = plt.subplots(1, 7, sharey=True)
+fig.set_size_inches(15, 6)
+for i, grp in enumerate(sc):
+    if "age" not in grp.subject:
+        continue
+    grp.plot(
+        regions=hoc1right,
+        backend="matplotlib",
+        min_connectivity=500,
+        max_rows=10,
+        logscale=True,
+        ax=axs[i],
+        title=grp.subject,
+    )
+
+
+# %%
+youngest_group = sc[0]
+node_coords = youngest_group.compute_centroids("mni152")
+plotting.view_connectome(
+    adjacency_matrix=youngest_group.data,
+    node_coords=node_coords,
+    edge_threshold="99%",
+    node_size=3,
+    colorbar=False,
+    edge_cmap="bwr",
 )
