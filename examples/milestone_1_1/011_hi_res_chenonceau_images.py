@@ -65,7 +65,7 @@ t2_weighted_150um_img = t2_weighted_150um.fetch()
 plotting.view_img(
     t2_weighted_150um_img,
     bg_img=None,
-    cmap="grey",
+    cmap="gray",
     symmetric_cmap=False,
     title=t2_weighted_150um.name,
     black_bg=True,
