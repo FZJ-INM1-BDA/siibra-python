@@ -422,11 +422,17 @@ class RegionalConnectivity(Feature, Compoundable):
             Color values are in RGB 255.
         """
         from plotly.express.colors import sample_colorscale
-        profile = self.get_profile(region, min_connectivity, max_rows, direction)
+
+        profile = self.get_profile(
+            region=region,
+            min_connectivity=min_connectivity,
+            max_rows=max_rows,
+            direction=direction
+        )
         normalized = profile.data / profile.data.max()
         colorscale = sample_colorscale(
             colorgradient,
-            normalized.values.reshape(len(profile.data))
+            normalized.values[:, 0]
         )
         return zip(
             profile.data.index.values,
