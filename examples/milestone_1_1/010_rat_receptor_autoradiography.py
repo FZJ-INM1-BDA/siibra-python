@@ -21,16 +21,18 @@ Rat receptor autoradiography
 # %%
 import siibra
 import matplotlib.pyplot as plt
-import numpy as np
+from nilearn import plotting
+
+waxhlom_space = siibra.spaces["waxholm"]
 
 # %%
 # Receptor autoradiography sections are anchored in to bounding boxes in
 # reference spaces. To see all available options for rat, query for with waxholm
 # space. Then, display dataset information:
-sections_at_HPWM = siibra.features.get(siibra.spaces["waxholm"], "autoradiography")
+autoradiography_sections = siibra.features.get(waxhlom_space, "autoradiography section")
 datasets = {
     "".join(ds.name for ds in tcd.datasets): "".join(tcd.urls)
-    for tcd in sections_at_HPWM
+    for tcd in autoradiography_sections
 }
 for name, doi in datasets.items():
     print("Name:", name)
@@ -39,41 +41,40 @@ for name, doi in datasets.items():
 # %%
 # The names of the datasets reveal that they are divided by neurotransmitters.
 # For a detailed look at the serotonin, we query for sections intersecting with
-# the region "Hippocampal white matter" (TODO: check for citations).
-# `siibra` will automatically merge the maps of the children of hippocampal
-# white matter create a mask to compare against the sections.
-hippocampal_wm = siibra.get_region("waxholm", "Hippocampal white matter")
-sections_at_HPWM = siibra.features.get(hippocampal_wm, "autoradiography")
-print("Sections found:", len(sections_at_HPWM))
-serotonin_sections_at_HPWM = [s for s in sections_at_HPWM if "serotonin" in s.name]
-print("Sections from the serotonin study:", len(serotonin_sections_at_HPWM))
-
-# %%
-# Next, find the intersecting boxes with the region and display using matplotlib
-fig = plt.figure(figsize=(10, 12))
-for i, section in enumerate(serotonin_sections_at_HPWM):
-    img = section.fetch()
-    imgarr = img.dataobj.squeeze().T
-    intersection_bbox = section.get_boundingbox().intersection(
-        hippocampal_wm.get_boundingbox("waxholm")
-    )
-    bbox_pixel_dims = intersection_bbox.transform(np.linalg.inv(img.affine))
-    lims = {"x": [], "y": []}
-    for c in bbox_pixel_dims.corners:
-        lims["x"].append(int(c[0]))
-        lims["y"].append(int(c[1]))
-    plt.subplot(5, 6, i + 1)
-    plt.imshow(
-        imgarr[min(lims["x"]):max(lims["x"]), min(lims["y"]):max(lims["y"])],
-        aspect="equal",
-    )
-    plt.axis("off")
+# the region dorsal thalamus. `siibra` will automatically merge the masks of
+# the children of dorsal thalamus create a mask to compare against the sections.
+thalamus = siibra.get_region("waxholm", "dorsal thalamus")
+sections = siibra.features.get(thalamus, "autoradiography section")
+print("Sections found:", len(sections))
+serotonin_sections_thalamus = [s for s in sections if "serotonin" in s.name]
+print("Sections from the serotonin study:", len(serotonin_sections_thalamus))
 
 # %%
 # Next, display them using matplotlib:
 fig = plt.figure(figsize=(10, 28))
-for i, section in enumerate(serotonin_sections_at_HPWM):
+for i, section in enumerate(serotonin_sections_thalamus):
     img = section.fetch()
-    plt.subplot(9, 3, i + 1)
+    plt.subplot(13, 3, i + 1)
     plt.imshow(img.dataobj.squeeze().T, aspect="equal")
     plt.axis("off")
+
+
+# %%
+autoradiography_volumes = siibra.features.get(waxhlom_space, "autoradiography volume")
+datasets = {
+    "".join(ds.name for ds in tcd.datasets): "".join(tcd.urls)
+    for tcd in autoradiography_volumes
+}
+for name, doi in datasets.items():
+    print("Name:", name)
+    print("DOI:", doi)
+
+
+# %%
+plotting.view_img(
+    autoradiography_volumes[0].fetch(),
+    bg_img=waxhlom_space.get_template().fetch(),
+    cmap="magma",
+    symmetric_cmap=False,
+    title=autoradiography_volumes[0].name
+)
