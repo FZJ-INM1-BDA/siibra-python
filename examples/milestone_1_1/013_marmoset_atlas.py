@@ -14,65 +14,69 @@
 # limitations under the License.
 
 """
-New Maps and Atlases
+Marmoset Atlases
 ~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
-# List all parcellations in siibra to see the new atlases
 import siibra
 from nilearn import plotting
 
-for p in siibra.parcellations:
-    print(p)
+# %%
+# List all parcellations in siibra to see the new atlases
+siibra.parcellations.dataframe
 
 # %%
-# There are 3 new parcellations. We make a list from the parcellations
-# and display associated description, license, and urls/dois
-marmoset_parc = siibra.parcellations["Marmoset Nencki-Monash Atlas (2020)"]
-print(marmoset_parc.name)
-print(marmoset_parc.description)
-print(marmoset_parc.urls)
-print(marmoset_parc.LICENSE)
-
-# %%
-# Some parcellations are mapped in several spaces. Therefore, loop through the
-# map registry while filtering for these parcellations. Then, fetch the images
-# for each and plot them on their respective space templates.
+# Marmoset atlas is an enitrely new species added. The atlas consists of a
+# reference space, a parcellation, and a volume mapping the leaves of the
+# parcellation. We can display the associated description, license, and
+# urls/dois and show the template image of the space as usual.
 marmoset_space = siibra.spaces["marmoset"]
-mp = marmoset_parc.get_map(marmoset_space)
-cmap = mp.get_colormap()
-img = mp.fetch(max_bytes=1024**3)
+print(marmoset_space.name)
+print(marmoset_space.description)
+print(marmoset_space.urls)
+print(marmoset_space.LICENSE)
+
+# fetch the image
 template_img = marmoset_space.get_template().fetch(max_bytes=1024**3)
 plotting.view_img(
-    img,
-    bg_img=template_img,
-    cmap=cmap,
-    title=mp.name,
+    template_img,
+    bg_img=None,
+    cmap="gray",
     black_bg=False,
     colorbar=False,
 )
 
 # %%
-morphometry_volumes = siibra.features.get(marmoset_space, "morphometry")
-for v in morphometry_volumes:
-    print(v.name)
+# The marmoset parcellation has a detailed region hierarchy which can be
+# rendered with `render_tree` method.
+marmoset_parc = siibra.parcellations["Marmoset Nencki-Monash Atlas (2020)"]
+marmoset_parc.render_tree()
 
 # %%
-cortical_thickness = [v for v in morphometry_volumes if "Cortical thickness map" in v.name][0]
-plotting.plot_stat_map(
-    cortical_thickness.fetch(max_bytes=1024**3),
+# The leaf regions of the parcellation is mapped on the space and has its own
+# colormap, which can be displayed with nilearn
+marmoset_map = marmoset_parc.get_map(marmoset_space)
+cmap = marmoset_map.get_colormap()
+img = marmoset_map.fetch(max_bytes=1024**3)
+plotting.view_img(
+    img,
     bg_img=template_img,
+    cmap=cmap,
+    title=marmoset_map.name,
     black_bg=False,
-    title=cortical_thickness.name,
-    threshold=0,
+    colorbar=False,
 )
+
 # %%
-segmentation_confidence = [v for v in morphometry_volumes if "Segmentation confidence" in v.name][0]
-plotting.plot_stat_map(
-    segmentation_confidence.fetch(max_bytes=1024**3),
-    bg_img=template_img,
-    black_bg=False,
-    title=segmentation_confidence.name,
-    threshold=0,
-)
+# Moreover, the atlas includes morphometry volumes which can be queried as
+# features and plotted the same way as other image features
+morphometry_volumes = siibra.features.get(marmoset_space, "morphometry")
+for v in morphometry_volumes:
+    plotting.plot_stat_map(
+        v.fetch(max_bytes=1024**3),
+        bg_img=template_img,
+        black_bg=False,
+        title=v.name,
+        threshold=0,
+    )
