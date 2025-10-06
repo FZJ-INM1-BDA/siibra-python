@@ -1,0 +1,24 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_ebrainsrefs.json"
+    },{
+        "$ref": "/config_schema/has_region.json"
+    }],
+    "properties": {
+        "@type": {
+            "const": "siibra/feature/tabular/v0.1"
+        },
+        "file": {
+            "type": "string"
+        },
+        "modality": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "@type",
+        "file",
+        "modality"
+    ]
+}

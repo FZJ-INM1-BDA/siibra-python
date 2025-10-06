@@ -54,7 +54,7 @@ SIIBRA_LOG_LEVEL = os.getenv("SIIBRA_LOG_LEVEL", "INFO")
 SIIBRA_USE_CONFIGURATION = os.getenv("SIIBRA_USE_CONFIGURATION")
 SIIBRA_USE_LOCAL_SNAPSPOT = os.getenv("SIIBRA_USE_LOCAL_SNAPSPOT")
 SKIP_CACHEINIT_MAINTENANCE = os.getenv("SKIP_CACHEINIT_MAINTENANCE")
-SIIBRA_MAX_FETCH_SIZE_GIB = float(os.getenv("SIIBRA_MAX_FETCH_SIZE_GIB", 0.2))
+SIIBRA_MAX_FETCH_SIZE_BYTES = float(os.getenv("SIIBRA_MAX_FETCH_SIZE_BYTES", 0.2 * 1024 ** 3))
 
 with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
     __version__ = fp.read().strip()
@@ -708,7 +708,7 @@ def merge_meshes(meshes: list, labels: list = None):
     if has_labels:
         assert labels is None
 
-    nverts = [0] + [m['verts'].shape[0] for m in meshes[:-1]]
+    nverts = np.cumsum([0] + [m['verts'].shape[0] for m in meshes[:-1]])
     verts = np.concatenate([m['verts'] for m in meshes])
     faces = np.concatenate([m['faces'] + N for m, N in zip(meshes, nverts)])
     if has_labels:
