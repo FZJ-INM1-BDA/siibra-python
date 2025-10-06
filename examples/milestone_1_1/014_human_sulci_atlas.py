@@ -19,16 +19,19 @@ Human sulci atlas
 """
 
 # %%
-# List all parcellations in siibra to see the new atlases
 import siibra
 from nilearn import plotting
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 
+# %%
+# List all parcellations in siibra to see the new atlases
 for p in siibra.parcellations:
     print(p)
 
 # %%
-# There are 3 new parcellations. We make a list from the parcellations
-# and display associated description, license, and urls/dois
+# Sulci atlas is another new addition to siibra. Request the accompanying data
+# here for details:
 sulci_parcellation = siibra.parcellations["Sulci atlas"]
 print(sulci_parcellation.name)
 print(sulci_parcellation.description)
@@ -36,12 +39,11 @@ print(sulci_parcellation.urls)
 print(sulci_parcellation.LICENSE)
 
 # %%
-# Some parcellations are mapped in several spaces. Therefore, loop through the
-# map registry while filtering for these parcellations. Then, fetch the images
-# for each and plot them on their respective space templates.
+# The human sulci atlas was mapped in several spaces. Loop through the map
+# registry while filtering for this parcellation and fetch the images
+# to plot them on their respective reference templates.
+cut_coords = siibra.Point((11, 52, 30), "mni 152")  # define the coordinate to view the maps
 
-# define coordinates to view the maps
-cut_coords = siibra.Point((11, 52, 30), "mni 152")
 # plot each in a subplot
 mapped_spaces = siibra.maps.dataframe.query(
     f'parcellation == "{sulci_parcellation.name}"'
@@ -66,13 +68,35 @@ for mp in siibra.maps:
     )
 
 # %%
-mp = sulci_parcellation.get_map("mni152")
-meshes, labels = zip(
-    *[
-        (mp.fetch(r, format="mesh"), mp.get_index(r).label)
-        for r in mp.regions
-        if mp.fetch(r, format="mesh") is not None
-    ]
+# Additionally, majority of the sulci can be fetched as surfaces. To illustrate,
+# draw the surfaces along with the colin 27 template
+mp = sulci_parcellation.get_map("colin 27")
+meshes = {
+    r: mp.fetch(r, format="mesh")
+    for r in mp.regions
+    if mp.fetch(r, format="mesh") is not None
+}
+labels = [mp.get_index(r).label for r in meshes.keys()]
+template_mesh = mp.space.get_template().fetch(format="mesh")
+
+# combine meshes for display engine
+mesh = siibra.commons.merge_meshes(
+    meshes=[template_mesh] + list(meshes.values()),
+    labels=[0] + labels
 )
-mesh = siibra.commons.merge_meshes(meshes, labels)
-plotting.plot_surf([mesh["verts"], mesh["faces"]], mesh["labels"], engine="plotly")
+
+# create custom color map
+base_cmap = plt.get_cmap("Paired")
+custom_colors = [(1, 1, 1, 0.9)] + [
+    base_cmap(lb / max(labels)) for lb in labels
+]
+custom_cmap = mcolors.ListedColormap(custom_colors)
+
+# plot using nilearn
+plotting.plot_surf(
+    [mesh["verts"], mesh["faces"]],
+    mesh["labels"],
+    engine="plotly",
+    cmap=custom_cmap,
+    colorbar=False,
+)
