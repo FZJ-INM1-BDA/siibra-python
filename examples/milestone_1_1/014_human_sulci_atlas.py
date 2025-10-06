@@ -65,3 +65,14 @@ for mp in siibra.maps:
         colorbar=False,
     )
 
+# %%
+mp = sulci_parcellation.get_map("mni152")
+meshes, labels = zip(
+    *[
+        (mp.fetch(r, format="mesh"), mp.get_index(r).label)
+        for r in mp.regions
+        if mp.fetch(r, format="mesh") is not None
+    ]
+)
+mesh = siibra.commons.merge_meshes(meshes, labels)
+plotting.plot_surf([mesh["verts"], mesh["faces"]], mesh["labels"], engine="plotly")
