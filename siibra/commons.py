@@ -708,7 +708,7 @@ def merge_meshes(meshes: list, labels: list = None):
     if has_labels:
         assert labels is None
 
-    nverts = [0] + [m['verts'].shape[0] for m in meshes[:-1]]
+    nverts = np.cumsum([0] + [m['verts'].shape[0] for m in meshes[:-1]])
     verts = np.concatenate([m['verts'] for m in meshes])
     faces = np.concatenate([m['faces'] + N for m, N in zip(meshes, nverts)])
     if has_labels:
