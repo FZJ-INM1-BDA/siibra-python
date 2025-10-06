@@ -47,10 +47,10 @@ img = gaba_autoradiography.fetch()
 plotting.plot_stat_map(
     img,
     cmap="magma",
-    title=gaba_autoradiography.name,
     threshold=0,
     vmin=0,
     vmax=7500,
+    draw_cross=False,
 )
 
 # %%
