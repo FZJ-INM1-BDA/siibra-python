@@ -22,7 +22,7 @@ from functools import wraps
 import numpy as np
 import pandas as pd
 
-from ..commons import logger, Species, get_bids_entities
+from ..commons import logger, Species, get_bids_entities, siibra_tqdm
 from ..features import anchor, connectivity
 from ..features.tabular import (
     tabular,
@@ -545,10 +545,15 @@ class Factory:
             raise NotImplementedError("Could not discern the file format from the filename.")
         cell_density_feats = []
         spec["repository"] = cls.extract_connector(spec)
-        for fpath in spec["repository"].search_files(suffix=".tsv", recursive=True):
+        files = spec["repository"].search_files(suffix=f"{fileformat}.tsv", recursive=True)
+        for fpath in siibra_tqdm(
+            files,
+            total=len(files),
+            unit=fileformat,
+            desc=f"Loading {fileformat} from preconfigured BIDS dataset"
+        ):
             entities = get_bids_entities(path.basename(fpath)[:-4])
-            if entities["format"] != fileformat:
-                continue
+            assert entities["format"] == fileformat
             spec["region"] = entities["description"].replace("-", " ")
 
             cell_density_feats.append(
@@ -560,7 +565,7 @@ class Factory:
                     ),
                     anchor=cls.extract_anchor(spec),
                     datasets=cls.extract_datasets(spec),
-                    id=spec.get("@id", "CellDensityProfileV2-" + fpath),
+                    id=spec.get("@id", f"{feat_Cls.__name__}-" + fpath),
                     prerelease=spec.get("prerelease", False),
                 )
             )
@@ -651,9 +656,16 @@ class Factory:
         else:
             spec["regions"] = regions_df["label"].to_list()
         spec["files"] = dict()
-        for fpath in spec["repository"].search_files(suffix=".tsv", recursive=True):
-            if "relmat" not in fpath:
-                continue
+        realmat_files = [
+            f
+            for f in spec["repository"].search_files(suffix=".tsv", recursive=True)
+            if "relmat" in f
+        ]
+        for fpath in siibra_tqdm(
+            realmat_files,
+            total=len(realmat_files),
+            desc="Loading connectivity matrices from preconfigured BIDS dataset"
+        ):
             filename = path.basename(fpath)[:-4]
             entities = get_bids_entities(filename)
             if entities["files_indexed_by"] != spec["files_indexed_by"]:
