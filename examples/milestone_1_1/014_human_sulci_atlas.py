@@ -30,8 +30,8 @@ for p in siibra.parcellations:
     print(p)
 
 # %%
-# Sulci atlas is another new addition to siibra. Request the accompanying data
-# here for details:
+# Sulci atlas is another new addition to siibra. We can display associated
+# description, license, and urls/dois
 sulci_parcellation = siibra.parcellations["Sulci atlas"]
 print(sulci_parcellation.name)
 print(sulci_parcellation.description)
