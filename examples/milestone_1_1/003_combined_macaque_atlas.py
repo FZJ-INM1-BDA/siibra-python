@@ -27,27 +27,39 @@ for p in siibra.parcellations:
     print(p)
 
 # %%
-# There are 3 new parcellations. We make a list from the parcellations
-# and display associated description, license, and urls/dois
+# A new Macaque atlas comprimised of receptor maps, retinotopy map, and CHARM
+# atlas. The map is still under construction so we a prefix, `[PRERELEASE]` will
+# appear before its name and also no license or publcation information is present.
 parcellation = siibra.parcellations["Combined Macaque Brain Atlas: MEBRAINS, fMRI, CHARM"]
 print(parcellation.name)
 print(parcellation.description)
-print(parcellation.urls)
-print(parcellation.LICENSE)
 
 # %%
-# Some parcellations are mapped in several spaces. Therefore, loop through the
-# map registry while filtering for these parcellations. Then, fetch the images
-# for each and plot them on their respective space templates.
+# We can get the map as usual and also obtain the associated colormap.
 mp = parcellation.get_map("mebrains")
-cmap = mp.get_colormap()
-fetch_kwargs = {"max_bytes": 0.4 * 1024 ** 3} if "neuroglancer/precomputed" in mp.formats else {}
-img = mp.fetch(**fetch_kwargs)
+cmap = mp.get_colormap()  # get the colormap
+img = mp.fetch()
+
+# %%
+# Using these, we can draw them over the Mebrains template
 template_img = siibra.get_template("mebrains").fetch(resolution_mm=1)
 plotting.plot_roi(
     img,
     bg_img=template_img,
     cmap=cmap,
+    title=f"{mp.name}\nnumber of regions: {len(mp.regions)}",
+    black_bg=False,
+    cut_coords=(13, -5, 16),
+    colorbar=False,
+)
+
+# %%
+# The orignal colormap is designed to showcase the lower level structures. For a
+# more detailed view, we can choose a discrete color map
+plotting.plot_roi(
+    img,
+    bg_img=template_img,
+    cmap="Paired",
     title=f"{mp.name}\nnumber of regions: {len(mp.regions)}",
     black_bg=False,
     cut_coords=(13, -5, 16),
