@@ -23,14 +23,15 @@ import siibra
 from nilearn import plotting
 
 # %%
-# List all parcellations in siibra to see the new atlases
+# List preconfigured parcellations in siibra to see the new atlases and
+# their species
 siibra.parcellations.dataframe
 
 # %%
-# Marmoset atlas is an enitrely new species added. The atlas consists of a
-# reference space, a parcellation, and a volume mapping the leaves of the
-# parcellation. We can display the associated description, license, and
-# urls/dois and show the template image of the space as usual.
+# Callithrix jacchus, marmoset, atlas is an enitrely new species added. The
+# atlas consists of a reference space, a parcellation, and a volume mapping the
+# leaves of the parcellation. We can display the associated description,
+# license, and urls/dois and show the template image of the space as usual.
 marmoset_space = siibra.spaces["marmoset"]
 print(marmoset_space.name)
 print(marmoset_space.description)
