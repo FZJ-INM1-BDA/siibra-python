@@ -51,7 +51,7 @@ This section provides a catalogue of documented code examples that is systematic
 
       A set of more extensive example use cases.
 
-   .. grid-item-card:: Milestone 1.1 Notebooks
+   .. grid-item-card:: <img src="https://search.kg.ebrains.eu/static/img/ebrains_logo.svg" height="24" style="vertical-align:middle;"> Milestone 1.1 Notebooks
       :link: examples/milestone_1_1/index.html
       :link-type: url
       :columns: 12 12 12 12
