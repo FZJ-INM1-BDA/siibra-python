@@ -46,6 +46,7 @@ class PointDistribution(tabular.Tabular):
         decoder: Callable = None,
         datasets: list = [],
         id: str = None,
+        prerelease: bool = False,
     ):
         tabular.Tabular.__init__(
             self,
@@ -55,6 +56,7 @@ class PointDistribution(tabular.Tabular):
             data=None,  # lazy loading below
             datasets=datasets,
             id=id,
+            prerelease=prerelease,
         )
         self._transform = transform
         self._loader = HttpRequest(file_url, decoder)
