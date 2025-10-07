@@ -25,28 +25,16 @@ import matplotlib.pyplot as plt
 
 # %%
 # The tracing connectivity features are anchored at the injection regions.
-# To see all available options for mice, we query for tracing connectivity
-# distribution in the whole mouse atlas.
-parcellation = siibra.parcellations["Allen Mouse Common Coordinate Framework v3 2017"]
+# To see all available options for mice, query for tracing connectivity
+# distribution in the whole mouse atlas. We then get the published dataset names
+# and descriptions to see what is the nature of the integrated data.
+parcellation = siibra.parcellations["Allen Mouse v3 2017"]
 all_rat_tracing_conn_dists = siibra.features.get(
     parcellation, "tracing connectivity distribution"
 )
-for tcd in all_rat_tracing_conn_dists:
-    print(f"Injection region: {tcd.anchor}, subject: {tcd.subject}")
-
-
-# %%
-# Now, select a region and query for features. Then, display the dataset names
-# to see what type of data is there. The difference here is that one of the
-# datasets uses wild type mice while the other uses Cre-transgenic mice.
-injection_region = parcellation.get_region("Anterior cingulate area, dorsal part")
-tracing_conn_dists = siibra.features.get(
-    injection_region,
-    "tracing connectivity distribution"
-)
 datasets = {
     "".join(ds.name for ds in tcd.datasets): f"{tcd.description}\nDOI: {''.join(tcd.urls)}"
-    for tcd in tracing_conn_dists
+    for tcd in all_rat_tracing_conn_dists
 }
 for name, desc in datasets.items():
     print("Name:", name)
@@ -54,11 +42,28 @@ for name, desc in datasets.items():
     print()
 
 # %%
+# Print the injection regions and subjects for each feature before making a
+# finer region selection
+for tcd in all_rat_tracing_conn_dists:
+    print(f"Injection region: {tcd.anchor}, subject: {tcd.subject}")
+
+# %%
+# The dataset descriptions obtained above explain that there is one dataset for
+# wild type mice and another for Cre-transgenic mice. Therefore, we can compare
+# how the tracer travled in both after selecting a specific injection region;
+# for example, anterior cingulate area, dorsal part.
+injection_region = parcellation.get_region("Anterior cingulate area, dorsal part")
+tcds_AntCinDorsal = siibra.features.get(
+    injection_region,
+    "tracing connectivity distribution"
+)
+
+# %%
 # Furthermore, it is described that point data are derived from images of
 # anterogradely labeled axonal projections from different cerebro-cortical
 # locations to four subcortical brain regions. These regions are encoded in the
 # subject name:
-for f in tracing_conn_dists:
+for f in tcds_AntCinDorsal:
     print(f.subject)
 
 # %%
@@ -75,12 +80,12 @@ fig, axs = plt.subplots(len(subcortical_regions), 1, figsize=(15, 24))
 for i, region in enumerate(subcortical_regions):
     tcd_cre = [
         tcd
-        for tcd in tracing_conn_dists
+        for tcd in tcds_AntCinDorsal
         if region in tcd.subject and "Cre-transgenic" in tcd.description
     ][0]
     tcd_wt = [
         tcd
-        for tcd in tracing_conn_dists
+        for tcd in tcds_AntCinDorsal
         if region in tcd.subject and "wild-type" in tcd.description
     ][0]
     display = plotting.plot_img(
@@ -91,7 +96,8 @@ for i, region in enumerate(subcortical_regions):
         cut_coords=tcd_wt.data.mean(axis=0),
         axes=axs[i],
         draw_cross=False,
-        black_bg=True
+        black_bg=True,
+        colorbar=False,
     )
     display.add_markers(
         tcd_wt.data,
@@ -105,4 +111,4 @@ for i, region in enumerate(subcortical_regions):
         marker_size=1,
         label="Cre-transgenic",
     )
-    plt.legend(loc="upper center")
+    plt.legend(loc="upper center", bbox_to_anchor=(1.4, 0.6), fontsize="x-large")
