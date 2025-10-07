@@ -67,7 +67,6 @@ plotting.view_img(
     bg_img=None,
     cmap="gray",
     symmetric_cmap=False,
-    title=t2_weighted_150um.name,
     black_bg=True,
     colorbar=False,
 )
@@ -79,7 +78,6 @@ plotting.view_img(
     bg_img=t2_weighted_150um_img,
     cmap="magma",
     symmetric_cmap=False,
-    title=f"{fractional_anisotropy}\non {t2_weighted_150um}",
     opacity=0.6,
     colorbar=False,
 )
