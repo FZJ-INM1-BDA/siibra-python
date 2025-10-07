@@ -57,7 +57,8 @@ plotting.view_img(
 )
 
 # %%
-# Now, select a volume of interest and plot 100um resolution MRI
+# To take adventage of the high resolution, select a volume of interest and
+# plot 100um resolution MRI
 voi = siibra.BoundingBox((-15.50, -21.50, -10.30), (1.70, 0.90, 0.10), space)
 mri_100um = [f for f in mri_images if "100micron" in f.name][0]
 voi_img = mri_100um.fetch(voi=voi, resolution_mm=-1)
