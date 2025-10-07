@@ -83,7 +83,9 @@ plotting.view_img(
 )
 
 
-# %% compare histograms between regions and modalities
+# %%
+# siibra can use the image data to draw samples from spefic regions of interest.
+# Here, we compare GABA/BZ densities in 4p right, hoc1 right, and 3b right.
 julich_brain = siibra.parcellations["julich 3.1"]
 regions = [
     julich_brain.get_region(spec)
