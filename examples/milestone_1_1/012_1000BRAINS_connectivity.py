@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-dMRI streamline matrices - 1000 Brains cohort
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dMRI streamline counts - 1000 Brains cohort
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
@@ -28,27 +28,27 @@ from nilearn import plotting
 # Here, Julich Brain is used to query for streamline counts. The query returns
 # datasets based on two different cohorts.
 julich_brain = siibra.parcellations["julich 3.1"]
-streamline_count_matrices = siibra.features.get(julich_brain, "streamlinecounts")
-for sc in streamline_count_matrices:
+streamline_counts = siibra.features.get(julich_brain, "streamlinecounts")
+for sc in streamline_counts:
     print(sc.cohort)
 # %%
-# Now, filter out the 1000BRAINS cohort and check the subject fields. This
-# dataset is constructed for showcasing group averages and we will rely on this
-sc = list(filter(lambda f: f.cohort == "1000BRAINS", streamline_count_matrices))[0]
+# After filtering out the 1000BRAINS cohort and we check the subject fields to
+# observe that the individual matrices corresponds to group of subjects.
+sc = [f for f in streamline_counts if f.cohort == "1000BRAINS"][0]
 print(sc.name)
 for s in sc:
     print("matrix:", s.subject)
 
 # %%
-hoc1left = julich_brain.get_region("hoc1 left")
+# We select a region to compare connectivity profiles among different age groups.
+area_hoc1_l = julich_brain.get_region("hoc1 left")
 fig, axs = plt.subplots(1, 7, sharey=True)
 fig.set_size_inches(15, 6)
 for i, grp in enumerate(sc):
     if "age" not in grp.subject:
         continue
     grp.plot(
-        regions=hoc1left,
-        backend="matplotlib",
+        regions=area_hoc1_l,
         min_connectivity=500,
         max_rows=10,
         ax=axs[i],
@@ -56,31 +56,32 @@ for i, grp in enumerate(sc):
     )
 
 # %%
-hoc1right = julich_brain.get_region("hoc1 right")
+# We then do the same comparison for area 44 right hemisphere in order to
+# observe the trends over age groups.
+area_44_r = julich_brain.get_region("44 right")
 fig, axs = plt.subplots(1, 7, sharey=True)
 fig.set_size_inches(15, 6)
 for i, grp in enumerate(sc):
     if "age" not in grp.subject:
         continue
     grp.plot(
-        regions=hoc1right,
-        backend="matplotlib",
+        regions=area_44_r,
         min_connectivity=500,
         max_rows=10,
-        logscale=True,
         ax=axs[i],
         title=grp.subject,
     )
 
 
 # %%
-youngest_group = sc[0]
-node_coords = youngest_group.compute_centroids("mni152")
+# Alternatively, using nilearn's connectome viewer, the connectivity matrices
+# can be explored in MNI 152 surface where the node coordinates refer to
+# centroids of the regions
+female_group = [f for f in sc if f.subject == "sex-group-mean-female"][0]
+node_coords = female_group.compute_centroids("mni152")
 plotting.view_connectome(
-    adjacency_matrix=youngest_group.data,
+    adjacency_matrix=female_group.data,
     node_coords=node_coords,
     edge_threshold="99%",
-    node_size=3,
-    colorbar=False,
-    edge_cmap="bwr",
+    node_size=2,
 )
