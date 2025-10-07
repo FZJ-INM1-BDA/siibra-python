@@ -28,20 +28,18 @@ for p in siibra.parcellations:
 
 # %%
 # A new Macaque atlas comprimised of receptor maps, retinotopy map, and CHARM
-# atlas. The map is still under construction so we a prefix, `[PRERELEASE]` will
-# appear before its name and also no license or publcation information is present.
+# atlas. The map is still under construction, hence, some metadata such as
+# license and publication information are not present.
 parcellation = siibra.parcellations["Combined Macaque Brain Atlas: MEBRAINS, fMRI, CHARM"]
 print(parcellation.name)
 print(parcellation.description)
 
 # %%
-# We can get the map as usual and also obtain the associated colormap.
+# We can get the map as usual and also obtain the associated colormap and draw
+# the map over the Mebrains template.
 mp = parcellation.get_map("mebrains")
-cmap = mp.get_colormap()  # get the colormap
+cmap = mp.get_colormap()
 img = mp.fetch()
-
-# %%
-# Using these, we can draw them over the Mebrains template
 template_img = siibra.get_template("mebrains").fetch(resolution_mm=1)
 plotting.plot_roi(
     img,
@@ -54,8 +52,9 @@ plotting.plot_roi(
 )
 
 # %%
-# The orignal colormap is designed to showcase the lower level structures. For a
-# more detailed view, we can choose a discrete color map
+# The orignal colormap is designed to showcase the organisataion of the lower
+# level structures. For a more detailed view, we can choose a discrete color map
+# such as "paired":
 plotting.plot_roi(
     img,
     bg_img=template_img,
