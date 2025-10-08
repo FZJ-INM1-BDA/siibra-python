@@ -54,7 +54,7 @@ plotting.plot_stat_map(
 )
 
 # %%
-# siibra can use the image data to draw samples from spefic regions of interest.
+# siibra can use the image data to draw samples from specific regions of interest.
 # Here, we compare GABA/BZ densities in 4p right, hoc1 right, and 3b right.
 julich_brain = siibra.parcellations["julich 3.1"]
 regions = [

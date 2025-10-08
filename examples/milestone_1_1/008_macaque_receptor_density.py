@@ -27,14 +27,14 @@ from nilearn import plotting
 
 # %%
 # Query for tabular features anchored in MEBRAINS atlas
-mebrains = siibra.parcellations["MEBRAINS monkey"]
-for f in siibra.features.get(mebrains, siibra.features.generic.Tabular):
+MEBRAINS = siibra.parcellations["MEBRAINS monkey"]
+for f in siibra.features.get(MEBRAINS, siibra.features.generic.Tabular):
     print("Modality:", f.modality)
 
 # %%
 # Specify receptor density modality
 receptor_density = siibra.features.get(
-    mebrains,
+    MEBRAINS,
     siibra.features.generic.Tabular,
     modality="Neurotransmitter receptor density",
 )[0]
@@ -62,13 +62,13 @@ receptor_density.plot(
 )
 
 # %%
-# Now, decipher the published masks of mebrains regions by iterating over
-# mebrains map:
-mebrains_map = mebrains.get_map("mebrains")
+# Now, decipher the published masks of MEBRAINS regions by iterating over
+# MEBRAINS map:
+MEBRAINS_map = MEBRAINS.get_map("MEBRAINS")
 mapped_regions = {}
 for r in receptor_density.data.index:
     try:
-        mapped_regions[r] = mebrains.get_region(r.replace("area_", "")).name
+        mapped_regions[r] = MEBRAINS.get_region(r.replace("area_", "")).name
     except ValueError:
         print(f"Mask of {r} is not yet published.")
 
@@ -80,10 +80,10 @@ for r, v in receptor_density.data[receptor].items():
     if r in mapped_regions:
         receptor_values[mapped_regions[r] + " left"] = v
         receptor_values[mapped_regions[r] + " right"] = v
-receptor_density_map = mebrains_map.colorize(receptor_values, resolution_mm=-1)
+receptor_density_map = MEBRAINS_map.colorize(receptor_values, resolution_mm=-1)
 plotting.view_img(
     receptor_density_map.fetch(),
-    bg_img=mebrains_map.space.get_template().fetch(),
+    bg_img=MEBRAINS_map.space.get_template().fetch(),
     cmap="magma",
     symmetric_cmap=False,
     resampling_interpolation="nearest",
@@ -95,8 +95,8 @@ plotting.view_img(
 
 # compute the centroid of 8Bs left
 centroid = (
-    mebrains_map.parcellation.get_region("8Bs left")
-    .compute_centroids("mebrains")[0]
+    MEBRAINS_map.parcellation.get_region("8Bs left")
+    .compute_centroids("MEBRAINS")[0]
     .coordinate
 )
 # compute the max and min values of the intensities for a standard colarbar across the plots
@@ -110,10 +110,10 @@ for i, receptor in enumerate(receptor_density.data.columns):
         if r in mapped_regions:
             receptor_values[mapped_regions[r] + " left"] = v
             receptor_values[mapped_regions[r] + " right"] = v
-    receptor_density_map = mebrains_map.colorize(receptor_values, resolution_mm=-1)
+    receptor_density_map = MEBRAINS_map.colorize(receptor_values, resolution_mm=-1)
     plotting.plot_stat_map(
         receptor_density_map.fetch(),
-        bg_img=mebrains_map.space.get_template().fetch(),
+        bg_img=MEBRAINS_map.space.get_template().fetch(),
         cmap="magma",
         resampling_interpolation="nearest",
         cut_coords=centroid,

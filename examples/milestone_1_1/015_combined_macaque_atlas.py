@@ -36,11 +36,11 @@ print(parcellation.description)
 
 # %%
 # We can get the map as usual and also obtain the associated colormap and draw
-# the map over the Mebrains template.
-mp = parcellation.get_map("mebrains")
+# the map over the MEBRAINS template.
+mp = parcellation.get_map("MEBRAINS")
 cmap = mp.get_colormap()
 img = mp.fetch()
-template_img = siibra.get_template("mebrains").fetch(resolution_mm=1)
+template_img = siibra.get_template("MEBRAINS").fetch(resolution_mm=1)
 plotting.plot_roi(
     img,
     bg_img=template_img,
@@ -52,7 +52,7 @@ plotting.plot_roi(
 )
 
 # %%
-# The orignal colormap is designed to showcase the organisataion of the lower
+# The original colormap is designed to showcase the organisataion of the lower
 # level structures. For a more detailed view, we can choose a discrete color map
 # such as "paired":
 plotting.plot_roi(

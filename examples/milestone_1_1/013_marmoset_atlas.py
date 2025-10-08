@@ -28,7 +28,7 @@ from nilearn import plotting
 siibra.parcellations.dataframe
 
 # %%
-# Callithrix jacchus, marmoset, atlas is an enitrely new species added. The
+# Callithrix jacchus, marmoset, atlas is an entirely new species added. The
 # atlas consists of a reference space, a parcellation, and a volume mapping the
 # leaves of the parcellation. We can display the associated description,
 # license, and urls/dois and show the template image of the space as usual.

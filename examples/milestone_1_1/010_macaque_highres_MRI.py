@@ -27,7 +27,7 @@ from nilearn import plotting
 
 # %%
 # Query for mri images registered on MEBRAINS population-based monkey template
-space = siibra.spaces.get("mebrains")
+space = siibra.spaces.get("MEBRAINS")
 mri_images = siibra.features.get(space, "mri")
 for f in mri_images:
     print(f.name)
@@ -46,7 +46,7 @@ plotting.view_img(
 )
 
 # %%
-# Or plot without background in full resolution since Mebrains macaque template
+# Or plot without background in full resolution since MEBRAINS macaque template
 # has 40um resolution
 plotting.view_img(
     mri_180um.fetch(resolution_mm=-1),
@@ -57,7 +57,7 @@ plotting.view_img(
 )
 
 # %%
-# To take adventage of the high resolution, select a volume of interest and
+# To take advantage of the high resolution, select a volume of interest and
 # plot 100um resolution MRI
 voi = siibra.BoundingBox((-15.50, -21.50, -10.30), (1.70, 0.90, 0.10), space)
 mri_100um = [f for f in mri_images if "100micron" in f.name][0]

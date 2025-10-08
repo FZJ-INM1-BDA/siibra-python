@@ -35,7 +35,7 @@ for lf in layerwise_cell_densities:
     print(lf.name)
 
 # %%
-# The data is represented as pandas DataFrame where layers are indicies and
+# The data is represented as pandas DataFrame where layers are indices and
 # cell statistics in columns.
 layerwise_cell_densities[0].data
 # %%
@@ -59,7 +59,7 @@ profiles[0].plot(y="density_mean", error_y="density_std", backend="plotly", kind
 
 # %%
 # Even more detailed data, namely, the cell locations in the patches can be
-# obtained by cell distribution modality features. The data is primarly
+# obtained by cell distribution modality features. The data is primarily
 # represented as a DataFrame and contains the locations in the patch and size
 # along with the coordinates in the BigBrain.
 cell_dists = siibra.features.get(area_hoc6, siibra.features.cellular.CellDistribution)
