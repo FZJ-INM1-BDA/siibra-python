@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """
-Amsterdam Brain
-~~~~~~~~~~~~~~~
+BigBrain PLI images
+~~~~~~~~~~~~~~~~~~~
 """
 
 
