@@ -23,26 +23,37 @@ import siibra
 import matplotlib.pyplot as plt
 from nilearn import plotting
 
-waxhlom_space = siibra.spaces["waxholm"]
-
 # %%
 # Receptor autoradiography sections are anchored in to bounding boxes in
-# reference spaces. To see all available options for rat, query for with waxholm
-# space. Then, display dataset information:
+# reference spaces. To see all available sections registered in waxholm rat
+# brain reference space, we query with the space.
+waxhlom_space = siibra.spaces["waxholm"]
 autoradiography_sections = siibra.features.get(waxhlom_space, "autoradiography section")
+for section in autoradiography_sections:
+    print(section)
+
+
+# %%
+# These are published datasets and we can obtain the publication details and
+# the description from the EBRAINS Knowlegde Graph. The names and the
+# descriptions of the datasets show that they are differ by the
+# neurotransmitters studied.
 datasets = {
-    "".join(ds.name for ds in tcd.datasets): "".join(tcd.urls)
+    "".join(
+        f"Name: {ds.name}\nDescription: {ds.description}" for ds in tcd.datasets
+    ): "".join(tcd.urls)
     for tcd in autoradiography_sections
 }
-for name, doi in datasets.items():
-    print("Name:", name)
+for desc, doi in datasets.items():
+    print("Name:", desc)
     print("DOI:", doi)
 
 # %%
-# The names of the datasets reveal that they are divided by neurotransmitters.
-# For a detailed look at the serotonin, we query for sections intersecting with
-# the region dorsal thalamus. `siibra` will automatically merge the masks of
-# the children of dorsal thalamus create a mask to compare against the sections.
+# Since the sections are registered in a common coordiante space, we can query
+# for sections that intersect with a brain region. To demonstrate, query with
+# dorsal thalamus and filter serotonin autoradiography sections. `siibra` will
+# automatically merge the masks of the children of dorsal thalamus create a
+# mask to compare against the sections.
 thalamus = siibra.get_region("waxholm", "dorsal thalamus")
 sections = siibra.features.get(thalamus, "autoradiography section")
 print("Sections found:", len(sections))
@@ -50,31 +61,45 @@ serotonin_sections_thalamus = [s for s in sections if "serotonin" in s.name]
 print("Sections from the serotonin study:", len(serotonin_sections_thalamus))
 
 # %%
-# Next, display them using matplotlib:
-fig = plt.figure(figsize=(10, 28))
+# Display the intersecting sections using matplotlib
+fig = plt.figure(figsize=(7, 20))
 for i, section in enumerate(serotonin_sections_thalamus):
     img = section.fetch()
     plt.subplot(13, 3, i + 1)
-    plt.imshow(img.dataobj.squeeze().T, aspect="equal")
+    plt.imshow(img.dataobj.squeeze().T, aspect="equal", cmap="jet")
     plt.axis("off")
 
 
 # %%
+# Similarly, we query for autoradiography volumes with the waxholm space and
+# obtain the metedata.
 autoradiography_volumes = siibra.features.get(waxhlom_space, "autoradiography volume")
 datasets = {
-    "".join(ds.name for ds in tcd.datasets): "".join(tcd.urls)
+    "".join(f"Name: {ds.name}\nDescription: {ds.description}"for ds in tcd.datasets): "".join(tcd.urls)
     for tcd in autoradiography_volumes
 }
-for name, doi in datasets.items():
-    print("Name:", name)
+for desc, doi in datasets.items():
+    print(desc)
     print("DOI:", doi)
 
 
 # %%
+# View the M2 receptor autoradiography volumes using nilearn.
+M2_volume = autoradiography_volumes[0]
 plotting.view_img(
-    autoradiography_volumes[0].fetch(),
+    M2_volume.fetch(),
     bg_img=waxhlom_space.get_template().fetch(),
-    cmap="magma",
+    cmap="jet",
     symmetric_cmap=False,
-    title=autoradiography_volumes[0].name
+    opacity=0.8,
 )
+
+# %%
+# `siibra` can compute the intersection of volumes if they are in the same
+# space. Therefore, we can obtain the mask of thalamus and find the intersection
+# with the M2 autoradiography to extract the values corresponding only to
+# thalamus, which can be visualized with matplotlib.
+thalamus_mask = thalamus.get_regional_mask(waxhlom_space)
+intersection_mask_nii = M2_volume.intersection(thalamus_mask).fetch()
+M2_vals_thalamus = M2_volume.fetch().get_fdata()[intersection_mask_nii.get_fdata() > 0]
+plt.hist(M2_vals_thalamus.flatten(), bins=100)
