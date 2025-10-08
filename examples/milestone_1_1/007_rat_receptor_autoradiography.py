@@ -35,7 +35,7 @@ for section in autoradiography_sections:
 
 # %%
 # These are published datasets and we can obtain the publication details and
-# the description from the EBRAINS Knowlegde Graph. The names and the
+# the description from the EBRAINS Knowledge Graph. The names and the
 # descriptions of the datasets show that they are differ by the
 # neurotransmitters studied.
 datasets = {
@@ -49,7 +49,7 @@ for desc, doi in datasets.items():
     print("DOI:", doi)
 
 # %%
-# Since the sections are registered in a common coordiante space, we can query
+# Since the sections are registered in a common coordinate space, we can query
 # for sections that intersect with a brain region. To demonstrate, query with
 # dorsal thalamus and filter serotonin autoradiography sections. `siibra` will
 # automatically merge the masks of the children of dorsal thalamus create a
