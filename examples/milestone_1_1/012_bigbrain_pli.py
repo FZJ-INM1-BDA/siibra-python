@@ -24,53 +24,8 @@ from nilearn import plotting
 
 # %%
 mni152 = siibra.spaces["bigbrain"]
-transmittance = siibra.features.get(mni152, "transmittance")
+transmittance = siibra.features.get(mni152, "pli")
 for f in transmittance:
     print(f.name)
     print(f.modality)
 plotting.plot_img(transmittance[0].fetch(), cmap="magma", title=transmittance[0].name)
-
-# %%
-# t2_weighted_150um = [
-#     f
-#     for f in siibra.features.get(
-#         mni152,
-#         siibra.features.generic.Image,
-#         modality="T2-weighted (T2w) image",
-#     )
-#     if "150 micrometer" in f.name
-# ][0]
-# t2_weighted_150um_img = t2_weighted_150um.fetch()
-# plotting.view_img(
-#     t2_weighted_150um_img,
-#     bg_img=None,
-#     cmap="gray",
-#     symmetric_cmap=False,
-#     black_bg=True,
-#     colorbar=False,
-# )
-
-# %%
-# plotting.view_img(
-#     fa_img,
-#     bg_img=t2_weighted_150um_img,
-#     cmap="magma",
-#     symmetric_cmap=False,
-#     opacity=0.6,
-#     colorbar=False,
-# )
-
-
-# %% compare histograms between regions and modalities
-# julich_brain = siibra.parcellations["julich 3.1"]
-# regions = [
-#     julich_brain.get_region(spec)
-#     for spec in ["4p right", "hoc1 right", "3b right"]
-# ]
-# fig, axs = plt.subplots(1, 3, figsize=(10, 5), sharey=True, sharex=True)
-# for i, r in enumerate(regions):
-#     pmap = r.get_regional_map(mni152, "statistical")
-#     samples = pmap.draw_samples(10000)
-#     values = fractional_anisotropy.evaluate_points(samples)
-#     axs[i].hist(values[values > 0], bins=50, density=True)
-#     axs[i].set_title(r.name)
