@@ -85,7 +85,7 @@ siibra - Software interface for interacting with brain atlases
             .. grid-item::
                 :columns: 12 4 4 4
 
-                .. image:: https://search.kg.ebrains.eu/static/img/ebrains_logo.svg
+                .. image:: _static/ebrains_logo.svg
 
             .. grid-item::
                 :columns: 12 8 8 8
