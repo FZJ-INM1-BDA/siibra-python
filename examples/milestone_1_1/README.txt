@@ -1,5 +1,5 @@
 
-Milestone 1.1
--------------
+EBRAINS 2 - Milestone 1.1 and Deliverable 1.2
+---------------------------------------------
 
-Ebrains 2, mileston 1.1 notebooks.
+Preliminary access to atlas foundation datasets carried out in task 1.3.
