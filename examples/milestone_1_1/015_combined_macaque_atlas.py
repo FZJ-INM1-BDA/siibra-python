@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Combined Macaque Brain Atlas
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Macaque Brain Composite Atlas
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
@@ -30,7 +30,7 @@ for p in siibra.parcellations:
 # A new Macaque atlas comprimised of receptor maps, retinotopy map, and CHARM
 # atlas. The map is still under construction, hence, some metadata such as
 # license and publication information are not present.
-parcellation = siibra.parcellations["Combined Macaque Brain Atlas: MEBRAINS, fMRI, CHARM"]
+parcellation = siibra.parcellations["Macaque Brain Composite Atlas: MEBRAINS, fMRI, CHARM"]
 print(parcellation.name)
 print(parcellation.description)
 
