@@ -55,16 +55,20 @@ for name, desc in datasets.items():
 # %%
 # The descriptions make it clear that the datasets differ in completeness of the
 # projections, i.e., one from sensorimotor cortex and the other is the entirety
-# of the cerebral cortex. Using this information, the results can be compared:
+# of the cerebral cortex. Using this information, the results of using different
+# tracer from the same injection region can be compared. Additionally, data
+# descriptor found through at the KG entry, see doi, explains that the second
+# part of the subject names corresponds to the tracer used.
 waxholm_rat_template = siibra.get_template("waxholm").fetch()
-fig, axs = plt.subplots(len(tracing_conn_dists), 1, figsize=(15, 48))
+fig, axs = plt.subplots(len(tracing_conn_dists), 1, figsize=(10, 27))
 for i, tcd in enumerate(tracing_conn_dists):
     color = "r" if "entire cerebral cortex" in tcd.description else "b"
+    s, t = tcd.subject.split("_")
     display = plotting.plot_img(
         img=waxholm_rat_template,
         bg_img=None,
         cmap="gray",
-        title=f"subject: {tcd.subject}",
+        title=f"subject: {s}, tracer: {t}",
         cut_coords=tcd.data.mean(axis=0),
         axes=axs[i],
         draw_cross=False,
@@ -73,40 +77,22 @@ for i, tcd in enumerate(tracing_conn_dists):
     display.add_markers(tcd.data, marker_color=color, marker_size=1)
 
 # %%
-# Additionally, these features contain extra information in the subject names,
-# specifically the second part of the subject names corresponds to the tracer
-# used. This information can be found in the detailed data descriptor found by
-# following dois. So another comparison can be made by based on the tracer of
-# interests. As an example, filter out the features in which "Fr" tracer was
-# used and display them on the waxholm rat template:
+# Alternatively, we can chose a tracer of interest and compare the results
+# regardless the injection region. As an example, filter out the features in
+# which "Fr" tracer was used and display them on the waxholm rat template:
 tcd_Fr = [conn for conn in tracing_conn_dists if conn.subject.split("_")[1] == "Fr"]
 
-fig, axs = plt.subplots(len(tcd_Fr), 1, figsize=(15, 16))
+fig, axs = plt.subplots(len(tcd_Fr), 1, figsize=(10, 12))
 for i, tcd in enumerate(tcd_Fr):
+    s, t = tcd.subject.split("_")
     display = plotting.plot_img(
         img=waxholm_rat_template,
         bg_img=None,
         cmap="gray",
-        title=tcd.name,
+        title=f"subject: {s}, tracer: {t}",
         axes=axs[i],
         cut_coords=tcd.data.mean(axis=0),
+        draw_cross=False,
+        black_bg=True,
     )
     display.add_markers(tcd.data, marker_color="r", marker_size=1)
-
-
-# %%
-# Similarly, the features using "BDA" tracer can be filtered out and displayed:
-tcd_BDA = [
-    conn for conn in tracing_conn_dists if conn.subject.split("_")[1] == "BDA"
-]
-fig, axs = plt.subplots(len(tcd_BDA), 1, figsize=(15, 16))
-for i, tcd in enumerate(tcd_BDA):
-    display = plotting.plot_img(
-        img=waxholm_rat_template,
-        bg_img=None,
-        cmap="gray",
-        title=tcd.name,
-        axes=axs[i],
-        cut_coords=tcd.data.mean(axis=0),
-    )
-    display.add_markers(tcd.data, marker_color="b", marker_size=1)
