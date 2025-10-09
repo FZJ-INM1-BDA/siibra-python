@@ -30,10 +30,9 @@ for v in volumes:
     print(v.modality)
 
 # %%
-blockface = [v for v in volumes if "The Enriched Connectome" in v.name]
-plotting.view_img(
-    volumes[0].fetch(),
+blockface = [v for v in volumes if "The Enriched Connectome" in v.name][0]
+plotting.plot_img(
+    blockface.fetch(resolution_mm=1),
     bg_img=None,
     cmap="gray",
-    title=v.name,
 )
