@@ -201,21 +201,6 @@ if not is_allen_api_microarray_service_available():
         }
     )
 
-html_theme_options = {
-    "logo_only": True,
-    "display_version": True,
-    "prev_next_buttons_location": "bottom",
-    "style_external_links": False,
-    "vcs_pageview_mode": "",
-    "style_nav_header_background": "white",
-    # Toc options
-    "collapse_navigation": True,
-    "sticky_navigation": True,
-    "navigation_depth": 3,
-    "includehidden": True,
-    "titles_only": False,
-}
-
 # -- Options for HTML output -------------------------------------------------
 html_theme = "sphinx_book_theme"
 html_show_sourcelink = False
@@ -225,13 +210,24 @@ html_favicon = "_static/siibra_favicon.ico"
 html_permalinks = False
 
 html_theme_options = {
+    "logo_only": True,
     "logo": {
         "image_light": "_static/siibra-python.jpeg",
         "image_dark": "_static/siibra-logo-darkmode.png",
     },
+    "display_version": True,
+    "prev_next_buttons_location": "bottom",
+    "style_external_links": False,
+    "vcs_pageview_mode": "",
+    "style_nav_header_background": "white",
+    "collapse_navigation": True,
+    "sticky_navigation": True,
+    "navigation_depth": 3,
+    "includehidden": True,
+    "titles_only": False,
+    "extra_footer": "<div>This software code is funded from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 945539 (Human Brain Project SGA3).</div>",
     "repository_url": "https://github.com/FZJ-INM1-BDA/siibra-python",
     "use_repository_button": True,
-    "extra_footer": "<div>This software code is funded from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 945539 (Human Brain Project SGA3).</div>",
-    "collapse_navigation": True,
-    "max_navbar_depth": 2,
+    "use_download_button": False,
+    "use_fullscreen_button": False,
 }
