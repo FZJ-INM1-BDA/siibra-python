@@ -76,7 +76,7 @@ subcortical_regions = [
     "Thalamus",
 ]
 allen_mouse_template = siibra.get_template("mouse").fetch()
-fig, axs = plt.subplots(len(subcortical_regions), 1, figsize=(15, 24))
+fig, axs = plt.subplots(len(subcortical_regions), 1, figsize=(19, 24))
 for i, region in enumerate(subcortical_regions):
     tcd_cre = [
         tcd
@@ -111,4 +111,4 @@ for i, region in enumerate(subcortical_regions):
         marker_size=1,
         label="Cre-transgenic",
     )
-    plt.legend(loc="upper center", bbox_to_anchor=(1.4, 0.6), fontsize="x-large")
+    plt.legend(loc="upper center", bbox_to_anchor=(1.5, 0.6), fontsize="x-large")
