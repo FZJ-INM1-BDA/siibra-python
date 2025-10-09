@@ -24,7 +24,7 @@ os.environ["SIIBRA_LOG_LEVEL"] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
 
-pio.renderers.default = "browser"
+pio.renderers.default = "sphinx_gallery"
 
 
 def is_allen_api_microarray_service_available():
