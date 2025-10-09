@@ -23,9 +23,17 @@ import siibra
 from nilearn import plotting
 
 # %%
-mni152 = siibra.spaces["bigbrain"]
-transmittance = siibra.features.get(mni152, "pli")
-for f in transmittance:
-    print(f.name)
-    print(f.modality)
-plotting.plot_img(transmittance[0].fetch(), cmap="magma", title=transmittance[0].name)
+bigbrain = siibra.spaces["bigbrain"]
+volumes = siibra.features.get(bigbrain, "blockface")
+for v in volumes:
+    print(v.name)
+    print(v.modality)
+
+# %%
+blockface = [v for v in volumes if "The Enriched Connectome" in v.name]
+plotting.view_img(
+    volumes[0].fetch(),
+    bg_img=None,
+    cmap="gray",
+    title=v.name,
+)
