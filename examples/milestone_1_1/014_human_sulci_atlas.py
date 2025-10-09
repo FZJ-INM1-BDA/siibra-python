@@ -99,4 +99,4 @@ plotting.plot_surf(
     engine="plotly",
     cmap=custom_cmap,
     colorbar=False,
-).show()
+).show(renderer="sphinx_gallery")
