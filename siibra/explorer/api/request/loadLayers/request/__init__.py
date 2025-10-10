@@ -4,7 +4,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from uuid import uuid4
+from dataclasses import dataclass, field
 from typing import List, Optional
 
 Len4num = List[float]
@@ -12,6 +13,9 @@ Len4num = List[float]
 
 @dataclass
 class AddableLayer:
+    # TODO fix siibra-explorer API doc, requiring clType and id
+    id: str = field(default_factory=lambda: str(uuid4()))
+    clType: str = "customlayer/nglayer"
     source: Optional[str] = None
     shader: Optional[str] = None
     transform: Optional[List[Len4num]] = None
