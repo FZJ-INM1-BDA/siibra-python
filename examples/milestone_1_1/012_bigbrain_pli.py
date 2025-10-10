@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """
-BigBrain PLI images
-~~~~~~~~~~~~~~~~~~~
+High resolution imaging of human fiber architecture
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 
