@@ -347,12 +347,27 @@ class RegionalConnectivity(Feature, Compoundable):
             )
 
         profile = self.get_profile(regions, min_connectivity, max_rows, direction)
-        kwargs["kind"] = kwargs.get("kind", "barh")
         if backend == "matplotlib":
             kwargs["logy"] = kwargs.get("logy", logscale)
+            kwargs["color"] = kwargs.get(
+                "color",
+                [
+                    [c / 255 for c in rgb]
+                    for _, rgb in self.get_profile_colorscale(
+                        region=regions,
+                        min_connectivity=min_connectivity,
+                        max_rows=max_rows,
+                        direction=direction,
+                        backend=backend,
+                    )
+                ],
+            )
+            kwargs["kind"] = kwargs.get("kind", "bar")
+            kwargs["rot"] = kwargs.get("rot", 90)
             return profile.plot(*args, backend=backend, **kwargs)
         elif backend == "plotly":
             kwargs.update({
+                "kind": kwargs.get("kind", "barh"),
                 "color": kwargs.get("color", profile.data.columns[0]),
                 "x": kwargs.get("x", profile.data.columns[0]),
                 "y": kwargs.get("y", [r.name for r in profile.data.index]),
@@ -380,7 +395,8 @@ class RegionalConnectivity(Feature, Compoundable):
         min_connectivity: float = 0,
         max_rows: int = None,
         direction: Literal['column', 'row'] = 'column',
-        colorgradient: str = "jet"
+        colorgradient: str = "jet",
+        backend: str = "plotly",
     ) -> Iterator[Tuple[_region.Region, Tuple[int, int, int]]]:
         """
         Extract the colorscale corresponding to the regional profile from the
@@ -407,17 +423,25 @@ class RegionalConnectivity(Feature, Compoundable):
         Iterator[Tuple[_region.Region, Tuple[int, int, int]]]
             Color values are in RGB 255.
         """
-        from plotly.express.colors import sample_colorscale
-        profile = self.get_profile(region, min_connectivity, max_rows, direction)
-        normalized = profile.data / profile.data.max()
-        colorscale = sample_colorscale(
-            colorgradient,
-            normalized.values.reshape(len(profile.data))
+        profile = self.get_profile(
+            region=region,
+            min_connectivity=min_connectivity,
+            max_rows=max_rows,
+            direction=direction
         )
-        return zip(
-            profile.data.index.values,
-            [eval(c.removeprefix('rgb')) for c in colorscale]
-        )
+        normalized = ((profile.data - profile.data.min()) / (profile.data.max() - profile.data.min())).values[:, 0]
+        if backend == "plotly":
+            from plotly.express.colors import sample_colorscale
+            colorscale = sample_colorscale(colorgradient, normalized)
+            colors = [eval(c.replace("rgb", "")) for c in colorscale]
+        elif backend == "matplotlib":
+            import matplotlib.cm as cm
+            cmap = cm.get_cmap(colorgradient)
+            colors = [tuple(int(255 * c) for c in cmap(v)[:3]) for v in normalized]
+        else:
+            raise ValueError(f"Unknown backend '{backend}'. Use 'plotly' or 'matplotlib'.")
+
+        return zip(profile.data.index.values, colors)
 
     def __len__(self):
         return len(self._filename)

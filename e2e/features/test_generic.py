@@ -21,7 +21,7 @@ def teardown_module():
 def create_json(conf: Dict) -> str:
     if conf["@type"] == "siibra/feature/tabular/v0.1":
         folderpath = Path(CUSTOM_CONF_FOLDER + "features/tabular/")
-    elif conf["@type"] == "siibra/feature/image/v0.1":
+    elif conf["@type"] == "siibra/feature/voi/v0.1":
         folderpath = Path(CUSTOM_CONF_FOLDER + "features/images/")
     else:
         raise NotImplementedError(f"There is no generic feature type '{conf['@type']}'")
@@ -44,7 +44,7 @@ generic_feature_configs = [
             "modality": "any modality",
             "description": "this describes the feature",
             "species": "Homo sapiens",
-            "file": "ttps://data-proxy.ebrains.eu/api/v1/buckets/p22717-hbp-d000045_receptors-human-7A_pub/v1.0/7A_pr_examples/5-HT1A/7A_pr_5-HT1A.tsv",
+            "file": "https://data-proxy.ebrains.eu/api/v1/buckets/p22717-hbp-d000045_receptors-human-7A_pub/v1.0/7A_pr_examples/5-HT1A/7A_pr_5-HT1A.tsv",
         },
         "queries": [
             (siibra.get_region("julich 3.1", "acbl"), siibra.features.generic.Tabular),
@@ -61,7 +61,7 @@ generic_feature_configs = [
             "modality": "any modality",
             "description": "this describes the feature",
             "species": "Rattus norvegicus",
-            "file": "ttps://data-proxy.ebrains.eu/api/v1/buckets/p22717-hbp-d000045_receptors-human-7A_pub/v1.0/7A_pr_examples/5-HT1A/7A_pr_5-HT1A.tsv",
+            "file": "https://data-proxy.ebrains.eu/api/v1/buckets/p22717-hbp-d000045_receptors-human-7A_pub/v1.0/7A_pr_examples/5-HT1A/7A_pr_5-HT1A.tsv",
         },
         "queries": [
             (siibra.get_region("Waxholm 4", "Cochlear nucleus, ventral part"), siibra.features.generic.Tabular),
@@ -71,7 +71,7 @@ generic_feature_configs = [
     },
     {
         "config": {
-            "@type": "siibra/feature/image/v0.1",
+            "@type": "siibra/feature/voi/v0.1",
             "name": "some name for custom image feature",
             "modality": "foo",
             "ebrains": {"openminds/DatasetVersion": "73c1fa55-d099-4854-8cda-c9a403c6080a"},
@@ -96,7 +96,7 @@ def test_digestion(conf_path: str):
         conf = json.load(fp)
     f = siibra.from_json(conf_path)
     assert f.category == "generic"
-    if conf["@type"] == "siibra/feature/image/v0.1":
+    if conf["@type"] == "siibra/feature/voi/v0.1":
         assert isinstance(f, siibra.features.generic.Image)
         assert isinstance(f.fetch(), (Nifti1Image, dict))
     elif conf["@type"] == "siibra/feature/tabular/v0.1":

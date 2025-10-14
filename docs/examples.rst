@@ -57,7 +57,6 @@ This section provides a catalogue of documented code examples that is systematic
       :columns: 12 12 12 12
       :class-card: sd-shadow-sm
       :margin: 2 2 auto auto
-
    
 .. toctree::
    :hidden:

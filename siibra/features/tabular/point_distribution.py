@@ -46,6 +46,7 @@ class PointDistribution(tabular.Tabular):
         decoder: Callable = None,
         datasets: list = [],
         id: str = None,
+        prerelease: bool = False,
     ):
         tabular.Tabular.__init__(
             self,
@@ -55,6 +56,7 @@ class PointDistribution(tabular.Tabular):
             data=None,  # lazy loading below
             datasets=datasets,
             id=id,
+            prerelease=prerelease,
         )
         self._transform = transform
         self._loader = HttpRequest(file_url, decoder)
@@ -63,6 +65,16 @@ class PointDistribution(tabular.Tabular):
     @property
     def name(self):
         return self._subject + " - " + super().name
+
+    @property
+    def subject(self):
+        return self._subject
+
+    @property
+    def space(self):
+        from ...core.concept import get_registry
+
+        return get_registry("Space").get(self._transform["target_space_id"])
 
     def __len__(self):
         """Total number of coordinates."""
@@ -85,7 +97,7 @@ class PointDistribution(tabular.Tabular):
         coordinates = self.data.loc[:, ["x", "y", "z"]].to_numpy()
         ptcld = PointCloud(
             coordinates=coordinates,
-            space=self._transform["target_space_id"],
+            space=self.space,
             sigma_mm=sigma_mm,
             labels=labels,
         )
@@ -136,9 +148,8 @@ class PointDistribution(tabular.Tabular):
         """
         return from_pointcloud(
             points=self.as_pointcloud(),
-            target=self.anchor.space.get_template(template_kwargs.pop("variant", None)),
+            target=self.space.get_template(),
             normalize=normalize,
-            min_num_point=1,
             **template_kwargs,
         )
 

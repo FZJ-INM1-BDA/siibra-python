@@ -14,137 +14,106 @@
 # limitations under the License.
 
 """
-dMRI streamline matrices and fiber bundles
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+dMRI streamline fiber bundles
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 # %%
-# We start by loading the library
 import siibra
-from siibra.volumes.volume import ReducedVolume
 from nilearn import plotting
+import matplotlib.pyplot as plt
 
 # %%
+# All fiber bundles are connected to several regions where the fiber ends are
+# connected to. Therefore, siibra can query the bundles using these regions.
 # We choose a cortical region from Julich Brain and find fiber bundles
-# overlapping with this region
+# that have an ending at this region.
 julich_brain = siibra.parcellations["julich 3.1"]
 area3b_left = julich_brain.get_region("Area 3b (PostCG) left")
-bundles_passing_3bleft = siibra.features.get(
+bundles_3bleft = siibra.features.get(
     area3b_left, siibra.features.connectivity.StreamlineFiberBundle
 )
-print("Bundles found:", len(bundles_passing_3bleft))
-print(bundles_passing_3bleft[12].name)
-print(bundles_passing_3bleft[12].description)
+print("Bundles found:", len(bundles_3bleft))
 
 
 # %%
-# Each bundle is represented as a dictionary of fibers which in turn are
-# represented as Contour objects. Countours are just PointClouds where the order
-# of the coordinates is important. (This enables warping the coordinates to
-# other spaces effeciently). Let us choose a bundle to demonstrate
-bundle = bundles_passing_3bleft[12]
+# The streamline fiber bundles are categorized as short and long bundles, which
+# is encoded in the modality. So we filter the short bundles using the modality.
+print({b.modality for b in bundles_3bleft})
+short_bundles_3bleft = [b for b in bundles_3bleft if "short" in b.modality]
+
+# %%
+# We can heck all the terminal regions a bundle is connected to by it's anchor
+# attribute..
+bundle = short_bundles_3bleft[0]
+terminal_regions = list(bundle.anchor.regions.keys())
+terminal_region_map = siibra.volumes.volume.merge(
+    [r.get_regional_map("mni152") for r in terminal_regions],
+    labels=[1, 2]
+)
+print("Terminal regions:")
+for r in terminal_regions:
+    print(r.name)
+
+
+# %%
+# Each bundle is represented as pandas DataFrames where each fiber is indexed
+# with an integer and coordinates on MNI 152 reference space for fiiber are
+# consecutively listed.
+print("Fiber count:", len(bundle.data.index.unique()))
 bundle.data
 
 
 # %%
-print("Fiber count:", len(bundle.data.index.unique()))
-plotting.plot_markers(
+# Using nilearn, display the coordinates of each fiber over the terminal regions.
+fig = plt.figure(figsize=(10, 4), dpi=600)
+display = plotting.plot_markers(
     node_values=bundle.data.index,
     node_coords=bundle.data.values,
-    node_cmap="jet",
+    node_cmap="turbo",
+    node_size=0.5,
     colorbar=False,
+    figure=fig,
+    node_kwargs={"marker": "o", "linewidths": 0},
 )
-
-
-# %%
-fibers = bundle.get_fibers()
-print(type(fibers[0]))
-
-# %%
-fiber_id = 0
-display = plotting.plot_img(
-    img=siibra.get_template("mni152").fetch(resolution_mm=1),
-    bg_img=None,
-    cmap="gray",
-    title=f"Bundle: {bundle.name} - fiber: {fiber_id}",
-    cut_coords=fibers[fiber_id].coordinates[25],
+terminal_regions = list(bundle.anchor.regions.keys())
+print("Terminal regions:")
+for r in terminal_regions:
+    print(r.name)
+terminal_region_map = siibra.volumes.volume.merge(
+    [r.get_regional_map("mni152") for r in terminal_regions],
+    labels=[1, 2]
 )
-display.add_markers(fibers[fiber_id].coordinates, marker_size=2)
-
-# %%
-warped_fiber = fibers[fiber_id].warp("bigbrain")
-display = plotting.plot_img(
-    img=siibra.get_template("bigbrain").fetch(resolution_mm=1),
-    bg_img=None,
-    cmap="gray",
-    title=f"Bundle: {bundle.name} - fiber: {fiber_id}",
-    cut_coords=warped_fiber.coordinates[25],
-)
-display.add_markers(warped_fiber.coordinates, marker_size=2)
+display.add_overlay(terminal_region_map.fetch(), cmap="winter")
 
 
 # %%
-# Next we will utilize streamline count matrices for further analysis
-streamline_count_matrices = siibra.features.get(julich_brain, "streamlinecounts")
-for sc in streamline_count_matrices:
-    print(sc.cohort)
-# %%
-# Now, filter out the 1000BRAINS cohort and check the subject fields. This
-# dataset is constructed for showcasing group averages and we will rely on this
-sc = list(filter(lambda f: f.cohort == "1000BRAINS", streamline_count_matrices))[0]
-print(sc.name)
-for s in sc:
-    print(s.subject)
+# Similarly, long bundles can be filtered out. Long bundles have more
+# desctriptive names, allowing further filtering options.
+long_bundles_3bleft = [b for b in bundles_3bleft if "long" in b.modality]
+for b in long_bundles_3bleft:
+    print(b.name)
 
 # %%
-youngest_group = sc.get_element("age-group-mean-18-24")
-youngest_group.plot(
-    regions=area3b_left, backend="plotly", min_connectivity=400, logscale=True
-)
-
-# %%
-oldest_group = sc.get_element("age-group-mean-75-87")
-oldest_group.plot(
-    regions=area3b_left, backend="plotly", min_connectivity=400, logscale=True
-)
-
-# %%
-# interestingly, area 4p shows decreased connectivity. Let us examine the
-# bundles passing through both regions for further analysis
-profile = oldest_group.get_profile(region=area3b_left, min_connectivity=400).data
-area_4pleft = profile.index[2]
-bundles_passing_both = [
-    f for f in bundles_passing_3bleft if area_4pleft in f.anchor.regions
-]
-for bundle in bundles_passing_both:
-    print(bundle.name)
-
-# %%
-# Let us now check the masks of each region and a bundle passing through both
-mp = julich_brain.get_map("mni152")
-img = ReducedVolume(
-    [mp.get_volume(r) for r in [area_4pleft, area3b_left]],
-    [mp.get_index(r).label for r in [area_4pleft, area3b_left]],
-).fetch()
-display = plotting.plot_glass_brain(img, title=f"Bundle: {bundle.name}", cmap="Blues")
-display.add_markers(
-    bundle.data.values, marker_size=1, marker_color=bundle.data.index, cmap="jet"
-)
-
-# %%
-# Now, plot the masks of the regions overlapping with the selected bundle to see
-# the path it takes
-regionnames = {
-    r.name for r in bundle.anchor.regions
-}  # regions this bundle passing through
-print(regionnames)
-
-img_regions = ReducedVolume(
-    [mp.get_volume(r) for r in regionnames],
-    [mp.get_index(r).label for r in regionnames],
-).fetch()
-plotting.view_img(
-    img_regions,
-    symmetric_cmap=False,
+# We can easily filter "Left_Arcuate" and plot it over its terminal regions
+# such that each fiber has a ditinct color as above.
+bundle = [b for b in long_bundles_3bleft if "Left_Arcuate" in b.name][0]
+print("Fiber count:", len(bundle.data.index.unique()))
+fig = plt.figure(figsize=(10, 4), dpi=300)
+display = plotting.plot_markers(
+    node_values=bundle.data.index,
+    node_coords=bundle.data.values,
+    node_cmap="turbo",
+    node_size=0.5,
     colorbar=False,
-    cmap=julich_brain.get_map("mni152").get_colormap(regionnames),
+    figure=fig,
+    node_kwargs={"marker": "o", "linewidths": 0},
 )
+terminal_regions = list(bundle.anchor.regions.keys())
+print("Terminal regions:")
+for r in terminal_regions:
+    print(r.name)
+terminal_region_map = siibra.volumes.volume.merge(
+    [r.get_regional_map("mni152") for r in terminal_regions],
+    labels=list(range(len(terminal_regions)))
+)
+display.add_overlay(terminal_region_map.fetch(), cmap="winter")
