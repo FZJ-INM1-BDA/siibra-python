@@ -15,6 +15,7 @@ Len4num = List[float]
 class AddableLayer:
     # TODO fix siibra-explorer API doc, requiring clType and id
     id: str = field(default_factory=lambda: str(uuid4()))
+    type: str = "image"
     clType: str = "customlayer/nglayer"
     source: Optional[str] = None
     shader: Optional[str] = None

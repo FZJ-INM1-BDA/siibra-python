@@ -191,14 +191,14 @@ class Explorer:
             )
         )
 
-    def overlay(self, *, url: str, transform=IDENTITY):
+    def overlay(self, *, url: str, type="image", transform=IDENTITY):
         self._check_alive()
         from .api.request.loadLayers.request import Model, Params, AddableLayer
 
         ReqHndl.sxplr_requests.append(
             Model(
                 id=str(uuid4()),
-                params=Params(layers=[AddableLayer(source=url, transform=transform)]),
+                params=Params(layers=[AddableLayer(source=url, type=type, transform=transform)]),
             )
         )
 
