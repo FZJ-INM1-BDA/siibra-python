@@ -270,20 +270,8 @@ class BigBrain1MicronPatchQuery(
         self.lower_threshold = lower_threshold
         query.LiveQuery.__init__(self)
 
-    def query(
-        self, concept: structure.BrainStructure, **kwargs
-    ) -> List[BigBrain1MicronPatch]:
-
-        # make sure input is an image volume
-        # TODO function should be extended to deal with other concepts as well
-        if not isinstance(concept, Volume):
-            logger.warning(
-                "Querying BigBrain1MicronPatch features requires to "
-                "query with an image volume."
-            )
-            return []
-
-        # threshold image volume, if requested
+    def _get_volume_boundingbox(self, vol: Volume):
+        """Extract query bounding box from image volume."""
         if self.lower_threshold > 0.0:
             logger.info(
                 f"Applying lower threshold of {self.lower_threshold} "
@@ -296,6 +284,24 @@ class BigBrain1MicronPatchQuery(
         else:
             query_vol = concept
         bb_bbox = query_vol.get_boundingbox().warp('bigbrain')
+
+    def query(
+        self, concept: structure.BrainStructure, **kwargs
+    ) -> List[BigBrain1MicronPatch]:
+
+        # make sure input is an image volume
+        # TODO function should be extended to deal with other concepts as well
+        if isinstance(concept, Volume):
+            bb_bbox = get_volume_boundingbox(concept)
+        if isinstance(concept, BoundingBox):
+            bb_bbox = concept
+        else:
+            logger.warning(
+                "Querying BigBrain1MicronPatch features "
+                f"by {concept.__class__.name} is not supported."
+            )
+            return []
+
 
         # find 1 micron BigBrain sections intersecting the thresholded volume
         sections: List[CellbodyStainedSection] = [

@@ -1,6 +1,7 @@
 # Copyright 2018-2025
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
+
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -70,12 +71,12 @@ values_per_region = fp.data.loc[(task, label)]
 
 # colorize and plot the parcellation map
 colored_map = julichbrain.get_map(space="MNI 152").colorize(values_per_region.to_dict())
-plotting.plot_stat_map(
+view = plotting.plot_stat_map(
     colored_map.fetch(),
     cmap="magma",
     resampling_interpolation="nearest",
-    title=f"{task}-{label} ({julichbrain.shortname})",
     cut_coords=area3b_left.compute_centroids("mni152")[0].coordinate
 )
+view.title(f"{task}/{label} activations\n(average z-scores for {julichbrain.shortname} atlas)", size=10)
 
 # %%
