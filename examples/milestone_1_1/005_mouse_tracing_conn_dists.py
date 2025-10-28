@@ -45,12 +45,12 @@ feature_table
 
 # %%
 # The table reveals that features originate from 18 different brain areas.
-feature_table.region.drop_duplicates().to_frame().reset_index(drop=True)
+feature_table.anchor.drop_duplicates().to_frame().reset_index(drop=True)
 
 # %%
 # Furthermore, features originate from three different datasets, including one for
 # wild type and another for Cre-transgenic mice.
-feature_table.dataset.drop_duplicates().to_frame().reset_index(drop=True)
+feature_table.datasets.drop_duplicates().to_frame().reset_index(drop=True)
 
 # %%
 # The subject specification is a combination of subject id and subcortical projection target.
