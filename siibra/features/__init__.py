@@ -16,6 +16,7 @@
 
 from typing import Union
 from functools import partial
+import pandas as pd
 
 from . import (
     connectivity,
@@ -115,3 +116,19 @@ def render_ascii_tree(class_or_classname: Union[type, str]):
         "%s%s" % (pre, node.name)
         for pre, _, node in RenderTree(tree)
     ))
+
+def compile_feature_table(featurelist, attributelist, converters={}):
+    """utility function to compile feature metadata into a pandas DataFrame"""
+    data = []
+    for feature in featurelist:       
+        entry = {}
+        for attr in attributelist:
+            assert hasattr(feature, attr)
+            if attr in converters:
+                entry[attr] = converters[attr](getattr(feature, attr))
+            else:
+                entry[attr] = getattr(feature, attr)
+        entry["feature"] = feature
+        data.append(entry)
+    return pd.DataFrame(data)
+
