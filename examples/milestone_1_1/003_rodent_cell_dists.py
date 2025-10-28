@@ -22,94 +22,104 @@ Cell distributions in rodent brains
 import siibra
 from nilearn import plotting
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # %%
-# In order to see all available cell distribution features for mice, query with
-# the whole mouse parcellation and display dataset information:
-allen_mice_parc = siibra.parcellations["Allen Mouse v3 2017"]
-mice_cell_dists = siibra.features.get(allen_mice_parc, "cell distribution")
-print("Found:", len(mice_cell_dists), "cell distributions")
-datasets = {
-    "".join(ds.name for ds in cd.datasets): f"{cd.description}\nDOI: {''.join(cd.urls)}"
-    for cd in mice_cell_dists
-}
-for name, desc in datasets.items():
-    print("Name:", name)
-    print("Description:", desc)
+# Cell distributions measurements are available for rodent and human brains.
+# For mouse, features are typically anchored to regions of the Allen Mouse Brain Atlas.
+amba = siibra.parcellations.get("Allen Mouse v3 2017")
+features = siibra.features.get(amba, siibra.features.cellular.CellDistribution)
+print(len(features), "cell distribution features anchored to Allen Mouse Brain Atlas.")
 
 # %%
-# These cell distributions are coming from the same dataset. To see what differs
-# among these features we print the anchored regions and subject information
-for cd in mice_cell_dists:
-    print(f"Region: {cd.anchor}, subject specification: {cd.subject}")
+# More detail about the features is available via their metadata. 
+# For example, we can inspect the name, DOI and description of the corresponding datasets,
+# to see that the distributions refer to paravalbumin positive neurons from
+# the dataset by Kim et al. (2017).
+# TODO Feature name is not descriptive enough
+# TODO polish dictionary layout for URLs, confusing that the "urls" attribute has "url" as a key again.
+dataset = features[0].datasets[0]
+print(features[0].name)
+print(dataset.description)
 
 # %%
-# There are several smaller olfactory areas in mice brain, however, we can get
-# cell distributions anchored in them by just querying for the lower level
-# structure "Olfactory areas:
-olfactory_areas = allen_mice_parc.get_region("Olfactory areas")
-olfactory_areas.render_tree()
-olfactory_areas_dists = siibra.features.get(olfactory_areas, "cell distribution")
+# The mouse cell distributions originate from the same dataset,
+# but are anchored to different brain regions and stem from different subjects.
+# Collecting the anchoring and subject information into a dataframe provides a nice overview of these several hundred variants.
+pd.DataFrame([
+    {'region': str(f.anchor), 'subject': f.subject} 
+    for f in features
+])
 
 # %%
-# To display them, we first need the combined mask of all the sub-structures.
-# This can be achieved with `volume.merge` method.
-olfactory_areas_mask = siibra.volumes.volume.merge(
-    [r.get_regional_mask("allen") for r in olfactory_areas]
+# Instead of using the whole atlas, the search query can directly target specific
+# brain regions. 
+# Here we query all cell distributions anchored to subtree of olfactory areas,
+# yielding about 40 variants.
+olfactory = amba.get_region("Olfactory areas")
+features = siibra.features.get(olfactory, "cell distribution")
+featuretable = pd.DataFrame([
+    {'region': str(f.anchor), 'subject': f.subject} 
+    for f in features
+])
+featuretable
+
+# %%
+# We build a figure of the densities in the different olfactory subregions,
+# plotted as points on the brain template per subject.
+template = siibra.get_template("mouse").fetch()
+
+# A merged olfactory segmentation mask is used to support the figure.
+mask = siibra.volumes.volume.merge(
+    [r.get_regional_mask("allen") for r in olfactory]
 ).fetch()
 
-# %%
-# We can use the fact that there are several subjects in this dataset by
-# plotting the cell distribution per subject. Furthermore, the cells can be
-# easily colored based on their original anchor.
-allen_mouse_template = siibra.get_template("mouse").fetch()
-for subject in {s.subject for s in olfactory_areas_dists}:
-    celldists_for_subject = [cd for cd in olfactory_areas_dists if cd.subject == subject]
+# For the plots, points will be color-grouped by the anchored brain area.
+# TODO set all plots to teh same cut_coords for better comparison
+for subject in featuretable.subject.unique():
+    selection = [f for f in features if f.subject == subject]
     display = plotting.plot_roi(
-        olfactory_areas_mask,
-        bg_img=allen_mouse_template,
+        mask,
+        bg_img=template,
         colorbar=False,
         draw_cross=False,
-        title=cd.subject,
-        cut_coords=celldists_for_subject[0].data.mean()
+        title=subject,
+        cut_coords=selection[0].data.mean()
     )
-    cmap = plt.get_cmap("tab10", len(celldists_for_subject))
-    for i, cd in enumerate(celldists_for_subject):
+    cmap = plt.get_cmap("tab10", len(selection))
+    for i, cd in enumerate(selection):
         display.add_markers(cd.data, marker_color=cmap(i), marker_size=1)
 
 # %%
-# In exact same way, the cell distributions for rat brain can be queried.
-waxholm_rat_parc = siibra.parcellations["Waxholm Sprague Dawley rat brain (v4)"]
-rat_cell_dists = siibra.features.get(waxholm_rat_parc, "cell distribution")
-print("Found:", len(rat_cell_dists), "cell distributions")
-datasets = {
-    "".join(ds.name for ds in cd.datasets): f"{cd.description}\nDOI: {''.join(cd.urls)}"
-    for cd in rat_cell_dists
-}
-for name, desc in datasets.items():
-    print("Name:", name)
-    print("Description:", desc)
-
-for cd in rat_cell_dists:
-    print(f"Region: {cd.anchor}, subject specification: {cd.subject}")
+# The same workflow can be applied to cell distributions in rat brains.
+waxholm = siibra.parcellations.get("Waxholm rat (v4)")
+features = siibra.features.get(waxholm, "cell distribution")
+print(len(features), "cell distribution features anchored to Waxholm Rat Brain Atlas.")
+dataset = features[0].datasets[0]
+print(features[0].name)
+print(dataset.description)
 
 # %%
 # Similarly, we can display the parvalbumin positive neurons in olfactory bulb
 # for rat per subject
-olfactory_bulb = waxholm_rat_parc.get_region("olfactory bulb")
-olfactory_bulb_mask = olfactory_bulb.get_regional_mask("waxholm").fetch()
-rat_olfactory_bulb_dists = siibra.features.get(olfactory_bulb, "cell distribution")
-wax_rat_template = siibra.get_template("Waxholm").fetch()
-for subject in {s.subject for s in rat_olfactory_bulb_dists}:
-    celldists_for_subject = [cd for cd in rat_olfactory_bulb_dists if cd.subject == subject]
+olfactory = waxholm.get_region("olfactory bulb")
+mask = olfactory.get_regional_mask("waxholm").fetch()
+features = siibra.features.get(olfactory, "cell distribution")
+featuretable = pd.DataFrame([
+    {'region': str(f.anchor), 'subject': f.subject} 
+    for f in features
+])
+template = siibra.get_template("Waxholm").fetch()
+for subject in featuretable.subject.unique():
+    selection = [cd for cd in features if cd.subject == subject]
     display = plotting.plot_roi(
-        olfactory_bulb_mask,
-        bg_img=wax_rat_template,
+        mask,
+        bg_img=template,
         colorbar=False,
         draw_cross=False,
         title=cd.subject,
-        cut_coords=celldists_for_subject[0].data.mean()
+        cut_coords=selection[0].data.mean()
     )
-    cmap = plt.get_cmap("jet", len(celldists_for_subject))
-    for i, cd in enumerate(celldists_for_subject):
+    cmap = plt.get_cmap("jet", len(selection))
+    for i, cd in enumerate(selection):
         display.add_markers(cd.data, marker_color=cmap(i), marker_size=1)
