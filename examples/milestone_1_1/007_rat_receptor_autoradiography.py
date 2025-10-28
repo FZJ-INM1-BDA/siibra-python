@@ -30,7 +30,7 @@ from nilearn import plotting
 # Standard queries use the bounding box of each section, not the image content.
 waxholm_space = siibra.spaces["waxholm"]
 features_ar = siibra.features.get(waxholm_space, "autoradiography section")
-feature_table = siibra.features.compile_feature_table(
+feature_table = siibra.features.tabulate(
     features_ar, ['name', 'datasets'],
     converters={'datasets': lambda ds: next(iter(ds))})
 feature_table

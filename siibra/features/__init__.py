@@ -117,7 +117,7 @@ def render_ascii_tree(class_or_classname: Union[type, str]):
         for pre, _, node in RenderTree(tree)
     ))
 
-def compile_feature_table(featurelist, attributelist, converters={}):
+def tabulate(featurelist, attributelist, converters={}):
     """utility function to compile feature metadata into a pandas DataFrame"""
     data = []
     for feature in featurelist:       

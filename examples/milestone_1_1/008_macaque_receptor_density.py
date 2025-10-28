@@ -26,15 +26,18 @@ from nilearn import plotting
 # sphinx_gallery_thumbnail_number = -1
 
 # %%
-# Query for tabular features anchored in MEBRAINS atlas
-MEBRAINS = siibra.parcellations["MEBRAINS monkey"]
-for f in siibra.features.get(MEBRAINS, siibra.features.generic.Tabular):
-    print("Modality:", f.modality)
+# The Macaque atlas is a rather new development in siibra. 
+# We compile an overview of all tabular features linked with the
+# MEBRAINS parcellation.
+mebrains = siibra.parcellations.get("MEBRAINS macaque")
+features = siibra.features.get(mebrains, siibra.features.generic.Tabular)
+feature_table = siibra.features.tabulate(features, ['modality'])
+feature_table
 
 # %%
 # Specify receptor density modality
 receptor_density = siibra.features.get(
-    MEBRAINS,
+    mebrains,
     siibra.features.generic.Tabular,
     modality="Neurotransmitter receptor density",
 )[0]
@@ -64,11 +67,11 @@ receptor_density.plot(
 # %%
 # Now, decipher the published masks of MEBRAINS regions by iterating over
 # MEBRAINS map:
-MEBRAINS_map = MEBRAINS.get_map("MEBRAINS")
+MEBRAINS_map = mebrains.get_map("MEBRAINS")
 mapped_regions = {}
 for r in receptor_density.data.index:
     try:
-        mapped_regions[r] = MEBRAINS.get_region(r.replace("area_", "")).name
+        mapped_regions[r] = mebrains.get_region(r.replace("area_", "")).name
     except ValueError:
         print(f"Mask of {r} is not yet published.")
 

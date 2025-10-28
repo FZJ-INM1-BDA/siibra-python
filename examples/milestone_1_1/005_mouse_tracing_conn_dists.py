@@ -37,7 +37,7 @@ print(f"Found {len(features_tracing)} tracing connectivity distribution features
 # %%
 # Compile an overview of the retrieved features in terms of their
 # anchored brain region, subject specification and origin dataset.
-feature_table = siibra.features.compile_feature_table(
+feature_table = siibra.features.tabulate(
     features_tracing, ["anchor", "subject", "datasets"],
     converters={"anchor": str, "datasets": lambda ds: next(iter(ds)).name},
 )

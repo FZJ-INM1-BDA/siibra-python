@@ -33,7 +33,7 @@ waxholm_parc = siibra.parcellations.get("waxholm rat")
 features_tracing = siibra.features.get(
     waxholm_parc, "tracing connectivity distribution"
 )
-feature_table = siibra.features.compile_feature_table(
+feature_table = siibra.features.tabulate(
     features_tracing,
     ["anchor", "subject", "name", "datasets"],
     converters={"anchor": str, "datasets": lambda ds: next(iter(ds))},
