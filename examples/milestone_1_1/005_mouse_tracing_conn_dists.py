@@ -22,77 +22,72 @@ Mouse tracing connectivity distribution
 import siibra
 from nilearn import plotting
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # %%
-# The tracing connectivity features are anchored at the injection regions.
-# To see all available options for mice, query for tracing connectivity
-# distribution in the whole mouse atlas. We then get the published dataset names
-# and descriptions to see what is the nature of the integrated data.
-parcellation = siibra.parcellations["Allen Mouse v3 2017"]
-all_rat_tracing_conn_dists = siibra.features.get(
-    parcellation, "tracing connectivity distribution"
+# Tracing connectivity features are anchored to brain regions matching their 
+# injection sites.
+# A query by the Allen mouse brain atlas yields many features
+# stemming from three different datasets.
+amba_v3 = siibra.parcellations.get("Allen Mouse v3 2017")
+features_tracing = siibra.features.get(
+    amba_v3, "tracing connectivity distribution"
 )
-datasets = {
-    "".join(ds.name for ds in tcd.datasets): f"{tcd.description}\nDOI: {''.join(tcd.urls)}"
-    for tcd in all_rat_tracing_conn_dists
-}
-for name, desc in datasets.items():
-    print("Name:", name)
-    print("Description:", desc)
-    print()
+print(f"Found {len(features_tracing)} tracing connectivity distribution features.")
 
 # %%
-# Print the injection regions and subjects for each feature before making a
-# finer region selection
-for tcd in all_rat_tracing_conn_dists:
-    print(f"Injection region: {tcd.anchor}, subject: {tcd.subject}")
+# Compile an overview of the retrieved features in terms of their
+# anchored brain region, subject specification and origin dataset.
+feature_table = pd.DataFrame([
+    {
+        'region': str(f.anchor),
+        'subject': f.subject,
+        'dataset': f.datasets[0].name
+    }
+    for f in features_tracing]
+)
+feature_table
 
 # %%
-# The dataset descriptions obtained above explain that there is one dataset for
-# wild type mice and another for Cre-transgenic mice. Therefore, we can compare
-# how the tracer travled in both after selecting a specific injection region;
-# for example, anterior cingulate area, dorsal part.
-injection_region = parcellation.get_region("Anterior cingulate area, dorsal part")
-tcds_AntCinDorsal = siibra.features.get(
-    injection_region,
-    "tracing connectivity distribution"
+# The table reveals that features originate from 18 different brain areas.
+feature_table.region.drop_duplicates().to_frame().reset_index(drop=True)
+
+# %%
+# Furthermore, features originate from three different datasets, including one for
+# wild type and another for Cre-transgenic mice.
+feature_table.dataset.drop_duplicates().to_frame().reset_index(drop=True)
+
+# %%
+# The subject specification is a combination of subject id and subcortical projection target.
+# We split the field in the table.
+feature_table['target'] = [s.split('_')[-1] for s in feature_table.subject]
+feature_table['subject'] = ['_'.join(s.split('_')[:-1]) for s in feature_table.subject]
+
+# In total, fourteen different subcortical projection targets are represented.
+feature_table.target.drop_duplicates().to_frame().reset_index(drop=True)
+
+# %%
+# The feature query can be refined to tracing connectivity from a specific brain area.
+region_acd = amba_v3.get_region("Anterior cingulate area, dorsal part")
+features_tracing_acd = siibra.features.get(
+    region_acd, "tracing connectivity distribution"
 )
 
 # %%
-# Furthermore, it is described that point data are derived from images of
-# anterogradely labeled axonal projections from different cerebro-cortical
-# locations to four subcortical brain regions. These regions are encoded in the
-# subject name:
-for f in tcds_AntCinDorsal:
-    print(f.subject)
-
-# %%
-# Using these information, the tracing results can be compared between wild type
-# and Cre-transgenic mice per subcortical region:
-subcortical_regions = [
-    "Caudoputamen",
-    "PontineNuclei",
-    "SuperiorColliculus",
-    "Thalamus",
-]
+# Tracing results could then be compared between wild type
+# and Cre-transgenic mice for different subcortical targets:
+subcortical_regions = feature_table.target.unique()[:4]
 allen_mouse_template = siibra.get_template("mouse").fetch()
 fig, axs = plt.subplots(len(subcortical_regions), 1, figsize=(19, 24))
-for i, region in enumerate(subcortical_regions):
-    tcd_cre = [
-        tcd
-        for tcd in tcds_AntCinDorsal
-        if region in tcd.subject and "Cre-transgenic" in tcd.description
-    ][0]
-    tcd_wt = [
-        tcd
-        for tcd in tcds_AntCinDorsal
-        if region in tcd.subject and "wild-type" in tcd.description
-    ][0]
+for i, target in enumerate(subcortical_regions):
+    selection = [f for f in features_tracing_acd if target in f.subject]
+    tcd_tg = [f for f in selection if "transgenic" in f.description][0]
+    tcd_wt = [f for f in selection if "wild-type" in f.description][0]
     display = plotting.plot_img(
         img=allen_mouse_template,
         bg_img=None,
         cmap="gray",
-        title=region,
+        title=target,
         cut_coords=tcd_wt.data.mean(axis=0),
         axes=axs[i],
         draw_cross=False,
@@ -106,9 +101,11 @@ for i, region in enumerate(subcortical_regions):
         label="Wild type"
     )
     display.add_markers(
-        tcd_cre.data,
+        tcd_tg.data,
         marker_color="b",
         marker_size=1,
         label="Cre-transgenic",
     )
     plt.legend(loc="upper center", bbox_to_anchor=(1.5, 0.6), fontsize="x-large")
+
+# %%
