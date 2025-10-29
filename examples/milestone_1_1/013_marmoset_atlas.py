@@ -67,8 +67,7 @@ plotting.view_img(
 
 # %%
 # The leaf regions of the parcellation is mapped on the space and has its own
-# colormap, which can be displayed with nilearn
-template_img = marmoset_template.fetch(max_bytes=1024**3)
+# colormap, which can be displayed with nilearn.
 cmap = marmoset_map.get_colormap()
 map_img = marmoset_map.fetch(max_bytes=1024**3)
 plotting.view_img(
@@ -79,6 +78,21 @@ plotting.view_img(
     black_bg=False,
     colorbar=False,
 )
+
+# %%
+# The leaf regions also have probability maps which can be accessed through the
+# statistical map. We can plot them similarly using nilearn.
+marmoset_pmaps = marmoset_parc.get_map(marmoset_space, "statistical")
+region = "medial superior temporal area of cortex"
+plotting.plot_stat_map(
+    marmoset_pmaps.fetch(region),
+    bg_img=template_img,
+    black_bg=False,
+    threshold=0,
+    title=f"PMAP of {region}",
+    cmap="magma"
+)
+
 
 # %%
 # Furthermore, morphometry volumes are avaiable as data features for the marmoset atlas.
