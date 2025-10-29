@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Human sulci atlas
-~~~~~~~~~~~~~~~~~
+Sulci atlas of the human brain
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 """
 
 # %%
@@ -24,62 +24,54 @@ from nilearn import plotting
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
-# %%
-# List all parcellations in siibra to see the new atlases
-for p in siibra.parcellations:
-    print(p)
 
 # %%
-# Sulci atlas is another new addition to siibra. We can display associated
-# description, license, and urls/dois
-sulci_parcellation = siibra.parcellations["Sulci atlas"]
+# The sulci atlas provides probabilistic maps of sulci in the human brain.
+sulci_parcellation = siibra.parcellations.get("Sulci atlas")
 print(sulci_parcellation.name)
+print(sulci_parcellation.species)
 print(sulci_parcellation.description)
-print(sulci_parcellation.urls)
+print(",".join(sulci_parcellation.urls))
 print(sulci_parcellation.LICENSE)
 
 # %%
-# The human sulci atlas was mapped in several spaces. Loop through the map
-# registry while filtering for this parcellation and fetch the images
-# to plot them on their respective reference templates.
+# Sulci maps are provided for multiple reference spaces. 
 cut_coords = siibra.Point((11, 52, 30), "mni 152")  # define the coordinate to view the maps
 
 # plot each in a subplot
 mapped_spaces = siibra.maps.dataframe.query(
     f'parcellation == "{sulci_parcellation.name}"'
 )["space"]
-for mp in siibra.maps:
-    if mp.parcellation != sulci_parcellation:
-        continue
-    cmap = mp.get_colormap()
+for space in mapped_spaces:
+    parcmap = siibra.get_map(sulci_parcellation, space, 'labelled')
+    cmap = parcmap.get_colormap()
     fetch_kwargs = (
-        {"max_bytes": 0.4 * 1024**3} if "neuroglancer/precomputed" in mp.formats else {}
+        {"max_bytes": 0.4 * 1024**3} 
+        if "neuroglancer/precomputed" in parcmap.formats
+        else {}
     )
-    img = mp.fetch(**fetch_kwargs)
-    template_img = siibra.get_template(mp.space).fetch(resolution_mm=1)
+    img = parcmap.fetch(**fetch_kwargs)
+    template_img = siibra.get_template(space).fetch(resolution_mm=1)
     plotting.plot_roi(
         img,
         bg_img=template_img,
         cmap=cmap,
-        title=mp.space.name,
+        title=space.name,
         black_bg=False,
-        cut_coords=cut_coords.warp(mp.space).coordinate,
+        cut_coords=cut_coords.warp(space).coordinate,
         colorbar=False,
     )
 
 # %%
-# Additionally, majority of the sulci can be fetched as surfaces. To illustrate,
-# draw the surfaces along with the colin 27 template
-mp = sulci_parcellation.get_map("colin 27")
+# Many sulci are also available as surface meshes.
+parcmap = sulci_parcellation.get_map("colin 27")
 meshes = {
-    r: mp.fetch(r, format="mesh")
-    for r in mp.regions
-    if mp.fetch(r, format="mesh") is not None
+    r: parcmap.fetch(r, format="mesh")
+    for r in parcmap.regions
+    if parcmap.fetch(r, format="mesh") is not None
 }
-labels = [mp.get_index(r).label for r in meshes.keys()]
-template_mesh = mp.space.get_template().fetch(format="mesh")
-
-# combine meshes for display engine
+labels = [parcmap.get_index(r).label for r in meshes.keys()]
+template_mesh = parcmap.space.get_template().fetch(format="mesh")
 mesh = siibra.commons.merge_meshes(
     meshes=[template_mesh] + list(meshes.values()),
     labels=[0] + labels
