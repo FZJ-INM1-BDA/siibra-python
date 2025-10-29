@@ -60,7 +60,8 @@ for i, r in enumerate(regions):
     pmap = r.get_regional_map(mni152, "statistical")
     samples = pmap.draw_samples(10000)
     values = gaba_autoradiography.evaluate_points(samples)
-    axs[i].hist(values[values > 0], bins=50, density=True)
+    axs[i].hist(values[values > 0], bins=20, density=True)
     axs[i].set_title(r.name)
+    axs[i].grid(True)
 
 # %%
