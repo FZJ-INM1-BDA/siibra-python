@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Mouse tracing connectivity distribution
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Subcortical projections of tracer injections in mouse brains
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
@@ -24,9 +24,9 @@ from nilearn import plotting
 import matplotlib.pyplot as plt
 
 # %%
-# Tracing connectivity features are anchored to brain regions matching their 
+# Tracing connectivity features are anchored to brain regions matching their
 # injection sites.
-# A query by the Allen mouse brain atlas yields many features
+# A query by the Allen mouse brain atlas yields features
 # stemming from three different datasets.
 amba_v3 = siibra.parcellations.get("Allen Mouse v3 2017")
 features_tracing = siibra.features.get(

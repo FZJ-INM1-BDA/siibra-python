@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-dMRI streamline fiber bundles
+Streamline fiber bundles from diffusion MRI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 # %%

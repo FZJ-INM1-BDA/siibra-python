@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Rat receptor autoradiography
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Receptor autoradiography in rat brains
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
@@ -24,8 +24,8 @@ import matplotlib.pyplot as plt
 from nilearn import plotting
 
 # %%
-# Receptor autoradiography sections are anchored to reference spaces 
-# through image registration. 
+# Receptor autoradiography sections are anchored to reference spaces
+# through image registration.
 # A query thus uses the reference space as the starting point.
 # Standard queries use the bounding box of each section, not the image content.
 waxholm_space = siibra.spaces["waxholm"]

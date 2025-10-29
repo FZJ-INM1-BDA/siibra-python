@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-dMRI streamline counts - 1000 Brains cohort
+Parcellation-averaged sructural connectivity from diffusion MRI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 

@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Rat tracing connectivity distribution
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Subcortical projections of tracer injections in rat brains
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 

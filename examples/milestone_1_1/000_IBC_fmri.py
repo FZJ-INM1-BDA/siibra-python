@@ -15,7 +15,7 @@
 # limitations under the License.
 
 """
-IBC - fMRI fingerprints with tasks and contrast labels
+Functional fingerprints from IBC fMRI data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 # %%

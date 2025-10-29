@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Cell distributions in human brain
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Cell distributions in human brains
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 """
 
 # %%
