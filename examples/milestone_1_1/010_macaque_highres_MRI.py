@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-High-resolution structural MRI of themacaque brain
+High-resolution structural MRI of the macaque brain
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
@@ -31,13 +31,12 @@ from nilearn import plotting
 space = siibra.spaces.get("MEBRAINS")
 features_mri = siibra.features.get(space, "mri")
 siibra.features.tabulate(
-    features_mri, ['name', 'urls'],
-    converters={'urls': lambda u: ','.join(u)}
+    features_mri, ["name", "urls"], converters={"urls": lambda u: ",".join(u)}
 )
 
 # %%
 # We fetch thhe 180um resolution image, resulting in a Nifti1Image object
-# that can be plotted with the template using common tools such as nilearn's 
+# that can be plotted with the template using common tools such as nilearn's
 # plotting module.
 # TODO this could use a better colormap or vmax setting
 tmpl_img = space.get_template().fetch(resolution_mm=-1)
@@ -52,7 +51,7 @@ plotting.view_img(
 
 
 # %%
-# To take advantage of the high resolution while 
+# To take advantage of the high resolution while
 # avoiding to download the full high-resolution volume,
 # a region of interest can  be used for fetching.
 voi = siibra.BoundingBox((-15.50, -21.50, -10.30), (1.70, 0.90, 0.10), space)

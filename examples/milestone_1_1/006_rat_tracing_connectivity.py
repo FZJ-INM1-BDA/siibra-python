@@ -26,9 +26,9 @@ import matplotlib.pyplot as plt
 
 
 # %%
-# Tracing connectivity features in the rat brain are anchored at the injection regions.
-# To see all available options, we query for tracing connectivity distribution
-# in the whole waxholm rat atlas.
+# Tracing connectivity features in the rat brain are anchored at the injection
+# regions. To see all available options, we query for tracing connectivity
+# distribution in the whole waxholm rat atlas.
 waxholm_parc = siibra.parcellations.get("waxholm rat")
 features_tracing = siibra.features.get(
     waxholm_parc, "tracing connectivity distribution"
@@ -52,7 +52,7 @@ print(datasets[0].description)
 
 # %%
 # The tabular data in each feature contains x/y/z coordinates of tracer
-# projections originating from the injection region. We visualize the points 
+# projections originating from the injection region. We visualize the points
 # for different subjets and tracers of the selected injection brain region.
 template = siibra.get_template("waxholm").fetch()
 fig, axs = plt.subplots(len(selection), 1, figsize=(10, 27))
@@ -70,4 +70,3 @@ for i, tcd in enumerate(selection.feature):
         black_bg=True,
     )
     display.add_markers(tcd.data, marker_color=color, marker_size=1)
-

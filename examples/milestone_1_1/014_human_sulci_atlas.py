@@ -15,7 +15,7 @@
 
 """
 Sulci atlas of the human brain
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
@@ -35,18 +35,20 @@ print(",".join(sulci_parcellation.urls))
 print(sulci_parcellation.LICENSE)
 
 # %%
-# Sulci maps are provided for multiple reference spaces. 
-cut_coords = siibra.Point((11, 52, 30), "mni 152")  # define the coordinate to view the maps
+# Sulci maps are provided for multiple reference spaces.
+cut_coords = siibra.Point(
+    (11, 52, 30), "mni 152"
+)  # define the coordinate to view the maps
 
 # plot each in a subplot
 mapped_spaces = siibra.maps.dataframe.query(
     f'parcellation == "{sulci_parcellation.name}"'
 )["space"]
 for space in mapped_spaces:
-    parcmap = siibra.get_map(sulci_parcellation, space, 'labelled')
+    parcmap = siibra.get_map(sulci_parcellation, space, "labelled")
     cmap = parcmap.get_colormap()
     fetch_kwargs = (
-        {"max_bytes": 0.4 * 1024**3} 
+        {"max_bytes": 0.4 * 1024**3}
         if "neuroglancer/precomputed" in parcmap.formats
         else {}
     )
@@ -74,14 +76,12 @@ labels = [parcmap.get_index(r).label for r in meshes.keys()]
 template_mesh = parcmap.space.get_template().fetch(format="mesh")
 mesh = siibra.commons.merge_meshes(
     meshes=[template_mesh] + list(meshes.values()),
-    labels=[0] + labels
+    labels=[0] + labels,
 )
 
 # create custom color map
 base_cmap = plt.get_cmap("Paired")
-custom_colors = [(1, 1, 1, 0.9)] + [
-    base_cmap(lb / max(labels)) for lb in labels
-]
+custom_colors = [(1, 1, 1, 0.9)] + [base_cmap(lb / max(labels)) for lb in labels]
 custom_cmap = mcolors.ListedColormap(custom_colors)
 
 # plot using nilearn

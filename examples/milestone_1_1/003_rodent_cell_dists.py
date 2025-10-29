@@ -32,10 +32,10 @@ features = siibra.features.get(amba, siibra.features.cellular.CellDistribution)
 print(len(features), "cell distribution features anchored to Allen Mouse Brain Atlas.")
 
 # %%
-# More detail about the features is available via their metadata. 
-# For example, we can inspect the name, DOI and description of the corresponding datasets,
-# to see that the distributions refer to paravalbumin positive neurons from
-# the dataset by Kim et al. (2017).
+# More detail about the features is available via their metadata. For example,
+# we can inspect the name, DOI and description of the corresponding datasets,
+# to see that the distributions refer to paravalbumin positive neurons from the
+# dataset by Kim et al. (2017).
 # TODO Feature name is not descriptive enough
 # TODO polish dictionary layout for URLs, confusing that the "urls" attribute has "url" as a key again.
 dataset = features[0].datasets[0]
@@ -43,23 +43,23 @@ print(features[0].name)
 print(dataset.description)
 
 # %%
-# The mouse cell distributions originate from the same dataset,
-# but are anchored to different brain regions and stem from different subjects.
-# Collecting the anchoring and subject information into a dataframe provides a nice overview of these several hundred variants.
+# The mouse cell distributions originate from the same dataset, but are anchored
+# to different brain regions and stem from different subjects. Collecting the
+# anchoring and subject information into a dataframe provides a nice overview of
+# these several hundred variants.
 pd.DataFrame([
-    {'region': str(f.anchor), 'subject': f.subject} 
+    {"region": str(f.anchor), "subject": f.subject}
     for f in features
 ])
 
 # %%
 # Instead of using the whole atlas, the search query can directly target specific
-# brain regions. 
-# Here we query all cell distributions anchored to subtree of olfactory areas,
-# yielding about 40 variants.
+# brain regions. Here we query all cell distributions anchored to subtree of
+# olfactory areas, yielding about 40 variants.
 olfactory = amba.get_region("Olfactory areas")
 features = siibra.features.get(olfactory, "cell distribution")
 featuretable = pd.DataFrame([
-    {'region': str(f.anchor), 'subject': f.subject} 
+    {"region": str(f.anchor), "subject": f.subject}
     for f in features
 ])
 featuretable
@@ -84,7 +84,7 @@ for subject in featuretable.subject.unique():
         colorbar=False,
         draw_cross=False,
         title=subject,
-        cut_coords=selection[0].data.mean()
+        cut_coords=selection[0].data.mean(),
     )
     cmap = plt.get_cmap("tab10", len(selection))
     for i, cd in enumerate(selection):
@@ -106,7 +106,7 @@ olfactory = waxholm.get_region("olfactory bulb")
 mask = olfactory.get_regional_mask("waxholm").fetch()
 features = siibra.features.get(olfactory, "cell distribution")
 featuretable = pd.DataFrame([
-    {'region': str(f.anchor), 'subject': f.subject} 
+    {"region": str(f.anchor), "subject": f.subject}
     for f in features
 ])
 template = siibra.get_template("Waxholm").fetch()
@@ -118,7 +118,7 @@ for subject in featuretable.subject.unique():
         colorbar=False,
         draw_cross=False,
         title=cd.subject,
-        cut_coords=selection[0].data.mean()
+        cut_coords=selection[0].data.mean(),
     )
     cmap = plt.get_cmap("jet", len(selection))
     for i, cd in enumerate(selection):

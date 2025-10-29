@@ -25,14 +25,16 @@ from nilearn import plotting
 
 # %%
 # Receptor autoradiography sections are anchored to reference spaces
-# through image registration.
-# A query thus uses the reference space as the starting point.
-# Standard queries use the bounding box of each section, not the image content.
+# through image registration. A query thus uses the reference space as the
+# starting point. Standard queries use the bounding box of each section, not
+# the image content.
 waxholm_space = siibra.spaces["waxholm"]
 features_ar = siibra.features.get(waxholm_space, "autoradiography section")
 feature_table = siibra.features.tabulate(
-    features_ar, ['name', 'datasets'],
-    converters={'datasets': lambda ds: next(iter(ds))})
+    features_ar,
+    ["name", "datasets"],
+    converters={"datasets": lambda ds: next(iter(ds))},
+)
 feature_table
 
 
@@ -40,16 +42,15 @@ feature_table
 # The features stem from a range of different datasets.
 for dataset in feature_table.datasets.unique():
     print(dataset.name)
-    print(dataset.urls[0]['url'])
+    print(dataset.urls[0]["url"])
     print()
 
 # %%
-# We can query for sections that intersect with a brain region. 
-# Here, sections intersecting with the rat dorsal thalamus are retrieved
-# and filtered to serotonin autoradiography sections. 
-# `siibra` will
-# automatically merge the masks of the children of dorsal thalamus create a
-# mask to compare against the sections.
+# We can query for sections that intersect with a brain region. Here, sections
+# intersecting with the rat dorsal thalamus are retrieved and filtered to
+# serotonin autoradiography sections. `siibra` will automatically merge the
+# masks of the children of dorsal thalamus create a mask to compare against
+# the sections.
 thalamus = siibra.get_region("waxholm", "dorsal thalamus")
 sections = siibra.features.get(thalamus, "autoradiography section")
 print("Sections found:", len(sections))
@@ -71,7 +72,9 @@ for i, section in enumerate(serotonin_sections_thalamus):
 # obtain the metadata.
 autoradiography_volumes = siibra.features.get(waxholm_space, "autoradiography volume")
 datasets = {
-    "".join(f"Name: {ds.name}\nDescription: {ds.description}"for ds in tcd.datasets): "".join(tcd.urls)
+    "".join(
+        f"Name: {ds.name}\nDescription: {ds.description}" for ds in tcd.datasets
+    ): "".join(tcd.urls)
     for tcd in autoradiography_volumes
 }
 for desc, doi in datasets.items():

@@ -15,7 +15,7 @@
 
 """
 Parcellation-averaged sructural connectivity from diffusion MRI
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
@@ -24,14 +24,13 @@ import matplotlib.pyplot as plt
 from nilearn import plotting
 
 # %%
-# Querying with a reference parcellation yields connectivity matrices
-# with information aggregated over brain areas.
-# For streamline counts, matrix elements then encode numbers of 
-# streamlines observed between two brain areas.
-# The query for Julich-Brain results in multiple matrices, 
-# referring to subjects or subject groups from different cohorts.
-# Matrices of the same cohort and dataset are collected into compound features.
-# Here, the compound for the "1000BRAINS" cohort is selected.
+# Querying with a reference parcellation yields connectivity matrices with
+# information aggregated over brain areas. For streamline counts, matrix
+# elements then encode numbers of streamlines observed between two brain areas.
+# The query for Julich-Brain results in multiple matrices, referring to subjects
+# or subject groups from different cohorts. Matrices of the same cohort and
+# dataset are collected into compound features. Here, the compound for the
+# "1000BRAINS" cohort is selected.
 julich_brain = siibra.parcellations["julich 3.1"]
 features = siibra.features.get(julich_brain, "streamlinecounts")
 for f in features:
@@ -41,7 +40,7 @@ for f in features:
 print(sc.name)
 
 # %%
-# The matrices in this compound refer to age and sex groups: 
+# The matrices in this compound refer to age and sex groups:
 for s in sc:
     print(s.subject)
 

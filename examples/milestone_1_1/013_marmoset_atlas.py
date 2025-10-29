@@ -18,7 +18,7 @@ Atlas of the marmoset brain
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
-# %% 
+# %%
 import siibra
 from nilearn import plotting
 
@@ -29,12 +29,12 @@ from nilearn import plotting
 parc_table = siibra.parcellations.dataframe
 print("Species with available parcellations:")
 print("\n".join(parc_table.species.unique()))
-parc_table[parc_table.species.str.contains('Callithrix')]
+parc_table[parc_table.species.str.contains("Callithrix")]
 
 
 # %%
 # The marmoset atlas consists of a reference space and template,
-# parcellation, and parcellation map. 
+# parcellation, and parcellation map.
 marmoset_parc = siibra.parcellations.MARMOSET_NENCKI_MONASH_ATLAS_2020
 marmoset_space = siibra.spaces.MARMOSET_NENCKI_MONASH_TEMPLATE_NISSL_HISTOLOGY_2020
 marmoset_template = marmoset_space.get_template()

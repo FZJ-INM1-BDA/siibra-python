@@ -15,7 +15,7 @@
 
 """
 Cell distributions in human brains
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
@@ -23,34 +23,36 @@ import siibra
 from nilearn import plotting
 
 # %%
-# Cell density features for the human brain are collected for different cytoarchitectonic
-# brain areas, each based on multiple cortical image patches extracted from 1 micron resolution 
-# BigBrain sections.
-# The dataset consists of multiple derivatives for underlying image data, precise cortical layer annotations,
-# cortical depth maps and the actual cell segmentations, expose as different feature modalities
-# in siibra.
-# One of these are layer-wise cell density statistics.
+# Cell density features for the human brain are collected for different
+# cytoarchitectonic brain areas, each based on multiple cortical image patches
+# extracted from 1 micron resolution BigBrain sections. The dataset consists of
+# multiple derivatives for underlying image data, precise cortical layer
+# annotations, cortical depth maps and the actual cell segmentations, expose as
+# different feature modalities in siibra. One of these are layer-wise cell
+# density statistics.
 area_hoc6 = siibra.get_region("julich 3.1", "hoc6")
 layerwise_cell_densities = siibra.features.get(area_hoc6, "layerwise cell density")
 for lf in layerwise_cell_densities:
     print(lf.name)
 
 # %%
-# As tabular data, measurements are exposed by siibra as a DataFrame. 
-# Here, tables are indexed by cortical layer and provide statistics on cell counts, sizes, as well as layer thickness.
+# As tabular data, measurements are exposed by siibra as a DataFrame. Here,
+# tables are indexed by cortical layer and provide statistics on cell counts,
+# sizes, as well as layer thickness.
 # TODO in a future version, expose all the infromation from the sidecars, which contain descriptionis for each column.
 layerwise_cell_densities[0].data
 
 # %%
-# Columns of the table can be plotted in various ways, e.g. as box plot of density per layer.
+# Columns of the table can be plotted in various ways, e.g. as box plot of
+# density per layer.
 layerwise_cell_densities[0].plot(
     y="cell_size_mean_um2", error_y="cell_size_std_um2", backend="plotly"
 )
 
 # %%
-# besides the layerwise summary statistics, individual cell density profiles can be
-# accessed as well. The profiles are tables indexed by cortical depth and provide
-# density and intensity statistics along the profile.
+# Besides the layerwise summary statistics, individual cell density profiles can
+# be accessed as well. The profiles are tables indexed by cortical depth and
+# provide density and intensity statistics along the profile.
 profiles = siibra.features.get(area_hoc6, "cell density profile")
 profiles[0].data
 
@@ -60,8 +62,8 @@ profiles[0].plot(y="density_mean", error_y="density_std", backend="plotly", kind
 
 # %%
 # The profiles are derived from detections of individual cells in each patch.
-# These detailed measurements are similar to the cell distributions in rodent brains,
-# and acessible through the "cell distibution" modality.
+# These detailed measurements are similar to the cell distributions in rodent
+# brains, and accessible through the "cell distibution" modality.
 cell_dists = siibra.features.get(area_hoc6, siibra.features.cellular.CellDistribution)
 cell_dists[0].data
 
@@ -76,9 +78,9 @@ cell_dists[0].plot(
 
 
 # %%
-# Since cell locations are points in atlas space, they can be loaded as `siibra.PointCloud` 
-# objects, and reused broadly by warping coordinates between
-# Bigbrain,  MNI 152, and MNI Colin 27 reference spaces. 
+# Since cell locations are points in atlas space, they can be loaded as
+# `siibra.PointCloud` objects, and reused broadly by warping coordinates between
+# Bigbrain,  MNI 152, and MNI Colin 27 reference spaces.
 cell_locs = cell_dists[0].as_pointcloud()
 bigbrain_tmpl_img_voi = siibra.get_template("bigbrain").fetch(
     voi=cell_locs.boundingbox, resolution_mm=-1
@@ -101,5 +103,3 @@ display = plotting.plot_img(
     display_mode="y",
 )
 display.add_markers(cell_locs_warped.coordinates, marker_size=1)
-
-# %%

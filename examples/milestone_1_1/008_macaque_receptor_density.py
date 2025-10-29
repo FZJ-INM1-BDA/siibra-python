@@ -27,13 +27,13 @@ from collections import defaultdict
 # sphinx_gallery_thumbnail_number = -1
 
 # %%
-# The Macaque atlas is a rather new development in siibra. 
-# We compile an overview of  tabular features linked with the
-# MEBRAINS parcellation by modality, and find that the tabular
-# features include neurotransmitter receptor density data.
+# The Macaque atlas is a rather new development in siibra. We compile an
+# overview of  tabular features linked with the MEBRAINS parcellation by
+# modality, and find that the tabular features include neurotransmitter
+# receptor density data.
 mebrains = siibra.parcellations.get("MEBRAINS monkey")
 features_tabular = siibra.features.get(mebrains, siibra.features.generic.Tabular)
-siibra.features.tabulate(features_tabular, ['modality'])
+siibra.features.tabulate(features_tabular, ["modality"])
 
 # %%
 # If known, the modality name could be used to refine the tabular feature query.
@@ -50,12 +50,12 @@ print(receptor_density.description)
 print("".join(receptor_density.urls))
 
 # %%
-# Densities are exposed in the usual pandas DataFrame format,
-# with rows representing brain areas and columns representing different receptors.
+# Densities are exposed in the usual pandas DataFrame format, with rows
+# representing brain areas and columns representing different receptors.
 receptor_density.data
 
 # %%
-# Plot the data for the specific receptor. 
+# Plot the data for the specific receptor.
 receptor = "kainate"
 receptor_density.plot(
     kind="barh",
@@ -68,9 +68,8 @@ receptor_density.plot(
 
 # %%
 # The data can be used to colorize the parcels of the MEBRAINS parcellation.
-# We have to consider that not every region with available densities is yet 
-# mapped in the parcellation.
-# The list of mapped regions is stored for re-use below.
+# We have to consider that not every region with available densities is yet mapped
+# in the parcellation. The list of mapped regions is stored for re-use below.
 kainate_densities = {}
 MEBRAINS_map = mebrains.get_map("MEBRAINS")
 
@@ -78,7 +77,7 @@ MEBRAINS_map = mebrains.get_map("MEBRAINS")
 mapped_regions = defaultdict(list)
 for regionspec, density in receptor_density.data[receptor].items():
     try:
-        region = mebrains.get_region(regionspec.split('_')[-1])
+        region = mebrains.get_region(regionspec.split("_")[-1])
         for child in region.leaves:  # colorize the child nodes
             kainate_densities[child.name] = density
             mapped_regions[regionspec].append(child)
@@ -99,11 +98,7 @@ plotting.view_img(
 # Plot the all receptor densities as static plots.
 
 # Use the centroid of 8Bs left to position the crosshair.
-cut_coord = (
-    mebrains.get_region("8Bs left")
-    .compute_centroids("MEBRAINS")[0]
-    .coordinate
-)
+cut_coord = mebrains.get_region("8Bs left").compute_centroids("MEBRAINS")[0].coordinate
 
 # color the map and plot the image per receptor
 vmax = receptor_density.data.max().max()
@@ -126,5 +121,3 @@ for i, receptor in enumerate(receptor_density.data.columns):
         title=receptor,
         vmax=vmax,
     )
-
-# %%

@@ -29,27 +29,30 @@ import matplotlib.pyplot as plt
 # The data was registered to the MNI reference space.
 mni152 = siibra.spaces.get("mni152")
 features_img = siibra.features.get(mni152, siibra.features.generic.Image)
-feature_table = siibra.features.tabulate(features_img, ['name', 'modality'])
+feature_table = siibra.features.tabulate(features_img, ["name", "modality"])
 feature_table
 
 # %%
 # As an example, the fractional anisotropy map is fetched and plotted.
-
+feature_fa = feature_table[
+    feature_table.modality.str.contains("anisotropy")
+].iloc[0].feature
 fa_img = feature_fa.fetch()
-plotting.plot_img(fa_img, cmap="magma", title=feature_fa.name)feature_fa = (
-    feature_table[feature_table.modality.str.contains("anisotropy")]
-    .iloc[0].feature
-)
+plotting.plot_img(fa_img, cmap="magma", title=feature_fa.name)
 
 # %%
-# The T2-weighted scan of the same brain provides a more detailed 
+# The T2-weighted scan of the same brain provides a more detailed
 # and appropriate background image to study the FA map.
 # We plot the 150um version.
 # TODO T2 not well visible, maybe plot_statmap is better suited for this?
-t2_weighted_150um = feature_table[
-    feature_table.modality.str.contains('T2')
-    & feature_table.name.str.contains('150')
-].iloc[0].feature
+t2_weighted_150um = (
+    feature_table[
+        feature_table.modality.str.contains("T2")
+        & feature_table.name.str.contains("150")
+    ]
+    .iloc[0]
+    .feature
+)
 t2_weighted_150um_img = t2_weighted_150um.fetch()
 plotting.view_img(
     fa_img,

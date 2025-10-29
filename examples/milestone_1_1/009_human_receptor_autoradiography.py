@@ -26,14 +26,14 @@ import matplotlib.pyplot as plt
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/gaba_autoradiography.png'
 
 # %%
-# Autoradiography features represent 2D or 3D image data, anchored to 
-# atlases by image registration and queries by their bounding boxes.
-# Since siibra can warp between the different human reference spaces,
-# queries for image data work across template spaces.
-# Autoradiography images are characterized by the target receptor type.
+# Autoradiography features represent 2D or 3D image data, anchored to atlases
+# by image registration and queries by their bounding boxes. Since siibra can
+# warp between the different human reference spaces, queries for image data work
+# across template spaces. Autoradiography images are characterized by the target
+# receptor type.
 mni152 = siibra.spaces.get("mni152")
 features_ar = siibra.features.get(mni152, "autoradiography")
-siibra.features.tabulate(features_ar, ['modality'])
+siibra.features.tabulate(features_ar, ["modality"])
 
 # %%
 # Fetching the image data results in a Nifti1Image object taht can be plotted
@@ -63,5 +63,3 @@ for i, r in enumerate(regions):
     axs[i].hist(values[values > 0], bins=20, density=True)
     axs[i].set_title(r.name)
     axs[i].grid(True)
-
-# %%

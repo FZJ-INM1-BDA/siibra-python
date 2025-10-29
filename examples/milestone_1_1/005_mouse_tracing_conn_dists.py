@@ -25,20 +25,18 @@ import matplotlib.pyplot as plt
 
 # %%
 # Tracing connectivity features are anchored to brain regions matching their
-# injection sites.
-# A query by the Allen mouse brain atlas yields features
+# injection sites. A query by the Allen mouse brain atlas yields features
 # stemming from three different datasets.
 amba_v3 = siibra.parcellations.get("Allen Mouse v3 2017")
-features_tracing = siibra.features.get(
-    amba_v3, "tracing connectivity distribution"
-)
+features_tracing = siibra.features.get(amba_v3, "tracing connectivity distribution")
 print(f"Found {len(features_tracing)} tracing connectivity distribution features.")
 
 # %%
 # Compile an overview of the retrieved features in terms of their
 # anchored brain region, subject specification and origin dataset.
 feature_table = siibra.features.tabulate(
-    features_tracing, ["anchor", "subject", "datasets"],
+    features_tracing,
+    ["anchor", "subject", "datasets"],
     converters={"anchor": str, "datasets": lambda ds: next(iter(ds)).name},
 )
 feature_table
@@ -48,29 +46,30 @@ feature_table
 feature_table.anchor.drop_duplicates().to_frame().reset_index(drop=True)
 
 # %%
-# Furthermore, features originate from three different datasets, including one for
-# wild type and another for Cre-transgenic mice.
+# Furthermore, features originate from three different datasets, including one
+# for wild type and another for Cre-transgenic mice.
 feature_table.datasets.drop_duplicates().to_frame().reset_index(drop=True)
 
 # %%
-# The subject specification is a combination of subject id and subcortical projection target.
-# We split the field in the table.
-feature_table['target'] = [s.split('_')[-1] for s in feature_table.subject]
-feature_table['subject'] = ['_'.join(s.split('_')[:-1]) for s in feature_table.subject]
+# The subject specification is a combination of subject id and subcortical
+# projection target. We split the field in the table.
+feature_table["target"] = [s.split("_")[-1] for s in feature_table.subject]
+feature_table["subject"] = ["_".join(s.split("_")[:-1]) for s in feature_table.subject]
 
 # In total, fourteen different subcortical projection targets are represented.
 feature_table.target.drop_duplicates().to_frame().reset_index(drop=True)
 
 # %%
-# The feature query can be refined to tracing connectivity from a specific brain area.
+# The feature query can be refined to tracing connectivity from a specific
+# brain area.
 region_acd = amba_v3.get_region("Anterior cingulate area, dorsal part")
 features_tracing_acd = siibra.features.get(
     region_acd, "tracing connectivity distribution"
 )
 
 # %%
-# Tracing results could then be compared between wild type
-# and Cre-transgenic mice for different subcortical targets:
+# Tracing results could then be compared between wild type and Cre-transgenic
+# mice for different subcortical targets:
 subcortical_regions = feature_table.target.unique()[:4]
 allen_mouse_template = siibra.get_template("mouse").fetch()
 fig, axs = plt.subplots(len(subcortical_regions), 1, figsize=(19, 24))
@@ -93,7 +92,7 @@ for i, target in enumerate(subcortical_regions):
         tcd_wt.data,
         marker_color="r",
         marker_size=1,
-        label="Wild type"
+        label="Wild type",
     )
     display.add_markers(
         tcd_tg.data,
@@ -102,5 +101,3 @@ for i, target in enumerate(subcortical_regions):
         label="Cre-transgenic",
     )
     plt.legend(loc="upper center", bbox_to_anchor=(1.5, 0.6), fontsize="x-large")
-
-# %%

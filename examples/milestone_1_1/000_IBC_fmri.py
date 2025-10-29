@@ -16,7 +16,7 @@
 
 """
 Functional fingerprints from IBC fMRI data
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 # %%
 import siibra
@@ -34,7 +34,7 @@ area3b_left = julichbrain.get_region("area 3b left")
 fingerprints = siibra.features.get(
     area3b_left,
     siibra.features.functional.FunctionalFingerprint,
-    exact_match_only=True
+    exact_match_only=True,
 )
 
 # We expect one functional fingerprint per brain area
@@ -59,7 +59,7 @@ fp.plot(backend="plotly")
 fingerprints = siibra.features.get(
     julichbrain,
     siibra.features.functional.FunctionalFingerprint,
-    exact_match_only=True
+    exact_match_only=True,
 )
 assert len(fingerprints) > 0, "No functional fingerprints found for Julich-Brain"
 fp = fingerprints[0]
@@ -75,8 +75,6 @@ view = plotting.plot_stat_map(
     colored_map.fetch(),
     cmap="magma",
     resampling_interpolation="nearest",
-    cut_coords=area3b_left.compute_centroids("mni152")[0].coordinate
+    cut_coords=area3b_left.compute_centroids("mni152")[0].coordinate,
 )
 view.title(f"{task}/{label} activations\n(average z-scores for {julichbrain.shortname} atlas)", size=10)
-
-# %%
