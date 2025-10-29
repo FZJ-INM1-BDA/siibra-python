@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Macaque high-resolution MRI
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+High-resolution structural MRI of themacaque brain
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 
@@ -26,17 +26,22 @@ from nilearn import plotting
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/macaque_high_res_MRI.png'
 
 # %%
-# Query for mri images registered on MEBRAINS population-based monkey template
+# We search for MRI's anchored to the MEBRAINS reference space,
+# and generate a tabular overview.
 space = siibra.spaces.get("MEBRAINS")
-mri_images = siibra.features.get(space, "mri")
-for f in mri_images:
-    print(f.name)
-    print("Publication:", f.urls)
+features_mri = siibra.features.get(space, "mri")
+siibra.features.tabulate(
+    features_mri, ['name', 'urls'],
+    converters={'urls': lambda u: ','.join(u)}
+)
 
 # %%
-# Fetch the template image and overlay 180um resolution image.
+# We fetch thhe 180um resolution image, resulting in a Nifti1Image object
+# that can be plotted with the template using common tools such as nilearn's 
+# plotting module.
+# TODO this could use a better colormap or vmax setting
 tmpl_img = space.get_template().fetch(resolution_mm=-1)
-mri_180um = [f for f in mri_images if "180micron" in f.name][0]
+mri_180um = features_mri[1]
 plotting.view_img(
     mri_180um.fetch(resolution_mm=-1),
     bg_img=tmpl_img,
@@ -45,22 +50,13 @@ plotting.view_img(
     opacity=0.65,
 )
 
-# %%
-# Or plot without background in full resolution since MEBRAINS macaque template
-# has 40um resolution
-plotting.view_img(
-    mri_180um.fetch(resolution_mm=-1),
-    bg_img=None,
-    cmap="gray",
-    symmetric_cmap=False,
-    black_bg=True,
-)
 
 # %%
-# To take advantage of the high resolution, select a volume of interest and
-# plot 100um resolution MRI
+# To take advantage of the high resolution while 
+# avoiding to download the full high-resolution volume,
+# a region of interest can  be used for fetching.
 voi = siibra.BoundingBox((-15.50, -21.50, -10.30), (1.70, 0.90, 0.10), space)
-mri_100um = [f for f in mri_images if "100micron" in f.name][0]
+mri_100um = features_mri[0]
 voi_img = mri_100um.fetch(voi=voi, resolution_mm=-1)
 plotting.view_img(
     voi_img,
