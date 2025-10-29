@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-dMRI streamline counts - 1000 Brains cohort
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Parcellation-averaged sructural connectivity from diffusion MRI
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
@@ -24,20 +24,25 @@ import matplotlib.pyplot as plt
 from nilearn import plotting
 
 # %%
-# Connectivity matrices are averaged over regions from a reference parcellation.
-# Here, Julich Brain is used to query for streamline counts. The query returns
-# datasets based on two different cohorts.
+# Querying with a reference parcellation yields connectivity matrices with
+# information aggregated over brain areas. For streamline counts, matrix
+# elements then encode numbers of streamlines observed between two brain areas.
+# The query for Julich-Brain results in multiple matrices, referring to subjects
+# or subject groups from different cohorts. Matrices of the same cohort and
+# dataset are collected into compound features. Here, the compound for the
+# "1000BRAINS" cohort is selected.
 julich_brain = siibra.parcellations["julich 3.1"]
-streamline_counts = siibra.features.get(julich_brain, "streamlinecounts")
-for sc in streamline_counts:
-    print(sc.cohort)
-# %%
-# After filtering out the 1000BRAINS cohort and we check the subject fields to
-# observe that the individual matrices corresponds to group of subjects.
-sc = [f for f in streamline_counts if f.cohort == "1000BRAINS"][0]
+features = siibra.features.get(julich_brain, "streamlinecounts")
+for f in features:
+    print(f.cohort)
+    if f.cohort == "1000BRAINS":
+        sc = f
 print(sc.name)
+
+# %%
+# The matrices in this compound refer to age and sex groups:
 for s in sc:
-    print("matrix:", s.subject)
+    print(s.subject)
 
 # %%
 # We select a region to compare connectivity profiles among different age groups.

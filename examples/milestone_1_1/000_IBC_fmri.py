@@ -1,6 +1,7 @@
 # Copyright 2018-2025
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
+
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,8 +15,8 @@
 # limitations under the License.
 
 """
-IBC - fMRI fingerprints with tasks and contrast labels
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Functional fingerprints from IBC fMRI data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 # %%
 import siibra
@@ -24,57 +25,56 @@ from nilearn import plotting
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/ibc_thumbnail.png'
 
 # %%
-# The functional fingerprints are tabular data features,
-# providing fMRI measurements of brain areas under a range of cognitive tasks.
-# For this example, we specify a cytoarchitectonic brain region and
-# find the matching fingerprint with a fast custom filter.
-# The default `siibra.features.get()` approach will also work,
-# but it is slower as it cannot assume an explicit match.
-julichbrain = siibra.parcellations["julich 3.1"]
+# Functional fingerprints are tabular data features linked to brain areas.
+# They provide z-scores of functional activations in an area, measured by fMRI across a range of cognitive tasks.
+# Here we query for functional fingerprints for Area 3b in the left hemisphere.
+# We speed up the query by checking only for exact matches - this will avoid testing for approximately related data.
+julichbrain = siibra.parcellations.get("julich 3.1")
 area3b_left = julichbrain.get_region("area 3b left")
-functional_fingerprints = siibra.features.get(
+fingerprints = siibra.features.get(
     area3b_left,
     siibra.features.functional.FunctionalFingerprint,
-    exact_match_only=True
+    exact_match_only=True,
 )
-# There is exactly one functional fingerprint given a region and parcellation
-assert len(functional_fingerprints) == 1
-area3b_left_fp = functional_fingerprints[0]
+
+# We expect one functional fingerprint per brain area
+assert len(fingerprints) > 0, "No functional fingerprint found for area 3b left"
+fp = fingerprints[0]
 
 # %%
-# The actual data is exposed as a pandas DataFrame with columns for the task and
-# task label, as well as the signal strength.
-area3b_left_fp.data
+# The actual data is exposed as a pandas DataFrame.
+# The z-scores of functional activations in the brain area are indexed is a multi-index consisting of the task name and label.
+# TODO The value column should include a unit specification, e.g. 'Activation for Area 3b left [z-score]'.
+fp.data
 
 # %%
-# We plot the functional fingerprint as a horizontal bar chart,
-# color-grouped by task.
-area3b_left_fp.plot(backend="plotly")
+# The default plot of a functional fingerprint is a bar chart, color-coded by task.
+fp.plot(backend="plotly")
 
 # %%
-# Finally, we select a specific task label, retrieve its values
-# over all areas of the Julich-Brain atlas, and colorize a brain map in MNI space.
-functional_fingerprints = siibra.features.get(
+# Often, it is interesting to see a brain map of activation z-scores for a specific task label
+# across all brain regions. This is achieved by retrieving fingerprints for the
+# complete parcellation, and using the corresponding values to colorize the parcellation map
+# in MNI space.
+fingerprints = siibra.features.get(
     julichbrain,
     siibra.features.functional.FunctionalFingerprint,
-    exact_match_only=True
+    exact_match_only=True,
 )
-assert len(functional_fingerprints) == 1
-julichbrain_functional_fingerprint = functional_fingerprints[0]
+assert len(fingerprints) > 0, "No functional fingerprints found for Julich-Brain"
+fp = fingerprints[0]
 
-# now set the task and label
+# collect values of specific task label across all regions
 task = "ArchiSocial"
 label = "triangle_mental-random"
+values_per_region = fp.data.loc[(task, label)]
 
-# color julich brain
-values_per_region = julichbrain_functional_fingerprint.data.loc[(task, label)]
-colored_map = julichbrain.get_map("MNI 152").colorize(values_per_region.to_dict())
-
-# plot the colored map over MNI 152 template
-plotting.plot_stat_map(
+# colorize and plot the parcellation map
+colored_map = julichbrain.get_map(space="MNI 152").colorize(values_per_region.to_dict())
+view = plotting.plot_stat_map(
     colored_map.fetch(),
     cmap="magma",
     resampling_interpolation="nearest",
-    title=f"task: {task}, label: {label}",
-    cut_coords=area3b_left.compute_centroids("mni152")[0].coordinate
+    cut_coords=area3b_left.compute_centroids("mni152")[0].coordinate,
 )
+view.title(f"{task}/{label} activations\n(average z-scores for {julichbrain.shortname} atlas)", size=10)
