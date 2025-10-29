@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """
-Hi-Res Human Brain Images - Chenonceau
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+High-resolution postmortem MRI scans of a human brain
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 
@@ -24,55 +24,33 @@ from nilearn import plotting
 import matplotlib.pyplot as plt
 
 # %%
-# Query for images on MNI 152 2009c Aym Nonl space and filter out the ones from
-# Chenonceau dataset
-mni152 = siibra.spaces["mni152"]
-image_features = [
-    f
-    for f in siibra.features.get(mni152, siibra.features.generic.Image)
-    if "Chenonceau" in f.name
-]
-for f in image_features:
-    print(f.name)
-    print(f.modality)
+# A postmortem brain ("Chenonceau brain") underwent multimodal MRI scanning
+# with different modalities at very high resolutions.
+# The data was registered to the MNI reference space.
+mni152 = siibra.spaces.get("mni152")
+features_img = siibra.features.get(mni152, siibra.features.generic.Image)
+feature_table = siibra.features.tabulate(features_img, ['name', 'modality'])
+feature_table
 
 # %%
-# As we see from above, there are several modalities to choose from. For
-# demonstration, fetch the image for modality of fractional anisotropy and
-# plot it
-fractional_anisotropy = siibra.features.get(
-    mni152, siibra.features.generic.Image, modality="fractional anisotropy"
-)[0]
-fa_img = fractional_anisotropy.fetch()
-plotting.plot_img(fa_img, cmap="magma", title=fractional_anisotropy.name)
+# As an example, the fractional anisotropy map is fetched and plotted.
 
-# %%
-# The set of images integrated also contain T2-weighted anatomical images
-# of the Chenonceau brain. This can be used to overlay other modalities. Since
-# MNI 152 template is only in 1mm resolution, the the underlying anatomical
-# structure is not present as it would be with Chenonceau 100um or 150um
-# images. First, we plot 150um to see the details of the anatomical image
-t2_weighted_150um = [
-    f
-    for f in siibra.features.get(
-        mni152,
-        siibra.features.generic.Image,
-        modality="T2-weighted (T2w) image",
-    )
-    if "150 micrometer" in f.name
-][0]
-t2_weighted_150um_img = t2_weighted_150um.fetch()
-plotting.view_img(
-    t2_weighted_150um_img,
-    bg_img=None,
-    cmap="gray",
-    symmetric_cmap=False,
-    black_bg=True,
-    colorbar=False,
+fa_img = feature_fa.fetch()
+plotting.plot_img(fa_img, cmap="magma", title=feature_fa.name)feature_fa = (
+    feature_table[feature_table.modality.str.contains("anisotropy")]
+    .iloc[0].feature
 )
 
 # %%
-# Now, we overlay fractional anisotropy over the 150um anatomical image
+# The T2-weighted scan of the same brain provides a more detailed 
+# and appropriate background image to study the FA map.
+# We plot the 150um version.
+# TODO T2 not well visible, maybe plot_statmap is better suited for this?
+t2_weighted_150um = feature_table[
+    feature_table.modality.str.contains('T2')
+    & feature_table.name.str.contains('150')
+].iloc[0].feature
+t2_weighted_150um_img = t2_weighted_150um.fetch()
 plotting.view_img(
     fa_img,
     bg_img=t2_weighted_150um_img,
@@ -82,12 +60,11 @@ plotting.view_img(
     colorbar=False,
 )
 
-
 # %%
-# siibra can use the image data to draw samples from specific regions of
-# interest. Here, we compare GABA/BZ densities in 4p right, hoc1 right, and
+# siibra can use the FA map to draw samples from specific regions of
+# interest. As an example, we compare GABA/BZ densities in 4p right, hoc1 right, and
 # 3b right.
-julich_brain = siibra.parcellations["julich 3.1"]
+julich_brain = siibra.parcellations.get("julich 3.1")
 regions = [
     julich_brain.get_region(spec)
     for spec in ["4p right", "hoc1 right", "3b right"]
@@ -96,6 +73,6 @@ fig, axs = plt.subplots(1, 3, figsize=(10, 5), sharey=True, sharex=True)
 for i, r in enumerate(regions):
     pmap = r.get_regional_map(mni152, "statistical")
     samples = pmap.draw_samples(10000)
-    values = fractional_anisotropy.evaluate_points(samples)
+    values = feature_fa.evaluate_points(samples)
     axs[i].hist(values[values > 0], bins=50, density=True)
     axs[i].set_title(r.name)
