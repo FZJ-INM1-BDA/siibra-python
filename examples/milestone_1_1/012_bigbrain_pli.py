@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """
-High resolution imaging of human fiber architecture
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Ultra-high resolution imaging of human fiber architecture
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 
@@ -23,14 +23,19 @@ import siibra
 from nilearn import plotting
 
 # %%
-bigbrain = siibra.spaces["bigbrain"]
-volumes = siibra.features.get(bigbrain, "blockface")
-for v in volumes:
-    print(v.name)
-    print(v.modality)
+# Images are linked to reference spaces by image registration,
+# and queried based on their bounding boxes.
+# We retrieve blockface imaging features anchored to BigBrain space,
+# and compile a tabular overview.
+bigbrain = siibra.spaces.get("bigbrain")
+features_bf = siibra.features.get(bigbrain, "blockface")
+feature_table = siibra.features.tabulate(features_bf, ["name"])
+feature_table
 
 # %%
-blockface = [v for v in volumes if "The Enriched Connectome" in v.name][0]
+blockface = feature_table[
+    feature_table.name.str.contains('Connectome')
+].iloc[0].feature
 plotting.plot_img(
     blockface.fetch(resolution_mm=1),
     bg_img=None,
