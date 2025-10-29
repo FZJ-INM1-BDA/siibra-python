@@ -18,7 +18,6 @@ Human receptor autoradiography
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
-
 # %%
 import siibra
 from nilearn import plotting
@@ -27,36 +26,31 @@ import matplotlib.pyplot as plt
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/gaba_autoradiography.png'
 
 # %%
-# Autoradiography features contain image data, typically volumes or 2D sections.
-# Here, we query for autoradiography features registered to MNI 152 2009c
-# Asym Nonl space. Autoradiography images are characterized by a receptor. Here,
-# we select the first volume of Gaba/BZ distribution:
-mni152 = siibra.spaces["mni152"]
-autoradiography_images = siibra.features.get(mni152, "autoradiography")
-for f in autoradiography_images:
-    print(f.modality)
-    if "GABA/BZ" in f.modality:
-        gaba_autoradiography = f
-        break
+# Autoradiography features represent 2D or 3D image data, anchored to 
+# atlases by image registration and queries by their bounding boxes.
+# Since siibra can warp between the different human reference spaces,
+# queries for image data work across template spaces.
+# Autoradiography images are characterized by the target receptor type.
+mni152 = siibra.spaces.get("mni152")
+features_ar = siibra.features.get(mni152, "autoradiography")
+siibra.features.tabulate(features_ar, ['modality'])
 
 # %%
-# Image data can be fetched the online resource and can be plotted on top of the
-# MNI 152 2009c Nonl Asym template. Plot reveals the image covers the complete
-# right hemisphere.
-img = gaba_autoradiography.fetch()
+# Fetching the image data results in a Nifti1Image object taht can be plotted
+# using standard tools such as nilearn's plotting module.
+gaba_autoradiography = features_ar[0]
+gaba_img = gaba_autoradiography.fetch()
 plotting.plot_stat_map(
-    img,
+    gaba_img,
     cmap="magma",
-    threshold=0,
-    vmin=0,
     vmax=7500,
     draw_cross=False,
 )
 
 # %%
 # siibra can use the image data to draw samples from specific regions of interest.
-# Here, we compare GABA/BZ densities in 4p right, hoc1 right, and 3b right.
-julich_brain = siibra.parcellations["julich 3.1"]
+# We make use of this to compare GABA/BZ densities in three brain regions.
+julich_brain = siibra.parcellations.get("julich 3.1")
 regions = [
     julich_brain.get_region(spec)
     for spec in ["4p right", "hoc1 right", "3b right"]
@@ -68,3 +62,5 @@ for i, r in enumerate(regions):
     values = gaba_autoradiography.evaluate_points(samples)
     axs[i].hist(values[values > 0], bins=50, density=True)
     axs[i].set_title(r.name)
+
+# %%
