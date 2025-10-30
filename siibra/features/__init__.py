@@ -14,8 +14,9 @@
 # limitations under the License.
 """Multimodal data features types and query mechanisms."""
 
-from typing import Union
+from typing import Union, Dict, Callable, List
 from functools import partial
+
 import pandas as pd
 
 from . import (
@@ -24,9 +25,7 @@ from . import (
     image,
     dataset,
 )
-
 from ..commons import logger
-
 from .feature import Feature
 from ..retrieval import cache
 from ..commons import siibra_tqdm
@@ -37,7 +36,12 @@ TYPES = Feature._get_subclasses()  # Feature types that can be used to query for
 
 
 def __dir__():
-    return list(Feature._CATEGORIZED.keys()) + ["get", "TYPES", "render_ascii_tree"]
+    return list(Feature._CATEGORIZED.keys()) + [
+        "get",
+        "TYPES",
+        "render_ascii_tree",
+        "tabulate",
+    ]
 
 
 def __getattr__(attr: str):
@@ -117,18 +121,33 @@ def render_ascii_tree(class_or_classname: Union[type, str]):
         for pre, _, node in RenderTree(tree)
     ))
 
-def tabulate(featurelist, attributelist, converters={}):
-    """utility function to compile feature metadata into a pandas DataFrame"""
+
+def tabulate(features: List["Feature"], attributes: List[str], converters: Dict[str, Callable] = dict()):
+    """
+    Utility function to compile feature metadata into a pandas DataFrame.
+
+    Note
+    ----
+    Some attributes may require computation or network request, hence, might
+    cause delays in table formation.
+
+    Parameters
+    ----------
+    features: List[Feature]
+        list of Feature instances.
+    attributes: List[str]
+        list of attribute names to populate the DataFrame with.
+    converters: Dict[str, Callable], optional
+        Apply a function to specific attributes.
+    """
+    assert all(
+        a in attributes for a in converters.keys()
+    ), "Converters must be included in attributes provided."
     data = []
-    for feature in featurelist:       
-        entry = {}
-        for attr in attributelist:
-            assert hasattr(feature, attr)
-            if attr in converters:
-                entry[attr] = converters[attr](getattr(feature, attr))
-            else:
-                entry[attr] = getattr(feature, attr)
-        entry["feature"] = feature
+    for feature in features:
+        entry = {"feature": feature}
+        for attr in attributes:
+            assert hasattr(feature, attr), f"{feature} does not have an attribue called '{attr}'."
+            entry[attr] = converters.get(attr, lambda a: a)(getattr(feature, attr))
         data.append(entry)
     return pd.DataFrame(data)
-
