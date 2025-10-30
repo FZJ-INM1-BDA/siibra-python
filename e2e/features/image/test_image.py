@@ -29,7 +29,7 @@ def test_images_datasets_names():
     end = time.time()
     duration = start - end
     assert (
-        len(all_ds_names) == 19
+        len(all_ds_names) == 21
     ), "expected 18 distinct names"  # this must be updated if new datasets are added
     assert duration < 1, "Expected getting dataset names to be less than 1s"
 
