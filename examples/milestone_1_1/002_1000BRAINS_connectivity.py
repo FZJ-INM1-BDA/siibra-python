@@ -32,7 +32,7 @@ from nilearn import plotting
 # dataset are collected into compound features. Here, the compound for the
 # "1000BRAINS" cohort is selected.
 julich_brain = siibra.parcellations["julich 3.1"]
-features = siibra.features.get(julich_brain, "streamlinecounts")
+features = siibra.features.get(julich_brain, "streamline counts")
 for f in features:
     print(f.cohort)
     if f.cohort == "1000BRAINS":
@@ -58,6 +58,7 @@ for i, grp in enumerate(sc):
         max_rows=10,
         ax=axs[i],
         title=grp.subject,
+        ylabel="Streamline counts",
     )
 
 # %%
@@ -75,6 +76,7 @@ for i, grp in enumerate(sc):
         max_rows=10,
         ax=axs[i],
         title=grp.subject,
+        ylabel="Streamline counts",
     )
 
 
@@ -89,4 +91,6 @@ plotting.view_connectome(
     node_coords=node_coords,
     edge_threshold="99%",
     node_size=2,
+    symmetric_cmap=False,
+    edge_cmap="Reds",
 )
