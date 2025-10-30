@@ -58,7 +58,7 @@ for space in mapped_spaces:
         img,
         bg_img=template_img,
         cmap=cmap,
-        title=space.name,
+        title=space,
         black_bg=False,
         cut_coords=cut_coords.warp(space).coordinate,
         colorbar=False,
