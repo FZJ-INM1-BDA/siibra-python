@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Streamline fiber bundles from diffusion MRI
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Fibre bundles extracted from high-resolution dMRI
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 # %%
 import siibra

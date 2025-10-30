@@ -15,8 +15,8 @@
 # limitations under the License.
 
 """
-Functional fingerprints from IBC fMRI data
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Functional profiling of human brain
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 # %%
 import siibra

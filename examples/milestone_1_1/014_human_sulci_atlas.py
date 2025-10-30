@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Sulci atlas of the human brain
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+BrainVISA/Morphologist Brain Sulci Atlas
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%

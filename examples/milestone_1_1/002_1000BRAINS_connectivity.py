@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Parcellation-averaged sructural connectivity from diffusion MRI
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Parcellation-averaged structural connectivity from dMRI of 1000BRAINS cohort
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%

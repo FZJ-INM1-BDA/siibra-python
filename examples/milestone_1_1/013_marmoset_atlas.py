@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Atlas of the marmoset brain
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Marmoset atlas and morphometry volumes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%

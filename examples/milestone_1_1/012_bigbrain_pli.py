@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """
-Ultra-high resolution imaging of human fiber architecture
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Multi-scale imaging of a human brain hemisphere
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 

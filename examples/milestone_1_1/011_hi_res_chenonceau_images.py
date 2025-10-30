@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """
-High-resolution postmortem MRI scans of a human brain
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Post-mortem anatomical ultra high-field MRI
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 

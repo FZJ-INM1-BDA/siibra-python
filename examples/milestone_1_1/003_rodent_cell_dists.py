@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Cell distributions in rodent brains
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Cell distributions in rat and mouse brains
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%

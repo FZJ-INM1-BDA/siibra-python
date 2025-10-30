@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-Neurotransmitter receptor densities in macaque brains
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Macaque regional neurotransmitter receptor densities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 
