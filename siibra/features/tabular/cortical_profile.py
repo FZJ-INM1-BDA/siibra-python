@@ -109,8 +109,13 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         assert isinstance(self._values, (list, np.ndarray)), "Some values are not valid"
         assert len(self._values) == len(self._depths), "There exist uneven number of depths and values"
         assert all(0 <= d <= 1 for d in self._depths), "Some depths is not between 0 and 1"
+
         if self.boundaries_mapped:
-            assert all(0 <= d <= 1 for d in self.boundary_positions.values()), "Some boundary positions are not between 0 and 1"
+            try:
+                assert all(0 <= d <= 1 for d in self.boundary_positions.values()), "Some boundary positions are not between 0 and 1"
+            except AssertionError:
+                assert np.allclose([d for d in self.boundary_positions.values() if d > 1], 1, rtol=1e-15)
+                assert np.allclose([d for d in self.boundary_positions.values() if d < 0], 0, rtol=1e-15)
             assert all(
                 layerpair in self.BOUNDARIES
                 for layerpair in self.boundary_positions.keys()

@@ -12,10 +12,16 @@ on:
         required: false
         type: string
         default: ''
+      siibra_log_level:
+        required: false
+        type: string
+        default: "INFO_WO_PROGRESS_BARS"
 
 jobs:
   test_examples:
     runs-on: ${{ inputs.os }}
+    env:
+      SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python ${{ inputs.python-version }}
@@ -37,5 +43,7 @@ jobs:
     - name: Install test dependencies
       run:  pip install pytest pytest-cov coverage
     - name: Run test with pytest
+      env:
+        SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
       shell: bash
-      run: pytest -rx examples/test_examples.py
+      run: pytest -rx --durations=5 examples/test_examples.py

@@ -97,6 +97,7 @@ class AtlasConcept:
             The preconfigured specification.
         """
         self._id = identifier
+        self._key = None
         self.name = name if not prerelease else f"[PRERELEASE] {name}"
         self._species_cached = None if species is None \
             else Species.decode(species)  # overwritable property implementation below
@@ -235,7 +236,9 @@ class AtlasConcept:
 
     @property
     def key(self):
-        return create_key(self.name)
+        if self._key is None:
+            self._key = create_key(self.name)
+        return self._key
 
     def __init_subclass__(cls, configuration_folder: str = None):
         """

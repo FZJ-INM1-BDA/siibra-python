@@ -25,13 +25,14 @@ import pandas as pd
 from ..commons import logger, Species
 from ..features import anchor, connectivity
 from ..features.tabular import (
+    tabular,
     receptor_density_profile,
     receptor_density_fingerprint,
     cell_density_profile,
     layerwise_cell_density,
     regional_timeseries_activity,
 )
-from ..features.image import sections, volume_of_interest
+from ..features.image import image, sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointcloud, boundingbox
 from ..retrieval import datasets, repositories
@@ -392,6 +393,20 @@ class Factory:
         )
 
     @classmethod
+    @build_type("siibra/feature/tabular/v0.1")
+    def build_generic_tabular(cls, spec):
+        return tabular.Tabular(
+            file=spec["file"],
+            decoder=cls.extract_decoder(spec) if "decoder" in spec else None,
+            description=spec.get("description"),
+            modality=spec.get("modality"),
+            anchor=cls.extract_anchor(spec),
+            datasets=cls.extract_datasets(spec),
+            id=spec.get("@id", None),
+            prerelease=spec.get("prerelease", False),
+        )
+
+    @classmethod
     @build_type("siibra/feature/fingerprint/celldensity/v0.1")
     def build_cell_density_fingerprint(cls, spec):
         return layerwise_cell_density.LayerwiseCellDensity(
@@ -445,9 +460,9 @@ class Factory:
         if modality == "cell body staining":
             return sections.CellbodyStainedSection(**kwargs)
         else:
-            raise ValueError(
-                f"No method for building image section feature type {modality}."
-            )
+            logger.debug(f"No defined feature type for {modality}. Creating a generic image feature.")
+            kwargs["modality"] = spec.get("modality")
+            return image.Image(**kwargs)
 
     @classmethod
     @build_type("siibra/feature/voi/v0.1")
@@ -492,9 +507,9 @@ class Factory:
                 modality="Morphometry", **kwargs
             )
         else:
-            raise ValueError(
-                f"No method for building image section feature type {modality}."
-            )
+            logger.debug(f"No defined feature type for {modality}. Creating a generic image feature.")
+            kwargs["modality"] = spec.get("modality")
+            return image.Image(**kwargs)
 
     @classmethod
     @build_type("siibra/feature/connectivitymatrix/v0.3")
