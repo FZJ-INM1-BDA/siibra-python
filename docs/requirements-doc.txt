@@ -1,5 +1,5 @@
 setuptools >= 67.7.2
-sphinx == 6.2.1
+sphinx
 rtds_action
 -r ../requirements.txt
 memory-profiler
