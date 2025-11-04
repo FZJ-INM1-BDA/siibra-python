@@ -530,12 +530,13 @@ class Factory:
     @build_type("siibra/feature/connectivity/retrograde/v0.1")
     def build_connectivity_retrograde(cls, spec):
         modality = spec["modality"]
+        repospec = spec.get('repository', {})
         kwargs = {
             "cohort": spec.get("cohort", ""),
             "modality": modality,
             "regions": spec["regions"],
-            "connector": cls.extract_connector(spec),
-            "decode_func": cls.extract_decoder(spec),
+            "connector": interareal_connectivity.InterarealConnectivityMatrix.ConnectivityConnector(repospec['url']),
+            "decode_func": interareal_connectivity.InterarealConnectivityMatrix.decode_meta(spec),
             "files": spec.get("files", {}),
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),

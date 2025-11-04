@@ -13,8 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 from textwrap import wrap
 from zipfile import ZipFile
+from io import BytesIO
+
 from ..feature import Feature
 from ..tabular import tabular
 
@@ -23,7 +26,8 @@ from .. import anchor as _anchor
 from ...commons import logger, QUIET, siibra_tqdm
 from ...core import region as _region
 from ...locations import pointset
-from ...retrieval.repositories import RepositoryConnector
+from ...retrieval.repositories import RepositoryConnector, ZipfileConnector
+from ...retrieval.cache import CACHE
 
 import pandas as pd
 import numpy as np
@@ -33,6 +37,127 @@ try:
     from typing import Literal
 except ImportError:  # support python 3.7
     from typing_extensions import Literal
+
+def name_to_code(name):
+    map_ = {
+        "areas 1 and 2 of cortex": "A1/2",
+        "area 10 of cortex": "A10",
+        "area 11 of cortex": "A11",
+        "area 13 of cortex, lateral part": "A13L",
+        "area 13 of cortex, medial part": "A13M",
+        "area 13a of cortex": "A13a",
+        "area 13b of cortex": "A13b",
+        "area 14 of cortex, caudal part": "A14C",
+        "area 14 of cortex, rostral part": "A14R",
+        "area 19 of cortex, dorsointermediate part": "A19DI",
+        "area 19 of cortex, medial part": "A19M",
+        "area 23 of cortex, ventral part": "A23V",
+        "area 23a of cortex": "A23a",
+        "area 23b of cortex": "A23b",
+        "area 23c of cortex": "A23c",
+        "area 24a of cortex": "A24a",
+        "area 24b of cortex": "A24b",
+        "area 24c of cortex": "A24c",
+        "area 24d of cortex": "A24d",
+        "area 25 of cortex": "A25",
+        "area 29a-c of cortex": "A29a-c",
+        "area 29d of cortex": "A29d",
+        "area 30 of cortex": "A30",
+        "area 31 of cortex": "A31",
+        "area 32 of cortex": "A32",
+        "area 32 of cortex, ventral part": "A32V",
+        "area 35 of cortex": "A35",
+        "area 36 of cortex": "A36",
+        "area 3a of cortex (somatosensory)": "A3a",
+        "area 3b of cortex (somatosensory)": "A3b",
+        "area 45 of cortex": "A45",
+        "area 46 of cortex, dorsal part": "A46D",
+        "area 46 of cortex, ventral part": "A46V",
+        "area 47 (old 12) of cortex, lateral part": "A47L(12L)",
+        "area 47 (old 12) of cortex, medial part": "A47M(12M)",
+        "area 47 (old 12) of cortex, orbital part": "A47O(12O)",
+        "area 4 of cortex, parts a and b (primary motor)": "A4ab",
+        "area 4 of cortex, part c (primary motor)": "A4c",
+        "area 6 of cortex, dorsocaudal part": "A6DC",
+        "area 6 of cortex, dorsorostral part": "A6DR",
+        "area 6 of cortex, medial (supplementary motor) part": "A6M",
+        "area 6 of cortex, ventral, part a": "A6Va",
+        "area 6 of cortex, ventral, part b": "A6Vb",
+        "area 8 of cortex, caudal part": "A8C",
+        "area 8a of cortex, dorsal part": "A8aD",
+        "area 8a of cortex, ventral part": "A8aV",
+        "area 8b of cortex": "A8b",
+        "area 9 of cortex": "A9",
+        "agranular insular cortex": "AI",
+        "anterior intraparietal area of cortex": "AIP",
+        "amygdalopiriform transition area": "APir",
+        "auditory cortex, primary area": "AuA1",
+        "auditory cortex, anterolateral area": "AuAL",
+        "auditory cortex, caudolateral area": "AuCL",
+        "auditory cortex, caudomedial area": "AuCM",
+        "auditory cortex, caudal parabelt area": "AuCPB",
+        "auditory cortex, middle lateral area": "AuML",
+        "auditory cortex, rostral area": "AuR",
+        "auditory cortex, rostromedial area": "AuRM",
+        "auditory cortex, rostral parabelt": "AuRPB",
+        "auditory cortex, rostrotemporal": "AuRT",
+        "auditory cortex, rostrotemporal lateral area": "AuRTL",
+        "auditory cortex, rostrotemporal medial area": "AuRTM",
+        "dysgranular insular cortex": "DI",
+        "entorhinal cortex": "Ent",
+        "fundus of superior temporal sulcus area of cortex": "FST",
+        "granular insular cortex": "GI",
+        "gustatory cortex": "Gu",
+        "insular proisocortex": "IPro",
+        "lateral intraparietal area of cortex": "LIP",
+        "medial intraparietal area of cortex": "MIP",
+        "medial superior temporal area of cortex": "MST",
+        "orbital periallocortex": "OPAl",
+        "orbital proisocortex": "OPro",
+        "occipito-parietal transitional area of cortex": "OPt",
+        "parietal area PE": "PE",
+        "parietal area PE, caudal part": "PEC",
+        "parietal area PF (cortex)": "PF",
+        "parietal area PFG (cortex)": "PFG",
+        "parietal area PG": "PG",
+        "parietal area PG, medial part (cortex)": "PGM",
+        "parietal areas PGa and IPa (fundus of superior temporal ventral area)": "PGa/IPa(FSTv)",
+        "parainsular cortex, lateral part": "PaIL",
+        "parainsular cortex, medial part": "PaIM",
+        "piriform cortex": "Pir",
+        "proisocortical motor region (precentral opercular cortex)": "ProM(PrCO)",
+        "prostriate area": "ProSt",
+        "retroinsular area (cortex)": "ReI",
+        "secondary somatosensory cortex, external part": "S2E",
+        "secondary somatosensory cortex, internal part": "S2I",
+        "secondary somatosensory cortex, parietal rostral area": "S2PR",
+        "secondary somatosensory cortex, parietal ventral area": "S2PV",
+        "superior temporal rostral area (cortex)": "STR",
+        "temporal area TE1 (inferior temporal cortex)": "TE1",
+        "temporal area TE2 (inferior temporal cortex)": "TE2",
+        "temporal area TE3 (inferior temporal cortex)": "TE3",
+        "temporal area TE, occipital part": "TEO",
+        "temporal area TF": "TF",
+        "temporal area TF, occipital part": "TFO",
+        "temporal area TH": "TH",
+        "temporal area TL": "TL",
+        "temporal area TL, occipital part": "TLO",
+        "temporo-parieto-occipital association area (superior temporal polysensory cortex)": "TPO(STP)",
+        "temporopolar proisocortex": "TPPro",
+        "temporal proisocortex": "TPro",
+        "temporoparietal transitional area": "TPt",
+        "primary visual cortex": "V1",
+        "visual area 2": "V2",
+        "visual area 3 (ventrolateral posterior area)": "V3(VLP)",
+        "visual area 3A (dorsoanterior area)": "V3A(DA)",
+        "visual area 4 (ventrolatereral anterior area)": "V4(VLA)",
+        "visual area 4, transitional part (middle temporal crescent)": "V4T(MTC)",
+        "visual area 5 (middle temporal area)": "V5(MT)",
+        "visual area 6 (dorsomedial area)": "V6(DM)",
+        "visual area 6A (posterior parietal medial area)": "V6A(PPM)",
+        "ventral intraparietal area of cortex": "VIP"
+    }
+    return map_[name]
 
 
 class InterarealConnectivityMatrix(
@@ -44,6 +169,48 @@ class InterarealConnectivityMatrix(
     Parcellation-averaged connectivity, providing one or more matrices of a
     given modality for a given parcellation.
     """
+
+    @classmethod
+    def decode_meta(cls, spec):
+        decoder_spec = spec.get("decoder", {})
+        if decoder_spec["@type"].endswith('csv'):
+            kwargs = {k: v for k, v in decoder_spec.items() if k != "@type"}
+            return lambda b: pd.read_csv(BytesIO(b), **kwargs)
+        else:
+            return None
+
+    class ConnectivityConnector(ZipfileConnector):
+        class ZipFileLoader:
+            """
+            Loads a file from the zip archive, but mimics the behaviour
+            of cached http requests used in other connectors.
+            """
+            def __init__(self, zipfile, filename, decode_func, meta=None):
+                self.zipfile = zipfile
+                self.filename = filename
+                self.func = decode_func
+                self.cachefile = CACHE.build_filename(zipfile + filename)
+                self.meta = meta
+
+            @property
+            def cached(self):
+                return os.path.isfile(self.cachefile)
+
+            @property
+            def data(self):
+                container = ZipFile(self.zipfile)
+                df = self.func(container.open(self.filename).read())
+                if self.meta is not None:
+                    df._metadata = self.meta
+                return df
+
+
+        def get_loader(self, filename, folder="", decode_func=None):
+            """Get a lazy loader for a file, for loading data
+            only once loader.data is accessed."""
+            meta = self.ZipFileLoader(self.zipfile, 'meta.json', lambda b: json.loads(b)).data
+            loader = self.ZipFileLoader(self.zipfile, filename, decode_func, meta)
+            return loader
 
     def __init__(
         self,
@@ -98,10 +265,12 @@ class InterarealConnectivityMatrix(
         self.cohort = cohort.upper()
         self._connector = connector
         self._files = files
-        self._decode_func = decode_func
+        if decode_func is not None:
+            self._decode_func = decode_func
+        else:
+            self._decode_func = self.decode_meta
         self.regions = regions
         self._matrices = {}
-
     @property
     def subjects(self):
         """
@@ -326,6 +495,11 @@ class InterarealConnectivityMatrix(
     def __len__(self):
         return len(self._files)
 
+    @property
+    def data(self):
+        m = self.get_matrix(subject=None)
+        return m
+
     def __str__(self):
         return "{} connectivity for {} from {} cohort ({} matrices)".format(
             self.paradigm if hasattr(self, "paradigm") else self.modality,
@@ -400,14 +574,28 @@ class InterarealConnectivityMatrix(
         Extract connectivity matrix.
         """
         assert subject in self.subjects
-        array = self._connector.get(self._files[subject], decode_func=self._decode_func)
-        nrows = array.shape[0]
-        if array.shape[1] != nrows:
-            raise RuntimeError(
-                f"Non-quadratic connectivity matrix {nrows}x{array.shape[1]} "
-                f"from {self._files[subject]} in {str(self._connector)}"
-            )
-        return self._arraylike_to_dataframe(array)
+
+        parcellations = self.anchor.represented_parcellations()
+        assert len(parcellations) == 1
+        parc = next(iter(parcellations))
+        with QUIET:
+            indexmap = {
+                i: parc.get_region(regionname, allow_tuple=True)
+                for i, regionname in enumerate(self.regions)
+            }
+        try:
+            #assert len(indexmap) == nrows
+            df = self._connector.get(self._files[subject], decode_func=self._decode_func)
+            remapper = {
+                label - min(indexmap.keys()): region
+                for label, region in indexmap.items()
+            }
+            df.rename(index=remapper, inplace=True)
+            df.rename(columns=remapper, inplace=True)
+        except Exception:
+            raise RuntimeError("Could not decode connectivity matrix regions.")
+        return df
+
 
 
     def plot(self, subject: str = None, regions: str = None,
@@ -433,190 +621,67 @@ class InterarealConnectivityMatrix(
             Can take all the arguments `nilearn.plotting.plot_matrix` can take. See the doc at
             https://nilearn.github.io/stable/modules/generated/nilearn.plotting.plot_matrix.html
         """
-        if regions is None:
-            return None
-            #regions = self.regions
-        #indices = [self.regions.index(r) for r in regions]
-        m = self.get_matrix(subject=subject)
-        #matrix = self.get_matrix(subject=subject).iloc[indices, indices].to_numpy()  # nilearn.plotting.plot_matrix works better with a numpy array
+        try:
+            if regions is None:
+                return None
+                #regions = self.regions
+            #indices = [self.regions.index(r) for r in regions]
+            m = self.get_matrix(subject=subject)
+            #matrix = self.get_matrix(subject=subject).iloc[indices, indices].to_numpy()  # nilearn.plotting.plot_matrix works better with a numpy array
+            metadata = m._metadata['data']
+            d = m.rename(str, axis='columns').rename(str, axis='index')
 
-        d = m.rename(str, axis='columns').rename(str, axis='index')
-        d = d[d[regions] != 0][[regions]]
-        d.map(np.log10)
-        d.sort_values(by=[regions], inplace=True)
-        scale = [
-            (0, '#e6e6e6'),
-            (0.005, '#f4f78c'),
-            (0.13, '#e28b21'),
-            (0.28, '#d75223'),
-            (0.32, '#d44324'),
-            (0.74, '#7c5359'),
-            (0.92, '#513331'),
-            (1, '#513331')
-        ]
+            d = d[d[regions] != 0][[regions]]
+            d = d.map(np.log10)
+            d.sort_values(by=[regions], inplace=True)
+            scale = [
+                (0, '#e6e6e6'),
+                (0.005, '#f4f78c'),
+                (0.13, '#e28b21'),
+                (0.28, '#d75223'),
+                (0.32, '#d44324'),
+                (0.74, '#7c5359'),
+                (0.92, '#513331'),
+                (1, '#513331')
+            ]
+        except Exception as e:
+            logger.exception('error')
+        try:
+            d = d.rename(name_to_code, axis='columns').rename(name_to_code, axis='index')
+            regions = name_to_code(regions)
+        except Exception as e:
+            logger.error("error rename column", exc_info=True)
         if backend == "plotly":
-            import plotly.express as px
-            fig = px.bar(d, x=regions, orientation='h', color=regions, color_continuous_scale=scale)
-            #fig.update_yaxes(autorange='reversed')
-            fig.update_layout(yaxis={'dtick': 1}, height=len(d) * 12)
-
+            try:
+                import plotly.express as px
+                #fig = px.bar(d, x=regions, orientation='h', color=regions, color_continuous_scale=scale, range_color=[-6, 0])
+                fig = px.scatter(
+                    d, x=regions,
+                    color=regions, color_continuous_scale=scale, range_color=[-6, 0],
+                )
+                #fig.update_yaxes(autorange='reversed')
+                fig.update_layout(
+                    xaxis={'range': [-6, 0], 'title': f'log<sub>10</sub>(FLNe) for injections in area {regions}'},
+                    yaxis={
+                        'dtick': 1,
+                        'tick0': 0,
+                        'range': [-1, len(d[regions])],
+                        'autorange': False,
+                        'title': 'source cortical area'
+                    },
+                    height=len(d) * 18,
+                    coloraxis_showscale=False,
+                    font={
+                        'family': 'Sans Serif',
+                        'size': 10,
+                    }
+                )
+                fig.update_traces(
+                    hovertemplate=f'log10(FLNe %{{y}} → {regions}) = %{{x:.2f}}'
+                )
+                inj = metadata['injections'][regions]
+                _i = [f'  • <a href="{i["link"]}" target="_blank">{i["injection"]}</a> (⤓<a href="{i["csv"]}" target="_blank">csv</a>, ⤓<a href="{i.get("cells")}" target="_blank">xyz</a>)  ' for i in inj]
+                fig.add_annotation(text=f'Injections into {regions}: <br>{"<br>".join(_i)}', xref='paper', yref='paper', x=0.9, y=0.01, showarrow=False, bordercolor="rgba(0, 0, 0, 1)", bgcolor="rgba(255, 255, 255, 1)", align='left')
+            except Exception:
+                logger.exception('error')
         return fig
-
-        if logscale:
-            matrix = np.log10(matrix)
-
-        # default kwargs
-        subject_title = subject or ""
-        kwargs["title"] = kwargs.get(
-            "title",
-            f"{subject_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}"
-        )
-        np.save('nm-matrix.npy', matrix)
-        if kwargs.get("reorder") or (backend == "nilearn"):
-            kwargs["figure"] = kwargs.get("figure", (15, 15))
-            from nilearn import plotting
-            plotting.plot_matrix(
-                matrix,
-                labels=regions,
-                **kwargs
-            )
-        elif backend == "plotly":
-            from plotly.express import imshow
-            return imshow(matrix, *args, x=regions, y=regions, **kwargs)
-        else:
-            raise NotImplementedError(
-                f"Plotting connectivity matrices with {backend} is not supported."
-            )
-
-    def plot3(self, *args, backend="matplotlib", **kwargs):
-        """
-        Create a bar plot of a columns of the data.
-        Parameters
-        ----------
-        backend: str
-            "matplotlib", "plotly", or others supported by pandas DataFrame
-            plotting backend.
-        **kwargs
-            takes Matplotlib.pyplot keyword arguments
-        """
-        wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
-        kwargs["title"] = kwargs.get(
-            "title",
-            "\n".join(wrap(
-                f"{self.modality} in {', '.join({_.name for _ in self.anchor.regions})}",
-                wrapwidth
-            ))
-        )
-        print ('self data is', self.data)
-        kwargs["kind"] = kwargs.get("kind", "bar")
-        kwargs["y"] = kwargs.get("y", self.data.columns[0])
-        if backend == "matplotlib":
-            try:
-                import matplotlib.pyplot as plt
-            except ImportError:
-                commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
-                return None
-            # default kwargs
-            if kwargs.get("error_y") is None:
-                kwargs["yerr"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
-                yerr_label = f" \u00b1 {kwargs.get('yerr')}" if kwargs.get('yerr') else ''
-            kwargs["width"] = kwargs.get("width", 0.95)
-            kwargs["ylabel"] = kwargs.get(
-                "ylabel",
-                f"{kwargs['y']}{yerr_label} {self.unit if hasattr(self, 'unit') else ''}"
-            )
-            kwargs["grid"] = kwargs.get("grid", True)
-            kwargs["legend"] = kwargs.get("legend", False)
-            ax = self.data.plot(*args, backend=backend, **kwargs)
-            ax.set_title(ax.get_title(), fontsize="medium")
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
-            plt.tight_layout()
-            return ax
-        elif backend == "plotly":
-            kwargs["title"] = kwargs["title"].replace("\n", "<br>")
-            kwargs["error_y"] = kwargs.get("error_y", 'std' if 'std' in self.data.columns else None)
-            error_y_label = f" &plusmn; {kwargs.get('error_y')}" if kwargs.get('error_y') else ''
-            kwargs["labels"] = {
-                "index": kwargs.pop("xlabel", None) or kwargs.pop("index", ""),
-                "value": kwargs.pop("ylabel", None) or kwargs.pop(
-                    "value",
-                    f"{kwargs.get('y')}{error_y_label} {self.unit if hasattr(self, 'unit') else ''}"
-                )
-            }
-            fig = self.data.plot(*args, backend=backend, **kwargs)
-            fig.update_layout(
-                yaxis_title=kwargs["labels"]['value'],
-                title=dict(
-                    automargin=True, yref="container", xref="container",
-                    pad=dict(t=40), xanchor="left", yanchor="top"
-                )
-            )
-            return fig
-        else:
-            return self.data.plot(*args, backend=backend, **kwargs)
-
-    def plot2(self, *args, backend="matplotlib", **kwargs):
-        """
-        Create a bar plot of a columns of the data.
-        Parameters
-        ----------
-        backend: str
-            "matplotlib", "plotly", or others supported by pandas DataFrame
-            plotting backend.
-        **kwargs
-            takes Matplotlib.pyplot keyword arguments
-        """
-        wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
-        kwargs["title"] = kwargs.get(
-            "title",
-            "\n".join(wrap(
-                f"{self.modality} in {', '.join({_.name for _ in self.anchor.regions})}",
-                wrapwidth
-            ))
-        )
-        kwargs["kind"] = kwargs.get("kind", "bar")
-        kwargs["y"] = kwargs.get("y", self.data.columns[0])
-        if backend == "matplotlib":
-            try:
-                import matplotlib.pyplot as plt
-            except ImportError:
-                commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
-                return None
-            # default kwargs
-            if kwargs.get("error_y") is None:
-                kwargs["yerr"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
-                yerr_label = f" \u00b1 {kwargs.get('yerr')}" if kwargs.get('yerr') else ''
-            kwargs["width"] = kwargs.get("width", 0.95)
-            kwargs["ylabel"] = kwargs.get(
-                "ylabel",
-                f"{kwargs['y']}{yerr_label} {self.unit if hasattr(self, 'unit') else ''}"
-            )
-            kwargs["grid"] = kwargs.get("grid", True)
-            kwargs["legend"] = kwargs.get("legend", False)
-            ax = self.data.plot(*args, backend=backend, **kwargs)
-            ax.set_title(ax.get_title(), fontsize="medium")
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
-            plt.tight_layout()
-            return ax
-        elif backend == "plotly":
-            kwargs["title"] = kwargs["title"].replace("\n", "<br>")
-            kwargs["error_y"] = kwargs.get("error_y", 'std' if 'std' in self.data.columns else None)
-            error_y_label = f" &plusmn; {kwargs.get('error_y')}" if kwargs.get('error_y') else ''
-            kwargs["labels"] = {
-                "index": kwargs.pop("xlabel", None) or kwargs.pop("index", ""),
-                "value": kwargs.pop("ylabel", None) or kwargs.pop(
-                    "value",
-                    f"{kwargs.get('y')}{error_y_label} {self.unit if hasattr(self, 'unit') else ''}"
-                )
-            }
-            fig = self.data.plot(*args, backend=backend, **kwargs)
-            fig.update_layout(
-                yaxis_title=kwargs["labels"]['value'],
-                title=dict(
-                    automargin=True, yref="container", xref="container",
-                    pad=dict(t=40), xanchor="left", yanchor="top"
-                )
-            )
-            return fig
-        else:
-            return self.data.plot(*args, backend=backend, **kwargs)
