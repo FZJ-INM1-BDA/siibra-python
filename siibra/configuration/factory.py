@@ -20,7 +20,8 @@ from ..features.tabular import (
     receptor_density_fingerprint,
     cell_density_profile,
     layerwise_cell_density,
-    regional_timeseries_activity
+    regional_timeseries_activity,
+    interareal_connectivity,
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -524,6 +525,29 @@ class Factory:
             return regional_timeseries_activity.RegionalBOLD(**kwargs)
         else:
             raise ValueError(f"No method for building signal table of type {modality}.")
+
+    @classmethod
+    @build_type("siibra/feature/connectivity/retrograde/v0.1")
+    def build_connectivity_retrograde(cls, spec):
+        modality = spec["modality"]
+        repospec = spec.get('repository', {})
+        kwargs = {
+            "cohort": spec.get("cohort", ""),
+            "modality": modality,
+            "regions": spec["regions"],
+            "connector": interareal_connectivity.InterarealConnectivityMatrix.ConnectivityConnector(repospec['url']),
+            "decode_func": interareal_connectivity.InterarealConnectivityMatrix.decode_meta(spec),
+            "files": spec.get("files", {}),
+            "anchor": cls.extract_anchor(spec),
+            "description": spec.get("description", ""),
+            "datasets": cls.extract_datasets(spec),
+            "prerelease": spec.get("prerelease", False),
+            "id": spec.get("@id", None),
+        }
+        if modality == "RetrogradeTracer":
+            return interareal_connectivity.InterarealConnectivityMatrix(**kwargs)
+        else:
+            raise ValueError(f"No method for building connectivity matrix of type {modality}.")
 
     @classmethod
     def from_json(cls, spec: dict):
