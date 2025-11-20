@@ -17,6 +17,7 @@ import json
 from textwrap import wrap
 from zipfile import ZipFile
 from io import BytesIO
+from os import path
 
 from ..feature import Feature
 from ..tabular import tabular
@@ -194,7 +195,7 @@ class InterarealConnectivityMatrix(
 
             @property
             def cached(self):
-                return os.path.isfile(self.cachefile)
+                return path.isfile(self.cachefile)
 
             @property
             def data(self):
