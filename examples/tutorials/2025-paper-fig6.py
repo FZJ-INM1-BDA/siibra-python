@@ -350,6 +350,7 @@ contours = {
 if hem == "left" and "3797" in section.name:
     contours["VIM reference annotation"] = ("g", vim_reference)
 
+# %%
 # patch extraction
 x0, _, z0 = np.array([c.coordinates.min(0) for _, c in contours.values() if c is not None]).min(0) - 1
 x1, _, z1 = np.array([c.coordinates.max(0) for _, c in contours.values() if c is not None]).max(0) + 1
