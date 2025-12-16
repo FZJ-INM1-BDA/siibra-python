@@ -1,0 +1,1860 @@
+{
+  "@id": "e2ec8c09",
+  "@type": "tmp/poly",
+  "coordinateSpace": {
+    "@id": "minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588"
+  },
+  "coordinates": [
+    [
+      {
+        "@id": "d1f3b993",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -14.538873,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "502407a4",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "b2b1bbe8",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 1.266101,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "9f055f0d",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -14.253105,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "56e9fb4c",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "c5ca1235",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 1.276685,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "e89c8a8e",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -14.009759,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "5cc1fc34",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "582b3e87",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 1.65398,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "3c745f9c",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -13.621592,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "51e93c62",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "c624736f",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 1.737908,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "e5e1874c",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -13.18097,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "1775055",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "b7542a82",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 1.65398,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "b45627b1",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -12.840009,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "ca53f13f",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "66479fea",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 1.325724,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "37e7936e",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -12.665505,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "9c61351c",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "68680473",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 0.948581,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "8d6f996c",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -12.549081,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "14e83437",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "e126e64f",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 0.673397,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "1c281b2a",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -12.453825,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "a129c765",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "a28acd06",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 0.419381,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "d19c5d61",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -12.284481,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "264836f9",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "cfc9ad1b",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 0.186533,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "3365f85",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -11.982837,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "3a55203d",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "8bfbbe95",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -0.138925,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "84a1c220",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -11.665317,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "c49a3540",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "34e35635",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -0.414109,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "2f7a3eba",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -11.347797,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "bd07d226",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "19517f5a",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -0.678709,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "1f8abf63",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -10.818597,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "99198552",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "b9955ccb",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -0.953893,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "245b79fd",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -10.45065,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "665daf1",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "f7071ee",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -1.268622,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "ef5e5977",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -10.03101,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "e4833fc6",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "37e7897c",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -1.530897,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "1894a840",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -9.537933,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "f19291af",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "bdc00c1d",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -1.56237,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "945e0036",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.870879,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "f07476f8",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "a9bd05d8",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -1.448206,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "abdfb8a2",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.437197,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "16deb275",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "a7f31255",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -1.461924,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "e1aec396",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.214932999999998,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "222dc797",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "c6ee3b38",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -1.705356,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "3d9f0f79",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.045589000000001,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "1e0aa174",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "71cbc2ce",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -2.118132,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "7ae9b632",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.013837,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "9dfdaad4",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "d90df654",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -2.446236,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "8e9c4162",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.003253,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "8fed3aa0",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "987afa05",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -2.732004,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "2c298231",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.045589000000001,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "2772f95e",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "c5d7fd9b",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -2.964852,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "d9b0c54c",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.225516999999998,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "121a6d2f",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "3fce43bb",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -3.081276,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "17b1a6d6",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.437197,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "197d3b1d",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "6dbf47e1",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -3.25062,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "ae6e642f",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.712381,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "b4525446",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "ba7fd3c9",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -3.557556,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "b0162d8b",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.775885,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "79158150",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "dbd5c0f4",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -3.769236,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "3e64bf3",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.670045,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "c3edb2cf",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "9f53e042",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -3.875076,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "5f993527",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.373693,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "2cb64430",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "fd34d107",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.04442,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "8ed1b50e",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -7.802157,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "4d146485",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "984f18b3",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.245516,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "1c5238d4",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -7.717485,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "13693bcb",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "1785227a",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.393692,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "6acde85a",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -7.770405,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "c05ce2f5",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "d4108229",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.552452,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "8c0f5621",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.363109,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "d7031035",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "cdeefe0",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.563036,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "e007c77e",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.606541,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "b7461318",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "d73c8aac",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.510116,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "87ce5aef",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -8.871141,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "28873d40",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "427f52b7",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.478364,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "3738b0ef",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -9.230997,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "9c32e979",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "99c71449",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.46778,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "597f3bd9",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -9.527349,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "a49392b",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "12ab51",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.605372,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "b4867682",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -9.844869,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "9f5236f5",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "6414bf23",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.817052,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "7acbb921",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -10.204725,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "e314d88",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "d77cef24",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.83822,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "3a8d2ce9",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -10.649253,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "95719fbb",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "ab88b194",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.901724,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "2fd9d897",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -11.220789,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "b9070c13",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "b21d6228",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.954644,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "dd68ab99",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -11.633565,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "25ee4808",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "fc8e0d51",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.94406,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "3b1c13b",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -11.993421,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "aaed725b",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "99717b1d",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.848804,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "5e947a66",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -12.363861,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "8ad7fd53",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "7518757f",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.690044,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "513c7388",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -12.713133,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "20ea850d",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "faa25144",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.541868,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "a3ad191",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -13.094157,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "db7d7fed",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "23621d7",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.298436,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "4ecd49ca",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -13.454013,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "19a239e6",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "8b14a48b",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -4.107924,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "1ad984b9",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -13.803285,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "6aed318e",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "313957da",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -3.864492,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "e765a439",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -13.993797,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "2c3bfa90",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "8bfed6fe",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -3.684564,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "e3394598",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -14.395989,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "58493d82",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "3a9f97ce",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -3.4623,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "b7b5c707",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -14.639421,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "c05a51c",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "c8e62cb7",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -3.240036,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "80c273f1",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -14.914605,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "b6e384c4",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "5f9293df",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -2.975436,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "a8def8fd",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -14.956941,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "ce609cfb",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "f648d231",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -2.6685,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "bf843bcc",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -15.126285,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "112a143f",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "3a03ce75",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -2.19222,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "dfa484b9",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -15.168621,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "7d35a983",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "87890602",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -1.938204,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "733bc799",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -15.390885,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "350f7495",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "2a4b2e5",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -1.842948,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "81a508e8",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -15.607857,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "c84ff066",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "f1866c42",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -1.774152,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "634351a1",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -15.718989,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "dfa726c4",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "3bd3d5ff",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -1.620684,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "11c131b5",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -15.729573,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "c936cc0a",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "a38f7c22",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -1.419588,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "1db20d00",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -15.771909,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "8e3e7b1d",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "73f146e5",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -1.070317,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "99818b5b",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -15.761325,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "57576a39",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "f8c6b095",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -0.837469,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "dbc98fa7",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -15.623733,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "b46c2291",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "83e17282",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -0.498781,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "d3fb23fd",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -15.613149,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "2933a3a",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "45aa2a84",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -0.202429,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "57ab3c7b",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -15.581397,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "756d512",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "eebdec6",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -0.107173,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "e89d55d9",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -15.232125,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "f2274d70",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "55d9ab6c",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 0.041003,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "8466cd9b",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -15.094533,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "7cc5f7da",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "f076fd7b",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 0.220931,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "dd7b39ef",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -14.946357,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "bd82d3be",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "b5bc0268",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 0.411443,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "6f7177f9",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -14.829933,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "47c73ab5",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "90e6af35",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 0.570203,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "8dfceeaa",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -14.802794,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "a83f6e2a",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "64566ec0",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 0.884562,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ],
+    [
+      {
+        "@id": "9911c8ca",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": -14.73954,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "39dc0a5",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 5.93,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      },
+      {
+        "@id": "2c1954ca",
+        "@type": "https://openminds.om-i.org/types/QuantitativeValue",
+        "value": 1.009511,
+        "unit": {
+          "@id": "https://openminds.om-i.org/instances/unitOfMeasurement/millimeter"
+        }
+      }
+    ]
+  ],
+  "closed": true,
+  "siibra:explorer": {
+    "name": "VIM 1µm Section 3797",
+    "desc": "VIM polygon according to histological criteria, annotated at 1 µm resolution on BigBrain section 3797 using the siibra explorer annotation plugin."
+  }
+}
