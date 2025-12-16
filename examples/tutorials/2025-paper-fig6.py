@@ -18,15 +18,24 @@
 Case study: Anatomical evaluation of subcortical maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This notebook uses siibra to re-assess some results of the study "Ventral intermediate nucleus structural connectivity-derived segmentation: anatomical reliability and variability", [Bertino et al., NeuroImage 2021](https://doi.org/10.1016/j.neuroimage.2021.118519).
+This notebook uses siibra to re-assess some results of the study "Ventral
+intermediate nucleus structural connectivity-derived segmentation: anatomical
+reliability and variability",
+[Bertino et al., NeuroImage 2021](https://doi.org/10.1016/j.neuroimage.2021.118519).
 
-The study tested different parcellation pipelines for tractography-derived putative Vim identification.
-Thalamic parcellation was performed on a high quality, multi-shell dataset and a downsampled, clinical-like dataset using two different diffusion signal modeling techniques and two different voxel classification criteria.
-Of the resulting four parcellation pipelines, the most reliable  in terms of inter-subject variability has been picked and parcels putatively corresponding to motor thalamic nuclei have been selected by calculating similarity with a histology-based mask of Vim. The effect of data quality and parcellation pipelines on a volumetric index of connectivity clusters has been assessed.
+The study tested different parcellation pipelines for tractography-derived putative
+Vim identification. Thalamic parcellation was performed on a high quality,
+multi-shell dataset and a downsampled, clinical-like dataset using two different
+diffusion signal modeling techniques and two different voxel classification criteria.
+Of the resulting four parcellation pipelines, the most reliable  in terms of
+inter-subject variability has been picked and parcels putatively corresponding
+to motor thalamic nuclei have been selected by calculating similarity with a
+histology-based mask of Vim. The effect of data quality and parcellation pipelines
+on a volumetric index of connectivity clusters has been assessed.
 
 For the different non-invasive parcellations, the study investigates
     1. reliability across subjects
-    2. anatomical plausibility wrt the histological mask from Morel/Krauth, NeuroImage 2010
+    2. anatomical plausibility with respect to the histological mask from Morel/Krauth, NeuroImage 2010
     3. relationship to clinically relevant tremor stimulation targets
 
 Main findings include:
@@ -108,7 +117,7 @@ for clustername in cluster_names:
         )
 
 # %%
-# Hemispheres fo Dentate cluster maps are confused in the study data
+# Hemispheres of Dentate cluster maps are confused in the study data
 tmp = clustermaps["Dentate", "L"]
 clustermaps["Dentate", "L"] = clustermaps["Dentate", "R"]
 clustermaps["Dentate", "R"] = tmp
@@ -116,14 +125,14 @@ clustermaps["Dentate", "R"] = tmp
 
 # %%
 # -------------------------------------------
-# 1.2 Reproduce DICE scores with DISTAL atlas
+# 1.2 Reported DICE scores with DISTAL atlas
 # -------------------------------------------
 # The paper reports on average DICE scores with each subject in the individual
-# subject spaces.  We fill the reported values in a dataframe as a starting
+# subject spaces. We fill the reported values in a dataframe as a starting
 # point.
 
 # %%
-# reported average within-subject scores in the paper
+# Reported average within-subject scores in the paper
 cluster_scores = pd.DataFrame(
     [
         ["Precentral", "L", 0.25],
@@ -210,7 +219,7 @@ cluster_scores.plot(
     kind="bar",
     y=["Julich-Brain Correlation (VIM)", "Dice score (study)"],
     grid=True,
-    figsize=(7, 3),
+    figsize=(7, 2.5),
     width=0.8,
     title="Cluster assignment to VIM",
 )
@@ -222,12 +231,11 @@ plt.legend(
     loc="center left",
     bbox_to_anchor=(0.15, -1.0),
 )
-plt.xlabel(None)
+plt.tight_layout()
 
 # %%
-# -----------------------------------------------
-# 1.4 Investigate the situation in histology data
-# -----------------------------------------------
+# 2. Investigate in histology data
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # We use siibra to retrieve 1-micrometer histology sections in the regions of
 # interest, and to compare the fit of map contours with the actual histology.
 # We show projected contours of
@@ -236,18 +244,11 @@ plt.xlabel(None)
 # 3. Julich-Brain probability maps of VIM, and
 # 4. Julich-Brain probability map of the best assigned region.
 
-# %%
-# load reference contour in section 3797
-with open("e2ec8c09.sands.json", "r") as f:
-    d = json.load(f)
-vim_reference = siibra.PointCloud(
-    [[v["value"] for v in c] for c in d["coordinates"]], space="bigbrain"
-)
-
 
 # %%
-def nonzero_points(volume, thres=0):
-    # return siibra pointcloud of nonzero points in the volume
+# Define a few utility functions
+def points_from_volume(volume: siibra.volumes.Volume, thres: float = 0.):
+    # Create a siibra pointcloud of corresponding to nonzero voxels of theresholded volume
     img = volume.fetch()
     arr = img.get_fdata()
     coords = np.argwhere(arr > thres)
@@ -258,7 +259,9 @@ def nonzero_points(volume, thres=0):
     )
 
 
-def coronal_contour(pointcloud, y, ratio=0.7):
+def coronal_contour(
+    pointcloud: siibra.PointCloud, y: float, ratio: float = 0.
+) -> siibra.locations.Contour:
     if pointcloud is None:
         return None
     # get the 2D contour of the pointcloud in the given y plane
@@ -268,70 +271,95 @@ def coronal_contour(pointcloud, y, ratio=0.7):
     )
     if len(hull.exterior.coords) == 0:
         return None
-    return siibra.PointCloud(
+    return siibra.locations.Contour(
         [(x, y, z) for x, z in hull.exterior.coords], space=pointcloud.space
     )
 
 
-def get_best_section(volume, thres=0):
-    pts_bb = nonzero_points(volume, thres).warp("bigbrain")
-    sections = siibra.features.get(
-        pts_bb.boundingbox, siibra.features.cellular.CellbodyStainedSection
-    )
-    point_intersections = [
-        pts_bb.intersection(s.get_boundingbox().zoom(2)) for s in sections
-    ]
-    best_index = np.argmax(
-        [0 if pts is None else len(pts) for pts in point_intersections]
-    )
-    return sections[best_index]
+bigbrain_contour = lambda vol, y, thres: coronal_contour(
+    points_from_volume(
+        volume=vol,
+        thres=thres
+    ).warp("bigbrain"),
+    y=y,
+    ratio=0.5
+)
 
+
+def get_best_section(volume: siibra.volumes.Volume, thres: float = 0.):
+    pts_bb = points_from_volume(volume=volume, thres=thres).warp("bigbrain")
+    sections = siibra.features.get(pts_bb.boundingbox, "CellbodyStainedSection")
+    point_intersections = [
+        pts_bb.intersection(s.get_boundingbox().zoom(2))
+        for s in sections
+    ]
+    best_index = np.argmax([
+        0 if pts is None else len(pts)
+        for pts in point_intersections
+    ])
+    best_section = sections[best_index]
+    print(f"Best section for {clustername} {hem} is {best_section}")
+    return best_section
+
+
+shortname = lambda n: re.sub(r"\s*\(.*\)", "", n)  # shorten area names for figures
 
 # %%
-# get a clustermap
+# ----------------------------------------------
+# 2.1 Load the reference contour in section 3797
+# ----------------------------------------------
+with open("e2ec8c09.sands.json", "r") as f:
+    d = json.load(f)
+vim_reference = siibra.PointCloud(
+    [[v["value"] for v in c] for c in d["coordinates"]], space="bigbrain"
+)
+section_spec = "3797"  # set the specification for later use
+
+# %%
+# Set a cluster and plot its map and correlation
+# ----------------------------------------------
 clustername = "Precentral"
 hem = "left"
 hemcode = hemispheres[hem]
 clustermap = clustermaps[clustername, hemcode]
 
-plt.figure()
 plotting.plot_glass_brain(clustermap.fetch())
-# plt.title(f"{clustername} {hem}")
 
 df = assignments[clustername, hemcode].query("correlation > 0.1")[["correlation"]]
 df.index = [re.sub(r"\s*\(.*?\)", "", r.name) for r in df.index]
 df.plot(kind="bar", figsize=(2.5, 2), grid=True, title=f"{clustername} {hem}")
 
 # %%
-# specify a bigbrain section for the figure
+# -------------------------------
+# 2.2 Extract patch from BigBrain
+# -------------------------------
 best_section = get_best_section(clustermap)
-ref_section = [
+section = [
     s
     for s in siibra.features.cellular.CellbodyStainedSection._get_instances()
-    if "3797" in s.name
+    if section_spec in s.name
 ][0]
-section = ref_section
 print(f"Section: {section.name[1:5]}")
 
-
-# %%
-shortname = lambda n: re.sub(r"\s*\(.*\)", "", n)
-bigbrain_contour = lambda m, y, t: coronal_contour(
-    nonzero_points(m, t).warp("bigbrain"), y, ratio=0.5
-)
-
-# %%
-# define and extract patch
-patch_res_mm = 0.02
+# Get y-axis in BigBrain of the section's center
 y_bigbrain = section.get_boundingbox().center[1]
+print("y:", y_bigbrain)
 
 # %%
-# Uncomment this code if you have a license for DISTAL Atlas (Ewert 2017)
-# `distalmap = nib.load("pathtodistalmap")`
-# `vim_map_distal = distalmap[hemcode]`
+# ----------------------------------
+# 2.3 Load DISTAL Atlas (Ewert 2017)
+# ----------------------------------
+# DISTAL Atlas can be found at https://www.lead-dbs.org/helpsupport/knowledge-base/atlasesresources/distal-atlas/
+# UNCOMMENT the lines below if you have a license to use DISTAL Atlas (Ewert 2017).
+
+# distalmap_path = ""
+# distalmap = nib.load(distalmap_path)
+# vim_map_distal = distalmap[hemcode]
 
 # %%
-# map contours
+# ---------------------
+# 2.4 Plot map contours
+# ---------------------
 vim_map_jba = julichbrain.get_region(f"vim {hem}").get_regional_map("mni152")
 best_region_jba = cluster_scores.loc[clustername, hemcode]["Julich-Brain region"]
 best_map_jba = best_region_jba.get_regional_map("mni152")
@@ -340,18 +368,21 @@ contours = {
         "k",
         bigbrain_contour(clustermap, y_bigbrain, 0.0),
     ),
-    # f"VIM {hem} (Distal)": ("m", bigbrain_contour(vim_map_distal, y_bigbrain, 0.5)),  # Uncomment this code if you have a license for DISTAL Atlas (Ewert 2017)
+    # UNCOMMENT the line below if you have a license to use DISTAL Atlas (Ewert 2017)
+    # f"VIM {hem} (Distal)": ("m", bigbrain_contour(vim_map_distal, y_bigbrain, 0.5)),
     f"{shortname(best_region_jba.name)} (Julich-Brain)": (
         "b",
         bigbrain_contour(best_map_jba, y_bigbrain, 0.5),
     ),
     f"VIM {hem} (Julich-Brain)": ("r", bigbrain_contour(vim_map_jba, y_bigbrain, 0.5)),
 }
-if hem == "left" and "3797" in section.name:
+if hem == "left" and section_spec in section.name:
     contours["VIM reference annotation"] = ("g", vim_reference)
 
 # %%
-# patch extraction
+# -----------------
+# 2.5 Extract patch
+# -----------------
 x0, _, z0 = np.array([c.coordinates.min(0) for _, c in contours.values() if c is not None]).min(0) - 1
 x1, _, z1 = np.array([c.coordinates.max(0) for _, c in contours.values() if c is not None]).max(0) + 1
 y0 = section.get_boundingbox().minpoint[1]
@@ -360,46 +391,59 @@ voi = siibra.BoundingBox([x0, y0, z0], [x1, y1, z1], space="bigbrain")
 patch = section.fetch(voi=voi, resolution_mm=0.02)
 
 # %%
-# whole brain view of BigBrain section
-tpl = siibra.get_template(voi.space).fetch(resolution_mm=0.8)
-plt.figure()
+# -------------------------------
+# 2.6 Display pathc with contours
+# -------------------------------
+
+# %%
+# Whole brain view of BigBrain patch
+# ----------------------------------
+tpl = voi.space.get_template().fetch(resolution_mm=0.8)
 view = plotting.plot_img(
-    patch, bg_img=tpl, cmap="gray", title=f"Section {section.name[1:5]}"
+    img=patch,
+    bg_img=tpl,
+    cmap="gray",
+    title=f"Section {section.name[1:5]}",
 )
 for color, cont in contours.values():
     if cont is not None:
         view.add_markers(cont.as_list(), marker_size=0.2, marker_color=color)
 
 # %%
-# detailed patch view
-plt.figure()
+# Detailed patch view
+# -------------------
+plt.figure(figsize=(7, 5))
 plt.imshow(patch.get_fdata().squeeze(), cmap="gray")
-legend = []
 for name, (color, cont) in contours.items():
     if cont is not None:
         Vx, Vy, Vz = np.dot(np.linalg.inv(patch.affine), cont.homogeneous.T)[:3]
-        plt.plot(Vz, Vx, color=color)
-        legend.append(name)
-# plt.axis('off')
-plt.legend(legend, loc="center left", bbox_to_anchor=(1, 0.5))
+        plt.plot(Vz, Vx, color=color, label=name)
+plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
 
 # %%
+# Detailed view of VIM reference alone
+# ------------------------------------
+
+# fetch the bouding box
 x0, _, z0 = vim_reference.coordinates.min(0) - 1
 x1, _, z1 = vim_reference.coordinates.max(0) + 1
 ref_voi = siibra.BoundingBox([x0, y0, z0], [x1, y1, z1], space="bigbrain")
 ref_patch = section.fetch(voi=ref_voi, resolution_mm=-1)
 
-# %%
+# plot patch and the reference
 plt.figure()
 plt.imshow(ref_patch.get_fdata().squeeze(), cmap="gray")
 Vx, Vy, Vz = np.dot(np.linalg.inv(ref_patch.affine), vim_reference.homogeneous.T)[:3]
 plt.plot(Vz, Vx, color="g", lw=3)
 
+# plot the box of interest
 y_, x_ = 1150, 3400
 w = 1000
 plt.plot([x_, x_, x_ + w, x_ + w, x_], [y_, y_ + w, y_ + w, y_, y_], "k-")
 
 # %%
+# Cellular detail of the patch and VIM reference at the box of interest
+# ---------------------------------------------------------------------
 plt.figure()
 plt.imshow(ref_patch.get_fdata().squeeze()[y_:y_ + w, x_:x_ + w], cmap="gray")
 Vx, Vy, Vz = np.dot(np.linalg.inv(ref_patch.affine), vim_reference.homogeneous.T)[:3]
