@@ -527,7 +527,7 @@ class EbrainsHdgConnector(RepositoryConnector):
             self._files.extend(newfiles)
             logger.debug(f"{len(newfiles)} of {self.maxentries} objects returned.")
 
-            if len(newfiles) == self.maxentries:
+            if len(newfiles) > 0:
                 # there might be more files
                 marker = newfiles[-1]["name"]
             else:
