@@ -90,7 +90,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
     def fetch(
         self,
         fragment: str = None,
-        resolution_mm: float = -1,
+        resolution_mm: Union[float, Tuple[float, float, float]] = -1,
         voi: _boundingbox.BoundingBox = None,
         max_bytes: float = SIIBRA_MAX_FETCH_SIZE_BYTES,
         **kwargs,
@@ -209,7 +209,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
 
     def _merge_fragments(
         self,
-        resolution_mm: float = -1,
+        resolution_mm: Union[float, Tuple[float, float, float]] = -1,
         voi: _boundingbox.BoundingBox = None,
         max_bytes: float = SIIBRA_MAX_FETCH_SIZE_BYTES,
     ) -> nib.Nifti1Image:
@@ -354,7 +354,7 @@ class NeuroglancerVolume:
 
     def fetch(
         self,
-        resolution_mm: float = -1,
+        resolution_mm: Union[float, Tuple[float, float, float]] = -1,
         voi: _boundingbox.BoundingBox = None,
         max_bytes: float = MAX_BYTES,
         **kwargs
@@ -372,14 +372,12 @@ class NeuroglancerVolume:
 
     def _select_scale(
         self,
-        resolution_mm: float,
+        resolution_mm: Union[float, Tuple[float, float, float]],
         max_bytes: float = MAX_BYTES,
         bbox: _boundingbox.BoundingBox = None
     ) -> 'NeuroglancerScale':
-        if resolution_mm is None:
+        if resolution_mm is None or resolution_mm == -1:
             suitable = self.scales
-        elif resolution_mm < 0:
-            suitable = [self.scales[0]]
         else:
             suitable = sorted(s for s in self.scales if s.resolves(resolution_mm))
 
@@ -433,9 +431,12 @@ class NeuroglancerScale:
     def res_mm(self):
         return self.res_nm / 1e6
 
-    def resolves(self, resolution_mm):
+    def resolves(self, resolution_mm: Union[float, Tuple[float, float, float]]):
         """Test whether the resolution of this scale is sufficient to provide the given resolution."""
-        return all(r / 1e6 <= resolution_mm for r in self.res_nm)
+        if isinstance(resolution_mm, tuple):
+            return all(self.res_nm / 1e6 <= resolution_mm)
+        else:
+            return all(r / 1e6 <= resolution_mm for r in self.res_nm)
 
     def __lt__(self, other):
         """Sort scales by resolution."""
