@@ -90,7 +90,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
     def fetch(
         self,
         fragment: str = None,
-        resolution_mm: Union[float, Tuple[float, float, float]] = -1,
+        resolution_mm: Union[float, Tuple[float, float, float]] = None,
         voi: _boundingbox.BoundingBox = None,
         max_bytes: float = SIIBRA_MAX_FETCH_SIZE_BYTES,
         **kwargs,
@@ -104,11 +104,11 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             The name of a fragment volume to fetch, if any. For example,
             some volumes are split into left and right hemisphere fragments.
             See :func:`~siibra.volumes.Volume.fragments`
-        resolution_mm: float, default: -1 (i.e, the highest possible given max_bytes)
+        resolution_mm: float, default: None (i.e, the highest possible given max_bytes)
             Desired resolution in millimeters.
         voi: BoundingBox
             optional specification of a volume of interest to fetch.
-        max_bytes: float: Default: NeuroglancerVolume.MAX_BYTES
+        max_bytes: float: Default: NeuroglancerVolume.MAX_BYTES, 0.2GiB
             Maximum allowable size (in bytes) for downloading the image. siibra
             will attempt to find the highest resolution image with a size less
             than this value.
@@ -415,10 +415,9 @@ class NeuroglancerVolume:
             scale_changed = True
 
         if scale_changed:
-            logger.warning((
-                f"Changed resolution from {chosen_scale.res_mm} to {chosen_scale.res_mm} to allowed download size. ",
-                "Increase `max_bytes` to allow higher-resolution downloads."
-            ))
+            logger.warning(
+                f"Changed resolution from {resolution_mm or self.scales[0].res_mm} to {chosen_scale.res_mm} to have download size below {max_bytes} bytes ({max_bytes / 1024**3} GiB). Increase `max_bytes` to allow higher-resolution downloads."
+            )
 
         return chosen_scale
 
