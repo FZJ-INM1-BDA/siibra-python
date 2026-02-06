@@ -391,7 +391,9 @@ class NeuroglancerVolume:
         _______
             NeuroglancerScale: The best resolution scale available.
         """
-        if resolution_mm is not None and resolution_mm >= 0:
+        if resolution_mm is None or (isinstance(resolution_mm, (int, float)) and resolution_mm < 0):
+            chosen_scale = min(self.scales)
+        else:
             suitable_scales = sorted([s for s in self.scales if s.resolves(resolution_mm)])
             if not suitable_scales:
                 raise ValueError(
@@ -400,8 +402,6 @@ class NeuroglancerVolume:
             chosen_scale = max(suitable_scales)  # `max` for choosing the closest resolution
             if not all('{:.6f}'.format(r).startswith(str(resolution_mm)) for r in chosen_scale.res_mm):
                 logger.info(f"Closest resolution to requested is {chosen_scale.res_mm}")
-        else:
-            chosen_scale = min(self.scales)
 
         # Further reduce resolution to fit into max_bytes if needed.
         scale_changed = False
