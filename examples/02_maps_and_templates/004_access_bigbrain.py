@@ -70,10 +70,10 @@ plotting.view_img(
 # %%
 # Next we select a parcellation which provides a map for BigBrain, and extract
 # labels for the same volume of interest. We choose the cortical layer maps by `Wagstyl et al<https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.3000678>`.
-# Note that by specifying "-1" as a resolution, `siibra` will fetch the highest
-# possible resolution.
+# Note that `siibra` will fetch the highest possible resolution if not specified
+# limited by the download size which can be updated with `max_bytes`
 layermap = siibra.get_map(space='bigbrain', parcellation='layers')
-mask = layermap.fetch(fragment='left hemisphere', resolution_mm=-1, voi=voi)
+mask = layermap.fetch(fragment='left hemisphere', voi=voi)
 mask
 
 # %%
@@ -122,5 +122,5 @@ print(f"Size of the bounding box: {hoc5_bbox.shape}")
 
 # this is quite large, so we shrink it
 voi = hoc5_bbox.zoom(0.1)
-crop = section1402.fetch(voi=voi, resolution_mm=-1)
+crop = section1402.fetch(voi=voi)
 plotting.plot_img(crop, bg_img=None, cmap="gray", display_mode="y")

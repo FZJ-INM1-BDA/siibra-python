@@ -112,7 +112,7 @@ for dim, size in enumerate(roi.shape):
 
 # Fetch the region of interest from the section, and plot it.
 fig = plt.figure(figsize=(6, 5))
-roi_img = patch.section.fetch(voi=roi, resolution_mm=-1)
+roi_img = patch.section.fetch(voi=roi)
 display = plotting.plot_img(
     roi_img, display_mode="y", cmap='gray', annotate=False, figure=fig
 )
