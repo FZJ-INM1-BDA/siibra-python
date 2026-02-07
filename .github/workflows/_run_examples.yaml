@@ -16,6 +16,10 @@ on:
         required: false
         type: string
         default: "INFO_WO_PROGRESS_BARS"
+      test_file:
+        required: false
+        type: string
+        default: "examples/test_examples.py, examples/test_tutorials.py"
 
 jobs:
   test_examples:
@@ -46,4 +50,4 @@ jobs:
       env:
         SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
       shell: bash
-      run: pytest -rx --durations=5 examples/test_examples.py
+      run: pytest -rx --durations=5 ${{ inputs.test_file }}

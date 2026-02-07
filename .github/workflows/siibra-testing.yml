@@ -112,3 +112,7 @@ jobs:
       os: ubuntu-latest
       python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
+      test_file: ${{ matrix.test_file }}
+    strategy:
+      matrix:
+        test_file: [examples/test_examples.py, examples/test_tutorials.py]
