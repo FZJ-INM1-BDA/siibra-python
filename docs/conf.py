@@ -189,6 +189,7 @@ sphinx_gallery_conf = {
     "show_signature": True,
     "show_memory": True,
     "run_stale_examples": run_stale_examples,
+    'parallel': 2,
 }
 
 if not is_allen_api_microarray_service_available():
