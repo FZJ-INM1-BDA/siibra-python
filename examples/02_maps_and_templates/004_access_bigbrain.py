@@ -53,7 +53,7 @@ voi = siibra.locations.BoundingBox(
     point2="-26.557mm, 6.277mm, 50.631mm",
     space=space
 )
-bigbrain_chunk = bigbrain_template.fetch(voi=voi, resolution_mm=0.02)
+bigbrain_chunk = bigbrain_template.fetch(voi=voi)
 plotting.view_img(bigbrain_chunk, bg_img=None, cmap='gray')
 
 # %%
