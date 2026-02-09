@@ -56,9 +56,6 @@ class MarmosetCalbindinDensityProfile(
         "Marmoset Calbindin Cell Density Profile"
     )
 
-    LAYERS = {0: 'Layer I-III', 1: 'Layer IV', 2: 'Layer V-VI'}
-    BOUNDARIES = list(zip(list(LAYERS.keys())[:-1], list(LAYERS.keys())[1:]))
-
     @classmethod
     def decode_meta(cls, spec):
         decoder_spec = spec.get("decoder", {})
@@ -145,33 +142,6 @@ class MarmosetCalbindinDensityProfile(
         self._decode_func = decode_func
 
     @property
-    def boundary_positions(self):
-        """
-        u = urlparse(self._url)
-        pattern = u.path.rsplit('/', 1)[-1]
-        url = self._url.replace(pattern, 'boundaries.json')
-        #poly = self.poly_srt(np.array(requests.HttpRequest(url).get()["segments"]))
-        data = requests.HttpRequest(url).get()
-        return data
-        """
-        if self._boundary_positions is None:
-            self._boundary_positions = {}
-            for b in self.BOUNDARIES:
-                XY = self.boundary_annotation(b).astype("int")
-                self._boundary_positions[b] = self.depth_image[
-                    XY[:, 1], XY[:, 0]
-                ].mean()
-        return self._boundary_positions
-
-    @property
-    def layers(self):
-        return self._layer_loader.get()
-
-    @property
-    def _depths(self):
-        return [d + self._step / 2 for d in np.arange(0, 1, self._step)]
-
-    @property
     def key(self):
         assert len(self.species) == 1
         return create_key("{}_{}_{}".format(
@@ -187,19 +157,6 @@ class MarmosetCalbindinDensityProfile(
         -------
         pd.DataFrame
             A square matrix with region names as the column and row names.
-        """
-        #parcellations = self.anchor.represented_parcellations()
-        #logger.info('anchor %s', self.anchor)
-        #logger.info('rep %s', self.anchor.represented_parcellations())
-        #assert len(parcellations) == 1
-        #parc = next(iter(parcellations))
-        #logger.info('parcellation is %s and parc is %s', parcellations, parc)
-        """
-        with QUIET:
-            indexmap = {
-                i: parc.get_region(regionname, allow_tuple=True)
-                for i, regionname in enumerate(self.regions)
-            }
         """
         try:
             df = self._connector.get(self.file, decode_func=self._decode_func)
@@ -244,8 +201,6 @@ class MarmosetCalbindinDensityProfile(
                     fig.add_trace(go.Scatter(x=d.density_50, y=d.depth, fill='tonexty', line_color='#000000', fillcolor='#cccccc', mode='lines', name=c), row=1, col=(idx+1))
                     fig.add_trace(go.Scatter(x=d.density_75, y=d.depth, fill='tonexty', line_color='#555555', fillcolor='#cccccc', mode='lines', name=c), row=1, col=(idx+1))
                     fig.add_trace(go.Scatter(x=d.density_95, y=d.depth, fill='tonexty', line_color='#555555', fillcolor='#eeeeee', mode='lines', name=c), row=1, col=(idx+1))
-                    #fig.add_trace(go.Scatter(x=data.density_50, y=data.depth, mode='lines'), row=1, col=2)
-                    #fig.add_trace(go.Scatter(x=data.density_50, y=data.depth, mode='lines'), row=1, col=3)
 
                     bp1 = bp['depth_1_3'][c]
                     bp2 = bp['depth_5_6'][c]
@@ -320,5 +275,3 @@ class MarmosetCalbindinDensityProfile(
             return fig
         else:
             return self.data.plot(*args, **kwargs, backend=backend)
-
-
