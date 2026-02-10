@@ -1,0 +1,24 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_ebrainsrefs.json"
+    },{
+        "$ref": "/config_schema/has_region.json"
+    }],
+    "properties": {
+        "@type": {
+            "const": "siibra/feature/profile/marmosetcelldensity/v0.1"
+        },
+        "unit": {
+            "type": "string"
+        },
+        "file": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "@type",
+        "unit",
+        "file"
+    ]
+}

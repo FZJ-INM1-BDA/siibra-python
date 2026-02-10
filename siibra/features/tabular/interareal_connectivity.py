@@ -641,7 +641,6 @@ class InterarealConnectivityMatrix(
             metadata = m.meta['data']
             d = m.rename(str, axis='columns').rename(str, axis='index')
 
-            logger.info('selected value is %s', d[[regions]])
             d = d[d[regions] != 0][[regions]]
             d = d.map(np.log10)
             d.sort_values(by=[regions], inplace=True)
