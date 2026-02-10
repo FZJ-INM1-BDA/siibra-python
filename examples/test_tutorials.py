@@ -11,7 +11,7 @@ def get_examples():
     for example in pathlib.Path("./examples").resolve().rglob("*.py"):
         if example.name in ["test_examples.py", "test_tutorials.py"]:
             continue
-        if example.parent.name == "tutorials":  # computationally expensive, hence, a second test is performed to do them in parallel.
+        if example.parent.name != "tutorials":  # computationally expensive, hence, a second test is performed to do them in parallel.
             continue
         yield pytest.param(example, id=example.name)
 
