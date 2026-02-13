@@ -41,7 +41,7 @@ except ImportError:  # support python 3.7
 
 def name_to_code(name):
     map_ = {
-        "areas 1 and 2 of cortex": "A1/2",
+        "areas 1 and 2 of cortex": "A1-2",
         "area 10 of cortex": "A10",
         "area 11 of cortex": "A11",
         "area 13 of cortex, lateral part": "A13L",
@@ -74,9 +74,9 @@ def name_to_code(name):
         "area 45 of cortex": "A45",
         "area 46 of cortex, dorsal part": "A46D",
         "area 46 of cortex, ventral part": "A46V",
-        "area 47 (old 12) of cortex, lateral part": "A47L(12L)",
-        "area 47 (old 12) of cortex, medial part": "A47M(12M)",
-        "area 47 (old 12) of cortex, orbital part": "A47O(12O)",
+        "area 47 (old 12) of cortex, lateral part": "A47L",
+        "area 47 (old 12) of cortex, medial part": "A47M",
+        "area 47 (old 12) of cortex, orbital part": "A47O",
         "area 4 of cortex, parts a and b (primary motor)": "A4ab",
         "area 4 of cortex, part c (primary motor)": "A4c",
         "area 6 of cortex, dorsocaudal part": "A6DC",
@@ -122,11 +122,11 @@ def name_to_code(name):
         "parietal area PFG (cortex)": "PFG",
         "parietal area PG": "PG",
         "parietal area PG, medial part (cortex)": "PGM",
-        "parietal areas PGa and IPa (fundus of superior temporal ventral area)": "PGa/IPa(FSTv)",
+        "parietal areas PGa and IPa (fundus of superior temporal ventral area)": "PGa-IPa",
         "parainsular cortex, lateral part": "PaIL",
         "parainsular cortex, medial part": "PaIM",
         "piriform cortex": "Pir",
-        "proisocortical motor region (precentral opercular cortex)": "ProM(PrCO)",
+        "proisocortical motor region (precentral opercular cortex)": "ProM",
         "prostriate area": "ProSt",
         "retroinsular area (cortex)": "ReI",
         "secondary somatosensory cortex, external part": "S2E",
@@ -143,23 +143,29 @@ def name_to_code(name):
         "temporal area TH": "TH",
         "temporal area TL": "TL",
         "temporal area TL, occipital part": "TLO",
-        "temporo-parieto-occipital association area (superior temporal polysensory cortex)": "TPO(STP)",
+        "temporo-parieto-occipital association area (superior temporal polysensory cortex)": "TPO",
         "temporopolar proisocortex": "TPPro",
         "temporal proisocortex": "TPro",
         "temporoparietal transitional area": "TPt",
         "primary visual cortex": "V1",
         "visual area 2": "V2",
-        "visual area 3 (ventrolateral posterior area)": "V3(VLP)",
-        "visual area 3A (dorsoanterior area)": "V3A(DA)",
-        "visual area 4 (ventrolatereral anterior area)": "V4(VLA)",
-        "visual area 4, transitional part (middle temporal crescent)": "V4T(MTC)",
-        "visual area 5 (middle temporal area)": "V5(MT)",
-        "visual area 6 (dorsomedial area)": "V6(DM)",
-        "visual area 6A (posterior parietal medial area)": "V6A(PPM)",
+        "visual area 3 (ventrolateral posterior area)": "V3",
+        "visual area 3A (dorsoanterior area)": "V3A",
+        "visual area 4 (ventrolatereral anterior area)": "V4",
+        "visual area 4, transitional part (middle temporal crescent)": "V4T",
+        "visual area 5 (middle temporal area)": "V5",
+        "visual area 6 (dorsomedial area)": "V6",
+        "visual area 6A (posterior parietal medial area)": "V6A",
         "ventral intraparietal area of cortex": "VIP"
     }
     return map_[name]
 
+
+class DFWithMeta(pd.DataFrame):
+    _metadata = ['meta']
+    @property
+    def _constructor(self):
+        return DFWithMeta
 
 class InterarealConnectivityMatrix(
     tabular.Tabular,
@@ -180,7 +186,9 @@ class InterarealConnectivityMatrix(
         else:
             return None
 
+
     class ConnectivityConnector(ZipfileConnector):
+
         class ZipFileLoader:
             """
             Loads a file from the zip archive, but mimics the behaviour
@@ -202,7 +210,8 @@ class InterarealConnectivityMatrix(
                 container = ZipFile(self.zipfile)
                 df = self.func(container.open(self.filename).read())
                 if self.meta is not None:
-                    df._metadata = self.meta
+                    df = DFWithMeta(df)
+                    df.meta = self.meta
                 return df
 
 
@@ -316,6 +325,7 @@ class InterarealConnectivityMatrix(
                 ]
                 self._matrices['mean'] = self._arraylike_to_dataframe(np.stack(all_arrays).mean(0))
             return self._matrices['mean'].copy()
+
         if subject is None:
             subject = next(iter(self._files.keys()))
         if subject not in self._files:
@@ -629,7 +639,7 @@ class InterarealConnectivityMatrix(
             #indices = [self.regions.index(r) for r in regions]
             m = self.get_matrix(subject=subject)
             #matrix = self.get_matrix(subject=subject).iloc[indices, indices].to_numpy()  # nilearn.plotting.plot_matrix works better with a numpy array
-            metadata = m._metadata['data']
+            metadata = m.meta['data']
             d = m.rename(str, axis='columns').rename(str, axis='index')
 
             d = d[d[regions] != 0][[regions]]

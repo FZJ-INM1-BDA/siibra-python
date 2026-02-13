@@ -722,7 +722,8 @@ class Species(Enum):
             "0b6df2b3-5297-40cf-adde-9443d3d8214a": 4,
             "3ad33ec1-5152-497d-9352-1cf4497e0edd": 5,
             "2ab3ecf5-76cc-46fa-98ab-309e3fd50f57": 6,
-            "b8bf99e7-0914-4b65-a386-d785249725f1": 7
+            "b8bf99e7-0914-4b65-a386-d785249725f1": 7,
+            "627bac2f-2b4c-4f2d-ae4e-9373a7f430f2": 8
         }
 
         if isinstance(spec, Species):

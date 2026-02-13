@@ -22,6 +22,7 @@ from ..features.tabular import (
     layerwise_cell_density,
     regional_timeseries_activity,
     interareal_connectivity,
+    marmoset_cortical_profile,
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -398,6 +399,22 @@ class Factory:
             datasets=cls.extract_datasets(spec),
             prerelease=spec.get("prerelease", False),
             id=spec.get("@id", None),
+        )
+
+    @classmethod
+    @build_type("siibra/feature/profile/marmosetcelldensity/v0.1")
+    def build_marmoset_cell_density_profile(cls, spec):
+        repospec = spec.get('repository', {})
+
+        return marmoset_cortical_profile.MarmosetCalbindinDensityProfile(
+            url=repospec['url'],
+            anchor=cls.extract_anchor(spec),
+            datasets=cls.extract_datasets(spec),
+            prerelease=spec.get("prerelease", False),
+            id=spec.get("@id", None),
+            region=spec.get('region'),
+            connector=marmoset_cortical_profile.MarmosetCalbindinDensityProfile.CorticalProfileConnector(repospec['url']),
+            decode_func=marmoset_cortical_profile.MarmosetCalbindinDensityProfile.decode_meta(spec),
         )
 
     @classmethod
