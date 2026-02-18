@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 from typing import Callable, Union
 from zipfile import ZipFile
 import json
+import os
 
 from .. import anchor as _anchor
 from . import cortical_profile, tabular
