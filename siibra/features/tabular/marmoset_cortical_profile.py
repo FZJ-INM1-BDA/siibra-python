@@ -36,9 +36,6 @@ from io import BytesIO
 from textwrap import wrap
 import numpy as np
 import pandas as pd
-import plotly.express as px
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
 
 class DFWithMeta(pd.DataFrame):
     _metadata = ['meta']
@@ -185,6 +182,8 @@ class MarmosetCalbindinDensityProfile(
             raise NotImplemented('matplotlib graph is not supported yet')
         elif backend == "plotly":
             try:
+                from plotly.subplots import make_subplots
+                import plotly.graph_objects as go
                 kwargs["title"] = kwargs["title"].replace("\n", "<br>")
                 kwargs["labels"] = {
                     "index": kwargs.pop("xlabel", None) or kwargs.pop("index", "Cortical depth"),
