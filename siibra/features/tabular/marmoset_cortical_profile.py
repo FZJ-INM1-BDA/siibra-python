@@ -232,7 +232,7 @@ class MarmosetCalbindinDensityProfile(
                         fig.add_hrect(
                             y0=bp1, y1=bp2, line_width=0, fillcolor="gray",
                             opacity=0.,
-                            label=dict(text='<b>VI</b>', textposition="middle right", font={'family': 'Arial'}),
+                            label=dict(text='<b>IV</b>', textposition="middle right", font={'family': 'Arial'}),
                             row=1, col=3
                         )
                         fig.add_hrect(
