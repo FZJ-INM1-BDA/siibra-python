@@ -204,43 +204,44 @@ class MarmosetCalbindinDensityProfile(
 
                     bp1 = bp['depth_1_3'][c]
                     bp2 = bp['depth_5_6'][c]
-                    fig.add_hrect(
-                        y0=0, y1=bp1, line_width=0, fillcolor="gray",
-                        opacity=0.,
-                        layer='below',
-                        row=1, col=(idx+1)
-                    )
-                    fig.add_hrect(
-                        y0=bp1, y1=bp2, line_width=0, fillcolor="gray",
-                        opacity=0.2,
-                        layer='below',
-                        row=1, col=(idx+1)
-                    )
-                    fig.add_hrect(
-                        y0=bp2, y1=1, line_width=0, fillcolor="gray",
-                        opacity=0.,
-                        layer='below',
-                        row=1, col=(idx+1)
-                    )
-                    if idx == len(cases) - 1:
+                    if not np.isnan(bp1) and not np.isnan(bp2):
                         fig.add_hrect(
                             y0=0, y1=bp1, line_width=0, fillcolor="gray",
                             opacity=0.,
-                            label=dict(text='<b>I-III</b>', textposition="middle right", font={'family': 'Arial'}),
-                            row=1, col=3
+                            layer='below',
+                            row=1, col=(idx+1)
                         )
                         fig.add_hrect(
                             y0=bp1, y1=bp2, line_width=0, fillcolor="gray",
-                            opacity=0.,
-                            label=dict(text='<b>IV</b>', textposition="middle right", font={'family': 'Arial'}),
-                            row=1, col=3
+                            opacity=0.2,
+                            layer='below',
+                            row=1, col=(idx+1)
                         )
                         fig.add_hrect(
                             y0=bp2, y1=1, line_width=0, fillcolor="gray",
                             opacity=0.,
-                            label=dict(text='<b>V-VI</b>', textposition="middle right", font={'family': 'Arial'}),
-                            row=1, col=3
+                            layer='below',
+                            row=1, col=(idx+1)
                         )
+                        if idx == len(cases) - 1:
+                            fig.add_hrect(
+                                y0=0, y1=bp1, line_width=0, fillcolor="gray",
+                                opacity=0.,
+                                label=dict(text='<b>I-III</b>', textposition="middle right", font={'family': 'Arial'}),
+                                row=1, col=3
+                            )
+                            fig.add_hrect(
+                                y0=bp1, y1=bp2, line_width=0, fillcolor="gray",
+                                opacity=0.,
+                                label=dict(text='<b>IV</b>', textposition="middle right", font={'family': 'Arial'}),
+                                row=1, col=3
+                            )
+                            fig.add_hrect(
+                                y0=bp2, y1=1, line_width=0, fillcolor="gray",
+                                opacity=0.,
+                                label=dict(text='<b>V-VI</b>', textposition="middle right", font={'family': 'Arial'}),
+                                row=1, col=3
+                            )
                 fig.update_yaxes(autorange='reversed', title='normalized cortical depth', row=1, col=1)
                 fig.update_yaxes(autorange='reversed', showticklabels=False, row=1, col=2)
                 fig.update_yaxes(autorange='reversed', showticklabels=False, row=1, col=3)
