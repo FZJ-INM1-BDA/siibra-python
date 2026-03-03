@@ -7,3 +7,4 @@ requests-mock
 matplotlib
 plotly
 seaborn
+shapely
