@@ -21,6 +21,7 @@ print("sphinx-book-theme:", sphinx_book_theme.__version__)
 print("sphinx-autopackagesummary", sphinx_autopackagesummary.__version__)
 
 os.environ["SIIBRA_LOG_LEVEL"] = "ERROR"
+os.environ["SIIBRA_NG_VOL_USE_CACHE"] = "True"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
 

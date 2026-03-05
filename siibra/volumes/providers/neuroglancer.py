@@ -34,6 +34,7 @@ from ...commons import (
     MapType,
     merge_meshes,
     SIIBRA_MAX_FETCH_SIZE_BYTES,
+    SIIBRA_NG_VOL_USE_CACHE,
     QUIET,
     resample_img_to_img
 )
@@ -265,7 +266,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
 
 class NeuroglancerVolume:
 
-    USE_CACHE = False  # Whether to keep fetched data in local cache
+    USE_CACHE = SIIBRA_NG_VOL_USE_CACHE  # Whether to keep fetched data in local cache
     MAX_BYTES = SIIBRA_MAX_FETCH_SIZE_BYTES  # Number of bytes at which an image array is considered to large to fetch
 
     def __init__(self, url: str):
