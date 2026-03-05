@@ -483,7 +483,7 @@ class NeuroglancerScale:
         affine_ = shift_ng_transfrom(
             transform_nm=self.volume.transform_nm,
             scale_resolution_nm=self.res_nm,
-            max_resolution_nm=self.volume.scales[0].res_nm[0],
+            max_resolution_nm=self.volume.scales[0].res_nm,
         )
         affine_[:3, :] /= 1e6
         return affine_
