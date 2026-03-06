@@ -418,7 +418,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             Note that supplying 'region' will result in retrieving the map index of that region
             automatically.
         **fetch_kwargs
-            - resolution_mm: resolution in millimeters
+            - resolution_mm: resolution in millimeters as float or a tuple of floats
             - format: the format of the volume, like "mesh" or "nii"
             - voi: a BoundingBox of interest
 

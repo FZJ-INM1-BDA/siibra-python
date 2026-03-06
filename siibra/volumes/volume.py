@@ -450,6 +450,10 @@ class Volume(structure.BrainStructure):
                 - supported format types, see SUPPORTED_FORMATS. This includes
                 'nii', 'zip/nii', 'neuroglancer/precomputed', 'gii-mesh',
                 'neuroglancer/precompmesh', 'gii-label'
+        **kwargs
+            - resolution_mm: resolution in millimeters as float or a tuple of floats
+            - format: the format of the volume, like "mesh" or "nii"
+            - voi: a BoundingBox of interest
 
         Returns
         -------
