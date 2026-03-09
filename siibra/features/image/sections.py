@@ -31,6 +31,9 @@ class CellbodyStainedSection(
     def __init__(self, **kwargs):
         image.Image.__init__(self, **kwargs, modality="cell body staining")
 
+    def get_boundingbox(self, clip=False, background=0, **fetch_kwargs):
+        return super().get_boundingbox(clip, background, **fetch_kwargs)
+
 
 class BigBrain1MicronPatch(image.Image, category="cellular"):
 
