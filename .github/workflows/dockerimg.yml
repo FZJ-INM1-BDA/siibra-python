@@ -53,7 +53,7 @@ jobs:
         then
           docker login \
             -u '${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER_NAME }}' \
-            -p '${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER }}' \
+            --password-stdin '${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER }}' \
             ${{ matrix.docker-repo }}
         fi
 
