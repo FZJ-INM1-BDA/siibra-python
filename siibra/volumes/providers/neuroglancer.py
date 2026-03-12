@@ -415,9 +415,10 @@ class NeuroglancerVolume:
             scale_changed = True
 
         if scale_changed:
-            logger.warning(
-                f"Changed resolution from {resolution_mm or self.scales[0].res_mm} to {chosen_scale.res_mm} to have download size below {max_bytes} bytes ({max_bytes / 1024**3} GiB). Increase `max_bytes` to allow higher-resolution downloads."
-            )
+            logger.warning((
+                f"Changed resolution from {chosen_scale.res_mm} to {chosen_scale.res_mm} to allowed download size. ",
+                "Increase `max_bytes` to allow higher-resolution downloads."
+            ))
 
         return chosen_scale
 
