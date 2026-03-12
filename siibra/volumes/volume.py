@@ -742,7 +742,8 @@ class ReducedVolume(Volume):
     def fetch(self, format: str = None, **kwargs):
         # determine dtype
         if self.new_labels is not None:
-            logger.info(f"Relabling regions with labels: {self.new_labels}")
+            if set(self.new_labels) != {1}:
+                logger.info(f"Relabling regions with labels: {self.new_labels}")
             dtype = 'int32'
         elif {type(v) for v in self.source_volumes} == {FilteredVolume}:
             dtype = 'uint8'
