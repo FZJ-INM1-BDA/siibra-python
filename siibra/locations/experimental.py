@@ -156,14 +156,17 @@ class Plane:
         The result is an Nx3 list of intersection coordinates.
         """
         directions = endpoints - startpoints
-        lengths = np.linalg.norm(directions, axis=1)
-        directions = directions / lengths[:, None]
-        lambdas = (self._d - np.dot(startpoints, self._n)) / np.dot(directions, self._n)
-        assert all(lambdas >= 0)
-        result = startpoints + lambdas[:, None] * directions
-        non_intersecting = lambdas > lengths
+
+        # Use raw parametric t in [0, 1] — no need to normalize.
+        # t=0 means startpoint, t=1 means endpoint.
+        denom = directions @ self._n
+        t = (self._d - startpoints @ self._n) / denom
+
+        result = startpoints + t[:, None] * directions
+
+        non_intersecting = (t < 0) | (t > 1)
         num_failed = np.count_nonzero(non_intersecting)
-        result[non_intersecting, :] = np.nan
+        result[non_intersecting] = np.nan
         if num_failed > 0:
             print(
                 "WARNING: line segment intersection includes NaN rows "
@@ -186,31 +189,26 @@ class Plane:
         The point labels in each "contour" PointCloud hold the index of the face in the
         mesh which made up each contour point.
         """
-
-        # select faces whose vertices are in different halfspaces relative to the y plane
+        # Select faces whose vertices span both halfspaces relative to the plane.
         vertex_in_halfspace = self.sidedness(mesh["verts"])
         face_vertex_in_halfspace = vertex_in_halfspace[mesh["faces"]]
-        face_indices = np.where(
+        face_indices_arr = np.where(
             face_vertex_in_halfspace.min(1) != face_vertex_in_halfspace.max(1)
         )[0]
-        faces = mesh["faces"][face_indices]
+        faces = mesh["faces"][face_indices_arr]
 
-        # for each of N selected faces, indicate whether we cross the plane
-        # as we go from vertex 2->0, 0->1, 1->2, respectively.
-        # This gives us an Nx3 array, where forward crossings are identified by 1,
-        # and backward crossings by -1.
-        # Each column of the crossings is linked to two columns of the faces array.
+        # For each selected face, identify forward (1) and backward (-1) plane crossings
+        # across edges 2->0, 0->1, 1->2.
         crossings = np.diff(
-            face_vertex_in_halfspace[face_indices][:, [2, 0, 1, 2]], axis=1
+            face_vertex_in_halfspace[face_indices_arr][:, [2, 0, 1, 2]], axis=1
         )
         face_columns = np.array([[2, 0], [0, 1], [1, 2]])
 
-        # We assume that there is exactly one forward and one inverse crossing
-        # per selected face. Test this assumption.
-        # NOTE This will fail if an edge is exactly in-plane
+        # Verify exactly one forward and one backward crossing per face.
+        # NOTE: will fail if an edge lies exactly in-plane.
         assert all(all((crossings == v).sum(1) == 1) for v in [-1, 0, 1])
 
-        # Compute the actual intersection points for forward and backward crossing edges.
+        # Compute forward and backward intersection points.
         fwd_columns = np.where(crossings == 1)[1]
         bwd_columns = np.where(crossings == -1)[1]
         fwd_vertices = np.array(
@@ -232,44 +230,40 @@ class Plane:
             mesh["verts"][bwd_vertices[:, 0]], mesh["verts"][bwd_vertices[:, 1]]
         )
 
-        # By construction, the fwd and backward intersections
-        # should include the exact same set of points. Verify this now.
+        # Verify fwd and bwd intersection sets are identical (up to ordering).
         sortrows = lambda A: A[np.lexsort(A.T[::-1]), :]
         err = (sortrows(fwd_intersections) - sortrows(bwd_intersections)).sum()
         assert err == 0, f"intersection inconsistency: {err}"
 
-        # Due to the above property, we can construct closed contours in the
-        # intersection plane by following the interleaved fwd/bwd roles of intersection
-        # points.
-        face_indices = list(range(fwd_intersections.shape[0]))
+        # --- Contour tracing ---
+        # Build a lookup from bwd intersection point -> face index.
+        # This replaces the O(N²) np.where/np.isin scan in the original loop.
+        bwd_lookup = {tuple(pt): i for i, pt in enumerate(bwd_intersections)}
+
+        # Use a set for O(1) membership checks and removal.
+        # Ordering within face_indices only determined which face starts the next
+        # contour segment — arbitrary in the original code too (was range(N)).
+        unvisited = set(range(fwd_intersections.shape[0]))
+
         result = []
-        points = []
-        labels = []
-        face_id = 0  # index of the mesh face to consider
-        while len(face_indices) > 0:
+        while unvisited:
+            face_id = next(iter(unvisited))  # pick any unvisited face to start
+            points = []
+            labels = []
 
-            # continue the contour with the next forward edge intersection
-            p = fwd_intersections[face_id]
-            points.append(p)
-            # Remember the ids of the face and start-/end vertices for the point
-            labels.append((face_id, fwd_vertices[face_id, 0], fwd_vertices[face_id, 1]))
-            face_indices.remove(face_id)
-            neighbours = np.where(np.all(np.isin(bwd_intersections, p), axis=1))[0]
-            assert len(neighbours) > 0
-            face_id = neighbours[0]
-            if face_id in face_indices:
-                # more points available in the contour
-                continue
+            while True:
+                p = fwd_intersections[face_id]
+                points.append(p)
+                labels.append((face_id, fwd_vertices[face_id, 0], fwd_vertices[face_id, 1]))
+                unvisited.discard(face_id)
 
-            # finish the current contour.
+                face_id = bwd_lookup[tuple(p)]  # O(1) lookup replacing O(N) scan
+                if face_id not in unvisited:
+                    break  # contour is closed or dead-end
+
             result.append(
                 pointcloud.Contour(np.array(points), labels=labels, space=self.space)
             )
-            if len(face_indices) > 0:
-                # prepare to process another contour segment
-                face_id = face_indices[0]
-                points = []
-                labels = []
 
         return result
 
