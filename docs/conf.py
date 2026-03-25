@@ -173,7 +173,7 @@ sphinx_gallery_conf = {
         "../examples/03_data_features",
         "../examples/04_locations",
         "../examples/05_anatomical_assignment",
-        "../examples/tutorials",
+        # "../examples/tutorials",
         "../examples/milestone_1_1",
     ],
     "gallery_dirs": [
@@ -182,7 +182,7 @@ sphinx_gallery_conf = {
         "examples/03_data_features",
         "examples/04_locations",
         "examples/05_anatomical_assignment",
-        "examples/tutorials",
+        # "examples/tutorials",
         "examples/milestone_1_1",
     ],
     "filename_pattern": r"^.*.py",  # which files to execute and include their outputs
