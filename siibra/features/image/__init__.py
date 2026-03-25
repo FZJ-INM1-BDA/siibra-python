@@ -23,6 +23,7 @@ from .volume_of_interest import (
     LSFMVolumeOfInterest,
     DTIVolumeOfInterest,
     MorphometryVolumeOfInterest,
+    AutoradiographyVolumeOfInterest,
 )
 from .sections import (
     CellbodyStainedSection,

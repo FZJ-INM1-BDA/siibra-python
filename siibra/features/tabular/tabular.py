@@ -50,6 +50,7 @@ class Tabular(feature.Feature, category="generic", configuration_folder="feature
         datasets: list = [],
         id: str = None,
         prerelease: bool = False,
+        unit: str = None
     ):
         feature.Feature.__init__(
             self,
@@ -64,6 +65,8 @@ class Tabular(feature.Feature, category="generic", configuration_folder="feature
         if file is not None:
             assert data is None
         self._data_cached = data
+        if unit is not None:
+            self.unit = unit
 
     @property
     def data(self):

@@ -93,7 +93,7 @@ class Image(
 
         self._anchor_cached = ImageAnchor(self, region=region)
         self._description_cached = None
-        self._name_cached = name
+        self._name_cached = name if not self._prerelease else f"[PRERELEASE] {name}"
 
     def _to_zip(self, fh: ZipFile):
         super()._to_zip(fh)

@@ -5,4 +5,4 @@ skip = .git*,*.css,.codespellrc,gene_names.json,requirements*.txt,region_aliases
 check-hidden = true
 # embedded images and otherwise too long lines
 ignore-regex = ^\s*"image/\S+": ".*|.{300,}|\bFOM\b
-# ignore-words-list = 
+ignore-words-list = MEBRAINS

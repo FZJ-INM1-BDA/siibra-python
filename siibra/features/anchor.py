@@ -71,6 +71,10 @@ class AnatomicalAnchor:
                 if region is not None:
                     raise ValueError(f"Invalid region specification: {region}")
         self._aliases_cached = None
+        self._parcellation_version: Parcellation = None  # specific parcellation this anchor is anchored to
+
+    def _filter_w_parc_version(self, r: Region):
+        return True if self._parcellation_version is None else r in self._parcellation_version
 
     @property
     def location(self) -> Location:
@@ -82,7 +86,7 @@ class AnatomicalAnchor:
         """
         Return any parcellation objects that regions of this anchor belong to.
         """
-        return list({region.root for region in self.regions})
+        return list({region.root for region in self.regions if self._filter_w_parc_version(region.root)})
 
     @property
     def space(self) -> Space:
@@ -125,7 +129,7 @@ class AnatomicalAnchor:
             regions = {
                 region: Qualification.EXACT
                 for region in find_regions(self._regionspec, filter_children=True, find_topmost=False)
-                if region.species in self.species
+                if region.species in self.species and self._filter_w_parc_version(region)
             }
             # add more regions from possible aliases of the region spec
             for alt_species, aliases in self.region_aliases.items():
@@ -133,7 +137,7 @@ class AnatomicalAnchor:
                     for r in find_regions(alias_regionspec, filter_children=True, find_topmost=False):
                         if r.species != alt_species:
                             continue
-                        if r not in regions:
+                        if r not in regions and self._filter_w_parc_version(r):
                             regions[r] = Qualification[qualificationspec.upper()]
 
             self.__class__._MATCH_MEMO[match_key] = regions
@@ -159,28 +163,60 @@ class AnatomicalAnchor:
         Match this anchor to a query concept. Assignments are cached at runtime,
         so repeated assignment with the same concept will be cheap.
         """
-        if isinstance(concept, Space):
-            if self.location is not None and self.location.space.matches(concept):
-                return [AnatomicalAssignment(concept, self.location, Qualification.CONTAINED)]
-            else:
-                return []
+        if concept in self._assignments:
+            return self._assignments[concept]
 
-        if concept not in self._assignments:
-            assignments: List[AnatomicalAssignment] = []
-            if self.location is not None:
-                try:
-                    assignments.append(self.location.assign(concept))
-                except SpaceWarpingFailedError as e:
-                    logger.debug(e)
-            for region in self.regions:
-                assignments.append(region.assign(concept))
-            self._assignments[concept] = sorted(a for a in assignments if a is not None)
+        if isinstance(concept, Space):  # shortcut if queried with a space and location is not None
+            if self.location is not None and self.location.space.matches(concept):
+                self._assignments[concept] = [
+                    AnatomicalAssignment(concept, self.location, Qualification.CONTAINED)
+                ]
+            else:
+                self._assignments[concept] = []
+            return self._assignments[concept]
+
+        assignments: List[AnatomicalAssignment] = []
+        if self.location is not None:
+            try:
+                assignments.append(self.location.assign(concept))
+            except SpaceWarpingFailedError as e:
+                logger.debug(e)
+        for region in self.regions:
+            assignments.append(region.assign(concept))
+        self._assignments[concept] = sorted(a for a in assignments if a is not None)
 
         self._last_matched_concept = concept if len(self._assignments[concept]) > 0 else None
         return self._assignments[concept]
 
-    def matches(self, concept: Union[BrainStructure, Space]) -> bool:
-        return len(self.assign(concept)) > 0
+    def matches(self, concept: Union[BrainStructure, Space], exact_match_only: bool = False) -> bool:
+        if not exact_match_only:
+            return len(self.assign(concept)) > 0
+
+        if concept in self._assignments:
+            return any(
+                assignment.qualification == Qualification.EXACT
+                for assignment in self._assignments[concept]
+            )
+
+        if isinstance(concept, Region):
+            is_exact = concept.matches(self._regionspec)
+            if is_exact:
+                self._assignments[concept] = [
+                    AnatomicalAssignment(concept, r, Qualification.EXACT)
+                    for r, q in self.regions.items()
+                    if q == Qualification.EXACT
+                ]
+            return is_exact
+
+        if isinstance(concept, Location):
+            is_exact = concept == self.location
+            if is_exact:
+                self._assignments[concept] = [AnatomicalAssignment(
+                    concept, self.location, Qualification.EXACT
+                )]
+            return is_exact
+
+        raise ValueError(f"Cannot query for exact match only wity objects of type {type(concept)}")
 
     def represented_parcellations(self) -> List[Parcellation]:
         """

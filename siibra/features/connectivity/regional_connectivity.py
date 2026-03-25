@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from zipfile import ZipFile
-from typing import Callable, Union, List, Tuple, Iterator
+from typing import Callable, Union, List, Tuple, Iterator, TYPE_CHECKING
 try:
     from typing import Literal
 except ImportError:  # support python 3.7
@@ -29,8 +29,9 @@ from ..tabular.tabular import Tabular
 from ...commons import logger, QUIET, siibra_tqdm
 from ...core import region as _region
 from ...locations import pointcloud
-from ...retrieval.repositories import RepositoryConnector
-from ...retrieval.requests import HttpRequest
+
+if TYPE_CHECKING:
+    from ...retrieval.repositories import RepositoryConnector
 
 
 class RegionalConnectivity(Feature, Compoundable):
@@ -47,7 +48,7 @@ class RegionalConnectivity(Feature, Compoundable):
         cohort: str,
         modality: str,
         regions: list,
-        connector: RepositoryConnector,
+        connector: "RepositoryConnector",
         decode_func: Callable,
         filename: str,
         anchor: _anchor.AnatomicalAnchor,
@@ -94,17 +95,18 @@ class RegionalConnectivity(Feature, Compoundable):
             prerelease=prerelease
         )
         self.cohort = cohort.upper()
-        if isinstance(connector, str) and connector:
-            self._connector = HttpRequest(connector, decode_func)
-        else:
-            self._connector = connector
+        self._connector = connector
         self._filename = filename
         self._decode_func = decode_func
-        self.regions = regions
+        self._regions = regions
         self._matrix = None
         self._subject = subject
         self._feature = feature
         self._matrix_std = None  # only used for compound feature
+
+    @property
+    def regions(self):
+        return self._regions
 
     @property
     def subject(self):
@@ -145,7 +147,7 @@ class RegionalConnectivity(Feature, Compoundable):
         assert len({f.cohort for f in elements}) == 1
         merged = cls(
             cohort=elements[0].cohort,
-            regions=elements[0].regions,
+            regions=elements[0]._regions,
             connector=elements[0]._connector,
             decode_func=elements[0]._decode_func,
             filename="",
@@ -156,10 +158,7 @@ class RegionalConnectivity(Feature, Compoundable):
             anchor=anchor,
             **{"paradigm": "averaged (by siibra)"} if getattr(elements[0], "paradigm", None) else {}
         )
-        if isinstance(elements[0]._connector, HttpRequest):
-            getter = lambda elm: elm._connector.get()
-        else:
-            getter = lambda elm: elm._connector.get(elm._filename, decode_func=elm._decode_func)
+        getter = lambda elm: elm._connector.get(elm._filename, decode_func=elm._decode_func)
         all_arrays = [
             getter(elm)
             for elm in siibra_tqdm(
@@ -197,8 +196,8 @@ class RegionalConnectivity(Feature, Compoundable):
             https://nilearn.github.io/stable/modules/generated/nilearn.plotting.plot_matrix.html
         """
         if regions is None:
-            regions = self.regions
-        indices = [self.regions.index(r) for r in regions]
+            regions = self._regions
+        indices = [self._regions.index(r) for r in regions]
         matrix = self.data.iloc[indices, indices].to_numpy()  # nilearn.plotting.plot_matrix works better with a numpy array
 
         if logscale:
@@ -348,12 +347,27 @@ class RegionalConnectivity(Feature, Compoundable):
             )
 
         profile = self.get_profile(regions, min_connectivity, max_rows, direction)
-        kwargs["kind"] = kwargs.get("kind", "barh")
         if backend == "matplotlib":
             kwargs["logy"] = kwargs.get("logy", logscale)
+            kwargs["color"] = kwargs.get(
+                "color",
+                [
+                    [c / 255 for c in rgb]
+                    for _, rgb in self.get_profile_colorscale(
+                        region=regions,
+                        min_connectivity=min_connectivity,
+                        max_rows=max_rows,
+                        direction=direction,
+                        backend=backend,
+                    )
+                ],
+            )
+            kwargs["kind"] = kwargs.get("kind", "bar")
+            kwargs["rot"] = kwargs.get("rot", 90)
             return profile.plot(*args, backend=backend, **kwargs)
         elif backend == "plotly":
             kwargs.update({
+                "kind": kwargs.get("kind", "barh"),
                 "color": kwargs.get("color", profile.data.columns[0]),
                 "x": kwargs.get("x", profile.data.columns[0]),
                 "y": kwargs.get("y", [r.name for r in profile.data.index]),
@@ -381,7 +395,8 @@ class RegionalConnectivity(Feature, Compoundable):
         min_connectivity: float = 0,
         max_rows: int = None,
         direction: Literal['column', 'row'] = 'column',
-        colorgradient: str = "jet"
+        colorgradient: str = "jet",
+        backend: str = "plotly",
     ) -> Iterator[Tuple[_region.Region, Tuple[int, int, int]]]:
         """
         Extract the colorscale corresponding to the regional profile from the
@@ -408,17 +423,25 @@ class RegionalConnectivity(Feature, Compoundable):
         Iterator[Tuple[_region.Region, Tuple[int, int, int]]]
             Color values are in RGB 255.
         """
-        from plotly.express.colors import sample_colorscale
-        profile = self.get_profile(region, min_connectivity, max_rows, direction)
-        normalized = profile.data / profile.data.max()
-        colorscale = sample_colorscale(
-            colorgradient,
-            normalized.values.reshape(len(profile.data))
+        profile = self.get_profile(
+            region=region,
+            min_connectivity=min_connectivity,
+            max_rows=max_rows,
+            direction=direction
         )
-        return zip(
-            profile.data.index.values,
-            [eval(c.removeprefix('rgb')) for c in colorscale]
-        )
+        normalized = ((profile.data - profile.data.min()) / (profile.data.max() - profile.data.min())).values[:, 0]
+        if backend == "plotly":
+            from plotly.express.colors import sample_colorscale
+            colorscale = sample_colorscale(colorgradient, normalized)
+            colors = [eval(c.replace("rgb", "")) for c in colorscale]
+        elif backend == "matplotlib":
+            import matplotlib.cm as cm
+            cmap = cm.get_cmap(colorgradient)
+            colors = [tuple(int(255 * c) for c in cmap(v)[:3]) for v in normalized]
+        else:
+            raise ValueError(f"Unknown backend '{backend}'. Use 'plotly' or 'matplotlib'.")
+
+        return zip(profile.data.index.values, colors)
 
     def __len__(self):
         return len(self._filename)
@@ -443,7 +466,7 @@ class RegionalConnectivity(Feature, Compoundable):
         assert len(parcellations) == 1
         parcmap = next(iter(parcellations)).get_map(space)
         all_centroids = parcmap.compute_centroids()
-        for regionname in self.regions:
+        for regionname in self._regions:
             region = parcmap.parcellation.get_region(regionname, allow_tuple=True)
             if isinstance(region, tuple):  # deal with sets of matched regions
                 found = [c for r in region for c in r if c.name in all_centroids]
@@ -474,7 +497,7 @@ class RegionalConnectivity(Feature, Compoundable):
         with QUIET:
             indexmap = {
                 i: parc.get_region(regionname, allow_tuple=True)
-                for i, regionname in enumerate(self.regions)
+                for i, regionname in enumerate(self._regions)
             }
         nrows = array.shape[0]
         try:
@@ -492,10 +515,7 @@ class RegionalConnectivity(Feature, Compoundable):
         """
         Extract connectivity matrix.
         """
-        if isinstance(self._connector, HttpRequest):
-            array = self._connector.data
-        else:
-            array = self._connector.get(self._filename, decode_func=self._decode_func)
+        array = self._connector.get(self._filename, decode_func=self._decode_func)
         nrows = array.shape[0]
         if array.shape[1] != nrows:
             raise RuntimeError(

@@ -22,7 +22,7 @@ from functools import wraps
 import numpy as np
 import pandas as pd
 
-from ..commons import logger, Species
+from ..commons import logger, Species, get_bids_entities, siibra_tqdm
 from ..features import anchor, connectivity
 from ..features.tabular import (
     tabular,
@@ -31,6 +31,8 @@ from ..features.tabular import (
     cell_density_profile,
     layerwise_cell_density,
     regional_timeseries_activity,
+    point_distribution,
+    functional_fingerprint,
 )
 from ..features.image import image, sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -125,17 +127,25 @@ class Factory:
             return None
 
     @classmethod
+    def decode_species(cls, spec):
+        if "species" in spec:
+            return Species.decode(spec["species"])
+        if "ebrains" in spec:
+            return Species.decode(spec["ebrains"])
+        raise ValueError("No species information found in spec.")
+
+    @classmethod
     def extract_anchor(cls, spec):
-        if spec.get("region"):
+        parc_spec = None
+        region = None
+        if "region" in spec:
             region = spec["region"]
-        elif spec.get("parcellation", {}).get("@id"):
+        if "parcellation" in spec:
             # a parcellation is a special region,
             # and can be used if no region is found
-            region = spec["parcellation"]["@id"]
-        elif spec.get("parcellation", {}).get("name"):
-            region = spec["parcellation"]["name"]
-        else:
-            region = None
+            parc_spec = spec["parcellation"].get("@id") or spec["parcellation"].get("name")
+            if "region" not in spec:
+                region = parc_spec
 
         if "location" in spec:
             location = cls.from_json(spec["location"])
@@ -143,21 +153,22 @@ class Factory:
             location = None
 
         if (region is None) and (location is None):
-            print(spec)
-            raise RuntimeError(
-                "Spec provides neither region or location - no anchor can be extracted."
-            )
+            if "space" in spec:
+                location = spec["space"]
+            else:
+                raise RuntimeError(
+                    "Specification provides neither region or location - no"
+                    f"anchor can be extracted. Supplied spec:\n{spec}"
+                )
 
-        if "species" in spec:
-            species = Species.decode(spec["species"])
-        elif "ebrains" in spec:
-            species = Species.decode(spec["ebrains"])
-        else:
-            raise ValueError(f"No species information found in spec {spec}")
+        species = cls.decode_species(spec)
 
-        return anchor.AnatomicalAnchor(
+        anchor_ = anchor.AnatomicalAnchor(
             region=region, location=location, species=species
         )
+        if parc_spec is not None:
+            anchor_._parcellation_version = parcellation.Parcellation.registry().get(parc_spec)
+        return anchor_
 
     @classmethod
     def extract_connector(cls, spec):
@@ -172,6 +183,11 @@ class Factory:
                 server=repospec["server"],
                 project=repospec["project"],
                 reftag=repospec["branch"],
+            )
+        if spectype == "siibra/repository/dataproxy/v1.0.0":
+            return repositories.DataProxyConnector(
+                repospec["bucketname"],
+                main_folder=repospec["folder"],
             )
 
         logger.warning(
@@ -382,6 +398,77 @@ class Factory:
         return boundingbox.BoundingBox(coords[0], coords[1], space=space_spec)
 
     @classmethod
+    @build_type("siibra/feature/fingerprint/functional/v0.1")
+    def build_functional_fingerprint(cls, spec):
+        base_url = spec["base_url"]
+
+        ffp_by_file = []
+        for regionname, filename in spec["files"].items():
+            spec["region"] = regionname
+            kwargs = dict(
+                file=f"{base_url}/{filename}",
+                decoder=cls.extract_decoder(spec),
+                anchor=cls.extract_anchor(spec),
+                datasets=cls.extract_datasets(spec),
+                id=spec.get("@id", None),
+                prerelease=spec.get("prerelease", False),
+            )
+            ffp_by_file.append(functional_fingerprint.FunctionalFingerprint(**kwargs))
+        return ffp_by_file
+
+    @classmethod
+    @build_type("siibra/feature/point_distribution/cell_distribution/v0.1")
+    @build_type(
+        "siibra/feature/point_distribution/tracing_connectivity_distribution/v0.1"
+    )
+    def build_point_distribution(cls, spec):
+        modality = spec.get("modality")
+        try:
+            point_dist_cls = getattr(point_distribution, modality)
+        except Exception:
+            raise ValueError(
+                f"No method for building point distribution of type {modality}."
+            )
+        if "files" in spec:
+            baseurl = spec.get("base_url", "")
+            files = spec.pop("files")
+            return [
+                cls.build_point_distribution(
+                    {**spec, "subject": subject, "file_url": f"{baseurl}/{fname}"}
+                )
+                for subject, fname in files.items()
+            ]
+
+        return point_dist_cls(
+            modality=spec["modality"],
+            transform=spec.get("transform"),
+            description=spec.get("description"),
+            anchor=cls.extract_anchor(spec),
+            file_url=spec["file_url"],
+            subject=spec["subject"],
+            decoder=cls.extract_decoder(spec),
+            datasets=cls.extract_datasets(spec),
+        )
+
+    @classmethod
+    @build_type("siibra/feature/point_distribution/cell_distribution_bids/v0.1")
+    def cell_distribution_bids(cls, spec: Dict):
+        cell_dists = []
+        repo = cls.extract_connector(spec)
+        spec["@type"] = "siibra/feature/point_distribution/cell_distribution/v0.1"
+        for fpath in repo.search_files(suffix="_CellInstances.tsv", recursive=True):
+            entities = get_bids_entities(path.basename(fpath)[:-4])
+            spec["region"] = entities["description"].replace("-", " ")
+            spec["subject"] = " - ".join(
+                f"{k}: {v}" for k, v in entities.items()
+                if k not in ["format", "files_indexed_by"]
+            )
+            spec["file_url"] = repo._build_url("", filename=fpath)
+            cell_dists.append(cls.build_point_distribution(spec))
+
+        return cell_dists
+
+    @classmethod
     @build_type("siibra/feature/fingerprint/receptor/v0.1")
     def build_receptor_density_fingerprint(cls, spec):
         return receptor_density_fingerprint.ReceptorDensityFingerprint(
@@ -404,6 +491,7 @@ class Factory:
             datasets=cls.extract_datasets(spec),
             id=spec.get("@id", None),
             prerelease=spec.get("prerelease", False),
+            unit=spec.get("unit", None),
         )
 
     @classmethod
@@ -444,6 +532,46 @@ class Factory:
         )
 
     @classmethod
+    @build_type("siibra/feature/profile/celldensity_v2/v0.1")
+    @build_type("siibra/feature/fingerprint/celldensity_v2/v0.1")
+    def build_layerwise_cell_density_v2(cls, spec):
+        if "profile" in spec["@type"]:
+            feat_Cls = cell_density_profile.CellDensityProfileV2
+            fileformat = "CorticalProfile"
+        elif "fingerprint" in spec["@type"]:
+            feat_Cls = layerwise_cell_density.LayerwiseCellDensityV2
+            fileformat = "LayerStats"
+        else:
+            raise NotImplementedError("Could not discern the file format from the filename.")
+        cell_density_feats = []
+        spec["repository"] = cls.extract_connector(spec)
+        files = spec["repository"].search_files(suffix=f"{fileformat}.tsv", recursive=True)
+        for fpath in siibra_tqdm(
+            files,
+            total=len(files),
+            unit=fileformat,
+            desc=f"Loading {fileformat} from preconfigured BIDS dataset"
+        ):
+            entities = get_bids_entities(path.basename(fpath)[:-4])
+            assert entities["format"] == fileformat
+            spec["region"] = entities["description"].replace("-", " ")
+
+            cell_density_feats.append(
+                feat_Cls(
+                    section=entities["sample"],
+                    chunk=entities["chunk"],
+                    loader=spec["repository"].get_loader(
+                        fpath, decode_func=cls.extract_decoder(spec)
+                    ),
+                    anchor=cls.extract_anchor(spec),
+                    datasets=cls.extract_datasets(spec),
+                    id=spec.get("@id", f"{feat_Cls.__name__}-" + fpath),
+                    prerelease=spec.get("prerelease", False),
+                )
+            )
+        return cell_density_feats
+
+    @classmethod
     @build_type("siibra/feature/section/v0.1")
     def build_section(cls, spec):
         kwargs = {
@@ -459,6 +587,8 @@ class Factory:
         modality = spec.get("modality", "")
         if modality == "cell body staining":
             return sections.CellbodyStainedSection(**kwargs)
+        elif "autoradiography" in modality:
+            return sections.AutoradiographySection(**kwargs)
         else:
             logger.debug(f"No defined feature type for {modality}. Creating a generic image feature.")
             kwargs["modality"] = spec.get("modality")
@@ -506,15 +636,88 @@ class Factory:
             return volume_of_interest.MorphometryVolumeOfInterest(
                 modality="Morphometry", **kwargs
             )
+        elif "autoradiography" in modality.lower():
+            return volume_of_interest.AutoradiographyVolumeOfInterest(modality=modality, **kwargs)
         else:
             logger.debug(f"No defined feature type for {modality}. Creating a generic image feature.")
             kwargs["modality"] = spec.get("modality")
             return image.Image(**kwargs)
 
     @classmethod
+    @build_type("bids/connectivitymatrix/v0.1")
+    def build_connectivity_matrix_from_bids(cls, spec):
+        spec["repository"] = cls.extract_connector(spec)
+        regions_df = spec["repository"].get(filename=spec["regions"])
+        if "hemisphere" in regions_df.columns:
+            spec["regions"] = list(map(
+                lambda lb, hs: f"{lb} {hs}",
+                regions_df["label"], regions_df["hemisphere"]
+            ))
+        else:
+            spec["regions"] = regions_df["label"].to_list()
+        spec["files"] = dict()
+        realmat_files = [
+            f
+            for f in spec["repository"].search_files(suffix=".tsv", recursive=True)
+            if "relmat" in f
+        ]
+        for fpath in siibra_tqdm(
+            realmat_files,
+            total=len(realmat_files),
+            desc="Loading connectivity matrices from preconfigured BIDS dataset"
+        ):
+            filename = path.basename(fpath)[:-4]
+            entities = get_bids_entities(filename)
+            if entities["files_indexed_by"] != spec["files_indexed_by"]:
+                continue
+            spec["files"][entities["description"]] = fpath
+
+        return cls.build_connectivity_matrix(spec)
+
+    @classmethod
+    @build_type("siibra/feature/streamlinefiberbundles/v0.1")
+    def build_fiber_bundle(cls, spec):
+        files = spec.get("files", dict())
+        modality = spec["modality"]
+        decoder_func = cls.extract_decoder(spec)
+        repo_connector = cls.extract_connector(spec)
+        assert repo_connector is not None
+        assert isinstance(spec["regions"], str)
+        regions_df = repo_connector.get(spec["regions"], decode_func=decoder_func)
+        kwargs = {
+            "modality": modality,
+            "cohort": spec.get("cohort", None),
+            "connector": repo_connector,
+            "decode_func": decoder_func,
+            "description": spec.get("description", ""),
+            "datasets": cls.extract_datasets(spec),
+            "prerelease": spec.get("prerelease", False),
+        }
+        species = cls.decode_species(spec)
+        parc = parcellation.Parcellation.registry().get(spec["parcellation"].get("@id"))
+        bundle_by_file = []
+        for bundle_id, filename in files.items():
+            intersecting_regions = {
+                parc.get_region(rname): anchor.Qualification.OVERLAPS
+                for rname in regions_df.loc[bundle_id].loc[lambda s: s.eq(1)].index
+            }
+            kwargs.update(
+                {
+                    "anchor": anchor.AnatomicalAnchor(region=intersecting_regions, species=species),
+                    "filename": filename,
+                    "connector": repo_connector,
+                    "id": spec.get("@id", None),
+                    "bundle_id": bundle_id,
+                }
+            )
+            bundle_by_file.append(connectivity.StreamlineFiberBundle(**kwargs))
+
+        return bundle_by_file
+
+    @classmethod
     @build_type("siibra/feature/connectivitymatrix/v0.3")
     def build_connectivity_matrix(cls, spec):
-        files = spec.get("files", {})
+        files = spec.get("files", dict())
         modality = spec["modality"]
         try:
             conn_cls = getattr(connectivity, modality)
@@ -524,11 +727,13 @@ class Factory:
             )
 
         decoder_func = cls.extract_decoder(spec)
-        repo_connector = (
-            cls.extract_connector(spec) if spec.get("repository", None) else None
-        )
-        if repo_connector is None:
-            base_url = spec.get("base_url", "")
+        if isinstance(spec.get("repository", None), repositories.RepositoryConnector):
+            repo_connector = spec["repository"]
+        else:
+            repo_connector = (
+                cls.extract_connector(spec) if spec.get("repository", None) else None
+            )
+
         kwargs = {
             "cohort": spec.get("cohort", ""),
             "modality": modality,
@@ -543,20 +748,23 @@ class Factory:
         paradigm = spec.get("paradigm")
         if paradigm:
             kwargs["paradigm"] = paradigm
+
         files_indexed_by = spec.get("files_indexed_by", "subject")
-        assert files_indexed_by in ["subject", "feature"]
+        assert files_indexed_by in ["subject", "feature", "group"]
         conn_by_file = []
         for fkey, filename in files.items():
             kwargs.update(
                 {
                     "filename": filename,
-                    "subject": fkey if files_indexed_by == "subject" else "average",
+                    "subject": fkey if files_indexed_by in ["subject", "group"] else "average",
                     "feature": fkey if files_indexed_by == "feature" else None,
-                    "connector": repo_connector or base_url + filename,
+                    "connector": repo_connector,
                     "id": spec.get("@id", None),
                 }
             )
+
             conn_by_file.append(conn_cls(**kwargs))
+
         return conn_by_file
 
     @classmethod

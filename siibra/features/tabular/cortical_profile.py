@@ -22,6 +22,7 @@ import pandas as pd
 from . import tabular
 from .. import anchor as _anchor
 from ..feature import Compoundable
+from ...commons import siibra_tqdm
 
 
 class CorticalProfile(tabular.Tabular, Compoundable):
@@ -185,7 +186,14 @@ class CorticalProfile(tabular.Tabular, Compoundable):
     ):
         assert all(np.array_equal(elements[0]._depths, f._depths) for f in elements)
         assert len({f.unit for f in elements}) == 1
-        values_stacked = np.stack([f._values for f in elements])
+        values_stacked = np.stack([
+            f._values
+            for f in siibra_tqdm(
+                elements,
+                total=len(elements),
+                desc=f"Averaging {len(elements)} cortical profiles."
+            )]
+        )
         return CorticalProfile(
             description=description,
             modality=modality,

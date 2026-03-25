@@ -18,7 +18,7 @@ from collections import defaultdict
 from requests.exceptions import ConnectionError
 from os import path
 
-from ..commons import logger, __version__, SIIBRA_USE_CONFIGURATION, siibra_tqdm
+from ..commons import logger, SIIBRA_USE_CONFIGURATION, siibra_tqdm
 from ..retrieval.repositories import GitlabConnector, RepositoryConnector, GithubConnector
 from ..retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
 from ..retrieval.requests import SiibraHttpRequestError
@@ -42,7 +42,7 @@ class Configuration:
         conn(
             server_or_owner,
             project_or_repo,
-            reftag="siibra-{}".format(__version__),
+            reftag="ebrains2_milestone_1_1",
             skip_branchtest=True
         )
         for conn, server_or_owner, project_or_repo in CONFIG_REPOS

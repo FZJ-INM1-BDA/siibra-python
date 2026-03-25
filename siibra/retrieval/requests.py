@@ -78,6 +78,13 @@ def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
     return result
 
 
+def readtif(b):
+    # skimage read col majority, whereas nibabel expects row majority
+    arr = skimage_io.imread(BytesIO(b))
+    arr = np.swapaxes(arr, 0, 1)
+    return arr
+
+
 DECODERS = {
     ".nii": lambda b: Nifti1Image.from_bytes(b),
     ".gii": lambda b: GiftiImage.from_bytes(b),
@@ -90,6 +97,7 @@ DECODERS = {
     ".png": lambda b: skimage_io.imread(BytesIO(b)),
     ".npy": lambda b: np.load(BytesIO(b)),
     ".annot": lambda b: read_as_bytesio(freesurfer.read_annot, '.annot', BytesIO(b)),
+    ".tif": readtif,
 }
 
 

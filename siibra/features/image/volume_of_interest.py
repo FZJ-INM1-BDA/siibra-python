@@ -87,3 +87,12 @@ class MorphometryVolumeOfInterest(
 ):
     def __init__(self, modality, **kwargs):
         image.Image.__init__(self, **kwargs, modality=modality)
+
+
+class AutoradiographyVolumeOfInterest(
+    image.Image,
+    configuration_folder="features/images/vois/autoradiography",
+    category="molecular"
+):
+    def __init__(self, modality, **kwargs):
+        image.Image.__init__(self, **kwargs, modality=modality)

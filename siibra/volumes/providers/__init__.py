@@ -15,6 +15,6 @@
 """Subpackage handling the digestion of different volume and mesh types"""
 
 from .neuroglancer import NeuroglancerProvider, NeuroglancerMesh
-from .nifti import NiftiProvider
+from .nifti import NiftiProvider, Tif2DNiftiProvider
 from .gifti import GiftiSurfaceLabeling, GiftiMesh
 from .freesurfer import ZippedFreesurferAnnot, FreesurferAnnot

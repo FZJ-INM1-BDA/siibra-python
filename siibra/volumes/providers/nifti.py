@@ -14,7 +14,7 @@
 # limitations under the License.
 
 import os
-from typing import Union, Dict, Tuple
+from typing import Union, Dict, Tuple, Literal
 
 import numpy as np
 import nibabel as nib
@@ -264,3 +264,44 @@ class ZipContainedNiftiProvider(NiftiProvider, srctype="zip/nii"):
 
         # required for self._url property
         self._init_url = src
+
+
+class Tif2DNiftiProvider(_provider.VolumeProvider, srctype="tif/2d"):
+
+    def __init__(self, src: dict):
+        """
+        Construct a new NIfTI volume from tif images
+        """
+        def loader(arr: np.ndarray, affine: np.ndarray, slicing_axis: Literal[0, 1, 2]):
+            assert len(arr.shape) == 2
+
+            reshaped_arr = np.expand_dims(arr, axis=slicing_axis)
+            return nib.nifti1.Nifti1Image(reshaped_arr, affine)
+
+        _provider.VolumeProvider.__init__(self)
+        req = requests.HttpRequest(src["url"])
+        self._affine = src["transform"]
+        self._loader = lambda req=req: loader(req.data, src["transform"], src["slicing_axis"])
+
+        # required for self._url property
+        self._init_url = src["url"]
+
+    @property
+    def affine(self):
+        return self._affine
+
+    @property
+    def _url(self) -> str:
+        return self._init_url
+
+    def fetch(self, **kwargs):
+        if len(kwargs) > 0:
+            raise NotImplementedError
+        return self._loader()
+
+    def get_boundingbox(self, clip=True, background=0):
+        img = self._loader()
+        shape = img.shape
+        return _boundingbox.BoundingBox(
+            (0, 0, 0), shape, space=None
+        ).transform(self._affine)
