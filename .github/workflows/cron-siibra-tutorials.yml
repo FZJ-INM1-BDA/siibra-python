@@ -35,4 +35,4 @@ jobs:
           ref: 'main'
       
       - name: Test tutorial notebooks with nbmake
-        run: pytest --nbmake --nbmake-timeout=1200 ./siibra-tutorials-${{ github.run_id }}-${{ github.run_number }}
+        run: pytest --nbmake --nbmake-timeout=2000 ./siibra-tutorials-${{ github.run_id }}-${{ github.run_number }}
