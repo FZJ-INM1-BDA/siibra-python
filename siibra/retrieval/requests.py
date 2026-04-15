@@ -32,6 +32,7 @@ import numpy as np
 import pandas as pd
 from skimage import io as skimage_io
 from nibabel import Nifti1Image, GiftiImage, streamlines, freesurfer
+import h5py
 
 from . import exceptions as _exceptions
 from .cache import CACHE, cache_user_fn
@@ -90,6 +91,8 @@ DECODERS = {
     ".png": lambda b: skimage_io.imread(BytesIO(b)),
     ".npy": lambda b: np.load(BytesIO(b)),
     ".annot": lambda b: read_as_bytesio(freesurfer.read_annot, '.annot', BytesIO(b)),
+    ".h5": lambda b: h5py.File(BytesIO(b)),
+    ".nwb": lambda b: h5py.File(BytesIO(b)),
 }
 
 

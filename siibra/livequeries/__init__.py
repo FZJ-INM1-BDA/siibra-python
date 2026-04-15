@@ -17,3 +17,4 @@
 from .allen import AllenBrainAtlasQuery
 from .bigbrain import LayerwiseBigBrainIntensityQuery, BigBrainProfileQuery
 from .ebrains import EbrainsFeatureQuery
+from .local_field_potential import LFPQuery, FixedLFPQuery
