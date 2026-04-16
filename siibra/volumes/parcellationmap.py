@@ -56,6 +56,7 @@ class MapAssignment:
     volume: int
     fragment: str
     map_value: np.ndarray
+    time_index: Union[int, None]
 
 
 @dataclass
@@ -893,12 +894,20 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if isinstance(item, pointcloud.PointCloud):
             return self._assign_points(item, lower_threshold)
         if isinstance(item, _volume.Volume):
-            return self._assign_volume(
-                queryvolume=item,
-                lower_threshold=lower_threshold,
-                minsize_voxel=minsize_voxel,
-                **kwargs
-            )
+            if isinstance(item, _volume.TimeSeriesVolume):
+                return self._assign_timeseries_volume(
+                    queryvolume=item,
+                    lower_threshold=lower_threshold,
+                    minsize_voxel=minsize_voxel,
+                    **kwargs
+                )
+            else:
+                return self._assign_volume(
+                    queryvolume=item,
+                    lower_threshold=lower_threshold,
+                    minsize_voxel=minsize_voxel,
+                    **kwargs
+                )
 
         raise RuntimeError(
             f"Items of type {item.__class__.__name__} cannot be used for region assignment."
@@ -957,6 +966,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # format assignments as pandas dataframe
         columns = [
             "input structure",
+            "time_index",
             "centroid",
             "volume",
             "fragment",
@@ -970,7 +980,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             "input containedness"
         ]
         if len(assignments) == 0:
-            return pd.DataFrame(columns=columns)
+            return pd.DataFrame(columns=columns).dropna(axis='columns', how='all')
         # determine the unique set of observed indices in order to do region lookups
         # only once for each map index occurring in the point list
         labelled = self.is_labelled  # avoid calling this in a loop
@@ -997,6 +1007,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         for a in assignments:
             item_to_append = {
                 "input structure": a.input_structure,
+                "time index": a.time_index,
                 "centroid": a.centroid,
                 "volume": a.volume,
                 "fragment": a.fragment,
@@ -1084,7 +1095,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 centroid=tuple(position),
                                 volume=vol,
                                 fragment=frag,
-                                map_value=value
+                                map_value=value,
+                                time_index=None,
                             )
                         )
                 return assignments
@@ -1111,7 +1123,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 centroid=tuple(pt),
                                 volume=vol,
                                 fragment=frag,
-                                map_value=value
+                                map_value=value,
+                                time_index=None,
                             )
                         )
             else:
@@ -1147,7 +1160,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         queryvolume: "_volume.Volume",
         lower_threshold: float,
         split_components: bool = True,
-        **kwargs
+        time_index: int = None,
+        **kwargs,
     ) -> List[AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
@@ -1214,10 +1228,30 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 volume=index.volume,
                                 fragment=index.fragment,
                                 map_value=index.label,
+                                time_index=time_index,
                                 **asdict(scores)
                             )
                         )
 
+        return assignments
+
+    def _assign_timeseries_volume(
+        self,
+        queryvolume: "_volume.TimeSeriesVolume",
+        lower_threshold: float,
+        split_components: bool = True,
+        **kwargs
+    ) -> List[AssignImageResult]:
+        assignments = []
+        for v_t in siibra_tqdm(queryvolume, unit='time_index'):
+            assignments_t = self._assign_volume(
+                v_t,
+                lower_threshold=lower_threshold,
+                split_components=split_components,
+                time_index=v_t.time_index,
+                **kwargs
+            )
+            assignments.extend(assignments_t)
         return assignments
 
 

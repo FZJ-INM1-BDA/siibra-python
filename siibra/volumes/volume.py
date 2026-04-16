@@ -14,7 +14,7 @@
 # limitations under the License.
 """A specific mesh or 3D array."""
 
-from typing import List, Dict, Union, Set, TYPE_CHECKING
+from typing import Iterable, List, Dict, Union, Set, TYPE_CHECKING
 from dataclasses import dataclass
 from time import sleep
 import json
@@ -633,6 +633,7 @@ class FilteredVolume(Volume):
         label: int = None,
         fragment: str = None,
         threshold: float = None,
+        time_index: int = None,
     ):
         """
         A prescribed Volume to fetch specified label and fragment.
@@ -647,6 +648,8 @@ class FilteredVolume(Volume):
             If a volume is fragmented, get a specified one.
         threshold : float, default None
             Provide a float value to threshold the image.
+        time_index: int = None,
+            If parent volume is a timeseries Nifti, filter a time index without fetching the full image.
         """
         name = parent_volume.name
         if label:
@@ -655,6 +658,8 @@ class FilteredVolume(Volume):
             name += f" - fragment: {fragment}"
         if threshold:
             name += f" - threshold: {threshold}"
+        if time_index:
+            name += f" - time index: {time_index}"
         Volume.__init__(
             self,
             space_spec=parent_volume._space_spec,
@@ -664,6 +669,7 @@ class FilteredVolume(Volume):
         self.fragment = fragment
         self.label = label
         self.threshold = threshold
+        self.time_index = time_index
 
     def fetch(
         self,
@@ -680,7 +686,8 @@ class FilteredVolume(Volume):
             kwargs["label"] = self.label
 
         result = super().fetch(format=format, **kwargs)
-
+        if self.time_index is not None:
+            result = result.slicer[:, :, :, self.time_index]
         if self.threshold is not None:
             assert self.label is None
             if not isinstance(result, Nifti1Image):
@@ -708,6 +715,29 @@ class FilteredVolume(Volume):
             background=background,
             **fetch_kwargs
         )
+
+
+class TimeSeriesVolume(Volume):
+    def __init__(
+        self,
+        time_index: np.ndarray,
+        **kwargs,
+    ):
+        Volume.__init__(self, **kwargs)
+        self.time_index = time_index
+
+    def __iter__(self) -> Iterable[FilteredVolume]:
+        yield from (
+            FilteredVolume(parent_volume=self, time_index=t)
+            for t in self.time_index
+        )
+
+    def get_index(self, time_index: int):
+        return FilteredVolume(parent_volume=self, time_index=time_index)
+
+    def fetch(self, format: str = None, time_index: int = None, **kwargs):
+        img = super().fetch(format, **kwargs)
+        return img.slicer[:, :, :, time_index] if time_index else img
 
 
 class ReducedVolume(Volume):
@@ -832,14 +862,17 @@ def from_file(filename: str, space: str, name: str) -> Volume:
     )
 
 
-def from_nifti(nifti: Nifti1Image, space: str, name: str) -> Volume:
+def from_nifti(nifti: Nifti1Image, space: str, name: str, time_index: np.ndarray = None) -> Union[Volume, TimeSeriesVolume]:
     """Builds a nifti volume from a Nifti image."""
     spaceobj = get_registry("Space").get(space)
-    return Volume(
+    kwargs = dict(
         space_spec={"@id": spaceobj.id},
         providers=[_providers.NiftiProvider((np.asanyarray(nifti.dataobj), nifti.affine))],
         name=name
     )
+    if time_index is None:
+        return Volume(**kwargs)
+    return TimeSeriesVolume(time_index=time_index, **kwargs)
 
 
 def from_array(
