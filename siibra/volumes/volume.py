@@ -852,14 +852,17 @@ class Subvolume(Volume):
         )
 
 
-def from_file(filename: str, space: str, name: str) -> Volume:
+def from_file(filename: str, space: str, name: str, time_index: np.ndarray = None) -> Volume:
     """Builds a nifti volume from a filename."""
     spaceobj = get_registry("Space").get(space)
-    return Volume(
+    kwargs = dict(
         space_spec={"@id": spaceobj.id},
         providers=[_providers.NiftiProvider(filename)],
         name=filename if name is None else name,
     )
+    if time_index is None:
+        return Volume(**kwargs)
+    return TimeSeriesVolume(time_index=time_index, **kwargs)
 
 
 def from_nifti(nifti: Nifti1Image, space: str, name: str, time_index: np.ndarray = None) -> Union[Volume, TimeSeriesVolume]:
