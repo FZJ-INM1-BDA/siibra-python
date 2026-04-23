@@ -617,10 +617,22 @@ class Volume(structure.BrainStructure):
                 "Finding peaks is so far only implemented for image-type volumes, "
                 f"not {self.__class__.__name__}."
             )
+        if isinstance(self, TimeSeriesVolume):
+            pts, timelabels = zip(*[
+                (p, v_t.time_index)
+                for v_t in siibra_tqdm(self, unit="slice")
+                for p in v_t.find_peaks(mindist=mindist, sigma_mm=sigma_mm, **kwargs)
+            ])
+            return pointcloud.from_points(pts, newlabels=timelabels)
+
         img = self.fetch(**kwargs)
         array = np.asanyarray(img.dataobj)
         voxels = skimage_feature.peak_local_max(array, min_distance=mindist)
-        points = pointcloud.PointCloud(voxels, space=None, labels=list(range(len(voxels)))).transform(img.affine, space=self.space)
+        points = pointcloud.PointCloud(
+            voxels,
+            space=None,
+            labels=list(range(len(voxels)))
+        ).transform(img.affine, space=self.space)
         points.sigma_mm = [sigma_mm for _ in points]
         return points
 
