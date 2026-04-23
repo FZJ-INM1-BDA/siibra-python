@@ -345,6 +345,14 @@ class PointCloud(location.Location):
                 return None
             return colormaps.rainbow(np.linspace(0, 1, max(self.labels) + 1))
 
+    def unique_counts(self, ignore_sigmas: bool = False):
+        if ignore_sigmas:
+            self_ls = self.as_list()
+            return {p: self_ls.count(p.coordinate) for p in set(self)}
+
+        coors_w_sigmas = [tuple(row.tolist()) for row in np.c_[self.coordinates, self.sigma]]
+        return {point.Point(c[:3], space=self.space, sigma_mm=c[3]): coors_w_sigmas.count(c) for c in set(coors_w_sigmas)}
+
 
 class Contour(PointCloud):
     """
