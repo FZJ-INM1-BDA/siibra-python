@@ -30,7 +30,7 @@ jobs:
 
       - name: Install apt packages
         run: |
-          apt-get install graphviz
+          sudo apt-get install graphviz
 
       - name: Create diagrams with pyreverse
         run: |

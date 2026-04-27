@@ -28,11 +28,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install apt packages
-      run: |
-        apt update
-        apt install -y libsqlite3-0 libsqlite3-dev build-essential
-  
     - name: Set up Python ${{ inputs.python-version }}
       uses: actions/setup-python@v4
       with:
