@@ -123,6 +123,12 @@ class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
         self.pathology = pathology
         self.signal_quality = signal_quality
 
+    @classmethod
+    def get_options(cls):
+        from ...livequeries.local_field_potential import FixedLFPQuery
+
+        return FixedLFPQuery().get_options()
+
     @property
     def name(self):
         return (

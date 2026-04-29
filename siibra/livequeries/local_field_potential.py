@@ -105,17 +105,23 @@ class FixedLFPQuery(
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def query(self, concept):
-        df = self.resolve_db_rows(concept)
-        fixed_tpls = {
+    @classmethod
+    def get_options(cls, df: pd.DataFrame = None):
+        df = cls.database_as_df() if df is None else df
+        options = {
             whs_label: {
                 (row.pathology, row.pharmacology, row.signal_quality)
                 for row in df[df["whs_label"] == whs_label].itertuples(index=False)
             }
             for whs_label in df["whs_label"].unique()
         }
+        return options
+
+    def query(self, concept):
+        df = self.resolve_db_rows(concept)
+        options = self.get_options(df)
         results = []
-        for whs_label, options in fixed_tpls.items():
+        for whs_label, options in options.items():
             for pat, phar, sq in options:
                 mask = df["whs_label"] == whs_label
                 mask &= df["pathology"] == pat

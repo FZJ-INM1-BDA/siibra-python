@@ -77,3 +77,9 @@ lfp_spectrum_caudate_putamen = siibra.features.get(
 lfp_spectrum_caudate_putamen
 # %%
 # lfp_spectrum_caudate_putamen[0].plot()
+
+
+# %%
+from pprint import pprint
+
+pprint(siibra.features.functional.LocalFieldPotentialSpectrum.get_options())
