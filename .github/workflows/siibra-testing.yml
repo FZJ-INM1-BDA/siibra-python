@@ -48,7 +48,7 @@ jobs:
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_importable.yaml
     with:
-      os: ubuntu-22.04  # use ubuntu-latest when python 3.8 is dropped
+      os: ubuntu-22.04
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
@@ -61,7 +61,7 @@ jobs:
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_unittest.yaml
     with:
-      os: ubuntu-22.04  # use ubuntu-latest when python 3.8 is dropped
+      os: ubuntu-22.04
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
@@ -83,10 +83,9 @@ jobs:
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_e2e.yaml
     with:
-      os: ubuntu-22.04  # use ubuntu-latest when python 3.8 is dropped
+      os: ubuntu-22.04
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
-
     strategy:
       fail-fast: false
       matrix:
@@ -98,7 +97,6 @@ jobs:
     uses: ./.github/workflows/_e2e.yaml
     with:
       os: ubuntu-latest
-      python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
       test_folder: ${{ matrix.test_folder }}
     strategy:
@@ -109,7 +107,7 @@ jobs:
     needs: 'use-custom-cfg'
     uses: ./.github/workflows/_run_examples.yaml
     with:
-      os: ubuntu-latest
+      os: self-hosted
       python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
       test_file: ${{ matrix.test_file }}
