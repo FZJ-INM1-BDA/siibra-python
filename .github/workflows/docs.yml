@@ -29,9 +29,9 @@ jobs:
           python -m pip install -r ./docs/requirements-doc.txt
 
 
-      - name: Create diagrams with pyreverse
-        run: |
-          pyreverse -k  -o svg -p siibra ./siibra --colorized --all-ancestors --output-directory ./docs/_static
+      # - name: Create diagrams with pyreverse
+      #   run: |
+      #     pyreverse -k  -o svg -p siibra ./siibra --colorized --all-ancestors --output-directory ./docs/_static
 
       - name: Build the docs and execute the notebooks
         run: |
