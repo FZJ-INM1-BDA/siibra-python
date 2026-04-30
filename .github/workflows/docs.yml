@@ -48,3 +48,20 @@ jobs:
           webhook_url: ${{ secrets.RTDS_WEBHOOK_URL }}
           webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
           commit_ref: ${{ github.ref }}
+
+  cleanup:
+    name: "Clean up build artifacts and pip cache"
+    runs-on: self-hosted
+    needs: notebooks
+    # Always run cleanup, even if the build job failed
+    if: always()
+    steps:
+      - name: Clear siibra cache
+        continue-on-error: true
+        run: |
+          python -c "import siibra; siibra.cache.clear()"
+
+      - name: Remove checked-out repository files
+        continue-on-error: true
+        run: |
+          rm -rf ${{ github.workspace }}/*
