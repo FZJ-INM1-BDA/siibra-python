@@ -1,7 +1,6 @@
 setuptools >= 67.7.2
 sphinx
 rtds_action
-pandas==2.3.3
 -r ../requirements.txt
 memory-profiler
 ipykernel
