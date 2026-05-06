@@ -111,7 +111,8 @@ plotting.plot_img(
     section1402.fetch(resolution_mm=1),
     bg_img=bigbrain_whole_img,
     title="#1402",
-    cmap='gray'
+    cmap='gray',
+    colorbar=False,
 )
 
 # %%
@@ -123,4 +124,6 @@ print(f"Size of the bounding box: {hoc5_bbox.shape}")
 # this is quite large, so we shrink it
 voi = hoc5_bbox.zoom(0.1)
 crop = section1402.fetch(voi=voi)
-plotting.plot_img(crop, bg_img=None, cmap="gray", display_mode="y")
+plotting.plot_img(crop, bg_img=None, cmap="gray", display_mode="y", colorbar=False)
+
+# %%
