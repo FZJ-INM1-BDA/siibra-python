@@ -67,6 +67,10 @@ jobs:
     needs: [notebooks, upload-to-rtd]
     if: always()
     steps:
+      - name: Clear siibra cache
+        continue-on-error: true
+        run: |
+          python -c "import siibra; siibra.cache.clear()"
       - name: Remove checked-out repository files
         continue-on-error: true
         run: |
