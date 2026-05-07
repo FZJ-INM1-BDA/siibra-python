@@ -1,6 +1,7 @@
 setuptools >= 67.7.2
 sphinx
 rtds_action
+nilearn==0.12.1
 -r ../requirements.txt
 memory-profiler
 ipykernel
