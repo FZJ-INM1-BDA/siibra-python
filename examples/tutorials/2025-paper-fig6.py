@@ -308,7 +308,7 @@ shortname = lambda n: re.sub(r"\s*\(.*\)", "", n)  # shorten area names for figu
 # ----------------------------------------------
 # 2.1 Load the reference contour in section 3797
 # ----------------------------------------------
-with open("e2ec8c09.sands.json", "r") as f:
+with open("./e2ec8c09.sands.json", "r") as f:
     d = json.load(f)
 vim_reference = siibra.PointCloud(
     [[v["value"] for v in c] for c in d["coordinates"]], space="bigbrain"
