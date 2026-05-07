@@ -392,7 +392,7 @@ patch = section.fetch(voi=voi, resolution_mm=0.02)
 
 # %%
 # -------------------------------
-# 2.6 Display pathc with contours
+# 2.6 Display patch with contours
 # -------------------------------
 
 # %%
@@ -424,7 +424,7 @@ plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
 # Detailed view of VIM reference alone
 # ------------------------------------
 
-# fetch the bouding box
+# fetch the bounding box
 x0, _, z0 = vim_reference.coordinates.min(0) - 1
 x1, _, z1 = vim_reference.coordinates.max(0) + 1
 ref_voi = siibra.BoundingBox([x0, y0, z0], [x1, y1, z1], space="bigbrain")
