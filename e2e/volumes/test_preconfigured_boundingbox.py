@@ -10,27 +10,43 @@ from siibra.volumes.volume import Volume
 
 TEST_ALL_PRECONF_BBOXES = eval(os.getenv("TEST_ALL_PRECONF_BBOXES", "False"))
 RANDOM_SEED = os.getenv("RANDOM_SEED", None if TEST_ALL_PRECONF_BBOXES else int(time()))
-RANDOM_TEST_COUNT = os.getenv("RANDOM_TEST_COUNT", None if TEST_ALL_PRECONF_BBOXES else 20)
+RANDOM_TEST_COUNT = os.getenv(
+    "RANDOM_TEST_COUNT", None if TEST_ALL_PRECONF_BBOXES else 20
+)
 
 
-map_vols = [v for m in siibra.maps for v in m.volumes]
+map_vols_and_clipflags = [
+    (
+        (v, False)
+        if "neuroglancer/precomputed" in v.formats
+        and "nii" not in v.formats
+        and len(m.volumes) > 2
+        else (v, True)
+    )
+    for m in siibra.maps
+    for v in m.volumes
+]
+
 imagefeatures = [
     feat
     for ftype in siibra.features.Feature._SUBCLASSES[Image]
     for feat in ftype._get_instances()
 ]
-volumes = list(zip(map_vols, repeat(True))) + list(zip(imagefeatures, repeat(False)))
+volumes_and_clipflags = map_vols_and_clipflags + list(zip(imagefeatures, repeat(False)))
 
 if not TEST_ALL_PRECONF_BBOXES:
     np.random.seed(int(RANDOM_SEED))
     randomly_selected_volumes = [
-        volumes[i] for i in np.random.randint(0, len(volumes), int(RANDOM_TEST_COUNT))
+        volumes_and_clipflags[i]
+        for i in np.random.randint(
+            0, len(volumes_and_clipflags), int(RANDOM_TEST_COUNT)
+        )
     ]
 
 
 @pytest.mark.parametrize(
     "volume, clip_flag",
-    volumes if TEST_ALL_PRECONF_BBOXES else randomly_selected_volumes
+    volumes_and_clipflags if TEST_ALL_PRECONF_BBOXES else randomly_selected_volumes,
 )
 def test_onthefly_and_preconfig_bboxes(volume: Volume, clip_flag: bool):
     configured_bbox = volume._boundingbox
