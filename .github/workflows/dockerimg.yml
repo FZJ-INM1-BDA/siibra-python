@@ -49,12 +49,9 @@ jobs:
 
     - name: 'Publish repo'
       run: |
-        if [ ! -z "${{ matrix.docker-repo }}" ]
-        then
-          docker login \
-            -u '${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER_NAME }}' \
-            --password-stdin '${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER }}' \
-            ${{ matrix.docker-repo }}
+        if [ -n "${{ matrix.docker-repo }}" ]; then
+          echo "${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER }}" | \
+          docker login -u "${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER_NAME }}" --password-stdin "${{ matrix.docker-repo }}"
         fi
 
         docker push $DOCKER_TAG

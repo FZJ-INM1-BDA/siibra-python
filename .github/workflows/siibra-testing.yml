@@ -48,7 +48,7 @@ jobs:
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_importable.yaml
     with:
-      os: ubuntu-22.04  # use ubuntu-latest when python 3.8 is dropped
+      os: ubuntu-22.04
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
@@ -61,7 +61,7 @@ jobs:
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_unittest.yaml
     with:
-      os: ubuntu-22.04  # use ubuntu-latest when python 3.8 is dropped
+      os: ubuntu-22.04
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
@@ -83,10 +83,9 @@ jobs:
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_e2e.yaml
     with:
-      os: ubuntu-22.04  # use ubuntu-latest when python 3.8 is dropped
+      os: ubuntu-22.04
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
-
     strategy:
       fail-fast: false
       matrix:
@@ -98,7 +97,6 @@ jobs:
     uses: ./.github/workflows/_e2e.yaml
     with:
       os: ubuntu-latest
-      python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
       test_folder: ${{ matrix.test_folder }}
     strategy:
@@ -110,10 +108,27 @@ jobs:
     needs: 'use-custom-cfg'
     uses: ./.github/workflows/_run_examples.yaml
     with:
-      os: ubuntu-latest
+      os: self-hosted
       python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
       test_file: ${{ matrix.test_file }}
     strategy:
       matrix:
         test_file: [examples/test_examples.py, examples/test_tutorials.py]
+
+  cleanup:
+    name: "Clean up build artifacts and pip cache"
+    runs-on: self-hosted
+    needs: test-examples
+    # Always run cleanup, even if the build job failed
+    if: always()
+    steps:
+      - name: Clear siibra cache
+        continue-on-error: true
+        run: |
+          python -c "import siibra; siibra.cache.clear()"
+
+      - name: Remove checked-out repository files
+        continue-on-error: true
+        run: |
+          rm -rf ${{ github.workspace }}/*

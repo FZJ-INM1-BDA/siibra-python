@@ -6,8 +6,9 @@ on:
         required: true
         type: string
       python-version:
-        required: true
+        required: false
         type: string
+        default: "3.8"
       use-cfg:
         required: false
         type: string
@@ -26,6 +27,7 @@ jobs:
     runs-on: ${{ inputs.os }}
     steps:
     - uses: actions/checkout@v4
+
     - name: Set up Python ${{ inputs.python-version }}
       uses: actions/setup-python@v4
       with:

@@ -63,4 +63,4 @@ plotting.view_img(
 # %%
 # Alternatively, we can display this map on a surface mesh using nilearn.
 # Note that, you can switch between the hemispheres or variants (inflated or pial) from the plot itself.
-plotting.view_img_on_surf(colorized_map, cmap='magma', symmetric_cmap=False, surf_mesh="fsaverage6")
+plotting.view_img_on_surf(colorized_map, cmap='magma', symmetric_cmap=False)
