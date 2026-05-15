@@ -653,7 +653,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             name=f"{source_template} resampled to coordinate system of {self}"
         )
 
-    def colorize(self, values: dict, **kwargs) -> _volume.Volume:
+    def colorize(
+        self,
+        values: dict,
+        background_value: Union[int, float] = 0,
+        **kwargs
+    ) -> _volume.Volume:
         """Colorize the map with the provided regional values.
 
         Parameters
@@ -665,37 +670,41 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         ------
         Nifti1Image
         """
+        from hashlib import md5
+        from nibabel import Nifti1Image
 
+        values_dtype = np.min_scalar_type(next(iter(values.values())))
         result = None
         for volidx, vol in enumerate(self.fetch_iter(**kwargs)):
             if isinstance(vol, dict):
                 raise NotImplementedError("Map colorization not yet implemented for meshes.")
-            img = np.asanyarray(vol.dataobj)
-            maxarr = np.zeros_like(img)
+            img_arr = np.asanyarray(vol.dataobj, dtype=values_dtype)
+            maxarr = np.zeros_like(img_arr)
             for r, value in values.items():
                 index = self.get_index(r)
                 if index.volume != volidx:
                     continue
                 if result is None:
-                    result = np.zeros_like(
-                        img,
-                        dtype=next(iter({
-                            type(v) for v in values.values()
-                        }))
-                    )
+                    result = np.zeros_like(img_arr, dtype=values_dtype) + background_value
                     affine = vol.affine
+                    result_header = vol.header
+                    result_header.set_data_dtype(values_dtype)
                 if index.label is None:
-                    updates = img > maxarr
+                    updates = img_arr > maxarr
                     result[updates] = value
-                    maxarr[updates] = img[updates]
+                    maxarr[updates] = img_arr[updates]
                 else:
-                    result[img == index.label] = value
+                    result[img_arr == index.label] = value
 
-        return _volume.from_array(
-            data=result,
+        result_img = Nifti1Image(
+            result,
             affine=affine,
+            header=result_header,
+        )
+        return _volume.from_nifti(
+            nifti=result_img,
             space=self.space,
-            name=f"Custom colorization of {self}"
+            name=f"Custom colorization of {self} - {md5(str(values).encode('utf-8')).hexdigest()}"
         )
 
     def get_colormap(self, region_specs: Iterable = None, *, fill_uncolored: bool = False):

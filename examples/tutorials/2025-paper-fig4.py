@@ -154,7 +154,7 @@ for r, sn, ax in zip(regions, selected_sections, axs):
     patchdata = patchimg.get_fdata().squeeze()
 
     # plot the pure image array
-    ax.imshow(patchdata, cmap="gray", vmin=0, vmax=2**16)
+    ax.imshow(patchdata, cmap="gray")
     ax.axis("off")
     ax.set_title(r.name)
 
