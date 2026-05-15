@@ -16,7 +16,7 @@
 
 from collections import defaultdict
 from dataclasses import dataclass, asdict
-from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
+from typing import Callable, Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, Any
 
 import numpy as np
 import pandas as pd
@@ -1262,6 +1262,75 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )
             assignments.extend(assignments_t)
         return assignments
+
+    def parcellate_fmri_data(
+        self,
+        fmri_volume: _volume.TimeSeriesVolume,
+        background_value: 0,
+        func: Callable = np.mean,
+        **func_kwargs
+    ) -> Dict[str, Any]:
+        """
+        Parcellate a 4D fMRI time series volume using the atlas label volumes.
+
+        For each label volume in ``self.volumes``, the fMRI data is masked by
+        each labelled region and aggregated using ``func``. The atlas volumes are
+        resampled to the space of the first fMRI frame prior to masking.
+
+        Parameters
+        ----------
+        fmri_volume : _volume.TimeSeriesVolume
+            A 4D fMRI time series volume to be parcellated.
+        background_value : scalar, optional
+            Label value to treat as background and exclude from parcellation.
+            Defaults to 0.
+        func : callable, optional
+            Aggregation function applied to the fMRI signal within each region
+            mask. Must accept an array as its first argument. Defaults to
+            ``np.mean``, which is applied along ``axis=0`` unless overridden via
+            ``func_kwargs``.
+        **func_kwargs
+            Additional keyword arguments forwarded to ``func``. When ``func`` is
+            ``np.mean`` and ``axis`` is not provided, it defaults to ``axis=0``.
+
+        Returns
+        -------
+        dict
+            A dictionary mapping each region object (as returned by
+            ``self.get_region``) to the aggregated fMRI signal for that region.
+            The value dtype and shape depend on ``func``: with the default
+            ``np.mean(axis=0)`` each value is a 1D array of length equal to the
+            number of time points.
+
+        Notes
+        -----
+        Atlas label volumes are resampled to the voxel grid of the first frame of
+        ``fmri_volume`` using nearest-neighbour interpolation before masking, so
+        atlas and fMRI volumes do not need to share the same affine or resolution.
+        """
+        parcellated = {}
+        if func is np.mean:
+            func_kwargs.setdefault("axis", 0)
+        img_0 = fmri_volume.get_index(0).fetch()
+        fmri_arr = fmri_volume.fetch().dataobj
+        for volid, vol in enumerate(self.volumes):
+            vol_img_resampled = image.resample_to_img(vol.fetch(), img_0, interpolation="nearest")
+            labels = np.unique(np.asanyarray(vol_img_resampled.dataobj))
+            masks = {
+                label: (vol_img_resampled.dataobj == label)
+                for label in labels if label != background_value
+            }
+            parcellated.update({
+                self.get_region(
+                    label=label, volume=volid
+                ): func(
+                    fmri_arr[masks[label]],
+                    **func_kwargs
+                )
+                for label in labels
+                if label != background_value
+            })
+        return parcellated
 
 
 def from_volume(
