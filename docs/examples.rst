@@ -51,6 +51,13 @@ This section provides a catalogue of documented code examples that is systematic
 
       A set of more extensive example use cases.
 
+   .. grid-item-card:: :material-outlined:`menu_book;2em` Showcases
+      :link: examples/showcases/index.html
+      :link-type: url
+      :columns: 12 12 12 12
+      :class-card: sd-shadow-sm
+      :margin: 2 2 auto auto
+
    
 .. toctree::
    :hidden:
@@ -62,3 +69,4 @@ This section provides a catalogue of documented code examples that is systematic
    examples/04_locations/index
    examples/05_anatomical_assignment/index
    examples/tutorials/index
+   examples/showcases/index
