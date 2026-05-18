@@ -21,7 +21,6 @@ from typing import Callable, Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, 
 import numpy as np
 import pandas as pd
 from scipy.ndimage import distance_transform_edt
-from nilearn import image
 
 from . import volume as _volume
 from .providers import provider
@@ -643,9 +642,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         -------
         Volume
         """
+        from nilearn.image import resample_to_img
+
         source_template = self.space.get_template().fetch()
         map_image = self.fetch(**fetch_kwargs)
-        img = image.resample_to_img(source_template, map_image, interpolation='continuous')
+        img = resample_to_img(source_template, map_image, interpolation='continuous')
         return _volume.from_array(
             data=img.dataobj,
             affine=img.affine,
