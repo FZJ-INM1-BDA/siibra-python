@@ -1264,6 +1264,73 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             assignments.extend(assignments_t)
         return assignments
 
+    def to_BIDS_lookup_table(self, *, filepath: str = None) -> pd.DataFrame:
+        """
+        Generate a BIDS-compatible lookup table for the labelled map.
+
+        The lookup table associates voxel labels with region names and optional
+        RGB colors derived from the corresponding parcellation regions.
+
+        If the map consists of multiple fragments, the fragments are first
+        compressed into a single labelled image and relabelled to ensure BIDS
+        compatibility.
+
+        Parameters
+        ----------
+        filepath : str, optional
+            Path to a ``.tsv`` file where the lookup table should be written.
+            If provided, the table is saved in tab-separated format.
+
+        Returns
+        -------
+        pandas.DataFrame
+            A lookup table with the following columns:
+            - ``index``: Integer label value in the image.
+            - ``name``: Name of the corresponding brain region.
+            - ``color``: Hexadecimal RGB color code associated with the region,
+               or ``None`` if no color is defined.
+
+        Raises
+        ------
+        Exception
+            If the map contains more than one volume.
+
+        AssertionError
+            If ``filepath`` does not end with ``.tsv``.
+
+        Notes
+        -----
+        BIDS lookup tables require a single labelled volume. Maps distributed
+        across multiple fragments are therefore compressed and relabelled before
+        generating the table.
+        """
+        if len(self.volumes) > 1:
+            raise Exception("Cannot extract maps wiht several volumes into BIDS compatible lookup table.")
+        if self.fragments:
+            logger.info(f"{self} is distributed as {len(self.fragments)}. siibra will compress the fragments and reindex to make it BIDS compatible.")
+            mp = self.compress()
+        else:
+            mp = self
+
+        def to_record(regionname: str, index: MapIndex) -> List[Dict]:
+            rgb = mp.parcellation.get_region(regionname).rgb
+            color = "#{:02x}{:02x}{:02x}".format(*rgb) if rgb else None
+            return {
+                "index": index.label,
+                "name": regionname,
+                "color": color,
+            }
+        table = pd.DataFrame(
+            [
+                to_record(r, indices[0])
+                for r, indices in mp._indices.items()
+            ]
+        )
+        if filepath:
+            assert filepath[-4:] == ".tsv", "BIDS lookup tables are in .tsv format but the path provided is not."
+            table.to_csv(filepath, sep='\t')
+        return table
+
     def parcellate_fmri_data(
         self,
         fmri_volume: _volume.TimeSeriesVolume,
