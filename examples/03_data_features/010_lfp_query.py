@@ -14,14 +14,13 @@
 # limitations under the License.
 
 """
-Showcase: High-resolution Rat Local Field Potential Atlas
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-WIP
+High-resolution Rat Local Field Potential Atlas
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
 # %%
 import siibra
+from pprint import pprint
 
 # %%
 waxholm = siibra.parcellations.get("waxholm")
@@ -67,6 +66,9 @@ print("pathology:", f.pathology)
 print("signal_quality:", f.signal_quality)
 
 # %%
+pprint(siibra.features.functional.LocalFieldPotentialSpectrum.get_options())
+
+# %%
 lfp_spectrum_caudate_putamen = siibra.features.get(
     caudate_putamen,
     siibra.features.functional.LocalFieldPotentialSpectrum,
@@ -76,10 +78,4 @@ lfp_spectrum_caudate_putamen = siibra.features.get(
 )
 lfp_spectrum_caudate_putamen
 # %%
-# lfp_spectrum_caudate_putamen[0].plot()
-
-
-# %%
-from pprint import pprint
-
-pprint(siibra.features.functional.LocalFieldPotentialSpectrum.get_options())
+lfp_spectrum_caudate_putamen[0].plot()
