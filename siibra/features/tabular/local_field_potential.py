@@ -82,25 +82,43 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
         return HttpRequest(BASE_URL.format(self._db_entry["motion_file"])).get()
 
     @classmethod
-    def plot_spectrum(cls, lfps: List["LocalFieldPotential"], backend="matplotlib", **kwargs):
+    def get_spectrum(
+        cls,
+        lfps: List["LocalFieldPotential"],
+        spectrum_type: Literal[
+            "spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"
+        ] = "spectrogram_rhythmic",
+    ):
         logger.info("Loading first file")
         with lfps[0].get_psd_file() as f:
             times = f["/times"][:]
             freqs = f["/frequencies"][:]
-            spectrogram = f["/spectrogram_rhythmic"][:]
+            spectrogram = f[f"/{spectrum_type}"][:]
             P_m = np.nanmedian(spectrogram, axis=0)  # Average over time
         times = times.flatten()
         freqs = freqs.flatten()
 
         # Load the rest and find the median
-        for index, lfp in siibra_tqdm(enumerate(lfps[1:])):
-            with lfp.get_psd_file(index) as f:
-                P_m = P_m + np.nanmedian(f["/spectrogram_rhythmic"][:], axis=0)
+        for lfp in siibra_tqdm(lfps[1:]):
+            with lfp.get_psd_file() as f:
+                P_m = P_m + np.nanmedian(f[f"/{spectrum_type}"][:], axis=0)
 
         # Calculate average
         P_m = P_m / len(lfps)
         logger.info("\nDone loading.")
-        df = DataFrame(P_m, index=freqs)
+        return DataFrame(P_m, index=freqs)
+
+    @classmethod
+    def plot_spectrum(
+        cls,
+        lfps: List["LocalFieldPotential"],
+        spectrum_type: Literal[
+            "spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"
+        ] = "spectrogram_rhythmic",
+        backend="matplotlib",
+        **kwargs,
+    ):
+        df = cls.get_spectrum(lfps=lfps, spectrum_type=spectrum_type)
         kwargs["kind"] = "line"
         kwargs["xlabel"] = kwargs.get("xlabel", "Frequency (Hz)")
         kwargs["ylabel"] = kwargs.get("xlabel", "dB(fractal)")
@@ -193,9 +211,9 @@ class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
         freqs = freqs.flatten()
 
         # Load the rest and find the median
-        for index, row in siibra_tqdm(self._db_entries.iloc[1:].iterrows()):
-            with self.get_psd_file(index) as f:
-                P_m = P_m + np.nanmedian(f["/spectrogram_rhythmic"][:], axis=0)
+        for i in siibra_tqdm(self._db_entries.iloc[1:].index):
+            with self.get_psd_file(i) as fi:
+                P_m = P_m + np.nanmedian(fi["/spectrogram_rhythmic"][:], axis=0)
 
         # Calculate average
         P_m = P_m / nfiles

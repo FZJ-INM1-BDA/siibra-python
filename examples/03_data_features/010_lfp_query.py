@@ -25,7 +25,6 @@ atlas.
 
 # %%
 import siibra
-from pprint import pprint
 
 # %%
 # We start by selecting the Waxholm Space parcellation and choosing the
@@ -77,31 +76,10 @@ print("pharmacology:", f.pharmacology)
 print("pathology:", f.pathology)
 print("signal_quality:", f.signal_quality)
 
-# %%
-# The feature class exposes the available filter options. This is useful for
-# discovering which metadata values can be passed to `siibra.features.get`.
-pprint(siibra.features.functional.LocalFieldPotentialSpectrum.get_options())
 
 # %%
-# In addition to the raw LFP recordings, siibra provides spectral representations.
-# We query LFP spectra for baseline recordings with typical signal quality and
-# no pathology.
-lfp_spectrum_caudate_putamen = siibra.features.get(
-    caudate_putamen,
-    siibra.features.functional.LocalFieldPotentialSpectrum,
-    pathology=None,
-    pharmacology="baseline",
-    signal_quality="typical"
-)
-lfp_spectrum_caudate_putamen
-# %%
-# The spectrum feature comes with a default plot method for visual inspection.
-lfp_spectrum_caudate_putamen[0].plot()
-
-
-# %%
-# Finally, we query spectra from the whole Waxholm parcellation using a more
-# specific set of metadata options, here selecting atypical recordings from the
+# We can plot spectra using any regions including the whole Waxholm parcellation
+# using `plot_spectrum`` method. Here selecting atypical recordings from the
 # lesioned hemisphere in 6-OHDA hemilesioned animals.
 specs = dict(
     pathology="lesioned hemisphere in 6-OHDA hemilesioned",
@@ -112,6 +90,7 @@ lfp_spectrum_w_specs = siibra.features.get(
     siibra.features.functional.LocalFieldPotential,
     **specs
 )
-
-# %%
-siibra.features.functional.LocalFieldPotential.plot_spectrum(lfp_spectrum_w_specs)
+siibra.features.functional.LocalFieldPotential.plot_spectrum(
+    lfp_spectrum_w_specs,
+    spectrum_type="spectrogram_rhythmic"
+)
