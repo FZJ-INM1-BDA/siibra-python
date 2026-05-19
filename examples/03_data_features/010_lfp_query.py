@@ -82,8 +82,9 @@ print("signal_quality:", f.signal_quality)
 # using `plot_spectrum`` method. Here selecting atypical recordings from the
 # lesioned hemisphere in 6-OHDA hemilesioned animals.
 specs = dict(
-    pathology="lesioned hemisphere in 6-OHDA hemilesioned",
+    pathology="lesioned hemisphere in 6-OHDA hemilesioned animal",
     pharmacology="baseline",
+    signal_quality="atypical",
 )
 lfp_spectrum_w_specs = siibra.features.get(
     waxholm,

@@ -73,13 +73,13 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
         return self.anchor.location
 
     def get_lfp_file(self):
-        return HttpRequest(BASE_URL.format(self._db_entry["lfp_file"])).get()
+        return HttpRequest(BASE_URL.format(filepath=self._db_entry.lfp_file)).get()
 
     def get_psd_file(self):
-        return HttpRequest(BASE_URL.format(self._db_entry["psd_file"])).get()
+        return HttpRequest(BASE_URL.format(filepath=self._db_entry.psd_file)).get()
 
     def get_motion_file(self):
-        return HttpRequest(BASE_URL.format(self._db_entry["motion_file"])).get()
+        return HttpRequest(BASE_URL.format(filepath=self._db_entry.motion_file)).get()
 
     @classmethod
     def get_spectrum(
