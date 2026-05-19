@@ -1377,10 +1377,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         from nilearn import maskers
 
         mp = self.compress() if self.fragments else self
-        labelled_img = mp.fetch()
         lut = mp.to_BIDS_lookup_table()
 
-        masker = maskers.NiftiLabelsMasker(labelled_img, lut=lut, verbose=1).fit()
+        if mp.provides_image:
+            labelled_img = mp.fetch()
+            masker = maskers.NiftiLabelsMasker(labelled_img, lut=lut, verbose=1).fit()
+        else:
+            assert 'gii-label' in self.formats
+            labelled_surface = mp.fetch(format='mesh')
+            masker = maskers.SurfaceLabelsMasker(labelled_surface, lut=lut, verbose=1).fit()
+
         signals = masker.transform(volume.fetch(), confounds=confounds, sample_mask=sample_mask)
         if signals.ndim == 1:
             return pd.Series(signals, index=masker.lut["name"])

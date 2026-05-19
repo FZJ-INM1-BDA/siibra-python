@@ -15,9 +15,11 @@
 """Represents lists of probabilistic brain region maps."""
 
 from os import path, makedirs
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import numpy as np
+import pandas as pd
+import nibabel
 
 from . import parcellationmap, volume as _volume
 from .providers import provider
@@ -461,3 +463,117 @@ class SparseMap(parcellationmap.Map):
                 )
 
         return assignments
+
+    def extract_signals(
+        self,
+        volume: _volume.Volume,
+        confounds=None,
+        sample_mask=None,
+    ) -> Union[pd.Series, pd.DataFrame]:
+        """
+        Extract region-wise signals from a 3D/4D volume using probabilistic or
+        continuous maps using `nilearn`.
+
+        The atlas labels defined in the current map are used to summarize the
+        input volume with :class:`nilearn.maskers.NiftiLMasker`. If the map
+        contains fragments, they are first compressed into a single labelled map.
+
+        Parameters
+        ----------
+        volume : Volume
+            Input 3D or 4D volume from which signals should be extracted.
+            Typically an fMRI image. The object must implement ``fetch()`` and
+            return a Niimg-like object compatible with Nilearn.
+
+        confounds : array-like or pandas.DataFrame, optional
+            Confounds to pass to `nilearn.maskers.BaseMasker.transform`.
+            See nilearn.maskers.BaseMasker.transform`.
+
+        sample_mask : array-like, optional
+            Mask of samples to include when extracting signals.
+            See nilearn.maskers.BaseMasker.transform`.
+
+        Returns
+        -------
+        pandas.Series or pandas.DataFrame
+            Extracted signals indexed by atlas region names.
+
+            - If the extracted signal is one-dimensional (e.g. from a 3D image),
+            a ``pandas.Series`` is returned with region names as the index.
+            - If the extracted signal is two-dimensional (e.g. from a 4D image),
+            a ``pandas.DataFrame`` is returned with region names as the columns
+            and samples/timepoints as rows.
+        """
+        from nilearn import maskers
+
+        lut = list(self._indices.keys())
+        maps_stacked = self._stack_maps()
+
+        masker = maskers.NiftiMapsMasker(
+            maps_stacked,
+            resampling_target="data",
+            verbose=1,
+        ).fit()
+        signals = masker.transform(volume.fetch(), confounds=confounds, sample_mask=sample_mask)
+        if signals.ndim == 1:
+            return pd.Series(signals, index=lut)
+        else:
+            return pd.DataFrame(signals, columns=lut)
+
+    def _stack_maps(self):
+        """
+        Stack all map volumes into a single memory-mapped 4D image.
+
+        This method constructs a 4D array with one volume per map and stores
+        it as a NumPy memory-mapped array on disk to reduce peak RAM usage
+        during stacking. The resulting array is wrapped as a Niimg-like
+        object compatible with Nilearn's :class:`~nilearn.maskers.NiftiMapsMasker`.
+
+        Notes
+        -----
+        - All input maps must have identical spatial dimensions and affine
+        transformations.
+        - The stacked array is stored in a cache-backed ``.npy`` file and
+        accessed through NumPy memmapping, allowing incremental writes
+        without allocating the full 4D array in memory.
+        - Although this reduces memory usage during construction of the
+        stacked maps, downstream processing in Nilearn (e.g. resampling)
+        may still require substantial memory depending on the target data.
+
+        Returns
+        -------
+        nibabel.Nifti1Image
+            A 4D image where the last dimension indexes the stacked maps.
+        """
+        from ..retrieval.cache import CACHE
+
+        first = self.volumes[0].fetch()
+        affine = first.affine
+        shape3d = first.shape[:3]
+        dtype = np.asanyarray(first.dataobj).dtype
+        shape4d = shape3d + (len(self.volumes),)
+
+        array_cache_file = CACHE.build_filename(
+            f"{self.parcellation}-{self.space}-{self.maptype}-{len(self.volumes)}-stacked",
+            suffix=".npy",
+        )
+
+        data = np.lib.format.open_memmap(
+            array_cache_file,
+            mode="w+",
+            dtype=dtype,
+            shape=shape4d,
+        )
+
+        for i, img3d in enumerate(self.fetch_iter()):
+            if img3d.shape[:3] != shape3d:
+                raise ValueError("All maps must have the same shape.")
+
+            if not np.allclose(img3d.affine, affine):
+                raise ValueError("All maps must have the same affine.")
+
+            data[..., i] = np.asanyarray(img3d.dataobj)
+
+        data.flush()
+
+        return nibabel.Nifti1Image(data, affine)
