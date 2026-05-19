@@ -52,7 +52,7 @@ class LFPQuery(
             if concept.name in unique_regions:
                 mask = df["whs_label"] == concept.name
             else:
-                regions = [d for d in concept.descendants if d.name in unique_regions]
+                regions = [d.name for d in concept.descendants if d.name in unique_regions]
                 mask = df["whs_label"].isin(regions)
         elif isinstance(concept, Location):
             entries_as_ptcld = PointCloud(

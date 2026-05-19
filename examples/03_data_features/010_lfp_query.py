@@ -79,3 +79,17 @@ lfp_spectrum_caudate_putamen = siibra.features.get(
 lfp_spectrum_caudate_putamen
 # %%
 lfp_spectrum_caudate_putamen[0].plot()
+
+
+# %%
+specs = dict(
+    pathology="lesioned hemisphere in 6-OHDA hemilesioned",
+    pharmacology="baseline",
+    signal_quality="atypical"
+)
+lfp_spectrum_w_specs = siibra.features.get(
+    waxholm,
+    siibra.features.functional.LocalFieldPotentialSpectrum,
+    **specs
+)
+lfp_spectrum_w_specs[0].plot()
