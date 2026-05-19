@@ -155,7 +155,7 @@ class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
 
     @property
     def data(self):
-        nfiles = self._db_entries["psd_file"].unique()
+        nfiles = len(self._db_entries["psd_file"].unique())
         logger.info("Loading first file")
         index = self._db_entries.index[0]
         with self.get_psd_file(index) as f:
