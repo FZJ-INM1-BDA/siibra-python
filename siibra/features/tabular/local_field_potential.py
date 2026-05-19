@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, Literal
+from typing import TYPE_CHECKING, Dict, Literal, List
 from hashlib import md5
 import numpy as np
 from pandas import DataFrame
@@ -81,8 +81,34 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
     def get_motion_file(self):
         return HttpRequest(BASE_URL.format(self._db_entry["motion_file"])).get()
 
+    @classmethod
+    def plot_spectrum(cls, lfps: List["LocalFieldPotential"], backend="matplotlib", **kwargs):
+        logger.info("Loading first file")
+        with lfps[0].get_psd_file() as f:
+            times = f["/times"][:]
+            freqs = f["/frequencies"][:]
+            spectrogram = f["/spectrogram_rhythmic"][:]
+            P_m = np.nanmedian(spectrogram, axis=0)  # Average over time
+        times = times.flatten()
+        freqs = freqs.flatten()
+
+        # Load the rest and find the median
+        for index, lfp in siibra_tqdm(enumerate(lfps[1:])):
+            with lfp.get_psd_file(index) as f:
+                P_m = P_m + np.nanmedian(f["/spectrogram_rhythmic"][:], axis=0)
+
+        # Calculate average
+        P_m = P_m / len(lfps)
+        logger.info("\nDone loading.")
+        df = DataFrame(P_m, index=freqs)
+        kwargs["kind"] = "line"
+        kwargs["xlabel"] = kwargs.get("xlabel", "Frequency (Hz)")
+        kwargs["ylabel"] = kwargs.get("xlabel", "dB(fractal)")
+        return df.plot(backend=backend, **kwargs)
+
 
 class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
+
     DESCRIPTION = """"""
     ID_TEMPLATE = "41673110-f3eb-43cd-9d9c-c845c6f0573c--{indices_as_hex}"
 

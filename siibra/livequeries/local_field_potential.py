@@ -76,10 +76,10 @@ class LFPQuery(
         return df[mask]
 
     def __init__(self, **kwargs):
+        self.pathology = kwargs["pathology"] = kwargs.get("pathology", None)
+        self.signal_quality = kwargs["signal_quality"] = kwargs.get("signal_quality", None)
+        self.pharmacology = kwargs["pharmacology"] = kwargs.get("pharmacology", None)
         _query.LiveQuery.__init__(self, **kwargs)
-        self.pathology = kwargs.get("pathology", None)
-        self.signal_quality = kwargs.get("signal_quality", None)
-        self.pharmacology = kwargs.get("pharmacology", None)
 
     def query(self, concept: structure.BrainStructure) -> List[tabular.LocalFieldPotential]:
         df = self.resolve_db_rows(concept)
