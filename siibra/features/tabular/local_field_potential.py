@@ -13,14 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, Literal, List
+from typing import TYPE_CHECKING, Dict, Literal, List, Union
 from hashlib import md5
 import numpy as np
-from pandas import DataFrame
+import pandas as pd
 
 from . import tabular
 from ...retrieval.requests import HttpRequest
 from ...commons import logger, siibra_tqdm
+from ...exceptions import MissingFileException
 
 if TYPE_CHECKING:
     from ..anchor import AnatomicalAnchor
@@ -49,6 +50,22 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
         self._db_entry = db_entry
 
     @property
+    def name(self):
+        return (
+            super().name + " - "
+            + str(
+                {
+                    attr: getattr(self, attr)
+                    for attr in [
+                        "pathology",
+                        "pharmacology",
+                        "signal_quality",
+                    ]
+                }
+            )[1:-1]
+        )
+
+    @property
     def pharmacology(self):
         return self._db_entry.pharmacology
 
@@ -73,40 +90,72 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
         return self.anchor.location
 
     def get_lfp_file(self):
+        if self._db_entry.lfp_file is np.nan:
+            raise MissingFileException(f"{self} does not have a lfp file.")
         return HttpRequest(BASE_URL.format(filepath=self._db_entry.lfp_file)).get()
 
     def get_psd_file(self):
+        if self._db_entry.psd_file is np.nan:
+            raise MissingFileException(f"{self} does not have a psd file.")
         return HttpRequest(BASE_URL.format(filepath=self._db_entry.psd_file)).get()
 
     def get_motion_file(self):
-        return HttpRequest(BASE_URL.format(filepath=self._db_entry.motion_file)).get()
+        if self._db_entry.motion_file is np.nan:
+            raise MissingFileException(f"{self} does not have a motion file.")
+        url = BASE_URL.format(filepath=self._db_entry.motion_file)
+        return HttpRequest(url).get()
 
     @classmethod
     def get_spectrum(
         cls,
         lfps: List["LocalFieldPotential"],
-        spectrum_type: Literal[
-            "spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"
-        ] = "spectrogram_rhythmic",
+        spectrum_type: Literal["spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"],
     ):
-        logger.info("Loading first file")
-        with lfps[0].get_psd_file() as f:
-            times = f["/times"][:]
-            freqs = f["/frequencies"][:]
-            spectrogram = f[f"/{spectrum_type}"][:]
-            P_m = np.nanmedian(spectrogram, axis=0)  # Average over time
-        times = times.flatten()
-        freqs = freqs.flatten()
+        return cls._get_spectrum(
+            pd.DataFrame([lfp._db_entry for lfp in lfps]),
+            spectrum_type=spectrum_type,
+        )
+
+    @classmethod
+    def _get_spectrum(
+        cls,
+        lfp_entries: pd.DataFrame,
+        spectrum_type: Literal["spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"],
+    ):
+        def get_psd_file(row):
+            return HttpRequest(BASE_URL.format(filepath=row.psd_file)).get()
+
+        n_files = len(lfp_entries)
+        for first_succes, row in enumerate(lfp_entries.itertuples()):
+            if row.psd_file is np.nan:
+                logger.info(f"{row} is missing the psd file. Excluding it from spectrum.")
+                n_files -= 1
+                continue
+            with get_psd_file(row) as psdf:
+                times = psdf["/times"][:]
+                freqs = psdf["/frequencies"][:]
+                spectrogram = psdf[f"/{spectrum_type}"][:]
+                P_m = np.nanmedian(spectrogram, axis=0)  # Average over time
+            times = times.flatten()
+            freqs = freqs.flatten()
+            break
 
         # Load the rest and find the median
-        for lfp in siibra_tqdm(lfps[1:]):
-            with lfp.get_psd_file() as f:
-                P_m = P_m + np.nanmedian(f[f"/{spectrum_type}"][:], axis=0)
+        for row in siibra_tqdm(
+            lfp_entries.iloc[first_succes + 1:].itertuples(),
+            total=len(lfp_entries.iloc[first_succes + 1:]),
+            unit="entry",
+        ):
+            if row.psd_file is np.nan:
+                logger.info(f"{row} is missing the psd file. Excluding it from spectrum.")
+                n_files -= 1
+                continue
+            with get_psd_file(row) as psdf:
+                P_m = P_m + np.nanmedian(psdf[f"/{spectrum_type}"][:], axis=0)
 
         # Calculate average
-        P_m = P_m / len(lfps)
-        logger.info("\nDone loading.")
-        return DataFrame(P_m, index=freqs)
+        P_m = P_m / n_files
+        return pd.DataFrame(P_m, index=freqs)
 
     @classmethod
     def plot_spectrum(
@@ -119,9 +168,16 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
         **kwargs,
     ):
         df = cls.get_spectrum(lfps=lfps, spectrum_type=spectrum_type)
-        kwargs["kind"] = "line"
+        match spectrum_type:
+            case "spectrogram":
+                ylabel = "dB"
+            case "spectrogram_rhythmic":
+                ylabel = " dB(fractal)"
+            case "spectrogram_arrhythmic":
+                ylabel = "dB"
         kwargs["xlabel"] = kwargs.get("xlabel", "Frequency (Hz)")
-        kwargs["ylabel"] = kwargs.get("xlabel", "dB(fractal)")
+        kwargs["ylabel"] = kwargs.get("xlabel", ylabel)
+        kwargs["label"] = "smoothed median"
         return df.plot(backend=backend, **kwargs)
 
 
@@ -133,30 +189,18 @@ class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
     def __init__(
         self,
         anchor: "AnatomicalAnchor",
-        db_entries: DataFrame,
-        pathology: Literal[
-            "lesioned hemisphere in 6-OHDA hemilesioned animal",
-            "intact hemisphere in 6-OHDA hemilesioned animal",
-            "none",
+        db_entries: pd.DataFrame,
+        spectrum_type: Literal[
+            "spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"
         ],
-        pharmacology: Literal[
-            "baseline",
-            "levodopa",
-            "mk801",
-            "ketamine",
-            "lsd",
-            "amphetamine",
-            "doi",
-            "pcp",
-            "sumanirole",
-            "skf82958",
-        ],
-        signal_quality: Literal["typical", "atypical", "strongly atypical"],
+        pathology: Union[str, None] = None,
+        pharmacology: Union[str, None] = None,
+        signal_quality: Union[str, None] = None,
     ):
         tabular.Tabular.__init__(
             self,
             description=self.DESCRIPTION,
-            modality="Local field potential spectrum",
+            modality=f"Local field potential spectrum - {spectrum_type}",
             anchor=anchor,
             id=self.ID_TEMPLATE.format(
                 indices_as_hex=md5(str(db_entries.index).encode("utf-8")).hexdigest()
@@ -166,18 +210,23 @@ class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
         self.pharmacology = pharmacology
         self.pathology = pathology
         self.signal_quality = signal_quality
-
-    @classmethod
-    def get_options(cls):
-        from ...livequeries.local_field_potential import FixedLFPQuery
-
-        return FixedLFPQuery().get_options()
+        self.spectrum_type = spectrum_type
 
     @property
     def name(self):
         return (
-            super().name
-            + f"pathology: {self.pathology}, pharmacology: {self.pharmacology}, signal_quality: {self.signal_quality}"
+            super().name + " - "
+            + str(
+                {
+                    attr: getattr(self, attr)
+                    for attr in [
+                        "pathology",
+                        "pharmacology",
+                        "signal_quality",
+                        "spectrum_type",
+                    ]
+                }
+            )[1:-1]
         )
 
     @property
@@ -199,29 +248,21 @@ class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
 
     @property
     def data(self):
-        nfiles = len(self._db_entries["psd_file"].unique())
-        logger.info("Loading first file")
-        index = self._db_entries.index[0]
-        with self.get_psd_file(index) as f:
-            times = f["/times"][:]
-            freqs = f["/frequencies"][:]
-            spectrogram = f["/spectrogram_rhythmic"][:]
-            P_m = np.nanmedian(spectrogram, axis=0)  # Average over time
-        times = times.flatten()
-        freqs = freqs.flatten()
-
-        # Load the rest and find the median
-        for i in siibra_tqdm(self._db_entries.iloc[1:].index):
-            with self.get_psd_file(i) as fi:
-                P_m = P_m + np.nanmedian(fi["/spectrogram_rhythmic"][:], axis=0)
-
-        # Calculate average
-        P_m = P_m / nfiles
-        logger.info("\nDone loading.")
-        return DataFrame(P_m, index=freqs)
+        return LocalFieldPotential._get_spectrum(
+            lfp_entries=self._db_entries,
+            spectrum_type=self.spectrum_type,
+        )
 
     def plot(self, *args, backend="matplotlib", **kwargs):
         kwargs["kind"] = "line"
+        match self.spectrum_type:
+            case "spectrogram":
+                ylabel = "dB"
+            case "spectrogram_rhythmic":
+                ylabel = " dB(fractal)"
+            case "spectrogram_arrhythmic":
+                ylabel = "dB"
         kwargs["xlabel"] = kwargs.get("xlabel", "Frequency (Hz)")
-        kwargs["ylabel"] = kwargs.get("xlabel", "dB(fractal)")
+        kwargs["ylabel"] = kwargs.get("xlabel", ylabel)
+        kwargs["label"] = "smoothed median"
         return super().plot(*args, backend=backend, **kwargs)

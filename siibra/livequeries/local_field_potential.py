@@ -42,10 +42,7 @@ class LFPQuery(
         db = sqlite3.connect(req.cachefile)
         return pd.read_sql("SELECT * FROM bids", db)
 
-    def resolve_db_rows(
-        self,
-        concept: structure.BrainStructure
-    ) -> pd.DataFrame:
+    def resolve_db_rows(self, concept: structure.BrainStructure) -> pd.DataFrame:
         df = self.database_as_df()
         if isinstance(concept, region.Region):
             unique_regions = set(df["whs_label"].unique())
@@ -132,13 +129,21 @@ class FixedLFPQuery(
                     region=whs_label,
                     species="RATTUS NORVEGICUS",
                 )
-                results.append(
-                    tabular.LocalFieldPotentialSpectrum(
-                        anchor=anchor,
-                        db_entries=df[mask],
-                        pathology=pat,
-                        pharmacology=phar,
-                        signal_quality=sq,
-                    )
+                results.extend(
+                    [
+                        tabular.LocalFieldPotentialSpectrum(
+                            anchor=anchor,
+                            db_entries=df[mask],
+                            pathology=pat,
+                            pharmacology=phar,
+                            signal_quality=sq,
+                            spectrum_type=spectrum_type,
+                        )
+                        for spectrum_type in [
+                            "spectrogram",
+                            "spectrogram_rhythmic",
+                            "spectrogram_arrhythmic",
+                        ]
+                    ]
                 )
         return results

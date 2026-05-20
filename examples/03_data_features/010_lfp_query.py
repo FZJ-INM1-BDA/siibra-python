@@ -29,7 +29,7 @@ import siibra
 # %%
 # We start by selecting the Waxholm Space parcellation and choosing the
 # caudate putamen as the anatomical region of interest.
-waxholm = siibra.parcellations.get("waxholm")
+waxholm = siibra.parcellations.get("waxholm v4")
 caudate_putamen = waxholm.get_region("Caudate putamen")
 
 # %%
@@ -95,3 +95,18 @@ siibra.features.functional.LocalFieldPotential.plot_spectrum(
     lfp_spectrum_w_specs,
     spectrum_type="spectrogram_rhythmic"
 )
+
+
+# %%
+lfp_spectrum_caudate_putamen = siibra.features.get(
+    caudate_putamen,
+    siibra.features.functional.LocalFieldPotentialSpectrum,
+    **specs
+)
+len(lfp_spectrum_caudate_putamen)
+
+# %%
+for lfp in lfp_spectrum_caudate_putamen:
+    if lfp.spectrum_type == "spectrogram":
+        lfp.plot()
+        break
