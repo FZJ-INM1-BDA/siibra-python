@@ -26,7 +26,7 @@ import siibra
 
 
 # %%
-url = "https://s3.amazonaws.com/openneuro.org/ds002741/sub-08/ses-mri/func/sub-08_ses-mri_task-caricatures_run-02_bold.nii.gz?versionId=mEBv6xTJbKD.n14D0fpsB7TV_MaRXmdj"
+url = "https://s3.amazonaws.com/openneuro.org/ds002790/derivatives/fmriprep/sub-0001/func/sub-0001_task-workingmemory_acq-seq_space-MNI152NLin2009cAsym_boldref.nii.gz?versionId=M_gb5CCBqHfDj3KWsJ_hvOddqJXHbYPJ"
 fmri_vol = siibra.volumes.from_url(url, space='mni152')
 print(type(fmri_vol))
 
