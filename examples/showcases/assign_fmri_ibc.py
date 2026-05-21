@@ -31,9 +31,9 @@ fmri_vol = siibra.volumes.from_url(url, space='mni152')
 print(type(fmri_vol))
 
 # %%
-julichbrain = siibra.get_map(parcellation='julich 3.1', space='mni152', maptype='statistical')
-assignments = julichbrain.assign(fmri_vol, lower_threshold=0.6, split_components=False)
-assignments
+# julichbrain = siibra.get_map(parcellation='julich 3.1', space='mni152', maptype='statistical')
+# assignments = julichbrain.assign(fmri_vol, lower_threshold=0.6, split_components=False)
+# assignments
 
 
 # %%
