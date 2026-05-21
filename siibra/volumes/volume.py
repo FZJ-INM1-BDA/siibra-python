@@ -864,6 +864,16 @@ class Subvolume(Volume):
         )
 
 
+def from_url(url: str, space: str, time_index: np.ndarray = None) -> Volume:
+    """Builds a nifti volume from a nifti served from an online source."""
+    assert url[:8] == "https://"
+    req = requests.HttpRequest(url)
+    logger.info("Downloading...")
+    req._retrieve()
+    logger.info("Downloaded.")
+    return from_file(req.cachefile, space=space, name=url, time_index=time_index)
+
+
 def from_file(filename: str, space: str, name: str, time_index: np.ndarray = None) -> Volume:
     """Builds a nifti volume from a filename."""
     spaceobj = get_registry("Space").get(space)
