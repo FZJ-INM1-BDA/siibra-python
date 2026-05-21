@@ -80,7 +80,7 @@ print("signal_quality:", f.signal_quality)
 # %%
 # We can plot spectra using any regions including the whole Waxholm parcellation
 # using `plot_spectrum`` method. Here selecting atypical recordings from the
-# lesioned hemisphere in 6-OHDA hemilesioned animals.
+# lesioned hemisphere in 6-OHDA hemilesioned animals with baseline pharmacology.
 specs = dict(
     pathology="lesioned hemisphere in 6-OHDA hemilesioned animal",
     pharmacology="baseline",
@@ -98,14 +98,17 @@ siibra.features.functional.LocalFieldPotential.plot_spectrum(
 
 
 # %%
+# Alternatively, region-wise potentials can be queried already grouped for ease
+# of navigation. These are divided by spectegoram types 
 lfp_spectrum_caudate_putamen = siibra.features.get(
     caudate_putamen,
     siibra.features.functional.LocalFieldPotentialSpectrum,
     **specs
 )
-len(lfp_spectrum_caudate_putamen)
+[lfp.spectrum_type for lfp in lfp_spectrum_caudate_putamen]
 
 # %%
+# Plotting functionality requires no further input
 for lfp in lfp_spectrum_caudate_putamen:
     if lfp.spectrum_type == "spectrogram":
         lfp.plot()
