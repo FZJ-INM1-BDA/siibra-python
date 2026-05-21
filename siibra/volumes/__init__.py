@@ -20,5 +20,5 @@ import numpy as np
 
 from .parcellationmap import Map
 from .providers import provider
-from .volume import from_array, from_file, from_pointcloud, from_nifti, Volume
+from .volume import from_array, from_file, from_pointcloud, from_nifti, from_url, Volume
 from ..commons import logger
