@@ -15,87 +15,90 @@
 
 """
 
-title
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Extrating Regionwise Signals From Activity Recording
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-desc
+siibra integrates nilearn to allow seemles extration of signals given recordings
+such as fMRI, PET, and others. This notebook downloads two fMRI images from
+AOMIC-PIOP2 dataset (https://openneuro.org/datasets/ds002790/versions/2.0.0)
+and compares the extraction results for different tasks.
 """
 
 # %%
 import siibra
+import matplotlib.pyplot as plt
+from plotly.express import imshow
+
+# %%
+workingmemory_url = "https://s3.amazonaws.com/openneuro.org/ds002790/derivatives/fmriprep/sub-0001/func/sub-0001_task-workingmemory_acq-seq_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz?versionId=_Nhgf0C.uF_ZOzpDe5yk0QwYP2ldVogy"
+workingmemory_fmri = siibra.volumes.from_url(
+    workingmemory_url, space="mni152", time_index=[]
+)  # TODO: need to get the time index from the dataset
+print(type(workingmemory_fmri))
+
+# %%
+restingstate_url = "https://s3.amazonaws.com/openneuro.org/ds002790/derivatives/fmriprep/sub-0001/func/sub-0001_task-restingstate_acq-seq_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz?versionId=IzwDNzSubtnX6l0BGTaQoTk7eqoIZEju"
+restingstate_fmri = siibra.volumes.from_url(
+    restingstate_url, space="mni152", time_index=[]
+)  # TODO: need to get the time index from the dataset
 
 
 # %%
-url = "https://s3.amazonaws.com/openneuro.org/ds002790/derivatives/fmriprep/sub-0001/func/sub-0001_task-workingmemory_acq-seq_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz?versionId=_Nhgf0C.uF_ZOzpDe5yk0QwYP2ldVogy"
-fmri_vol = siibra.volumes.from_url(url, space='mni152', time_index=[])
-print(type(fmri_vol))
+# We now select the map we would like to extract the signals from
+julichbrain = siibra.get_map("julich 3.1", "mni152")
 
 # %%
+# `extract_signals` method takes a 3D/4D volume and returns the results as a
+# `pandas.DataFrame` where the columns are the regions extracted and the rows
+# represnt 4th dimension of the input volume.
+# (TODO: consider allowing resampling target to be the map instead of the input.
+# Nilearn handles this if kwarg allowed. One could potentiall allow nilearn.Masker
+# kwargs as makser_kwargs and docstring could lead to relevant nilearn page.)
+workingmemory_signals = julichbrain.extract_signals(workingmemory_fmri)
+workingmemory_signals
+
+# %%
+# we can simply visualize the results as a carpet plot
+imshow(workingmemory_signals.T, origin="lower")
+
+# %%
+# We can make use of pandas built-in functions to get a summary of the results
+workingmemory_signals_stats = workingmemory_signals.describe().T.sort_values(
+    "mean", ascending=False
+)
+workingmemory_signals_stats
+
+# %%
+# Similarly, we extract the signals for the rest state
+restingstate_signals = julichbrain.extract_signals(restingstate_fmri)
+restingstate_signals_stats = restingstate_signals.describe().T.sort_values(
+    "mean", ascending=False
+)
+restingstate_signals_stats
+
+# %%
+# Using plotting backend of pandas, we can plot the data to compare the first 10
+restingstate_signals_stats.iloc[:10, :].plot(
+    title="resting state",
+    kind="barh",
+    y="mean",
+    xerr="std"
+)
+workingmemory_signals_stats.iloc[:10, :].plot(
+    title="working memory",
+    kind="barh",
+    y="mean",
+    xerr="std"
+)
+
+# %%
+# As an alteranative, pmaps can be used to extract signals
+difumo64_pmaps = siibra.get_map("difumo 64", "mni152", "statistical")
+difumo64_pmaps.extract_signals(workingmemory_fmri)
+
+
+# %%
+# TODO: Find an fMRI for assignment where there are clusters and fluctuations
 # julichbrain = siibra.get_map(parcellation='julich 3.1', space='mni152', maptype='statistical')
 # assignments = julichbrain.assign(fmri_vol, lower_threshold=0.6, split_components=False)
 # assignments
-
-
-# %%
-mp = siibra.get_map('julich 3.1', 'mni152')
-mp.extract_signals(fmri_vol)
-
-# # %%
-# siibra.retrieval.requests.EbrainsRequest.fetch_token()
-# client = BucketApiClient(token=siibra.retrieval.requests.EbrainsRequest._KG_TOKEN)
-# bucket = client.buckets.get_bucket("d-ed615ee5-fdaa-4f1d-8fcd-8c55d05a4e2d")
-
-
-# # %%
-# filepath = 'sub-XXX_ses-YYY_task-ZZZ_dir-{pa;ap}_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz'
-# filename = f"./{filepath.split('/')[-1]}"
-# with open(filename, 'wb') as fp:
-#     fp.write(bucket.get_file(filename))
-
-# # %%
-# fmri_vol = siibra.volumes.from_file(filename, time_index=[], name=filename, space='mni152')
-# type(fmri_vol)
-
-# %%
-# source paper: https://www.nature.com/articles/s41597-021-00870-6
-# 1) determine the source: https://nilab-uva.github.io/AOMIC.github.io/
-# 2) select a subject
-# 3) get fmri for a sub-0100_task-workingmemory_acq-seq_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz
-# 4) assign fmri to the julich brain
-# 5) plot the results
-
-# %%
-# openneuro
-# potentially need to warp to the mni152
-# url = "https://s3.amazonaws.com/openneuro.org/ds002741/sub-08/ses-mri/func/sub-08_ses-mri_task-caricatures_run-02_bold.nii.gz?versionId=mEBv6xTJbKD.n14D0fpsB7TV_MaRXmdj"
-# with open(filename, 'wb') as fp:
-#     fp.write(bucket.get_file(filename))
-
-# # %%
-# import numpy as np
-# import nibabel
-# import siibra
-
-# # %%
-# mp = siibra.get_map('julich 3.1', 'mni152')
-# fmri_rand = siibra.volumes.from_nifti(
-#     nibabel.Nifti1Image(np.random.rand(193, 229, 193), affine=mp.affine),
-#     'mni152',
-#     name='fmri'
-# )
-# mp.extract_signals(fmri_rand)
-
-
-# # %%
-
-# mp = siibra.get_map('julich 3.1', 'mni152')
-# fmri_rand = siibra.volumes.from_nifti(
-#     nibabel.Nifti1Image(np.random.rand(193, 229, 193, 10), affine=mp.affine),
-#     'mni152',
-#     name='fmri'
-# )
-# mp.extract_signals(fmri_rand)
-
-# # %%
-# mp = siibra.get_map('julich 3.1', 'mni152', 'statistical')
-# mp.extract_signals(fmri_rand)
