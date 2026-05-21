@@ -1336,7 +1336,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         volume: _volume.Volume,
         confounds=None,
         sample_mask=None,
-    ) -> Union[pd.Series, pd.DataFrame]:
+    ) -> pd.DataFrame:
         """
         Extract region-wise signals from a labelled 3D/4D volume using `nilearn`.
 
@@ -1361,14 +1361,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         Returns
         -------
-        pandas.Series or pandas.DataFrame
-            Extracted signals indexed by atlas region names.
-
-            - If the extracted signal is one-dimensional (e.g. from a 3D image),
-            a ``pandas.Series`` is returned with region names as the index.
-            - If the extracted signal is two-dimensional (e.g. from a 4D image),
-            a ``pandas.DataFrame`` is returned with region names as the columns
-            and samples/timepoints as rows.
+        pandas.DataFrame
+            Extracted signals indexed by the 4th dimension of the input volume,
+            and region names for columns.
 
         Notes
         -----
@@ -1387,11 +1382,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             labelled_surface = mp.fetch(format='mesh')
             masker = maskers.SurfaceLabelsMasker(labelled_surface, lut=lut, verbose=1).fit()
 
-        signals = masker.transform(volume.fetch(), confounds=confounds, sample_mask=sample_mask)
-        if signals.ndim == 1:
-            return pd.Series(signals, index=masker.lut["name"])
-        else:
-            return pd.DataFrame(signals, columns=masker.lut["name"])
+        masker.set_output(transform="pandas")
+        return masker.transform(volume.fetch(), confounds=confounds, sample_mask=sample_mask)
 
 
 def from_volume(

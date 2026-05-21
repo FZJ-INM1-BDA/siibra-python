@@ -470,40 +470,6 @@ class SparseMap(parcellationmap.Map):
         confounds=None,
         sample_mask=None,
     ) -> Union[pd.Series, pd.DataFrame]:
-        """
-        Extract region-wise signals from a 3D/4D volume using probabilistic or
-        continuous maps using `nilearn`.
-
-        The atlas labels defined in the current map are used to summarize the
-        input volume with :class:`nilearn.maskers.NiftiLMasker`. If the map
-        contains fragments, they are first compressed into a single labelled map.
-
-        Parameters
-        ----------
-        volume : Volume
-            Input 3D or 4D volume from which signals should be extracted.
-            Typically an fMRI image. The object must implement ``fetch()`` and
-            return a Niimg-like object compatible with Nilearn.
-
-        confounds : array-like or pandas.DataFrame, optional
-            Confounds to pass to `nilearn.maskers.BaseMasker.transform`.
-            See nilearn.maskers.BaseMasker.transform`.
-
-        sample_mask : array-like, optional
-            Mask of samples to include when extracting signals.
-            See nilearn.maskers.BaseMasker.transform`.
-
-        Returns
-        -------
-        pandas.Series or pandas.DataFrame
-            Extracted signals indexed by atlas region names.
-
-            - If the extracted signal is one-dimensional (e.g. from a 3D image),
-            a ``pandas.Series`` is returned with region names as the index.
-            - If the extracted signal is two-dimensional (e.g. from a 4D image),
-            a ``pandas.DataFrame`` is returned with region names as the columns
-            and samples/timepoints as rows.
-        """
         from nilearn import maskers
 
         lut = list(self._indices.keys())
@@ -515,10 +481,7 @@ class SparseMap(parcellationmap.Map):
             verbose=1,
         ).fit()
         signals = masker.transform(volume.fetch(), confounds=confounds, sample_mask=sample_mask)
-        if signals.ndim == 1:
-            return pd.Series(signals, index=lut)
-        else:
-            return pd.DataFrame(signals, columns=lut)
+        return pd.DataFrame(signals, columns=lut)
 
     def _stack_maps(self):
         """
