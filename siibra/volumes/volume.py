@@ -866,12 +866,12 @@ class Subvolume(Volume):
 
 def from_url(url: str, space: str, time_index: np.ndarray = None) -> Volume:
     """Builds a nifti volume from a nifti served from an online source."""
+    from pathlib import Path
     assert url[:8] == "https://"
     req = requests.HttpRequest(url)
-    logger.info("Downloading...")
     req._retrieve()
-    logger.info("Downloaded.")
-    return from_file(req.cachefile, space=space, name=url, time_index=time_index)
+    fp = Path(req.cachefile).rename(Path(req.cachefile).with_suffix(".nii.gz"))
+    return from_file(fp.as_posix(), space=space, name=url, time_index=time_index)
 
 
 def from_file(filename: str, space: str, name: str, time_index: np.ndarray = None) -> Volume:
