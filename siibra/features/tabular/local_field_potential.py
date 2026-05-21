@@ -22,6 +22,7 @@ from . import tabular
 from ...retrieval.requests import HttpRequest
 from ...commons import logger, siibra_tqdm
 from ...exceptions import MissingFileException
+from ...retrieval import SiibraHttpRequestError
 from ...retrieval.datasets import EbrainsV3DatasetVersion
 
 if TYPE_CHECKING:
@@ -244,8 +245,13 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
                 logger.info(f"{row} is missing the psd file. Excluding it from spectrum.")
                 n_files -= 1
                 continue
-            with get_psd_file(row) as psdf:
-                P_m = P_m + np.nanmedian(psdf[f"/{spectrum_type}"][:], axis=0)
+            try:
+                with get_psd_file(row) as psdf:
+                    P_m = P_m + np.nanmedian(psdf[f"/{spectrum_type}"][:], axis=0)
+            except SiibraHttpRequestError:
+                logger.error(f"Broken url: {BASE_URL.format(filepath=row.psd_file)}")
+                n_files -= 1
+                continue
 
         # Calculate average
         P_m = P_m / n_files
