@@ -464,25 +464,6 @@ class SparseMap(parcellationmap.Map):
 
         return assignments
 
-    def extract_signals(
-        self,
-        volume: _volume.Volume,
-        confounds=None,
-        sample_mask=None,
-    ) -> Union[pd.Series, pd.DataFrame]:
-        from nilearn import maskers
-
-        lut = list(self._indices.keys())
-        maps_stacked = self._stack_maps()
-
-        masker = maskers.NiftiMapsMasker(
-            maps_stacked,
-            resampling_target="data",
-            verbose=1,
-        ).fit()
-        signals = masker.transform(volume.fetch(), confounds=confounds, sample_mask=sample_mask)
-        return pd.DataFrame(signals, columns=lut)
-
     def _stack_maps(self):
         """
         Stack all map volumes into a single memory-mapped 4D image.

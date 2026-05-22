@@ -1331,11 +1331,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             table.to_csv(filepath, sep='\t')
         return table
 
-    def extract_signals(
+    def extract_signals_with_nilearn(
         self,
         volume: _volume.Volume,
-        confounds=None,
-        sample_mask=None,
+        confounds: np.ndarray = None,
+        sample_mask: np.ndarray = None,
+        **makser_kwargs,
     ) -> pd.DataFrame:
         """
         Extract region-wise signals from a labelled 3D/4D volume using `nilearn`.
@@ -1346,16 +1347,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         Parameters
         ----------
-        volume : Volume
+        volume: Volume
             Input 3D or 4D volume from which signals should be extracted.
             Typically an fMRI image. The object must implement ``fetch()`` and
             return a Niimg-like object compatible with Nilearn.
 
-        confounds : array-like or pandas.DataFrame, optional
+        confounds: array-like, optional
             Confounds to pass to `nilearn.maskers.BaseMasker.transform`.
             See nilearn.maskers.BaseMasker.transform`.
 
-        sample_mask : array-like, optional
+        sample_mask: array-like, optional
             Mask of samples to include when extracting signals.
             See nilearn.maskers.BaseMasker.transform`.
 
@@ -1371,16 +1372,42 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         from nilearn import maskers
 
-        mp = self.compress() if self.fragments else self
-        lut = mp.to_BIDS_lookup_table()
+        assert "lut" not in makser_kwargs, ValueError("siibra handles `lut` parameter based on the map.")
+        makser_kwargs.setdefault("verbose", 1)
 
-        if mp.provides_image:
-            labelled_img = mp.fetch()
-            masker = maskers.NiftiLabelsMasker(labelled_img, lut=lut, verbose=1).fit()
+        if self.is_labelled:
+            mp = self.compress() if self.fragments else self
+            makser_kwargs["lut"] = mp.to_BIDS_lookup_table()
+            if mp.provides_image:
+                labelled_img = mp.fetch()
+                masker = maskers.NiftiLabelsMasker(labelled_img, **makser_kwargs).fit()
+            else:
+                from nilearn.surface import InMemoryMesh, PolyMesh, SurfaceImage
+
+                def as_mesh(d):
+                    return InMemoryMesh(
+                        coordinates=np.asarray(d["verts"], dtype=float),
+                        faces=np.asarray(d["faces"], dtype=int),
+                    )
+                data = {} 
+                meshes = {}
+                for frag in ["left", "right"]: 
+                    surf = mp.fetch(format='mesh', fragment=frag)
+                    meshes[frag] = as_mesh(surf)
+                    if "gii-label" in self.formats:
+                        data[frag] = surf["labels"]
+                labels_img = SurfaceImage(
+                    mesh=PolyMesh(**meshes),
+                    data=data if "gii-label" in self.formats else None
+                )
+                masker = maskers.SurfaceLabelsMasker(labels_img, **makser_kwargs).fit()
         else:
-            assert 'gii-label' in self.formats
-            labelled_surface = mp.fetch(format='mesh')
-            masker = maskers.SurfaceLabelsMasker(labelled_surface, lut=lut, verbose=1).fit()
+            from .sparsemap import SparseMap
+
+            assert isinstance(self, SparseMap)
+            maps_stacked = self._stack_maps()
+            makser_kwargs["lut"] = list(self._indices.keys())
+            masker = maskers.NiftiMapsMasker(maps_stacked, **makser_kwargs).fit()
 
         masker.set_output(transform="pandas")
         return masker.transform(volume.fetch(), confounds=confounds, sample_mask=sample_mask)
