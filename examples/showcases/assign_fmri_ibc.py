@@ -28,20 +28,40 @@ and compares the extraction results for different tasks.
 import siibra
 import matplotlib.pyplot as plt
 from plotly.express import imshow
+import pandas as pd
 
 # %%
-workingmemory_url = "https://s3.amazonaws.com/openneuro.org/ds002790/derivatives/fmriprep/sub-0001/func/sub-0001_task-workingmemory_acq-seq_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz?versionId=_Nhgf0C.uF_ZOzpDe5yk0QwYP2ldVogy"
+subject = "sub-0001"
+dataset_base_url = "https://s3.amazonaws.com/openneuro.org/ds002790/"
+folder = f"derivatives/fmriprep/{subject}/func/"
+url_template = dataset_base_url + folder + "{file}"
+# %%
+file = f"{subject}_task-workingmemory_acq-seq_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz"
 workingmemory_fmri = siibra.volumes.from_url(
-    workingmemory_url, space="mni152", time_index=[]
+    url_template.format(file=file), space="mni152", time_index=[]
 )  # TODO: need to get the time index from the dataset
 print(type(workingmemory_fmri))
 
 # %%
-restingstate_url = "https://s3.amazonaws.com/openneuro.org/ds002790/derivatives/fmriprep/sub-0001/func/sub-0001_task-restingstate_acq-seq_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz?versionId=IzwDNzSubtnX6l0BGTaQoTk7eqoIZEju"
+file = f"{subject}_task-restingstate_acq-seq_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz"
 restingstate_fmri = siibra.volumes.from_url(
-    restingstate_url, space="mni152", time_index=[]
+    url_template.format(file=file), space="mni152", time_index=[]
 )  # TODO: need to get the time index from the dataset
 
+
+# %
+workingmemory_cofounds = pd.read_csv(
+    url_template.format(
+        file=f"{subject}_task-workingmemory_acq-seq_desc-confounds_regressors.tsv"
+    ),
+    sep="\t",
+)
+restingstate_cofounds = pd.read_csv(
+    url_template.format(
+        file=f"{subject}_task-restingstate_acq-seq_desc-confounds_regressors.tsv"
+    ),
+    sep="\t",
+)
 
 # %%
 # We now select the map we would like to extract the signals from
@@ -54,7 +74,10 @@ julichbrain = siibra.get_map("julich 3.1", "mni152")
 # (TODO: consider allowing resampling target to be the map instead of the input.
 # Nilearn handles this if kwarg allowed. One could potentiall allow nilearn.Masker
 # kwargs as makser_kwargs and docstring could lead to relevant nilearn page.)
-workingmemory_signals = julichbrain.extract_signals(workingmemory_fmri)
+workingmemory_signals = julichbrain.extract_signals_with_nilearn(
+    workingmemory_fmri,
+    confounds=workingmemory_cofounds["csf"].values,
+)
 workingmemory_signals
 
 # %%
@@ -70,7 +93,10 @@ workingmemory_signals_stats
 
 # %%
 # Similarly, we extract the signals for the rest state
-restingstate_signals = julichbrain.extract_signals(restingstate_fmri)
+restingstate_signals = julichbrain.extract_signals_with_nilearn(
+    restingstate_fmri,
+    confounds=restingstate_cofounds["csf"].values,
+)
 restingstate_signals_stats = restingstate_signals.describe().T.sort_values(
     "mean", ascending=False
 )
@@ -79,22 +105,16 @@ restingstate_signals_stats
 # %%
 # Using plotting backend of pandas, we can plot the data to compare the first 10
 restingstate_signals_stats.iloc[:10, :].plot(
-    title="resting state",
-    kind="barh",
-    y="mean",
-    xerr="std"
+    title="resting state", kind="barh", y="mean", xerr="std"
 )
 workingmemory_signals_stats.iloc[:10, :].plot(
-    title="working memory",
-    kind="barh",
-    y="mean",
-    xerr="std"
+    title="working memory", kind="barh", y="mean", xerr="std"
 )
 
 # %%
 # As an alteranative, pmaps can be used to extract signals
 difumo64_pmaps = siibra.get_map("difumo 64", "mni152", "statistical")
-difumo64_pmaps.extract_signals(workingmemory_fmri)
+difumo64_pmaps.extract_signals_with_nilearn(workingmemory_fmri)
 
 
 # %%
@@ -102,3 +122,7 @@ difumo64_pmaps.extract_signals(workingmemory_fmri)
 # julichbrain = siibra.get_map(parcellation='julich 3.1', space='mni152', maptype='statistical')
 # assignments = julichbrain.assign(fmri_vol, lower_threshold=0.6, split_components=False)
 # assignments
+
+
+# sub-0100_task-workingmemory_acq-seq_space-fsaverage5_hemi-L.func.gii
+#     ├── sub-0100_task-workingmemory_acq-seq_space-fsaverage5_hemi-R.func.gii
