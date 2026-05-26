@@ -1306,7 +1306,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         if len(self.volumes) > 1:
             raise Exception("Cannot extract maps wiht several volumes into BIDS compatible lookup table.")
-        if self.fragments:
+        if self.fragments and "gii-label" not in self.formats:
             logger.info(f"{self} is distributed as {len(self.fragments)}. siibra will compress the fragments and reindex to make it BIDS compatible.")
             mp = self.compress()
         else:
@@ -1375,42 +1375,41 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         assert "lut" not in makser_kwargs, ValueError("siibra handles `lut` parameter based on the map.")
         makser_kwargs.setdefault("verbose", 1)
 
-        if self.is_labelled:
+        if self.provides_image:
             mp = self.compress() if self.fragments else self
             makser_kwargs["lut"] = mp.to_BIDS_lookup_table()
-            if mp.provides_image:
-                labelled_img = mp.fetch()
-                masker = maskers.NiftiLabelsMasker(labelled_img, **makser_kwargs).fit()
-            else:
-                from nilearn.surface import InMemoryMesh, PolyMesh, SurfaceImage
-
-                def as_mesh(d):
-                    return InMemoryMesh(
-                        coordinates=np.asarray(d["verts"], dtype=float),
-                        faces=np.asarray(d["faces"], dtype=int),
-                    )
-                data = {} 
-                meshes = {}
-                for frag in ["left", "right"]: 
-                    surf = mp.fetch(format='mesh', fragment=frag)
-                    meshes[frag] = as_mesh(surf)
-                    if "gii-label" in self.formats:
-                        data[frag] = surf["labels"]
-                labels_img = SurfaceImage(
-                    mesh=PolyMesh(**meshes),
-                    data=data if "gii-label" in self.formats else None
-                )
-                masker = maskers.SurfaceLabelsMasker(labels_img, **makser_kwargs).fit()
+            labelled_img = mp.fetch()
+            masker = maskers.NiftiLabelsMasker(labelled_img, **makser_kwargs)
         else:
-            from .sparsemap import SparseMap
+            raise NotImplementedError
+            # from nilearn.surface import InMemoryMesh, PolyMesh, SurfaceImage
 
-            assert isinstance(self, SparseMap)
-            maps_stacked = self._stack_maps()
-            makser_kwargs["lut"] = list(self._indices.keys())
-            masker = maskers.NiftiMapsMasker(maps_stacked, **makser_kwargs).fit()
+            # makser_kwargs["lut"] = {r: ind[0].label for r, ind in self._indices.items()}
+
+            # def as_mesh(d):
+            #     return InMemoryMesh(
+            #         coordinates=np.asarray(d["verts"], dtype=float),
+            #         faces=np.asarray(d["faces"], dtype=int),
+            #     )
+            # data = {}
+            # meshes = {}
+            # for frag in ["left", "right"]:
+            #     surf = self.fetch(format='mesh', fragment=frag)
+            #     meshes[frag] = as_mesh(surf)
+            #     if "gii-label" in self.formats:
+            #         data[frag] = surf["labels"]
+            # labels_img = SurfaceImage(
+            #     mesh=PolyMesh(**meshes),
+            #     data=data if "gii-label" in self.formats else None
+            # )
+            # masker = maskers.SurfaceLabelsMasker(labels_img, **makser_kwargs)
 
         masker.set_output(transform="pandas")
-        return masker.transform(volume.fetch(), confounds=confounds, sample_mask=sample_mask)
+        return masker.fit_transform(
+            volume.fetch() if isinstance(volume, _volume.Volume) else volume,
+            confounds=confounds,
+            sample_mask=sample_mask
+        )
 
 
 def from_volume(

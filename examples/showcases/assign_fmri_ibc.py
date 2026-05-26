@@ -26,7 +26,6 @@ and compares the extraction results for different tasks.
 
 # %%
 import siibra
-import matplotlib.pyplot as plt
 from plotly.express import imshow
 import pandas as pd
 
