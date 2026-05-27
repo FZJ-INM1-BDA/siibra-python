@@ -13,16 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, Literal, List, Union
+from typing import TYPE_CHECKING, Dict, List, Union
 from hashlib import md5
 import numpy as np
 import pandas as pd
 
 from . import tabular
-from ...retrieval.requests import HttpRequest
 from ...commons import logger, siibra_tqdm
 from ...exceptions import MissingFileException
 from ...retrieval import SiibraHttpRequestError
+from ...retrieval.requests import HttpRequest
 from ...retrieval.datasets import EbrainsV3DatasetVersion
 
 if TYPE_CHECKING:
@@ -30,6 +30,84 @@ if TYPE_CHECKING:
 
 
 BASE_URL = "https://data-proxy.ebrains.eu/api/v1/buckets/d-41673110-f3eb-43cd-9d9c-c845c6f0573c/{filepath}"
+
+
+@staticmethod
+def _get_spectra(lfp_entries: pd.DataFrame):
+    """
+    Compute an average spectrum from local field potential metadata entries.
+
+    For each entry with an available power spectral density file, the selected
+    spectrogram dataset is loaded, summarized across time by the median, and
+    accumulated across entries. Entries without a power spectral density file
+    are skipped.
+
+    Parameters
+    ----------
+    lfp_entries : pandas.DataFrame
+        Metadata entries describing local field potential recordings. The
+        table must contain a ``psd_file`` column.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Average spectrum indexed by frequency.
+
+    Notes
+    -----
+    This method downloads the required power spectral density files while
+    computing the result.
+    """
+    def get_psd_file(row):
+        return HttpRequest(BASE_URL.format(filepath=row.psd_file)).get()
+
+    n_files = len(lfp_entries)
+    spectrum_types = ["spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"]
+    P_m = {}
+    for first_succes, row in enumerate(lfp_entries.itertuples()):
+        if row.psd_file is np.nan:
+            logger.info(f"{row} is missing the psd file. Excluding it from spectrum.")
+            n_files -= 1
+            continue
+        with get_psd_file(row) as psdf:
+            times = psdf["/times"][:]
+            freqs = psdf["/frequencies"][:]
+            for st in spectrum_types:
+                P_m[st] = np.nanmedian(psdf[f"/{st}"][:], axis=0)  # Average over time
+        times = times.flatten()
+        freqs = freqs.flatten()
+        break
+
+    # Load the rest and find the median
+    for row in siibra_tqdm(
+        lfp_entries.iloc[first_succes + 1:].itertuples(),
+        total=len(lfp_entries.iloc[first_succes + 1:]),
+        unit="entry",
+    ):
+        if row.psd_file is np.nan:
+            logger.info(f"{row} is missing the psd file. Excluding it from spectrum.")
+            n_files -= 1
+            continue
+        try:
+            with get_psd_file(row) as psdf:
+                for st in spectrum_types:
+                    P_m[st] = P_m[st] + np.nanmedian(psdf[f"/{st}"][:], axis=0)
+        except SiibraHttpRequestError:
+            logger.error(f"Broken url: {BASE_URL.format(filepath=row.psd_file)}")
+            n_files -= 1
+            continue
+
+    spectra = pd.DataFrame(P_m, index=freqs)
+    spectra /= n_files  # Calculate average
+    spectra.rename(
+        columns={
+            "spectrogram": "spectrogram (dB)",
+            "spectrogram_rhythmic": "spectrogram rhythmic (dB (fractal))",
+            "spectrogram_arrhythmic": "spectrogram arrhythmic (dB)",
+        },
+        inplace=True
+    )
+    return spectra
 
 
 class LocalFieldPotential(tabular.Tabular, category="functional"):
@@ -160,11 +238,7 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
         return HttpRequest(url).get()
 
     @classmethod
-    def get_spectrum(
-        cls,
-        lfps: List["LocalFieldPotential"],
-        spectrum_type: Literal["spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"],
-    ):
+    def get_spectra(cls, lfps: List["LocalFieldPotential"]):
         """
         Compute an average spectrum from local field potential features.
 
@@ -172,98 +246,18 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
         ----------
         lfps : list of LocalFieldPotential
             Local field potential features to include in the spectrum.
-        spectrum_type : {"spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"}
-            Type of spectrum to extract from the power spectral density files.
 
         Returns
         -------
         pandas.DataFrame
             Average spectrum indexed by frequency.
         """
-        return cls._get_spectrum(
-            pd.DataFrame([lfp._db_entry for lfp in lfps]),
-            spectrum_type=spectrum_type,
-        )
+        return _get_spectra(pd.DataFrame((lfp._db_entry for lfp in lfps)))
 
     @classmethod
-    def _get_spectrum(
-        cls,
-        lfp_entries: pd.DataFrame,
-        spectrum_type: Literal["spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"],
-    ):
-        """
-        Compute an average spectrum from local field potential metadata entries.
-
-        For each entry with an available power spectral density file, the selected
-        spectrogram dataset is loaded, summarized across time by the median, and
-        accumulated across entries. Entries without a power spectral density file
-        are skipped.
-
-        Parameters
-        ----------
-        lfp_entries : pandas.DataFrame
-            Metadata entries describing local field potential recordings. The
-            table must contain a ``psd_file`` column.
-        spectrum_type : {"spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"}
-            Dataset to read from each power spectral density file.
-
-        Returns
-        -------
-        pandas.DataFrame
-            Average spectrum indexed by frequency.
-
-        Notes
-        -----
-        This method downloads the required power spectral density files while
-        computing the result.
-        """
-        def get_psd_file(row):
-            return HttpRequest(BASE_URL.format(filepath=row.psd_file)).get()
-
-        n_files = len(lfp_entries)
-        for first_succes, row in enumerate(lfp_entries.itertuples()):
-            if row.psd_file is np.nan:
-                logger.info(f"{row} is missing the psd file. Excluding it from spectrum.")
-                n_files -= 1
-                continue
-            with get_psd_file(row) as psdf:
-                times = psdf["/times"][:]
-                freqs = psdf["/frequencies"][:]
-                spectrogram = psdf[f"/{spectrum_type}"][:]
-                P_m = np.nanmedian(spectrogram, axis=0)  # Average over time
-            times = times.flatten()
-            freqs = freqs.flatten()
-            break
-
-        # Load the rest and find the median
-        for row in siibra_tqdm(
-            lfp_entries.iloc[first_succes + 1:].itertuples(),
-            total=len(lfp_entries.iloc[first_succes + 1:]),
-            unit="entry",
-        ):
-            if row.psd_file is np.nan:
-                logger.info(f"{row} is missing the psd file. Excluding it from spectrum.")
-                n_files -= 1
-                continue
-            try:
-                with get_psd_file(row) as psdf:
-                    P_m = P_m + np.nanmedian(psdf[f"/{spectrum_type}"][:], axis=0)
-            except SiibraHttpRequestError:
-                logger.error(f"Broken url: {BASE_URL.format(filepath=row.psd_file)}")
-                n_files -= 1
-                continue
-
-        # Calculate average
-        P_m = P_m / n_files
-        return pd.DataFrame(P_m, index=freqs, columns=[spectrum_type])
-
-    @classmethod
-    def plot_spectrum(
+    def plot_spectra(
         cls,
         lfps: List["LocalFieldPotential"],
-        spectrum_type: Literal[
-            "spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"
-        ] = "spectrogram_rhythmic",
         backend="matplotlib",
         **kwargs,
     ):
@@ -274,8 +268,6 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
         ----------
         lfps : list of LocalFieldPotential
             Local field potential features to include in the spectrum.
-        spectrum_type : {"spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"}, optional
-            Type of spectrum to plot. The default is ``"spectrogram_rhythmic"``.
         backend : str, optional
             Plotting backend passed to :meth:`pandas.DataFrame.plot`.
             The default is ``"matplotlib"``.
@@ -287,21 +279,22 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
         object
             Plot object returned by the selected pandas plotting backend.
         """
-        df = cls.get_spectrum(lfps=lfps, spectrum_type=spectrum_type)
-        match spectrum_type:
-            case "spectrogram":
-                ylabel = "dB"
-            case "spectrogram_rhythmic":
-                ylabel = " dB(fractal)"
-            case "spectrogram_arrhythmic":
-                ylabel = "dB"
-        kwargs["xlabel"] = kwargs.get("xlabel", "Frequency (Hz)")
-        kwargs["ylabel"] = kwargs.get("ylabel", ylabel)
-        kwargs["label"] = "smoothed median"
-        return df.plot(backend=backend, **kwargs)
+        data = cls.get_spectra(lfps=lfps)
+        if backend == "matplotlib":
+            kwargs["xlabel"] = kwargs.get("xlabel", "Frequency (Hz)")
+            kwargs["grid"] = "major"
+            kwargs["subplots"] = True
+            data.plot(backend=backend, **kwargs)
+        elif backend == "plotly":
+            kwargs["facet_row"] = 'variable'
+            fig = data.plot(backend=backend, **kwargs)
+            fig.update_yaxes(matches=None)
+            return fig
+        else:
+            return data.plot(backend=backend, **kwargs)
 
 
-class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
+class RegionalLocalFieldPotential(tabular.Tabular, category="functional"):
     """
     Local field potential recording anchored to Waxholm region and a preselected spectrum type.
     """
@@ -311,9 +304,6 @@ class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
         self,
         anchor: "AnatomicalAnchor",
         db_entries: pd.DataFrame,
-        spectrum_type: Literal[
-            "spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"
-        ],
         pathology: Union[str, None] = None,
         pharmacology: Union[str, None] = None,
         signal_quality: Union[str, None] = None,
@@ -321,7 +311,7 @@ class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
         tabular.Tabular.__init__(
             self,
             description=None,
-            modality=f"Local field potential spectrum - {spectrum_type}",
+            modality="Regional local field potential",
             anchor=anchor,
             id=self.ID_TEMPLATE.format(
                 indices_as_hex=md5(str(db_entries.index).encode("utf-8")).hexdigest()
@@ -332,7 +322,6 @@ class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
         self.pharmacology = pharmacology
         self.pathology = pathology
         self.signal_quality = signal_quality
-        self.spectrum_type = spectrum_type
 
     @property
     def name(self):
@@ -345,7 +334,6 @@ class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
                         "pathology",
                         "pharmacology",
                         "signal_quality",
-                        "spectrum_type",
                     ]
                 }
             )[1:-1]
@@ -366,22 +354,19 @@ class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
     @property
     def data(self):
         """
-        Compute the smoothed median spectrum represented by this feature.
+        Compute the smoothed median spectra represented by this feature.
 
         Returns
         -------
         pandas.DataFrame
-            Average spectrum indexed by frequency.
+            Average spectra by type and indexed by frequency.
 
         Notes
         -----
         Accessing this property downloads the required power spectral density
         files and recomputes the spectrum.
         """
-        return LocalFieldPotential._get_spectrum(
-            lfp_entries=self._db_entries,
-            spectrum_type=self.spectrum_type,
-        )
+        return _get_spectra(lfp_entries=self._db_entries)
 
     def plot(self, *args, backend="matplotlib", **kwargs):
         """
@@ -402,15 +387,16 @@ class LocalFieldPotentialSpectrum(tabular.Tabular, category="functional"):
         object
             Plot object returned by the selected backend.
         """
-        kwargs["kind"] = "line"
-        match self.spectrum_type:
-            case "spectrogram":
-                ylabel = "dB"
-            case "spectrogram_rhythmic":
-                ylabel = " dB(fractal)"
-            case "spectrogram_arrhythmic":
-                ylabel = "dB"
-        kwargs["xlabel"] = kwargs.get("xlabel", "Frequency (Hz)")
-        kwargs["ylabel"] = kwargs.get("ylabel", ylabel)
-        kwargs["label"] = "smoothed median"
-        return super().plot(*args, backend=backend, **kwargs)
+        kwargs["title"] = self.name
+        if backend == "matplotlib":
+            kwargs["xlabel"] = kwargs.get("xlabel", "Frequency (Hz)")
+            kwargs["grid"] = "major"
+            kwargs["subplots"] = True
+            self.data.plot(*args, backend=backend, **kwargs)
+        elif backend == "plotly":
+            kwargs["facet_row"] = 'variable'
+            fig = self.data.plot(*args, backend=backend, **kwargs)
+            fig.update_yaxes(matches=None)
+            return fig
+        else:
+            return self.data.plot(*args, backend=backend, **kwargs)

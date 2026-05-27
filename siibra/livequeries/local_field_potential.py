@@ -24,32 +24,44 @@ from ..features import tabular, anchor as _anchor
 from ..core import structure, region
 from ..locations import Location, Point, PointCloud
 
+DATABASE_URL = "https://data-proxy.ebrains.eu/api/v1/buckets/d-41673110-f3eb-43cd-9d9c-c845c6f0573c/lfp_atlas_bids.sqlite"
+
+NAMED_ARGS = ["pathology", "pharmacology", "signal_quality"]
+
+
+@staticmethod
+def database_as_df() -> pd.DataFrame:
+    req = requests.HttpRequest(
+        DATABASE_URL,
+        msg_if_not_cached="Downloading sql database for LSF query.",
+    )
+    req._retrieve()
+    db = sqlite3.connect(req.cachefile)
+    return pd.read_sql("SELECT * FROM bids", db)
+
+
+@staticmethod
+def get_arg_options():
+    df = database_as_df()
+    return {col: set(df[col]) for col in NAMED_ARGS}
+
 
 class LFPQuery(
     _query.LiveQuery,
-    args=["pathology", "pharmacology", "signal_quality"],
+    args=NAMED_ARGS,
     FeatureType=tabular.LocalFieldPotential,
 ):
-    DATABASE_URL = "https://data-proxy.ebrains.eu/api/v1/buckets/d-41673110-f3eb-43cd-9d9c-c845c6f0573c/lfp_atlas_bids.sqlite"
-
-    @classmethod
-    def database_as_df(cls) -> pd.DataFrame:
-        req = requests.HttpRequest(
-            cls.DATABASE_URL,
-            msg_if_not_cached="Downloading sql database for LSF query.",
-        )
-        req._retrieve()
-        db = sqlite3.connect(req.cachefile)
-        return pd.read_sql("SELECT * FROM bids", db)
 
     def resolve_db_rows(self, concept: structure.BrainStructure) -> pd.DataFrame:
-        df = self.database_as_df()
+        df = database_as_df()
         if isinstance(concept, region.Region):
             unique_regions = set(df["whs_label"].unique())
             if concept.name in unique_regions:
                 mask = df["whs_label"] == concept.name
             else:
-                regions = [d.name for d in concept.descendants if d.name in unique_regions]
+                regions = [
+                    d.name for d in concept.descendants if d.name in unique_regions
+                ]
                 mask = df["whs_label"].isin(regions)
         elif isinstance(concept, Location):
             entries_as_ptcld = PointCloud(
@@ -74,11 +86,15 @@ class LFPQuery(
 
     def __init__(self, **kwargs):
         self.pathology = kwargs["pathology"] = kwargs.get("pathology", None)
-        self.signal_quality = kwargs["signal_quality"] = kwargs.get("signal_quality", None)
+        self.signal_quality = kwargs["signal_quality"] = kwargs.get(
+            "signal_quality", None
+        )
         self.pharmacology = kwargs["pharmacology"] = kwargs.get("pharmacology", None)
         _query.LiveQuery.__init__(self, **kwargs)
 
-    def query(self, concept: structure.BrainStructure) -> List[tabular.LocalFieldPotential]:
+    def query(
+        self, concept: structure.BrainStructure
+    ) -> List[tabular.LocalFieldPotential]:
         df = self.resolve_db_rows(concept)
         return [
             tabular.LocalFieldPotential(
@@ -93,10 +109,10 @@ class LFPQuery(
         ]
 
 
-class FixedLFPQuery(
+class RegionalLFPQuery(
     LFPQuery,
-    args=["pathology", "pharmacology", "signal_quality"],
-    FeatureType=tabular.LocalFieldPotentialSpectrum,
+    args=NAMED_ARGS,
+    FeatureType=tabular.RegionalLocalFieldPotential,
 ):
 
     def __init__(self, **kwargs):
@@ -116,34 +132,36 @@ class FixedLFPQuery(
 
     def query(self, concept):
         df = self.resolve_db_rows(concept)
-        options = self.get_options(df)
         results = []
-        for whs_label, options in options.items():
-            for pat, phar, sq in options:
-                mask = df["whs_label"] == whs_label
-                mask &= df["pathology"] == pat
-                mask &= df["pharmacology"] == phar
-                mask &= df["signal_quality"] == sq
+        available_tuples = {
+            (row.pathology, row.pharmacology, row.signal_quality)
+            for row in df.itertuples()
+        }
+        for whs_label in set(df["whs_label"]):
+            for pat, phar, sq in available_tuples:
+                mask = (
+                    (df["whs_label"] == whs_label)
+                    & (df["pathology"] == pat)
+                    & (df["pharmacology"] == phar)
+                    & (df["signal_quality"] == sq)
+                )
+                if not mask.any():
+                    continue
                 anchor = _anchor.AnatomicalAnchor(
-                    location=PointCloud(df[["whs_x", "whs_y", "whs_z"]].values, "waxholm"),
+                    location=PointCloud(
+                        df[mask][["whs_x", "whs_y", "whs_z"]].values,
+                        space="waxholm"
+                    ),
                     region=whs_label,
                     species="RATTUS NORVEGICUS",
                 )
-                results.extend(
-                    [
-                        tabular.LocalFieldPotentialSpectrum(
-                            anchor=anchor,
-                            db_entries=df[mask],
-                            pathology=pat,
-                            pharmacology=phar,
-                            signal_quality=sq,
-                            spectrum_type=spectrum_type,
-                        )
-                        for spectrum_type in [
-                            "spectrogram",
-                            "spectrogram_rhythmic",
-                            "spectrogram_arrhythmic",
-                        ]
-                    ]
+                results.append(
+                    tabular.RegionalLocalFieldPotential(
+                        anchor=anchor,
+                        db_entries=df[mask],
+                        pathology=pat,
+                        pharmacology=phar,
+                        signal_quality=sq,
+                    )
                 )
         return results

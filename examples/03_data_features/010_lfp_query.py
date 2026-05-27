@@ -42,6 +42,10 @@ print(f"Found {len(lfp_caudate_putamen)} local field potentials")
 
 # %%
 # LFP features provide metadata fields that can be used to filter the results.
+# The options can be accessed from `siibra.vocabularies`:
+siibra.vocabularies.get_lfp_options()
+
+# %%
 # Here, we restrict the query to baseline recordings with typical signal quality.
 specs = {
     "pharmacology": "baseline",
@@ -79,7 +83,7 @@ print("signal_quality:", f.signal_quality)
 
 # %%
 # We can plot spectra using any regions including the whole Waxholm parcellation
-# using `plot_spectrum`` method. Here selecting atypical recordings from the
+# using `plot_spectra`` method. Here selecting atypical recordings from the
 # lesioned hemisphere in 6-OHDA hemilesioned animals with baseline pharmacology.
 specs = dict(
     pathology="lesioned hemisphere in 6-OHDA hemilesioned animal",
@@ -91,25 +95,20 @@ lfp_spectrum_w_specs = siibra.features.get(
     siibra.features.functional.LocalFieldPotential,
     **specs
 )
-siibra.features.functional.LocalFieldPotential.plot_spectrum(
-    lfp_spectrum_w_specs,
-    spectrum_type="spectrogram_rhythmic"
-)
+siibra.features.functional.LocalFieldPotential.plot_spectra(lfp_spectrum_w_specs)
 
 
 # %%
 # Alternatively, region-wise potentials can be queried already grouped for ease
-# of navigation. These are divided by spectegoram types 
+# of navigation. These are divided by pathology, pharmacology, and
+# signal quality tuples.
 lfp_spectrum_caudate_putamen = siibra.features.get(
     caudate_putamen,
-    siibra.features.functional.LocalFieldPotentialSpectrum,
+    siibra.features.functional.RegionalLocalFieldPotential,
     **specs
 )
-[lfp.spectrum_type for lfp in lfp_spectrum_caudate_putamen]
+lfp_spectrum_caudate_putamen[0].data
 
 # %%
 # Plotting functionality requires no further input
-for lfp in lfp_spectrum_caudate_putamen:
-    if lfp.spectrum_type == "spectrogram":
-        lfp.plot()
-        break
+lfp_spectrum_caudate_putamen[0].plot(backend='plotly')
