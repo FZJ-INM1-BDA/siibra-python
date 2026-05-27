@@ -43,6 +43,7 @@ from functools import wraps
 from time import sleep
 import sys
 import platform
+import h5py
 
 if platform.system() == "Linux":
     from filelock import FileLock as Lock
@@ -94,6 +95,8 @@ DECODERS = {
     ".png": lambda b: skimage_io.imread(BytesIO(b)),
     ".npy": lambda b: np.load(BytesIO(b)),
     ".annot": lambda b: read_as_bytesio(freesurfer.read_annot, '.annot', BytesIO(b)),
+    ".h5": lambda b: h5py.File(BytesIO(b)),
+    ".nwb": lambda b: h5py.File(BytesIO(b)),
 }
 
 
