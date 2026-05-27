@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, Literal, List, Union
+from typing import TYPE_CHECKING, Dict, List, Union
 from hashlib import md5
 import numpy as np
 import pandas as pd
@@ -261,9 +261,6 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
     def plot_spectra(
         cls,
         lfps: List["LocalFieldPotential"],
-        spectrum_type: Literal[
-            "spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"
-        ] = "spectrogram_rhythmic",
         backend="matplotlib",
         **kwargs,
     ):
@@ -274,8 +271,6 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
         ----------
         lfps : list of LocalFieldPotential
             Local field potential features to include in the spectrum.
-        spectrum_type : {"spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"}, optional
-            Type of spectrum to plot. The default is ``"spectrogram_rhythmic"``.
         backend : str, optional
             Plotting backend passed to :meth:`pandas.DataFrame.plot`.
             The default is ``"matplotlib"``.
@@ -287,18 +282,19 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
         object
             Plot object returned by the selected pandas plotting backend.
         """
-        df = cls.get_spectra(lfps=lfps, spectrum_type=spectrum_type)
-        match spectrum_type:
-            case "spectrogram":
-                ylabel = "dB"
-            case "spectrogram_rhythmic":
-                ylabel = " dB(fractal)"
-            case "spectrogram_arrhythmic":
-                ylabel = "dB"
-        kwargs["xlabel"] = kwargs.get("xlabel", "Frequency (Hz)")
-        kwargs["ylabel"] = kwargs.get("ylabel", ylabel)
-        kwargs["label"] = "smoothed median"
-        return df.plot(backend=backend, **kwargs)
+        data = cls.get_spectra(lfps=lfps)
+        if backend == "matplotlib":
+            kwargs["xlabel"] = kwargs.get("xlabel", "Frequency (Hz)")
+            kwargs["grid"] = "major"
+            kwargs["subplots"] = True
+            data.plot(backend=backend, **kwargs)
+        elif backend == "plotly":
+            kwargs["facet_row"] = 'variable'
+            fig = data.plot(backend=backend, **kwargs)
+            fig.update_yaxes(matches=None)
+            return fig
+        else:
+            return data.plot(backend=backend, **kwargs)
 
 
 class RegionalLocalFieldPotential(tabular.Tabular, category="functional"):
