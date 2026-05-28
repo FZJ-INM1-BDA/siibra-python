@@ -175,15 +175,15 @@ sphinx_gallery_conf = {
     "run_stale_examples": run_stale_examples,
 }
 
-if not is_allen_api_microarray_service_available():
-    sphinx_gallery_conf.update(
-        {
-            "expected_failing_examples": [
-                "../examples/03_data_features/000_matchings.py",
-                "../examples/03_data_features/004_gene_expressions.py",
-            ]
-        }
-    )
+# if not is_allen_api_microarray_service_available():
+#     sphinx_gallery_conf.update(
+#         {
+#             "expected_failing_examples": [
+#                 "../examples/03_data_features/000_matchings.py",
+#                 "../examples/03_data_features/004_gene_expressions.py",
+#             ]
+#         }
+#     )
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = "sphinx_book_theme"
