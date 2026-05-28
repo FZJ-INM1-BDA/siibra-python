@@ -14,7 +14,6 @@
 # limitations under the License.
 
 """
-
 Extrating Regionwise Signals From Activity Recording
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -24,8 +23,13 @@ AOMIC-PIOP2 dataset (https://openneuro.org/datasets/ds002790/versions/2.0.0)
 and compares the extraction results for different tasks.
 """
 
+# %% TODO:
+# - add proper text for each cell
+# - add a cell for creating a json preconfig
+# - utilize fsaverage5 jba to extract data from surfaces. Display it with surface plot
 # %%
 import siibra
+from nilearn import plotting
 from plotly.express import imshow
 import pandas as pd
 
@@ -48,7 +52,7 @@ restingstate_fmri = siibra.volumes.from_url(
 )  # TODO: need to get the time index from the dataset
 
 
-# %
+# %%
 workingmemory_cofounds = pd.read_csv(
     url_template.format(
         file=f"{subject}_task-workingmemory_acq-seq_desc-confounds_regressors.tsv"
@@ -110,6 +114,19 @@ workingmemory_signals_stats.iloc[:10, :].plot(
     title="working memory", kind="barh", y="mean", xerr="std"
 )
 
+
+# %%
+workingmemory_signals_var = julichbrain.extract_signals_with_nilearn(
+    workingmemory_fmri,
+    confounds=workingmemory_cofounds["csf"].values,
+    strategy="variance",
+)
+
+# %%
+time_index = 0
+colored_map = julichbrain.colorize(workingmemory_signals_var)
+plotting.view_img(colored_map.slicer[:, :, :, time_index], cmap="magma", symmetric_cmap=False)
+
 # %%
 # As an alteranative, pmaps can be used to extract signals
 difumo64_pmaps = siibra.get_map("difumo 64", "mni152", "statistical")
@@ -117,11 +134,39 @@ difumo64_pmaps.extract_signals_with_nilearn(workingmemory_fmri)
 
 
 # %%
-# TODO: Find an fMRI for assignment where there are clusters and fluctuations
-# julichbrain = siibra.get_map(parcellation='julich 3.1', space='mni152', maptype='statistical')
-# assignments = julichbrain.assign(fmri_vol, lower_threshold=0.6, split_components=False)
-# assignments
+# import siibra
+# from nilearn import datasets, surface, maskers
+
+# subject = "sub-0001"
+# dataset_base_url = "https://s3.amazonaws.com/openneuro.org/ds002790/"
+# folder = f"derivatives/fmriprep/{subject}/func/"
+# url_template = dataset_base_url + folder + "{file}"
+
+# fs5 = datasets.fetch_surf_fsaverage("fsaverage5")
+
+# julichbrain = siibra.get_map("julich 3.1", "fsaverage")
+
+# input = {}
+# labels = {}
+# fsav = {}
+# for hemi in ["left", "right"]:
+#     req = siibra.retrieval.HttpRequest(
+#         url_template.format(
+#             file=f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-{hemi[0].upper()}.func.gii"
+#         )
+#     )
+#     req.cachefile += ".gii"
+#     req._retrieve()
+#     input[hemi] = req.cachefile
+#     surf = julichbrain.fetch(fragment=hemi)
+#     fsav[hemi] = surface.SurfaceMesh((surf["verts"], surf["faces"]))
+#     labels[hemi] = surf["labels"]
+# querydata = surface.PolyData(**input)
+# queryim = surface.SurfaceImage(
+#     {"left": fs5["pial_left"], "right": fs5["pial_right"]}, querydata
+# )
 
 
-# sub-0100_task-workingmemory_acq-seq_space-fsaverage5_hemi-L.func.gii
-#     ├── sub-0100_task-workingmemory_acq-seq_space-fsaverage5_hemi-R.func.gii
+# surface.SurfaceImage(surface.PolyMesh(**input), labels)
+
+# maskers.SurfaceLabelsMasker(surface.SurfaceImage(fsav, surface.PolyData(labels)))

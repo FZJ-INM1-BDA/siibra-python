@@ -16,7 +16,8 @@
 
 from collections import defaultdict
 from dataclasses import dataclass, asdict
-from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
+from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, Literal
+from functools import cache
 
 import numpy as np
 import pandas as pd
@@ -46,6 +47,7 @@ from ..locations import location, point, pointcloud
 
 if TYPE_CHECKING:
     from ..core.region import Region
+    from nilearn.maskers import NiftiLabelsMasker, SurfaceLabelsMasker
 
 
 @dataclass
@@ -499,6 +501,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def __iter__(self):
         return self.fetch_iter()
 
+    @cache
     def compress(self, **kwargs):
         """
         Converts this map into a labelled 3D parcellation map, obtained by
@@ -656,10 +659,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def colorize(
         self,
-        values: dict,
+        values: Union[dict, "pd.DataFrame":],
         background_value: Union[int, float] = 0,
-        **kwargs
-    ) -> _volume.Volume:
+        **makser_kwargs
+    ):
         """Colorize the map with the provided regional values.
 
         Parameters
@@ -671,42 +674,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         ------
         Nifti1Image
         """
-        from hashlib import md5
-        from nibabel import Nifti1Image
+        if isinstance(values, dict):
+            values = {r: values.get(r, None) for r in self.regions}
+        else:
+            for r in self.regions:
+                if r not in values.columns:
+                    values[r] = background_value
+            values = values[self.regions]
 
-        values_dtype = np.min_scalar_type(next(iter(values.values())))
-        result = None
-        for volidx, vol in enumerate(self.fetch_iter(**kwargs)):
-            if isinstance(vol, dict):
-                raise NotImplementedError("Map colorization not yet implemented for meshes.")
-            img_arr = np.asanyarray(vol.dataobj, dtype=values_dtype)
-            maxarr = np.zeros_like(img_arr)
-            for r, value in values.items():
-                index = self.get_index(r)
-                if index.volume != volidx:
-                    continue
-                if result is None:
-                    result = np.zeros_like(img_arr, dtype=values_dtype) + background_value
-                    affine = vol.affine
-                    result_header = vol.header
-                    result_header.set_data_dtype(values_dtype)
-                if index.label is None:
-                    updates = img_arr > maxarr
-                    result[updates] = value
-                    maxarr[updates] = img_arr[updates]
-                else:
-                    result[img_arr == index.label] = value
-
-        result_img = Nifti1Image(
-            result,
-            affine=affine,
-            header=result_header,
-        )
-        return _volume.from_nifti(
-            nifti=result_img,
-            space=self.space,
-            name=f"Custom colorization of {self} - {md5(str(values).encode('utf-8')).hexdigest()}"
-        )
+        masker = self.as_nilearn_masker(background_label=background_value, **makser_kwargs)
+        return masker.inverse_transform(values)
 
     def get_colormap(self, region_specs: Iterable = None, *, fill_uncolored: bool = False):
         """
@@ -1331,12 +1308,75 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             table.to_csv(filepath, sep='\t')
         return table
 
+    @cache
+    def as_nilearn_masker(
+        self,
+        strategy: Literal[
+            "mean",
+            "median",
+            "sum",
+            "minimum",
+            "maximum",
+            "standard_deviation",
+            "variance",
+            None,
+        ] = "mean",
+        **masker_kwargs,
+    ) -> Union["NiftiLabelsMasker", "SurfaceLabelsMasker"]:
+        from nilearn import maskers
+
+        assert "lut" not in masker_kwargs, ValueError("siibra handles `lut` parameter based on the map.")
+        masker_kwargs.setdefault("verbose", 1)
+        masker_kwargs.setdefault("strategy", strategy)
+
+        if self.provides_image:
+            mp = self.compress() if self.fragments else self
+            masker_kwargs["lut"] = mp.to_BIDS_lookup_table()
+            labelled_img = mp.fetch()
+            masker = maskers.NiftiLabelsMasker(labelled_img, **masker_kwargs)
+        else:
+            raise NotImplementedError
+            # from nilearn.surface import InMemoryMesh, PolyMesh, SurfaceImage
+
+            # masker_kwargs["lut"] = {r: ind[0].label for r, ind in self._indices.items()}
+
+            # def as_mesh(d):
+            #     return InMemoryMesh(
+            #         coordinates=np.asarray(d["verts"], dtype=float),
+            #         faces=np.asarray(d["faces"], dtype=int),
+            #     )
+            # data = {}
+            # meshes = {}
+            # for frag in ["left", "right"]:
+            #     surf = self.fetch(format='mesh', fragment=frag)
+            #     meshes[frag] = as_mesh(surf)
+            #     if "gii-label" in self.formats:
+            #         data[frag] = surf["labels"]
+            # labels_img = SurfaceImage(
+            #     mesh=PolyMesh(**meshes),
+            #     data=data if "gii-label" in self.formats else None
+            # )
+            # masker = maskers.SurfaceLabelsMasker(labels_img, **masker_kwargs)
+
+        masker.fit()
+        masker.set_output(transform="pandas")
+        return masker
+
     def extract_signals_with_nilearn(
         self,
         volume: _volume.Volume,
+        strategy: Literal[
+            "mean",
+            "median",
+            "sum",
+            "minimum",
+            "maximum",
+            "standard_deviation",
+            "variance",
+        ] = "mean",
         confounds: np.ndarray = None,
         sample_mask: np.ndarray = None,
-        **makser_kwargs,
+        **masker_kwargs,
     ) -> pd.DataFrame:
         """
         Extract region-wise signals from a labelled 3D/4D volume using `nilearn`.
@@ -1351,6 +1391,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             Input 3D or 4D volume from which signals should be extracted.
             Typically an fMRI image. The object must implement ``fetch()`` and
             return a Niimg-like object compatible with Nilearn.
+
+        strategy: str
 
         confounds: array-like, optional
             Confounds to pass to `nilearn.maskers.BaseMasker.transform`.
@@ -1370,42 +1412,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         -----
         Region labels are obtained from the BIDS lookup table generated by `to_BIDS_lookup_table`.
         """
-        from nilearn import maskers
-
-        assert "lut" not in makser_kwargs, ValueError("siibra handles `lut` parameter based on the map.")
-        makser_kwargs.setdefault("verbose", 1)
-
-        if self.provides_image:
-            mp = self.compress() if self.fragments else self
-            makser_kwargs["lut"] = mp.to_BIDS_lookup_table()
-            labelled_img = mp.fetch()
-            masker = maskers.NiftiLabelsMasker(labelled_img, **makser_kwargs)
-        else:
-            raise NotImplementedError
-            # from nilearn.surface import InMemoryMesh, PolyMesh, SurfaceImage
-
-            # makser_kwargs["lut"] = {r: ind[0].label for r, ind in self._indices.items()}
-
-            # def as_mesh(d):
-            #     return InMemoryMesh(
-            #         coordinates=np.asarray(d["verts"], dtype=float),
-            #         faces=np.asarray(d["faces"], dtype=int),
-            #     )
-            # data = {}
-            # meshes = {}
-            # for frag in ["left", "right"]:
-            #     surf = self.fetch(format='mesh', fragment=frag)
-            #     meshes[frag] = as_mesh(surf)
-            #     if "gii-label" in self.formats:
-            #         data[frag] = surf["labels"]
-            # labels_img = SurfaceImage(
-            #     mesh=PolyMesh(**meshes),
-            #     data=data if "gii-label" in self.formats else None
-            # )
-            # masker = maskers.SurfaceLabelsMasker(labels_img, **makser_kwargs)
-
-        masker.set_output(transform="pandas")
-        return masker.fit_transform(
+        masker = self.as_nilearn_masker(
+            strategy=strategy,
+            **masker_kwargs
+        )
+        return masker.transform(
             volume.fetch() if isinstance(volume, _volume.Volume) else volume,
             confounds=confounds,
             sample_mask=sample_mask
