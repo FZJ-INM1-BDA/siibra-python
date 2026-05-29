@@ -878,6 +878,7 @@ def from_url(url: Union[str, Dict[str, str]], space: str, time_index: np.ndarray
     """Builds a nifti volume from a nifti served from an online source."""
     from urllib.parse import urlparse
     from pathlib import PurePosixPath
+    from hashlib import md5
 
     for frag_url in [url] if isinstance(url, str) else url.values():
         assert frag_url[:8] == "https://"
@@ -894,7 +895,7 @@ def from_url(url: Union[str, Dict[str, str]], space: str, time_index: np.ndarray
     kwargs = dict(
         space_spec={"@id": spaceobj.id},
         providers=[provider(url)],
-        name=url,
+        name=md5(str(url).encode("utf-8")).hexdigest(),
     )
     if time_index is None:
         return Volume(**kwargs)
