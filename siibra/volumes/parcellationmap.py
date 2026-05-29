@@ -661,7 +661,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         self,
         values: Union[dict, "pd.DataFrame":],
         background_value: Union[int, float] = 0,
-        **makser_kwargs
+        **masker_kwargs
     ):
         """Colorize the map with the provided regional values.
 
@@ -682,7 +682,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     values[r] = background_value
             values = values[self.regions]
 
-        masker = self.as_nilearn_masker(background_label=background_value, **makser_kwargs)
+        masker = self.as_nilearn_masker(background_label=background_value, **masker_kwargs)
         return masker.inverse_transform(values)
 
     def get_colormap(self, region_specs: Iterable = None, *, fill_uncolored: bool = False):
