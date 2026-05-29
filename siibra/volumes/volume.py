@@ -638,7 +638,7 @@ class Volume(structure.BrainStructure):
         return points
 
     def _as_surfaceimage(self):
-        assert "gii-timeseries" in self.formats
+        assert "gii-timeseries" in self.formats, "Only possible for timeseries giftis."
 
         from nilearn.surface import SurfaceImage
 

@@ -135,7 +135,10 @@ class Space(concept.AtlasConcept, configuration_folder="spaces"):
         assert "gii-mesh" in tmplt.formats
         _ = tmplt.fetch()
 
-        return PolyMesh(**{
-            frag.replace(' hemisphere', ""): tmplt._providers["gii-mesh"]._loaders[frag].cachefile
-            for frag in tmplt.fragments["mesh"]
-        })
+        giimesh_filemap = {}
+        for frag in tmplt.fragments["mesh"]:
+            loader = tmplt._providers["gii-mesh"]._loaders[frag]
+            loader._retrieve()
+            giimesh_filemap[frag.replace(' hemisphere', "")] = loader.cachefile
+
+        return PolyMesh(**giimesh_filemap)

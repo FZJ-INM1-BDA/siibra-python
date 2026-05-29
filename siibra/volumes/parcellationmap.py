@@ -1314,11 +1314,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         assert "gii-label" in self.formats
         assert len(self.volumes) == 1
 
-        labels_as_polydata = PolyData(**{
-            frag.replace(' hemisphere', ""): self.volumes[0]._providers["gii-label"]._loaders[frag].cachefile
-            for frag in self.fragments
-        })
-        return SurfaceImage(mesh=self.space._as_polymesh(), data=labels_as_polydata)
+        giilabel_filemap = {}
+        for frag in self.fragments:
+            loader = self.volumes[0]._providers["gii-label"]._loaders[frag]
+            loader._retrieve()
+            giilabel_filemap[frag.replace(' hemisphere', "")] = loader.cachefile
+        return SurfaceImage(mesh=self.space._as_polymesh(), data=PolyData(**giilabel_filemap))
 
     @cache
     def as_nilearn_masker(

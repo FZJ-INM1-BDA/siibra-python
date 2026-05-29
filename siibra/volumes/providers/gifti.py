@@ -191,11 +191,11 @@ class GiftiTimeSeries(_provider.VolumeProvider, srctype="gii-timeseries"):
             if "right" in fragment.lower():
                 return "right"
             raise ValueError
-
-        return PolyData(**{
-            determine_part(frag): req.cachefile
-            for frag, req in self._loaders.items()
-        })
+        parts = {}
+        for frag, req in self._loaders.items():
+            req._retrieve()
+            parts[determine_part(frag)] = req.cachefile
+        return PolyData(**parts)
 
     def get_boundingbox(self, clip=False, background=0.0) -> '_boundingbox.BoundingBox':
         raise NotImplementedError(
