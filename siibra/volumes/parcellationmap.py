@@ -1347,28 +1347,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             labelled_img = mp.fetch()
             masker = maskers.NiftiLabelsMasker(labelled_img, **masker_kwargs)
         else:
-            raise NotImplementedError
-            # from nilearn.surface import InMemoryMesh, PolyMesh, SurfaceImage
-
-            # masker_kwargs["lut"] = {r: ind[0].label for r, ind in self._indices.items()}
-
-            # def as_mesh(d):
-            #     return InMemoryMesh(
-            #         coordinates=np.asarray(d["verts"], dtype=float),
-            #         faces=np.asarray(d["faces"], dtype=int),
-            #     )
-            # data = {}
-            # meshes = {}
-            # for frag in ["left", "right"]:
-            #     surf = self.fetch(format='mesh', fragment=frag)
-            #     meshes[frag] = as_mesh(surf)
-            #     if "gii-label" in self.formats:
-            #         data[frag] = surf["labels"]
-            # labels_img = SurfaceImage(
-            #     mesh=PolyMesh(**meshes),
-            #     data=data if "gii-label" in self.formats else None
-            # )
-            # masker = maskers.SurfaceLabelsMasker(labels_img, **masker_kwargs)
+            assert "gii-label" in self.formats
+            masker_kwargs["lut"] = self.to_BIDS_lookup_table()
+            masker = maskers.SurfaceLabelsMasker(self._as_surfaceimage(), **masker_kwargs)
 
         masker.fit()
         masker.set_output(transform="pandas")
@@ -1428,11 +1409,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             strategy=strategy,
             **masker_kwargs
         )
-        return masker.transform(
-            volume.fetch() if isinstance(volume, _volume.Volume) else volume,
-            confounds=confounds,
-            sample_mask=sample_mask
-        )
+        if "gii-timeseries" in volume.formats:
+            return masker.transform(volume._as_surfaceimage(), confounds=confounds, sample_mask=sample_mask)
+
+        return masker.transform(volume.fetch(), confounds=confounds, sample_mask=sample_mask)
 
 
 def from_volume(

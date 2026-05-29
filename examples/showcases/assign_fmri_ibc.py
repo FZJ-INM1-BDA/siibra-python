@@ -222,37 +222,12 @@ difumo64_pmaps.extract_signals_with_nilearn(workingmemory_fmri)
 
 # %%
 # A similar workflow for surface-based fMRI data is possible.
-
-# subject = "sub-0001"
-# dataset_base_url = "https://s3.amazonaws.com/openneuro.org/ds002790/"
-# folder = f"derivatives/fmriprep/{subject}/func/"
-# url_template = dataset_base_url + folder + "{file}"
-
-# fs5 = datasets.fetch_surf_fsaverage("fsaverage5")
-
-# julichbrain = siibra.get_map("julich 3.1", "fsaverage")
-
-# input = {}
-# labels = {}
-# fsav = {}
-# for hemi in ["left", "right"]:
-#     req = siibra.retrieval.HttpRequest(
-#         url_template.format(
-#             file=f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-{hemi[0].upper()}.func.gii"
-#         )
-#     )
-#     req.cachefile += ".gii"
-#     req._retrieve()
-#     input[hemi] = req.cachefile
-#     surf = julichbrain.fetch(fragment=hemi)
-#     fsav[hemi] = surface.SurfaceMesh((surf["verts"], surf["faces"]))
-#     labels[hemi] = surf["labels"]
-# querydata = surface.PolyData(**input)
-# queryim = surface.SurfaceImage(
-#     {"left": fs5["pial_left"], "right": fs5["pial_right"]}, querydata
-# )
-
-
-# surface.SurfaceImage(surface.PolyMesh(**input), labels)
-
-# maskers.SurfaceLabelsMasker(surface.SurfaceImage(fsav, surface.PolyData(labels)))
+julichbrain_fs5 = siibra.get_map("julich 3.1", "fsaverage5")
+giivol = siibra.volumes.from_url(
+    {
+        "left": url_template.format(file=f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-L.func.gii"),
+        "right": url_template.format(file=f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-R.func.gii"),
+    },
+    "fsaverage5",
+)
+julichbrain_fs5.extract_signals_with_nilearn(giivol)
