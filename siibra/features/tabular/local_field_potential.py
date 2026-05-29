@@ -140,6 +140,7 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
             description=None,
             modality="Local field potential",
             anchor=anchor,
+            data=None,
             id=self.ID_TEMPLATE.format(index=db_entry.Index),
             datasets=[EbrainsV3DatasetVersion("41673110-f3eb-43cd-9d9c-c845c6f0573c")],
         )
