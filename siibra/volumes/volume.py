@@ -21,7 +21,7 @@ import json
 from functools import lru_cache
 
 import numpy as np
-from nibabel import Nifti1Image
+from nibabel import Nifti1Image, GiftiImage, load as nib_load
 from skimage import feature as skimage_feature, filters
 
 from . import providers as _providers
@@ -865,21 +865,46 @@ class Subvolume(Volume):
         )
 
 
-def from_url(url: str, space: str, time_index: np.ndarray = None) -> Volume:
+def from_url(url: Union[str, Dict[str, str]], space: str, time_index: np.ndarray = None) -> Volume:
     """Builds a nifti volume from a nifti served from an online source."""
-    assert url[:8] == "https://"
-    req = requests.HttpRequest(url)
-    req.cachefile += ".nii.gz"
-    req._retrieve()
-    return from_file(req.cachefile, space=space, name=url, time_index=time_index)
+    from urllib.parse import urlparse
+    from pathlib import PurePosixPath
+
+    for frag_url in [url] if isinstance(url, str) else url.values():
+        assert frag_url[:8] == "https://"
+        path = PurePosixPath(urlparse(frag_url).path)
+
+        if path.suffixes[-2:] == [".nii", ".gz"] or path.suffixes[-1:] == [".nii"]:
+            provider = _providers.NiftiProvider
+        elif path.suffixes[-2:] == [".gii", ".gz"] or path.suffixes[-1:] == [".gii"]:
+            provider = _providers.GiftiTimeSeries
+        else:
+            raise ValueError(f"{path.suffixes} is not supported by siibra")
+
+    spaceobj = get_registry("Space").get(space)
+    kwargs = dict(
+        space_spec={"@id": spaceobj.id},
+        providers=[provider(url)],
+        name=url,
+    )
+    if time_index is None:
+        return Volume(**kwargs)
+    return TimeSeriesVolume(time_index=time_index, **kwargs)
 
 
 def from_file(filename: str, space: str, name: str, time_index: np.ndarray = None) -> Volume:
     """Builds a nifti volume from a filename."""
     spaceobj = get_registry("Space").get(space)
+    img = nib_load(filename)
+    if isinstance(img, Nifti1Image):
+        provider = _providers.NiftiProvider
+    elif isinstance(img, GiftiImage):
+        provider = _providers.GiftiTimeSeries
+    else:
+        raise ValueError(f"{type(img)} is not supported by siibra")
     kwargs = dict(
         space_spec={"@id": spaceobj.id},
-        providers=[_providers.NiftiProvider(filename)],
+        providers=[provider(filename)],
         name=filename if name is None else name,
     )
     if time_index is None:
