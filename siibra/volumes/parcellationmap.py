@@ -1308,6 +1308,18 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             table.to_csv(filepath, sep='\t')
         return table
 
+    def _as_surfaceimage(self, variant: str = None):
+        from nilearn.surface import SurfaceImage, PolyData
+
+        assert "gii-label" in self.formats
+        assert len(self.volumes) == 1
+
+        labels_as_polydata = PolyData(**{
+            frag.replace(' hemisphere', ""): self.volumes[0]._providers["gii-label"]._loaders[frag].cachefile
+            for frag in self.fragments
+        })
+        return SurfaceImage(mesh=self.space._as_polymesh(), data=labels_as_polydata)
+
     @cache
     def as_nilearn_masker(
         self,
