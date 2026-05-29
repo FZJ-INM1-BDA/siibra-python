@@ -659,7 +659,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def colorize(
         self,
-        values: Union[dict, "pd.DataFrame":],
+        values: Union[dict, "pd.DataFrame"],
         background_value: Union[int, float] = 0,
         **masker_kwargs
     ):
@@ -675,7 +675,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Nifti1Image
         """
         if isinstance(values, dict):
-            values = {r: values.get(r, None) for r in self.regions}
+            values = {r: values.get(r, background_value) for r in self.regions}
         else:
             for r in self.regions:
                 if r not in values.columns:
