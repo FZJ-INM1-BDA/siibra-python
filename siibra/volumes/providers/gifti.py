@@ -179,8 +179,18 @@ class GiftiTimeSeries(_provider.VolumeProvider, srctype="gii-timeseries"):
         for req in self._loaders.values():
             req.cachefile += ".gii"
 
-    def fetch(self, **kwargs):
-        raise NotImplementedError
+    @property
+    def fragments(self):
+        return [k for k in self._loaders if k is not None]
+
+    def fetch(self, fragment: str, **kwargs):
+        matched_frags = [frg for frg in self.fragments if fragment.lower() in frg.lower()]
+        if len(matched_frags) != 1:
+            raise ValueError(
+                f"Requested fragment '{fragment}' could not be matched uniquely "
+                f"to [{', '.join(self._loaders)}]"
+            )
+        return self._loaders[matched_frags[0]].get()
 
     def as_polydata(self, **kwargs):
         from nilearn.surface import PolyData
