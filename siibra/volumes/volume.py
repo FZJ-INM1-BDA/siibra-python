@@ -117,6 +117,7 @@ class Volume(structure.BrainStructure):
         "gii-label",
         "freesurfer-annot",
         "zip/freesurfer-annot",
+        "gii-timeseries",
     ]
 
     SUPPORTED_FORMATS = IMAGE_FORMATS + MESH_FORMATS

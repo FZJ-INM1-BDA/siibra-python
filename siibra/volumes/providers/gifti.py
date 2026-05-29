@@ -39,6 +39,8 @@ class GiftiMesh(_provider.VolumeProvider, srctype="gii-mesh"):
             self._loaders = {lbl: requests.HttpRequest(u) for lbl, u in url.items()}
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
+        for req in self._loaders.values():
+            req.cachefile += ".gii"
 
     @property
     def _url(self) -> Union[str, Dict[str, str]]:
@@ -133,6 +135,8 @@ class GiftiSurfaceLabeling(_provider.VolumeProvider, srctype="gii-label"):
             self._loaders = {lbl: requests.HttpRequest(u) for lbl, u in url.items()}
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
+        for req in self._loaders.values():
+            req.cachefile += ".gii"
 
     def fetch(self, fragment: str = None, label: int = None, **kwargs):
         """Returns a 1D numpy array of label indices."""
@@ -154,6 +158,44 @@ class GiftiSurfaceLabeling(_provider.VolumeProvider, srctype="gii-label"):
                 labels.append(self._loaders[frag].data.darrays[0].data)
 
         return {"labels": np.hstack(labels)}
+
+    def get_boundingbox(self, clip=False, background=0.0) -> '_boundingbox.BoundingBox':
+        raise NotImplementedError(
+            f"Bounding box access to {self.__class__.__name__} objects not yet implemented."
+        )
+
+    @property
+    def _url(self) -> Union[str, Dict[str, str]]:
+        return self._init_url
+
+
+class GiftiTimeSeries(_provider.VolumeProvider, srctype="gii-timeseries"):
+    def __init__(self, url: dict):
+        self._init_url = url
+        if isinstance(url, dict):   # labelling for multiple mesh fragments
+            self._loaders = {frag: requests.HttpRequest(u) for frag, u in url.items()}
+        else:
+            raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
+        for req in self._loaders.values():
+            req.cachefile += ".gii"
+
+    def fetch(self, **kwargs):
+        raise NotImplementedError
+
+    def as_polydata(self, **kwargs):
+        from nilearn.surface import PolyData
+
+        def determine_part(fragment: str):
+            if "left" in fragment.lower():
+                return "left"
+            if "right" in fragment.lower():
+                return "right"
+            raise ValueError
+
+        return PolyData(**{
+            determine_part(frag): req.cachefile
+            for frag, req in self._loaders.items()
+        })
 
     def get_boundingbox(self, clip=False, background=0.0) -> '_boundingbox.BoundingBox':
         raise NotImplementedError(
