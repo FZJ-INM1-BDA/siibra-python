@@ -637,12 +637,14 @@ class Volume(structure.BrainStructure):
         points.sigma_mm = [sigma_mm for _ in points]
         return points
 
-    def _as_surfaceimage(self):
-        assert "gii-timeseries" in self.formats, "Only possible for timeseries giftis."
-
+    def _as_surfaceimage(self, variant: str = None):
         from nilearn.surface import SurfaceImage
 
-        return SurfaceImage(self.space._as_polymesh(), self._providers["gii-timeseries"].as_polydata())
+        assert "gii-timeseries" in self.formats, "Only possible for timeseries giftis."
+        provider = self._providers["gii-timeseries"]
+        assert isinstance(provider, _providers.GiftiTimeSeries)
+
+        return SurfaceImage(self.space._as_polymesh(variant=variant), provider.as_polydata())
 
 
 class FilteredVolume(Volume):

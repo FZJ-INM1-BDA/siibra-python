@@ -1319,7 +1319,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             loader = self.volumes[0]._providers["gii-label"]._loaders[frag]
             loader._retrieve()
             giilabel_filemap[frag.replace(' hemisphere', "")] = loader.cachefile
-        return SurfaceImage(mesh=self.space._as_polymesh(), data=PolyData(**giilabel_filemap))
+        return SurfaceImage(mesh=self.space._as_polymesh(variant=variant), data=PolyData(**giilabel_filemap))
 
     @cache
     def as_nilearn_masker(
@@ -1334,6 +1334,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             "variance",
             None,
         ] = "mean",
+        variant: str = None,
         **masker_kwargs,
     ) -> Union["NiftiLabelsMasker", "SurfaceLabelsMasker"]:
         from nilearn import maskers
@@ -1350,7 +1351,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         else:
             assert "gii-label" in self.formats
             masker_kwargs["lut"] = self.to_BIDS_lookup_table()
-            masker = maskers.SurfaceLabelsMasker(self._as_surfaceimage(), **masker_kwargs)
+            masker = maskers.SurfaceLabelsMasker(self._as_surfaceimage(variant=variant), **masker_kwargs)
 
         masker.fit()
         masker.set_output(transform="pandas")
@@ -1370,6 +1371,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         ] = "mean",
         confounds: np.ndarray = None,
         sample_mask: np.ndarray = None,
+        variant: str = None,
         **masker_kwargs,
     ) -> pd.DataFrame:
         """
@@ -1408,10 +1410,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         masker = self.as_nilearn_masker(
             strategy=strategy,
+            variant=variant,
             **masker_kwargs
         )
         if "gii-timeseries" in volume.formats:
-            return masker.transform(volume._as_surfaceimage(), confounds=confounds, sample_mask=sample_mask)
+            return masker.transform(volume._as_surfaceimage(variant=variant), confounds=confounds, sample_mask=sample_mask)
 
         return masker.transform(volume.fetch(), confounds=confounds, sample_mask=sample_mask)
 

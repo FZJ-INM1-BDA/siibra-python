@@ -24,9 +24,7 @@ and compares the extraction results for different tasks.
 """
 
 # %% TODO:
-# - add proper text for each cell
 # - add a cell for creating a json preconfig
-# - utilize fsaverage5 jba to extract data from surfaces. Display it with surface plot
 # %%
 # We start by importing the Python packages used in this notebook. siibra
 # provides access to brain atlases, spaces, maps, and datasets.
@@ -229,5 +227,6 @@ giivol = siibra.volumes.from_url(
         "right": url_template.format(file=f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-R.func.gii"),
     },
     "fsaverage5",
+    time_index=[],
 )
-julichbrain_fs5.extract_signals_with_nilearn(giivol)
+julichbrain_fs5.extract_signals_with_nilearn(giivol, variant="pial")
