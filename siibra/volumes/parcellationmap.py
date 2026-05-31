@@ -17,7 +17,7 @@
 from collections import defaultdict
 from dataclasses import dataclass, asdict
 from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, Literal
-from functools import cache
+from functools import lru_cache
 
 import numpy as np
 import pandas as pd
@@ -501,7 +501,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def __iter__(self):
         return self.fetch_iter()
 
-    @cache
+    @lru_cache(2)
     def compress(self, **kwargs):
         """
         Converts this map into a labelled 3D parcellation map, obtained by
@@ -659,8 +659,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def colorize(
         self,
-        values: Union[dict, "pd.DataFrame"],
-        background_value: Union[int, float] = 0,
+        values: Union[dict, "pd.Series", "pd.DataFrame"],
+        background_label: Union[int, float] = 0,
         **masker_kwargs
     ):
         """Colorize the map with the provided regional values.
@@ -675,14 +675,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Nifti1Image
         """
         if isinstance(values, dict):
-            values = {r: values.get(r, background_value) for r in self.regions}
-        else:
-            for r in self.regions:
-                if r not in values.columns:
-                    values[r] = background_value
-            values = values[self.regions]
+            values = pd.Series(
+                {r: values.get(r, background_label) for r in self.regions}
+            )
 
-        masker = self.as_nilearn_masker(background_label=background_value, **masker_kwargs)
+        masker_kwargs.setdefault("background_label", background_label)
+        masker = self.as_nilearn_masker(**masker_kwargs)
+
+        # ensure the order of columns follow the bids table used for masker
+        values = values[masker.lut["name"]]
+
         return masker.inverse_transform(values)
 
     def get_colormap(self, region_specs: Iterable = None, *, fill_uncolored: bool = False):
@@ -1282,7 +1284,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         generating the table.
         """
         if len(self.volumes) > 1:
-            raise Exception("Cannot extract maps wiht several volumes into BIDS compatible lookup table.")
+            raise Exception("Cannot extract maps with several volumes into BIDS compatible lookup table.")
         if self.fragments and "gii-label" not in self.formats:
             logger.info(f"{self} is distributed as {len(self.fragments)}. siibra will compress the fragments and reindex to make it BIDS compatible.")
             mp = self.compress()
@@ -1303,6 +1305,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 for r, indices in mp._indices.items()
             ]
         )
+        if self.formats == {"gii-label"}:
+            extra_labels = set(self.fetch()["labels"]) - set(table["index"])
+            for xl in extra_labels:
+                table.loc[len(table)] = {"name": f"{xl} (unnamed)", "index": xl, "color": None}
         if filepath:
             assert filepath[-4:] == ".tsv", "BIDS lookup tables are in .tsv format but the path provided is not."
             table.to_csv(filepath, sep='\t')
@@ -1321,7 +1327,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             giilabel_filemap[frag.replace(' hemisphere', "")] = loader.cachefile
         return SurfaceImage(mesh=self.space._as_polymesh(variant=variant), data=PolyData(**giilabel_filemap))
 
-    @cache
+    @lru_cache(2)
     def as_nilearn_masker(
         self,
         strategy: Literal[
@@ -1332,26 +1338,28 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             "maximum",
             "standard_deviation",
             "variance",
-            None,
         ] = "mean",
-        variant: str = None,
+        surface_variant: str = None,
         **masker_kwargs,
     ) -> Union["NiftiLabelsMasker", "SurfaceLabelsMasker"]:
         from nilearn import maskers
+        try:
+            from ..retrieval.cache import jobmemory_path
+            masker_kwargs.setdefault("memory", jobmemory_path)
+        except ImportError:
+            ...
+
+        mp = self.compress() if self.provides_image and self.fragments else self
 
         assert "lut" not in masker_kwargs, ValueError("siibra handles `lut` parameter based on the map.")
         masker_kwargs.setdefault("verbose", 1)
         masker_kwargs.setdefault("strategy", strategy)
+        masker_kwargs["lut"] = mp.to_BIDS_lookup_table()
 
         if self.provides_image:
-            mp = self.compress() if self.fragments else self
-            masker_kwargs["lut"] = mp.to_BIDS_lookup_table()
-            labelled_img = mp.fetch()
-            masker = maskers.NiftiLabelsMasker(labelled_img, **masker_kwargs)
+            masker = maskers.NiftiLabelsMasker(mp.fetch(), **masker_kwargs)
         else:
-            assert "gii-label" in self.formats
-            masker_kwargs["lut"] = self.to_BIDS_lookup_table()
-            masker = maskers.SurfaceLabelsMasker(self._as_surfaceimage(variant=variant), **masker_kwargs)
+            masker = maskers.SurfaceLabelsMasker(mp._as_surfaceimage(variant=surface_variant), **masker_kwargs)
 
         masker.fit()
         masker.set_output(transform="pandas")
@@ -1371,7 +1379,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         ] = "mean",
         confounds: np.ndarray = None,
         sample_mask: np.ndarray = None,
-        variant: str = None,
+        surface_variant: str = None,
         **masker_kwargs,
     ) -> pd.DataFrame:
         """
@@ -1409,14 +1417,32 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Region labels are obtained from the BIDS lookup table generated by `to_BIDS_lookup_table`.
         """
         masker = self.as_nilearn_masker(
-            strategy=strategy,
-            variant=variant,
+            strategy=strategy if self.is_labelled else None,
+            surface_variant=surface_variant,
             **masker_kwargs
         )
-        if "gii-timeseries" in volume.formats:
-            return masker.transform(volume._as_surfaceimage(variant=variant), confounds=confounds, sample_mask=sample_mask)
 
-        return masker.transform(volume.fetch(), confounds=confounds, sample_mask=sample_mask)
+        if "gii-timeseries" in volume.formats:
+            signals = masker.transform(volume._as_surfaceimage(variant=surface_variant), confounds=confounds, sample_mask=sample_mask)
+        else:
+            signals = masker.transform(volume.fetch(), confounds=confounds, sample_mask=sample_mask)
+
+        if self.is_labelled:
+            # nilearn masker kwarg, `keep_missing_labels` is not working. This is a workaround
+            regions_in_order = self.to_BIDS_lookup_table()["name"]
+            missing_regions = set(regions_in_order) - set(signals.columns)
+            if len(missing_regions) > 0:
+                logger.info(f"Regions that were removed after resampling are filled with zeros:\n{missing_regions}")
+                signals[list(missing_regions)] = 0
+                signals = signals[self.regions]
+        else:
+            regions = list(self._indices.keys())
+            signals.rename(
+                columns=lambda c: regions[eval(c.replace("niftimapsmasker", ""))],
+                inplace=True
+            )
+
+        return signals
 
 
 def from_volume(

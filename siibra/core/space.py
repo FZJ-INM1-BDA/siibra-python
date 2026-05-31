@@ -133,7 +133,6 @@ class Space(concept.AtlasConcept, configuration_folder="spaces"):
 
         tmplt = self.get_template(variant=variant)
         assert "gii-mesh" in tmplt.formats
-        _ = tmplt.fetch()
 
         giimesh_filemap = {}
         for frag in tmplt.fragments["mesh"]:

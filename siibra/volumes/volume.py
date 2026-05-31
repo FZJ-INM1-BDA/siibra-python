@@ -878,28 +878,36 @@ class Subvolume(Volume):
         )
 
 
-def from_url(url: Union[str, Dict[str, str]], space: str, time_index: np.ndarray = None) -> Volume:
+def from_url(url_mapping: Union[str, Dict[str, str]], space: str, time_index: np.ndarray = None) -> Volume:
     """Builds a nifti volume from a nifti served from an online source."""
     from urllib.parse import urlparse
     from pathlib import PurePosixPath
     from hashlib import md5
 
-    for frag_url in [url] if isinstance(url, str) else url.values():
+    if isinstance(url_mapping, str):
+        url_mapping = {None: url_mapping}
+    elif len(url_mapping) == 1:
+        _, url = tuple(url_mapping.items())[0]
+        url_mapping = {None: url}
+
+    suffixes = set()
+    for frag_url in url_mapping.values():
         assert frag_url[:8] == "https://"
         path = PurePosixPath(urlparse(frag_url).path)
+        suffixes.update(path.suffixes[-2:])
 
-        if path.suffixes[-2:] == [".nii", ".gz"] or path.suffixes[-1:] == [".nii"]:
-            provider = _providers.NiftiProvider
-        elif path.suffixes[-2:] == [".gii", ".gz"] or path.suffixes[-1:] == [".gii"]:
-            provider = _providers.GiftiTimeSeries
-        else:
-            raise ValueError(f"{path.suffixes} is not supported by siibra")
+    if ".nii" in suffixes:
+        provider = _providers.NiftiProvider
+    elif ".gii" in suffixes:
+        provider = _providers.GiftiTimeSeries
+    else:
+        raise ValueError(f"{path.suffixes} is not supported by siibra")
 
     spaceobj = get_registry("Space").get(space)
     kwargs = dict(
         space_spec={"@id": spaceobj.id},
-        providers=[provider(url)],
-        name=md5(str(url).encode("utf-8")).hexdigest(),
+        providers=[provider(url_mapping)],
+        name=md5(str(url_mapping).encode("utf-8")).hexdigest(),
     )
     if time_index is None:
         return Volume(**kwargs)

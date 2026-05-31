@@ -25,6 +25,8 @@ and compares the extraction results for different tasks.
 
 # %% TODO:
 # - add a cell for creating a json preconfig
+# - Choose an output type for map.colorize if it is a surface map
+
 # %%
 # We start by importing the Python packages used in this notebook. siibra
 # provides access to brain atlases, spaces, maps, and datasets.
@@ -181,7 +183,9 @@ restingstate_signals[union_sorted].boxplot(
     flierprops={"marker": ".", "markeredgecolor": "r", "markersize": 3},
 )
 plt.legend()
-plt.title(f"Comparsion of top {len(union_sorted)} regions for working memory task - {subject}")
+plt.title(
+    f"Comparsion of top {len(union_sorted)} regions for working memory task - {subject}"
+)
 
 
 # %%
@@ -195,6 +199,7 @@ workingmemory_signals_var = julichbrain.extract_signals_with_nilearn(
     confounds=workingmemory_cofounds["csf"].values,
     strategy="variance",
 )
+workingmemory_signals_var
 
 # %%
 # The extracted region-wise variance values are mapped back onto the labelled
@@ -202,11 +207,8 @@ workingmemory_signals_var = julichbrain.extract_signals_with_nilearn(
 # assigned the corresponding extracted value. We then visualize one time point
 # of the resulting image with nilearn.plotting.view_img, using a magma colormap
 # to show regional differences.
-time_index = 0
-colored_map = julichbrain.colorize(workingmemory_signals_var)
-plotting.view_img(
-    colored_map.slicer[:, :, :, time_index], cmap="magma", symmetric_cmap=False
-)
+colored_map = julichbrain.colorize(workingmemory_signals_var.mean())
+plotting.view_img(colored_map, cmap="magma", symmetric_cmap=False)
 
 # %%
 # So far, we used a labelled atlas map, where each voxel belongs to a discrete
@@ -221,12 +223,30 @@ difumo64_pmaps.extract_signals_with_nilearn(workingmemory_fmri)
 # %%
 # A similar workflow for surface-based fMRI data is possible.
 julichbrain_fs5 = siibra.get_map("julich 3.1", "fsaverage5")
+fs_variant = "inflated"
 giivol = siibra.volumes.from_url(
     {
-        "left": url_template.format(file=f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-L.func.gii"),
-        "right": url_template.format(file=f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-R.func.gii"),
+        "left": url_template.format(
+            file=f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-L.func.gii"
+        ),
+        "right": url_template.format(
+            file=f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-R.func.gii"
+        ),
     },
     "fsaverage5",
     time_index=[],
 )
-julichbrain_fs5.extract_signals_with_nilearn(giivol, variant="pial")
+signals = julichbrain_fs5.extract_signals_with_nilearn(giivol, surface_variant=fs_variant)
+signals
+
+# %%
+# `colorize`` method can be used on surface maps as well. In which case, the
+# output is a `nilearn.surface.SurfaceImage` for compatibility with
+# `nilearn.plotting`
+surf_im = julichbrain_fs5.colorize(signals.std(), surface_variant=fs_variant)
+plotting.view_surf(
+    surf_map=surf_im,
+    hemi="both",
+    symmetric_cmap=False,
+    cmap="magma",
+)
