@@ -71,6 +71,7 @@ class Image(
         bbox: "BoundingBox" = None,
         id: str = None,
         prerelease: bool = False,
+        time: List[float] = None
     ):
         feature.Feature.__init__(
             self,
@@ -82,14 +83,17 @@ class Image(
             prerelease=prerelease,
         )
 
-        _volume.Volume.__init__(
-            self,
+        vol_kwargs = dict(
             space_spec=space_spec,
             providers=providers,
             name=name,
             datasets=datasets,
             bbox=bbox,
         )
+        if time is not None:
+            _volume.TimeSeriesVolume.__init__(self, time=time, **vol_kwargs)
+        else:
+            _volume.Volume.__init__(self, time_index=time, **vol_kwargs)
 
         self._anchor_cached = ImageAnchor(self, region=region)
         self._description_cached = None

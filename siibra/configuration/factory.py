@@ -496,6 +496,15 @@ class Factory:
             return volume_of_interest.DTIVolumeOfInterest(modality=modality, **kwargs)
         # elif modality == "segmentation":
         #     return volume_of_interest.SegmentedVolumeOfInterest(**kwargs)
+        elif "fMRI" in modality:
+            timespec = spec.get("time")
+            if isinstance(timespec, dict):
+                time = volume_of_interest.FMRIVolumeOfInterest.TimeIndexGenerator(**timespec)
+            else:
+                time = timespec
+            return volume_of_interest.FMRIVolumeOfInterest(
+                modality=modality, time=time, **kwargs
+            )
         elif "MRI" in modality:
             return volume_of_interest.MRIVolumeOfInterest(modality=modality, **kwargs)
         elif modality == "LSFM":
