@@ -633,12 +633,8 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
         return self._init_url
 
     def get_boundingbox(self, clip=False, background=0.0, **fetch_kwargs) -> '_boundingbox.BoundingBox':
-        """
-        Bounding box calculation is not yet implemented for meshes.
-        """
-        raise NotImplementedError(
-            f"Bounding box access to {self.__class__.__name__} objects not yet implemented."
-        )
+        mesh = self.fetch()
+        return _boundingbox.BoundingBox(mesh["verts"].min(0), mesh["verts"].max(0), None)
 
     def _get_fragment_info(self, meshindex: int) -> Dict[str, Tuple[str, ]]:
         # extract available fragment urls with their names for the given mesh index

@@ -210,9 +210,6 @@ class Volume(structure.BrainStructure):
         if self._boundingbox is not None and len(fetch_kwargs) == 0:
             return self._boundingbox
 
-        if not self.provides_image:
-            raise NotImplementedError("Bounding box calculation of meshes is not implemented yet.")
-
         if clip:  # clipping requires fetching the image
             img = self.fetch(**fetch_kwargs)
             assert isinstance(img, Nifti1Image)
