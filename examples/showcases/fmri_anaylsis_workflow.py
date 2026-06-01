@@ -23,7 +23,6 @@ and compares the extraction results for different tasks.
 """
 
 # %% TODO:
-# - add a cell for creating a json preconfig
 # - Choose an output type for map.colorize if it is a surface map
 
 # %%
@@ -37,6 +36,8 @@ from nilearn import plotting
 from plotly.express import imshow
 import matplotlib.pyplot as plt
 import pandas as pd
+import json
+import pathlib
 
 # %%
 # The fMRI data used in this example comes from the AOMIC-PIOP2 dataset hosted
@@ -214,19 +215,17 @@ difumo64_pmaps.extract_signals_with_nilearn(workingmemory_fmri)
 # A similar workflow for surface-based fMRI data is possible.
 julichbrain_fs5 = siibra.get_map("julich 3.1", "fsaverage5")
 fs_variant = "inflated"
+file_template = f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-" + "{}.func.gii"
+url_template = dataset_base_url + folder + file_template
+
 giivol = siibra.volumes.from_url(
-    {
-        "left": url_template.format(
-            file=f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-L.func.gii"
-        ),
-        "right": url_template.format(
-            file=f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-R.func.gii"
-        ),
-    },
+    {h: url_template.format(h[0]) for h in ["Left", "Right"]},
     "fsaverage5",
-    time_index=[],
+    time_index=list(range(160)),
 )
-signals = julichbrain_fs5.extract_signals_with_nilearn(giivol, surface_variant=fs_variant)
+signals = julichbrain_fs5.extract_signals_with_nilearn(
+    giivol, surface_variant=fs_variant
+)
 signals
 
 # %%
@@ -240,3 +239,96 @@ plotting.view_surf(
     symmetric_cmap=False,
     cmap="magma",
 )
+
+
+# %%
+config_output_folder = "../../../../custom-configurations"
+
+
+def create_config(subject, task):
+    folder = f"derivatives/fmriprep/{subject}/func/"
+    file_prefix = f"{subject}_task-{task}_acq-seq_space-fsaverage5"
+    url_template = dataset_base_url + folder + file_prefix + "_hemi-{}.func.gii"
+    conf = {
+        "@type": "siibra/feature/voi/v0.1",
+        "name": f"{subject} - fMRI - ds002790",
+        "modality": f"fMRI - {task}",
+        "space": {"name": "freesurfer fsaverage5"},
+        "providers": {
+            "gii-timeseries": {h: url_template.format(h[0]) for h in ["Left", "Right"]}
+        },
+        "time": {"start": 0, "stop": 10, "num": 160},
+    }
+    filepath = f"{config_output_folder}/features/images/vois/fmri/{file_prefix}.json"
+    pathlib.Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+    with open(filepath, "wt") as fp:
+        json.dump(conf, fp=fp, indent="\t")
+
+    return filepath
+
+
+num_of_subjects = 226
+tasks = ["restingstate", "workingmemory", "stopsignal"]
+for task in tasks:
+    for subject in range(num_of_subjects):
+        conf = create_config(f"sub-{subject + 1:04d}", task)
+
+
+# %%
+siibra.extend_configuration(config_output_folder)
+fmri_vols = siibra.features.get(julichbrain_fs5.space, "FMRIVolumeOfInterest")
+print(len(fmri_vols))
+
+
+# %%
+signal_ensamble_averages = {}
+top_regions = pd.Index([])
+for task in tasks:
+    signal_ensamble_averages[task] = sum(
+        julichbrain_fs5.extract_signals_with_nilearn(
+            fmri, surface_variant=fs_variant
+        )
+        for fmri in fmri_vols
+    )
+    signal_ensamble_averages[task] /= num_of_subjects
+
+    task_top_regions = (
+        signal_ensamble_averages[task]
+        .describe()
+        .T.sort_values("mean", ascending=False)
+        .index[:25]
+    )
+    top_regions = top_regions.union(task_top_regions)
+
+# %%
+top_regions_sorted = (
+    signal_ensamble_averages["stopsignal"]
+    .describe()
+    .loc[top_regions, :]
+    .sort_values("mean", ascending=False)
+    .index
+)
+for task in tasks:
+    signal_ensamble_averages[top_regions_sorted].boxplot(
+        rot=90,
+        label=task,
+        flierprops={"marker": ".", "markersize": 1},
+    )
+plt.legend()
+plt.title("Comparsion of top regions for between tasks across subjects")
+plt.tight_layout()
+
+
+# %%
+fs_variant = "pial"
+for task in tasks:
+    surf_im = julichbrain_fs5.colorize(
+        signal_ensamble_averages[top_regions_sorted].mean(), surface_variant=fs_variant
+    )
+    plotting.plot_surf(
+        surf_map=surf_im,
+        hemi="both",
+        symmetric_cmap=False,
+        cmap="magma",
+        title=task,
+    )
