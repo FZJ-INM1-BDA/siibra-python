@@ -104,10 +104,6 @@ class GiftiMesh(_provider.VolumeProvider, srctype="gii-mesh"):
 
         return merge_meshes(meshes)
 
-    @property
-    def variants(self):
-        return list(self._loaders.keys())
-
     def fetch_iter(self):
         """
         Iterator returning all submeshes
