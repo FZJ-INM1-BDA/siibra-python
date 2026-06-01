@@ -655,7 +655,7 @@ class FilteredVolume(Volume):
         label: int = None,
         fragment: str = None,
         threshold: float = None,
-        timeindex: int = None,
+        time: Union[int, float] = None,
     ):
         """
         A prescribed Volume to fetch specified label and fragment.
@@ -680,8 +680,8 @@ class FilteredVolume(Volume):
             name += f" - fragment: {fragment}"
         if threshold:
             name += f" - threshold: {threshold}"
-        if timeindex:
-            name += f" - time index: {timeindex}"
+        if time:
+            name += f" - time index: {time}"
         Volume.__init__(
             self,
             space_spec=parent_volume._space_spec,
@@ -691,7 +691,7 @@ class FilteredVolume(Volume):
         self.fragment = fragment
         self.label = label
         self.threshold = threshold
-        self.time_index = timeindex
+        self.time = time
         self._parent = parent_volume
 
     def fetch(
@@ -709,9 +709,10 @@ class FilteredVolume(Volume):
             kwargs["label"] = self.label
 
         result = super().fetch(format=format, **kwargs)
-        if self.time_index is not None:
+        if self.time is not None:
             if isinstance(result, Nifti1Image):
-                result = result.slicer[:, :, :, self.time_index]
+                timeslice = self._parent.time.to_list().index(self.time)
+                result = result.slicer[:, :, :, timeslice]
             else:
                 raise NotImplementedError
         if self.threshold is not None:
@@ -746,20 +747,20 @@ class FilteredVolume(Volume):
 class TimeSeriesVolume(Volume):
     def __init__(
         self,
-        time_index: np.ndarray,
+        time: np.ndarray,
         **kwargs,
     ):
         Volume.__init__(self, **kwargs)
-        self.time_index = time_index
+        self.time = time
 
     def __iter__(self) -> Iterable[FilteredVolume]:
         yield from (
-            FilteredVolume(parent_volume=self, timeindex=t)
-            for t in self.time_index
+            FilteredVolume(parent_volume=self, time=t)
+            for t in self.time
         )
 
     def get_timeindex(self, time_index: int):
-        return FilteredVolume(parent_volume=self, timeindex=time_index)
+        return FilteredVolume(parent_volume=self, time=time_index)
 
     def fetch(self, format: str = None, time_index: int = None, **kwargs):
         img = super().fetch(format, **kwargs)
@@ -911,7 +912,7 @@ def from_url(url_mapping: Union[str, Dict[str, str]], space: str, time_index: np
     )
     if time_index is None:
         return Volume(**kwargs)
-    return TimeSeriesVolume(time_index=time_index, **kwargs)
+    return TimeSeriesVolume(time=time_index, **kwargs)
 
 
 def from_file(filename: str, space: str, name: str, time_index: np.ndarray = None) -> Volume:
@@ -931,7 +932,7 @@ def from_file(filename: str, space: str, name: str, time_index: np.ndarray = Non
     )
     if time_index is None:
         return Volume(**kwargs)
-    return TimeSeriesVolume(time_index=time_index, **kwargs)
+    return TimeSeriesVolume(time=time_index, **kwargs)
 
 
 def from_nifti(nifti: Nifti1Image, space: str, name: str, time_index: np.ndarray = None) -> Union[Volume, TimeSeriesVolume]:
@@ -944,7 +945,7 @@ def from_nifti(nifti: Nifti1Image, space: str, name: str, time_index: np.ndarray
     )
     if time_index is None:
         return Volume(**kwargs)
-    return TimeSeriesVolume(time_index=time_index, **kwargs)
+    return TimeSeriesVolume(time=time_index, **kwargs)
 
 
 def from_array(
