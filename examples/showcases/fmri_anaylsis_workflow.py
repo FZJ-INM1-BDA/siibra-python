@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 Extrating Regionwise Signals From Activity Recording
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -78,18 +77,10 @@ restingstate_fmri = siibra.volumes.from_url(
 # confound regressors that can be used during signal extraction. Here we load
 # the confound files for both the working-memory and resting-state recordings
 # into pandas DataFrames. Later, we will use the CSF signal as an example confound.
-workingmemory_cofounds = pd.read_csv(
-    url_template.format(
-        file=f"{subject}_task-workingmemory_acq-seq_desc-confounds_regressors.tsv"
-    ),
-    sep="\t",
-)
-restingstate_cofounds = pd.read_csv(
-    url_template.format(
-        file=f"{subject}_task-restingstate_acq-seq_desc-confounds_regressors.tsv"
-    ),
-    sep="\t",
-)
+filename = f"{subject}_task-workingmemory_acq-seq_desc-confounds_regressors.tsv"
+workingmemory_confounds = pd.read_csv(url_template.format(file=filename), sep="\t")
+filename = f"{subject}_task-restingstate_acq-seq_desc-confounds_regressors.tsv"
+restingstate_confounds = pd.read_csv(url_template.format(file=filename), sep="\t")
 
 # %%
 # We now select the brain parcellation that will define the regions from which
@@ -108,7 +99,7 @@ julichbrain = siibra.get_map("julich 3.1", "mni152")
 # extraction.
 workingmemory_signals = julichbrain.extract_signals_with_nilearn(
     workingmemory_fmri,
-    confounds=workingmemory_cofounds["csf"].values,
+    confounds=workingmemory_confounds["csf"].values,
 )
 workingmemory_signals
 
@@ -139,7 +130,7 @@ imshow(workingmemory_signals[workingmemory_signals_stats.index[:20]].T)
 # the working-memory results.
 restingstate_signals = julichbrain.extract_signals_with_nilearn(
     restingstate_fmri,
-    confounds=restingstate_cofounds["csf"].values,
+    confounds=restingstate_confounds["csf"].values,
 )
 restingstate_signals_stats = restingstate_signals.describe().T.sort_values(
     "mean", ascending=False
@@ -183,9 +174,8 @@ restingstate_signals[union_sorted].boxplot(
     flierprops={"marker": ".", "markeredgecolor": "r", "markersize": 3},
 )
 plt.legend()
-plt.title(
-    f"Comparsion of top {len(union_sorted)} regions for working memory task - {subject}"
-)
+plt.title(f"Comparsion of top {len(union_sorted)} regions for {subject}")
+plt.tight_layout()
 
 
 # %%
@@ -196,7 +186,7 @@ plt.title(
 # signal intensity.
 workingmemory_signals_var = julichbrain.extract_signals_with_nilearn(
     workingmemory_fmri,
-    confounds=workingmemory_cofounds["csf"].values,
+    confounds=workingmemory_confounds["csf"].values,
     strategy="variance",
 )
 workingmemory_signals_var
