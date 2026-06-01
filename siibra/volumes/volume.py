@@ -120,6 +120,13 @@ class Volume(structure.BrainStructure):
         "gii-timeseries",
     ]
 
+    _MESH_DATA_FORMATS = [
+        "gii-label",
+        "gii-timeseries",
+        "freesurfer-annot",
+        "zip/freesurfer-annot",
+    ]  # these formats require template's surface
+
     SUPPORTED_FORMATS = IMAGE_FORMATS + MESH_FORMATS
 
     _FORMAT_LOOKUP = {
@@ -504,11 +511,12 @@ class Volume(structure.BrainStructure):
             fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
             for try_count in range(6):
                 try:
-                    if fmt in ["gii-label", "freesurfer-annot", "zip/freesurfer-annot"]:
-                        tpl = self.space.get_template(variant=kwargs.get('variant'))
+                    if fmt in self._MESH_DATA_FORMATS:
+                        # here, template mesh needs to be fetched from its space
+                        tpl = self.space.get_template(variant=kwargs.get("variant"))
                         mesh = tpl.fetch(**kwargs)
-                        labels = self._providers[fmt].fetch(**fwd_args)
-                        result = dict(**mesh, **labels)
+                        surface_data = self._providers[fmt].fetch(**fwd_args)
+                        result = dict(**mesh, **surface_data)
                     else:
                         result = self._providers[fmt].fetch(**fwd_args)
                 except requests.SiibraHttpRequestError as e:

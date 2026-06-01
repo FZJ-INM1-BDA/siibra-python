@@ -175,14 +175,26 @@ class GiftiTimeSeries(_provider.VolumeProvider, srctype="gii-timeseries"):
     def fragments(self):
         return [k for k in self._loaders if k is not None]
 
-    def fetch(self, fragment: str, **kwargs):
-        matched_frags = [frg for frg in self.fragments if fragment.lower() in frg.lower()]
-        if len(matched_frags) != 1:
-            raise ValueError(
-                f"Requested fragment '{fragment}' could not be matched uniquely "
-                f"to [{', '.join(self._loaders)}]"
+    def fetch(self, fragment: str = None, **kwargs):
+        if fragment is None:
+            matched_frags = list(self._loaders.keys())
+        else:
+            matched_frags = [frg for frg in self._loaders.keys() if fragment.lower() in frg.lower()]
+            if len(matched_frags) != 1:
+                raise ValueError(
+                    f"Requested fragment '{fragment}' could not be matched uniquely "
+                    f"to [{', '.join(self._loaders)}]"
+                )
+        timeseries_lengths = {len(self._loaders[frag].get().darrays) for frag in matched_frags}
+        assert len(timeseries_lengths) == 1
+        timeseries_length = next(iter(timeseries_lengths))
+        timeseries = [
+            np.hstack(
+                [self._loaders[frag].get().darrays[i].data for frag in self.fragments]
             )
-        return self._loaders[matched_frags[0]].get()
+            for i in range(timeseries_length)
+        ]
+        return {"timeseries": timeseries}
 
     def as_polydata(self, **kwargs):
         from nilearn.surface import PolyData
