@@ -191,7 +191,7 @@ class Volume(structure.BrainStructure):
         }
 
     @lru_cache(2)
-    def get_boundingbox(self, clip: bool = True, background: float = 0.0, **fetch_kwargs) -> "boundingbox.BoundingBox":
+    def get_boundingbox(self, clip: bool = False, background: float = 0.0, **fetch_kwargs) -> "boundingbox.BoundingBox":
         """
         Obtain the bounding box in physical coordinates of this volume.
 
@@ -235,18 +235,24 @@ class Volume(structure.BrainStructure):
             )
         providers = [self._providers[fmt]] if fmt else self._providers.values()
         for provider in providers:
+            if provider.srctype in self._MESH_DATA_FORMATS:
+                template = self.space.get_template(variant=fetch_kwargs.pop("variant", None))
+                bbox = template.get_boundingbox(format="mesh")
             try:
-                assert clip is False
                 bbox = provider.get_boundingbox(
                     background=background, **fetch_kwargs
                 )
-                if bbox.space is None:  # provider do not know the space!
-                    bbox._space_cached = self.space
-                    bbox.minpoint._space_cached = self.space
-                    bbox.maxpoint._space_cached = self.space
             except NotImplementedError:
                 continue
+
+            # provider do not know the space!
+            if bbox.space is None:
+                bbox._space_cached = self.space
+                bbox.minpoint._space_cached = self.space
+                bbox.maxpoint._space_cached = self.space
+
             return bbox
+
         raise RuntimeError(f"No bounding box specified by any volume provider of {str(self)}")
 
     @property
