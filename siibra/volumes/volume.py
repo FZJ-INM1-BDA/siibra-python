@@ -993,34 +993,108 @@ def from_file(
     return _from_mapping(files, space=space, format=format, time=time)
 
 
-def from_nifti(nifti: Nifti1Image, space: str, name: str, time_index: np.ndarray = None) -> Union[Volume, TimeSeriesVolume]:
-    """Builds a nifti volume from a Nifti image."""
-    spaceobj = get_registry("Space").get(space)
-    kwargs = dict(
-        space_spec={"@id": spaceobj.id},
-        providers=[_providers.NiftiProvider((np.asanyarray(nifti.dataobj), nifti.affine))],
-        name=name
+def from_nifti(
+    nifti: Nifti1Image,
+    space: str,
+    name: str,
+    time: np.ndarray = None,
+):
+    """Build a siibra volume from a NIfTI image.
+
+    The image is written to the local siibra cache and returned as a
+    file-backed volume. This avoids storing the image array directly in the
+    provider and can reduce memory pressure for large or proxy-backed NIfTI
+    images.
+
+    Parameters
+    ----------
+    nifti : nibabel.Nifti1Image
+        NIfTI image to wrap as a siibra volume.
+    space : str
+        Reference space of the volume.
+    name : str
+        Name assigned to the resulting volume. Must be non-empty.
+    time : numpy.ndarray, optional
+        Time axis for 4D or time-resolved data. If given, a
+        :class:`TimeSeriesVolume` is returned.
+
+    Returns
+    -------
+    Volume or TimeSeriesVolume
+        File-backed siibra volume using a cached NIfTI image.
+
+    Raises
+    ------
+    ValueError
+        If ``name`` is empty.
+    """
+    from ..retrieval import CACHE
+
+    if len(name) == 0:
+        raise ValueError("Please provide a non-empty string for `name`.")
+
+    filename = CACHE.build_filename(
+        f"{name}-{space}-{nifti.shape}-{nifti.affine.tolist()}",
+        ".nii",  # uncompressed, better for memory mapping than .nii.gz
     )
-    if time_index is None:
-        return Volume(**kwargs)
-    return TimeSeriesVolume(time=time_index, **kwargs)
+    nifti.to_filename(filename)
+
+    return from_file(
+        filename,
+        space=space,
+        format="nii",
+        time=time,
+    )
 
 
 def from_array(
     data: np.ndarray,
     affine: np.ndarray,
     space: Union[str, Dict[str, str]],
-    name: str
-) -> Volume:
-    """Builds a siibra volume from an array and an affine matrix."""
-    if len(name) == 0:
-        raise ValueError("Please provide a non-empty string for `name`")
-    spacespec = next(iter(space.values())) if isinstance(space, dict) else space
-    spaceobj = get_registry("Space").get(spacespec)
-    return Volume(
-        space_spec={"@id": spaceobj.id},
-        providers=[_providers.NiftiProvider((data, affine))],
+    name: str = None,
+    time: np.ndarray = None,
+):
+    """Build a siibra volume from an array and affine matrix.
+
+    The array is converted to a NIfTI image, written to the local siibra cache,
+    and returned as a file-backed volume. If ``name`` is not provided, a stable
+    name is generated from the array values, affine matrix, space
+    specification, and optional time axis.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        Voxel data of the volume.
+    affine : numpy.ndarray
+        4x4 affine matrix mapping voxel coordinates to world coordinates.
+    space : str or dict[str, str]
+        Reference space of the volume. If a mapping is provided, the first
+        value is used as the space specification.
+    name : str, optional
+        Name assigned to the resulting volume. If omitted, a deterministic name
+        is generated from ``data``, ``affine``, ``space``, and ``time``.
+    time : numpy.ndarray, optional
+        Time axis for 4D or time-resolved data. If given, a
+        :class:`TimeSeriesVolume` is returned.
+
+    Returns
+    -------
+    Volume or TimeSeriesVolume
+        File-backed siibra volume using a cached NIfTI image.
+    """
+    if name is None:
+        h = md5(str(np.ascontiguousarray(data)))
+        h.update(str(data.shape).encode("utf-8"))
+        h.update(str(data.dtype).encode("utf-8"))
+        h.update(str(time).encode("utf-8"))
+        h.update(data.view(np.uint8))
+        name = h.hexdigest()
+
+    return from_nifti(
+        nifti=Nifti1Image(data, affine),
+        space=space,
         name=name,
+        time=time,
     )
 
 
@@ -1028,62 +1102,115 @@ def from_pointcloud(
     points: pointcloud.PointCloud,
     label: int = None,
     target: Volume = None,
-    normalize=True,
-    **kwargs
+    normalize: bool = True,
+    *,
+    clip_out_of_bounds: bool = False,
+    **kwargs,
 ) -> Volume:
-    """
-    Get the kernel density estimate as a volume from the points using their
-    average uncertainty on target volume.
+    """Build a kernel-density volume from a point cloud.
+
+    The point coordinates are transformed into the voxel space of a target
+    volume. A voxel-count image is created, smoothed with a Gaussian kernel
+    using the average point uncertainty as bandwidth, optionally normalized,
+    and returned as a cached file-backed siibra volume.
 
     Parameters
     ----------
-    points: pointcloud.PointCloud
-    label: int, default: None
-        If None, finds the KDE for all points. Otherwise, selects the points
-        labelled with this integer value.
-    target: Volume, default: None
-        If None, the template of the space points are defined on will be used.
-    normalize: bool, default: True
+    points : pointcloud.PointCloud
+        Point cloud used to generate the kernel-density estimate.
+    label : int, optional
+        If provided, only points with this label are used. If omitted, all
+        points are used.
+    target : Volume, optional
+        Target volume defining the output grid and affine. If omitted, the
+        template of ``points.space`` is used.
+    normalize : bool, default: True
+        If True, divide the smoothed density image by its sum.
+    clip_out_of_bounds : bool, default: False
+        If False, raise an error when transformed points fall outside the
+        target volume. If True, discard out-of-bounds points.
+    **kwargs
+        Additional keyword arguments passed to ``target.fetch``.
+
+    Returns
+    -------
+    Volume
+        File-backed siibra volume containing the point-cloud KDE.
 
     Raises
     ------
-    RuntimeError
-        If no points with labels found
+    ValueError
+        If ``label`` is provided but no points with that label are found.
+    ValueError
+        If transformed points are outside the target volume and
+        ``clip_out_of_bounds`` is False.
     """
     if target is None:
         target = points.space.get_template()
+
     targetimg = target.fetch(**kwargs)
+    assert isinstance(targetimg, Nifti1Image)
+    shape = targetimg.shape
+
     voxels = points.transform(np.linalg.inv(targetimg.affine), space=None)
 
     if (label is None) or (points.labels is None):
-        selection = [True for _ in points]
+        selection = np.ones(len(points), dtype=bool)
     else:
-        assert label in points.labels, f"No points with the label {label} in the set: {set(points.labels)}"
+        if label not in points.labels:
+            raise ValueError(
+                f"No points with the label {label} in the set: {set(points.labels)}"
+            )
         selection = points.labels == label
 
-    voxelcount_img = np.zeros_like(targetimg.get_fdata())
+    coords = voxels.coordinates[selection].astype(np.intp, copy=False)
+
+    in_bounds = np.all((coords >= 0) & (coords < np.asarray(shape)), axis=1)
+    if not np.all(in_bounds):
+        if clip_out_of_bounds:
+            coords = coords[in_bounds]
+        else:
+            n_bad = np.count_nonzero(~in_bounds)
+            raise ValueError(
+                f"{n_bad} transformed point(s) lie outside the target volume. "
+                "Use clip_out_of_bounds=True to discard them."
+            )
+
+    voxelcount_img = np.zeros(shape, dtype=np.float32)
+
     unique_coords, counts = np.unique(
-        np.array(voxels.as_list(), dtype='int')[selection, :],
+        coords,
         axis=0,
-        return_counts=True
+        return_counts=True,
     )
     voxelcount_img[tuple(unique_coords.T)] = counts
 
-    # TODO: consider how to handle pointclouds with varied sigma_mm
-    sigmas = np.array(points.sigma_mm)[selection]
-    bandwidth = np.mean(sigmas)
-    if len(np.unique(sigmas)) > 1:
-        logger.warning(f"KDE of pointcloud uses average bandwidth {bandwidth} instead of the points' individual sigmas.")
+    sigmas_mm = np.asarray(points.sigma_mm)[selection]
+    bandwidth_mm = np.mean(sigmas_mm)
 
-    filtered_arr = filters.gaussian(voxelcount_img, bandwidth)
+    if len(np.unique(sigmas_mm)) > 1:
+        logger.warning(
+            f"KDE of pointcloud uses average bandwidth {bandwidth_mm} mm "
+            "instead of the points' individual sigmas."
+        )
+
+    voxel_sizes = np.sqrt((targetimg.affine[:3, :3] ** 2).sum(axis=0))
+    sigma_vox = bandwidth_mm / voxel_sizes
+
+    filtered_arr = filters.gaussian(
+        voxelcount_img,
+        sigma=sigma_vox,
+        preserve_range=True,
+    ).astype(np.float32, copy=False)
+
     if normalize:
-        filtered_arr /= filtered_arr.sum()
+        filtered_arr /= filtered_arr.sum(dtype=np.float64)
 
     return from_array(
         data=filtered_arr,
         affine=targetimg.affine,
         space=target.space,
-        name=f'KDE map of {points}{f"labelled {label}" if label else ""}'
+        name=f'KDE map of {points}{f" labelled {label}" if label is not None else ""}',
     )
 
 

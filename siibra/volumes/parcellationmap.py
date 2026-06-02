@@ -576,7 +576,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             parcellation_spec=self._parcellation_spec,
             indices=region_indices,
             volumes=[_volume.from_array(
-                result_arr, result_affine, self._space_spec, name=self.name + " compressed"
+                result_arr, result_affine, self.space.id, name=self.name + " compressed"
             )]
         )
 
