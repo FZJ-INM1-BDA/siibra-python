@@ -19,9 +19,11 @@ from dataclasses import dataclass
 from time import sleep
 import json
 from functools import lru_cache
+from hashlib import md5
+from pathlib import Path
 
 import numpy as np
-from nibabel import Nifti1Image, GiftiImage, load as nib_load
+from nibabel import Nifti1Image
 from skimage import feature as skimage_feature, filters
 
 from . import providers as _providers
@@ -110,16 +112,6 @@ class Volume(structure.BrainStructure):
         "neuroglancer/precomputed"
     ]
 
-    MESH_FORMATS = [
-        "neuroglancer/precompmesh",
-        "neuroglancer/precompmesh/surface",
-        "gii-mesh",
-        "gii-label",
-        "freesurfer-annot",
-        "zip/freesurfer-annot",
-        "gii-timeseries",
-    ]
-
     _MESH_DATA_FORMATS = [
         "gii-label",
         "gii-timeseries",
@@ -127,7 +119,14 @@ class Volume(structure.BrainStructure):
         "zip/freesurfer-annot",
     ]  # these formats require template's surface
 
+    MESH_FORMATS = [
+        "neuroglancer/precompmesh",
+        "neuroglancer/precompmesh/surface",
+        "gii-mesh",
+    ] + _MESH_DATA_FORMATS
+
     SUPPORTED_FORMATS = IMAGE_FORMATS + MESH_FORMATS
+    _TIME_SERIES_FORMATS = {"nii", "zip/nii", "gii-timeseries"}
 
     _FORMAT_LOOKUP = {
         "image": IMAGE_FORMATS,
@@ -237,13 +236,14 @@ class Volume(structure.BrainStructure):
         for provider in providers:
             if provider.srctype in self._MESH_DATA_FORMATS:
                 template = self.space.get_template(variant=fetch_kwargs.pop("variant", None))
-                bbox = template.get_boundingbox(format="mesh")
-            try:
-                bbox = provider.get_boundingbox(
-                    background=background, **fetch_kwargs
-                )
-            except NotImplementedError:
-                continue
+                bbox = template.get_boundingbox()
+            else:
+                try:
+                    bbox = provider.get_boundingbox(
+                        background=background, **fetch_kwargs
+                    )
+                except NotImplementedError:
+                    continue
 
             # provider do not know the space!
             if bbox.space is None:
@@ -890,60 +890,107 @@ class Subvolume(Volume):
         )
 
 
-def from_url(url_mapping: Union[str, Dict[str, str]], space: str, time_index: np.ndarray = None) -> Volume:
-    """Builds a nifti volume from a nifti served from an online source."""
-    from urllib.parse import urlparse
-    from pathlib import PurePosixPath
-    from hashlib import md5
+def _determine_provider(format: str, is_timeseries: bool = False):
+    if format not in Volume.SUPPORTED_FORMATS:
+        raise ValueError(f"Unsupported format {format!r}. Expected one of: '{Volume.SUPPORTED_FORMATS}'.")
+    if is_timeseries and format not in Volume._TIME_SERIES_FORMATS:
+        raise ValueError(f"{format} does not support time indexing.")
 
-    if isinstance(url_mapping, str):
-        url_mapping = {None: url_mapping}
-    elif len(url_mapping) == 1:
-        _, url = tuple(url_mapping.items())[0]
-        url_mapping = {None: url}
+    for cls in _providers.provider.VolumeProvider._SUBCLASSES:
+        if cls.srctype == format:
+            return cls
 
-    suffixes = set()
-    for frag_url in url_mapping.values():
-        assert frag_url[:8] == "https://"
-        path = PurePosixPath(urlparse(frag_url).path)
-        suffixes.update(path.suffixes[-2:])
+    raise ValueError(f"No provider registered for format {format!r}.")
 
-    if ".nii" in suffixes:
-        provider = _providers.NiftiProvider
-    elif ".gii" in suffixes:
-        provider = _providers.GiftiTimeSeries
-    else:
-        raise ValueError(f"{path.suffixes} is not supported by siibra")
+
+def _from_mapping(
+    mapping: Dict[str, str],
+    space: str,
+    *,
+    format: str,
+    time: np.ndarray = None,
+) -> Union[Volume, TimeSeriesVolume]:
+    provider_cls = _determine_provider(format, time is not None)
 
     spaceobj = get_registry("Space").get(space)
     kwargs = dict(
         space_spec={"@id": spaceobj.id},
-        providers=[provider(url_mapping)],
-        name=md5(str(url_mapping).encode("utf-8")).hexdigest(),
+        providers=[provider_cls(mapping)],
+        name=md5(str(mapping).encode("utf-8")).hexdigest(),
     )
-    if time_index is None:
+
+    if time is None:
         return Volume(**kwargs)
-    return TimeSeriesVolume(time=time_index, **kwargs)
+
+    return TimeSeriesVolume(time=time, **kwargs)
 
 
-def from_file(filename: str, space: str, name: str, time_index: np.ndarray = None) -> Volume:
-    """Builds a nifti volume from a filename."""
-    spaceobj = get_registry("Space").get(space)
-    img = nib_load(filename)
-    if isinstance(img, Nifti1Image):
-        provider = _providers.NiftiProvider
-    elif isinstance(img, GiftiImage):
-        provider = _providers.GiftiTimeSeries
-    else:
-        raise ValueError(f"{type(img)} is not supported by siibra")
-    kwargs = dict(
-        space_spec={"@id": spaceobj.id},
-        providers=[provider(filename)],
-        name=filename if name is None else name,
-    )
-    if time_index is None:
-        return Volume(**kwargs)
-    return TimeSeriesVolume(time=time_index, **kwargs)
+def from_url(
+    urls: Union[str, Dict[str, str]],
+    space: str,
+    *,
+    format: str = "nii",
+    time: np.ndarray = None,
+):
+    """Build a volume from files served from online (https) sources.
+
+    Parameters
+    ----------
+    urls: str or dict[str, str]
+        URL to the online image data, or a mapping from fragment names to URLs.
+        A single URL is internally treated as an unfragmented image.
+    space: str
+        Reference space of the volume.
+    format: str, default: "nii"
+        Examples include ``"nii"``, ``"gii-timeseries"``, ``"gii-label"``, and
+        ``"gii-mesh"``. See Volume.SUPPORTED_FORMATS.
+    time: numpy.ndarray, optional
+        Time axis. If given, a `TimeSeriesVolume` is returned.
+
+    Returns
+    -------
+    Volume
+        `TimeSeriesVolume` if `time` values are provided, otherwise a `Volume`
+    """
+    if isinstance(urls, str):
+        urls = {None: urls}
+    for url in urls.values():
+        assert url.startswith("https://"), ValueError(f"Expected an https URL, got: {url!r}")
+
+    return _from_mapping(urls, space=space, format=format, time=time)
+
+
+def from_file(
+    files: Union[str, Path, Dict[str, Union[str, Path]]],
+    space: str,
+    *,
+    format: str = "nii",
+    time: np.ndarray = None,
+):
+    """Build a volume from local files.
+
+    Parameters
+    ----------
+    files: str, pathlib.Path, or dict[str, str | pathlib.Path]
+        Local image file, or a mapping from fragment names to local image files.
+        A single file is internally treated as an unfragmented image.
+    space: str
+        Reference space of the volume.
+    format: str, default: "nii"
+        Examples include ``"nii"``, ``"gii-timeseries"``, ``"gii-label"``, and
+        ``"gii-mesh"``. See Volume.SUPPORTED_FORMATS.
+    time: numpy.ndarray, optional
+        Time axis. If given, a `TimeSeriesVolume` is returned.
+
+    Returns
+    -------
+    Volume
+        `TimeSeriesVolume` if `time` values are provided, otherwise a `Volume`
+    """
+    if isinstance(files, (str, Path)):
+        files = {None: files if isinstance(files, str) else files.as_posix()}
+
+    return _from_mapping(files, space=space, format=format, time=time)
 
 
 def from_nifti(nifti: Nifti1Image, space: str, name: str, time_index: np.ndarray = None) -> Union[Volume, TimeSeriesVolume]:

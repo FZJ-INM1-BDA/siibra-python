@@ -54,10 +54,10 @@ url_template = dataset_base_url + folder + "{file}"
 # MNI152 space, which is a commonly used standard anatomical reference space.
 # The image is wrapped as a siibra volume using siibra.volumes.from_url,
 # which allows the data to be passed directly to siibra-based workflows.
-# The time_index=[] argument indicates that the full 4D time series should be used.
+# The time=[] argument indicates that the full 4D time series should be used.
 file = f"{subject}_task-workingmemory_acq-seq_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz"
 workingmemory_fmri = siibra.volumes.from_url(
-    url_template.format(file=file), space="mni152", time_index=[]
+    url_template.format(file=file), space="mni152", time=[]
 )  # TODO: need to get the time index from the dataset
 print(type(workingmemory_fmri))
 
@@ -68,7 +68,7 @@ print(type(workingmemory_fmri))
 # recordings using the same brain atlas.
 file = f"{subject}_task-restingstate_acq-seq_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz"
 restingstate_fmri = siibra.volumes.from_url(
-    url_template.format(file=file), space="mni152", time_index=[]
+    url_template.format(file=file), space="mni152", time=[]
 )  # TODO: need to get the time index from the dataset
 
 
@@ -220,8 +220,9 @@ url_template = dataset_base_url + folder + file_template
 
 giivol = siibra.volumes.from_url(
     {h: url_template.format(h[0]) for h in ["Left", "Right"]},
-    "fsaverage5",
-    time_index=list(range(160)),
+    space="fsaverage5",
+    format="gii-timeseries",
+    time=list(range(160)),
 )
 signals = julichbrain_fs5.extract_signals_with_nilearn(
     giivol, surface_variant=fs_variant
@@ -242,7 +243,7 @@ plotting.view_surf(
 
 
 # %%
-config_output_folder = "../../../../custom-configurations"
+config_output_folder = "./custom-configurations"
 
 
 def create_config(subject, task):
