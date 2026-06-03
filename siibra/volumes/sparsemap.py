@@ -451,7 +451,7 @@ class SparseMap(parcellationmap.Map):
 
                 assignments.append(
                     parcellationmap.AssignImageResult(
-                        time_index=time_index,
+                        time=time_index,
                         input_structure=mode,
                         centroid=tuple(position.round(2)),
                         volume=volume,

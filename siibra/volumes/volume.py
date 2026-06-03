@@ -666,7 +666,7 @@ class FilteredVolume(Volume):
         label: int = None,
         fragment: str = None,
         threshold: float = None,
-        time: Union[int, float] = None,
+        timepoint: Union[int, float] = None,
     ):
         """
         A prescribed Volume to fetch specified label and fragment.
@@ -691,8 +691,8 @@ class FilteredVolume(Volume):
             name += f" - fragment: {fragment}"
         if threshold:
             name += f" - threshold: {threshold}"
-        if time:
-            name += f" - time index: {time}"
+        if timepoint:
+            name += f" - time point: {timepoint}"
         Volume.__init__(
             self,
             space_spec=parent_volume._space_spec,
@@ -702,7 +702,7 @@ class FilteredVolume(Volume):
         self.fragment = fragment
         self.label = label
         self.threshold = threshold
-        self.time = time
+        self.timepoint = timepoint
         self._parent = parent_volume
 
     def fetch(
@@ -720,10 +720,11 @@ class FilteredVolume(Volume):
             kwargs["label"] = self.label
 
         result = super().fetch(format=format, **kwargs)
-        if self.time is not None:
+        if self.timepoint is not None:
+            assert isinstance(self._parent, TimeSeriesVolume)
+            timeindex = self._parent.time.to_list().index(self.timepoint)
             if isinstance(result, Nifti1Image):
-                timeslice = self._parent.time.to_list().index(self.time)
-                result = result.slicer[:, :, :, timeslice]
+                result = result.slicer[:, :, :, timeindex]
             else:
                 raise NotImplementedError
         if self.threshold is not None:
@@ -766,16 +767,18 @@ class TimeSeriesVolume(Volume):
 
     def __iter__(self) -> Iterable[FilteredVolume]:
         yield from (
-            FilteredVolume(parent_volume=self, time=t)
+            FilteredVolume(parent_volume=self, timepoint=t)
             for t in self.time
         )
 
-    def get_timeindex(self, time_index: int):
-        return FilteredVolume(parent_volume=self, time=time_index)
+    def get_timepoint(self, timepoint: Union[int, float, None]) -> FilteredVolume:
+        return FilteredVolume(parent_volume=self, timepoint=timepoint)
 
-    def fetch(self, format: str = None, time_index: int = None, **kwargs):
-        img = super().fetch(format, **kwargs)
-        return img.slicer[:, :, :, time_index] if time_index else img
+    def fetch(self, format: str = None, timepoint: Union[int, float, None] = None, **kwargs):
+        if timepoint is None:
+            return super().fetch(format, **kwargs)
+        self.get_timepoint(timepoint=timepoint)
+        return super().fetch(format, **kwargs)
 
 
 class ReducedVolume(Volume):

@@ -57,7 +57,7 @@ class MapAssignment:
     volume: int
     fragment: str
     map_value: np.ndarray
-    time_index: Union[int, None]
+    time: Union[int, float, None]
 
 
 @dataclass
@@ -996,7 +996,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         for a in assignments:
             item_to_append = {
                 "input structure": a.input_structure,
-                "time index": a.time_index,
+                "time": a.time,
                 "centroid": a.centroid,
                 "volume": a.volume,
                 "fragment": a.fragment,
@@ -1085,7 +1085,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 volume=vol,
                                 fragment=frag,
                                 map_value=value,
-                                time_index=None,
+                                time=None,
                             )
                         )
                 return assignments
@@ -1113,7 +1113,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 volume=vol,
                                 fragment=frag,
                                 map_value=value,
-                                time_index=None,
+                                time=None,
                             )
                         )
             else:
@@ -1217,7 +1217,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 volume=index.volume,
                                 fragment=index.fragment,
                                 map_value=index.label,
-                                time_index=time_index,
+                                time=time_index,
                                 **asdict(scores)
                             )
                         )
@@ -1237,7 +1237,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 v_t,
                 lower_threshold=lower_threshold,
                 split_components=split_components,
-                time_index=v_t.time_index,
+                time_index=v_t.time,
                 **kwargs
             )
             assignments.extend(assignments_t)
