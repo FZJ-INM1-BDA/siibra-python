@@ -21,10 +21,6 @@ such as fMRI, PET, and others. This notebook downloads two fMRI images from
 AOMIC-PIOP2 dataset (https://openneuro.org/datasets/ds002790/versions/2.0.0)
 and compares the extraction results for different tasks.
 """
-
-# %% TODO:
-# - Choose an output type for map.colorize if it is a surface map
-
 # %%
 # We start by importing the Python packages used in this notebook. siibra
 # provides access to brain atlases, spaces, maps, and datasets.
@@ -168,12 +164,14 @@ workingmemory_signals[union_sorted].boxplot(
     color="b",
     label="working memory",
     flierprops={"marker": ".", "markeredgecolor": "b", "markersize": 3},
+    figsize=(10, 10)
 )
 restingstate_signals[union_sorted].boxplot(
     rot=90,
     color="r",
     label="resting state",
     flierprops={"marker": ".", "markeredgecolor": "r", "markersize": 3},
+    figsize=(10, 10)
 )
 plt.legend()
 plt.title(f"Comparsion of top {len(union_sorted)} regions for {subject}")
@@ -263,18 +261,20 @@ def create_config(subject, task):
         },
         "time": {"start": 0, "stop": 10, "num": 160},
     }
+    # discard unavailble data
     for url in conf["providers"]["gii-timeseries"].values():
         req = requests.get(url, stream=True)
         if not req.ok:
             return
 
+    # create json config for future reuse
     filepath = f"{config_output_folder}/features/images/vois/fmri/{file_prefix}.json"
     pathlib.Path(filepath).parent.mkdir(parents=True, exist_ok=True)
     with open(filepath, "wt") as fp:
         json.dump(conf, fp=fp, indent="\t")
 
 
-num_of_subjects = 226
+num_of_subjects = 10
 tasks = ["restingstate", "workingmemory", "stopsignal"]
 for task in tasks:
     for subject in range(num_of_subjects):
@@ -288,42 +288,45 @@ print(len(fmri_vols))
 
 
 # %%
-signal_ensamble_averages = {}
+regional_signal_averages = {}
 top_regions = pd.Index([])
 for task in tasks:
-    signal_ensamble_averages[task] = pd.concat(
+    regional_signal_averages[task] = pd.concat(
         (
             julichbrain_fs5.extract_signals_with_nilearn(
-                fmri_vol, surface_variant=fs_variant
-            ).mean()
+                fmri_vol,
+                strategy="mean",  # mean signal value per region per timepoint
+                surface_variant=fs_variant,
+            ).mean()  # std over time per region
             for fmri_vol in fmri_vols
             if task in fmri_vol.name
         ),
         axis=1,
     )
-    signal_ensamble_averages[task]["mean"] = signal_ensamble_averages[task].mean(axis=1)
-    signal_ensamble_averages[task].sort_values("mean", ascending=False, inplace=True)
-    task_top_regions = signal_ensamble_averages[task].index[:25]
+    # compute the average of all subjects
+    regional_signal_averages[task]["mean"] = regional_signal_averages[task].mean(axis=1)
+
+    # find top 25 regions
+    task_top_regions = regional_signal_averages[task].sort_values("mean", ascending=False).index[:25]
     top_regions = top_regions.union(task_top_regions)
 
 
 # %%
 top_regions_sorted = (
-    signal_ensamble_averages["stopsignal"]
+    regional_signal_averages["stopsignal"]
     .loc[top_regions, :]
     .sort_values("mean", ascending=False)
     .index
 )
 colors = ["r", "g", "b"]
 for i, task in enumerate(tasks):
-    signal_ensamble_averages[task].drop(columns="mean", inplace=True)
-    data = signal_ensamble_averages[task].loc[top_regions_sorted, :].T
-    data.boxplot(
+    regional_signal_averages[task].drop(columns="mean", inplace=True)
+    regional_signal_averages[task].loc[top_regions_sorted, :].T.boxplot(
         rot=90,
         label=task,
         flierprops={"marker": ".", "markersize": 1},
         color=colors[i],
-        figsize=(15, 10)
+        figsize=(12, 10)
     )
 plt.legend()
 plt.title("Comparsion of top regions for between tasks across subjects")
@@ -335,7 +338,7 @@ plt.show()
 fs_variant = "pial"
 for task in tasks:
     surf_im = julichbrain_fs5.colorize(
-        signal_ensamble_averages[task].mean(axis=1),
+        regional_signal_averages[task].mean(axis=1),
         surface_variant=fs_variant
     )
     plotting.plot_surf(
