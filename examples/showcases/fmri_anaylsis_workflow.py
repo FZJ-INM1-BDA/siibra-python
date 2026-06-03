@@ -268,7 +268,7 @@ def create_config(subject, task):
     return filepath
 
 
-num_of_subjects = 226
+num_of_subjects = 10
 tasks = ["restingstate", "workingmemory", "stopsignal"]
 for task in tasks:
     for subject in range(num_of_subjects):
@@ -284,14 +284,23 @@ print(len(fmri_vols))
 # %%
 signal_ensamble_averages = {}
 top_regions = pd.Index([])
+sample_counts = {}
 for task in tasks:
-    signal_ensamble_averages[task] = sum(
-        julichbrain_fs5.extract_signals_with_nilearn(
-            fmri, surface_variant=fs_variant
-        )
-        for fmri in fmri_vols
-    )
-    signal_ensamble_averages[task] /= num_of_subjects
+    signals = None
+    sample_counts[task] = 0
+    for fmri in fmri_vols:
+        try:
+            if signals is None:
+                signal_ensamble_averages[task] = julichbrain_fs5.extract_signals_with_nilearn(
+                    fmri, surface_variant=fs_variant
+                )
+            else:
+                signal_ensamble_averages[task] += signals
+                sample_counts[task] += 1
+        except:
+            print(f"FAILED: {fmri}")
+            continue
+    signal_ensamble_averages[task] /= sample_counts[task]
 
     task_top_regions = (
         signal_ensamble_averages[task]
