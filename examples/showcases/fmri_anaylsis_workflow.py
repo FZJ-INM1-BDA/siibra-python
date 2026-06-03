@@ -38,6 +38,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import json
 import pathlib
+import requests
 
 # %%
 # The fMRI data used in this example comes from the AOMIC-PIOP2 dataset hosted
@@ -215,7 +216,9 @@ difumo64_pmaps.extract_signals_with_nilearn(workingmemory_fmri)
 # A similar workflow for surface-based fMRI data is possible.
 julichbrain_fs5 = siibra.get_map("julich 3.1", "fsaverage5")
 fs_variant = "inflated"
-file_template = f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-" + "{}.func.gii"
+file_template = (
+    f"{subject}_task-workingmemory_acq-seq_space-fsaverage5_hemi-" + "{}.func.gii"
+)
 url_template = dataset_base_url + folder + file_template
 
 giivol = siibra.volumes.from_url(
@@ -260,19 +263,22 @@ def create_config(subject, task):
         },
         "time": {"start": 0, "stop": 10, "num": 160},
     }
+    for url in conf["providers"]["gii-timeseries"].values():
+        req = requests.get(url, stream=True)
+        if not req.ok:
+            return
+
     filepath = f"{config_output_folder}/features/images/vois/fmri/{file_prefix}.json"
     pathlib.Path(filepath).parent.mkdir(parents=True, exist_ok=True)
     with open(filepath, "wt") as fp:
         json.dump(conf, fp=fp, indent="\t")
 
-    return filepath
 
-
-num_of_subjects = 10
+num_of_subjects = 226
 tasks = ["restingstate", "workingmemory", "stopsignal"]
 for task in tasks:
     for subject in range(num_of_subjects):
-        conf = create_config(f"sub-{subject + 1:04d}", task)
+        create_config(f"sub-{subject + 1:04d}", task)
 
 
 # %%
@@ -284,61 +290,57 @@ print(len(fmri_vols))
 # %%
 signal_ensamble_averages = {}
 top_regions = pd.Index([])
-sample_counts = {}
 for task in tasks:
-    signals = None
-    sample_counts[task] = 0
-    for fmri in fmri_vols:
-        try:
-            if signals is None:
-                signal_ensamble_averages[task] = julichbrain_fs5.extract_signals_with_nilearn(
-                    fmri, surface_variant=fs_variant
-                )
-            else:
-                signal_ensamble_averages[task] += signals
-                sample_counts[task] += 1
-        except:
-            print(f"FAILED: {fmri}")
-            continue
-    signal_ensamble_averages[task] /= sample_counts[task]
-
-    task_top_regions = (
-        signal_ensamble_averages[task]
-        .describe()
-        .T.sort_values("mean", ascending=False)
-        .index[:25]
+    signal_ensamble_averages[task] = pd.concat(
+        (
+            julichbrain_fs5.extract_signals_with_nilearn(
+                fmri_vol, surface_variant=fs_variant
+            ).mean()
+            for fmri_vol in fmri_vols
+            if task in fmri_vol.name
+        ),
+        axis=1,
     )
+    signal_ensamble_averages[task]["mean"] = signal_ensamble_averages[task].mean(axis=1)
+    signal_ensamble_averages[task].sort_values("mean", ascending=False, inplace=True)
+    task_top_regions = signal_ensamble_averages[task].index[:25]
     top_regions = top_regions.union(task_top_regions)
+
 
 # %%
 top_regions_sorted = (
     signal_ensamble_averages["stopsignal"]
-    .describe()
     .loc[top_regions, :]
     .sort_values("mean", ascending=False)
     .index
 )
-for task in tasks:
-    signal_ensamble_averages[top_regions_sorted].boxplot(
+colors = ["r", "g", "b"]
+for i, task in enumerate(tasks):
+    signal_ensamble_averages[task].drop(columns="mean", inplace=True)
+    data = signal_ensamble_averages[task].loc[top_regions_sorted, :].T
+    data.boxplot(
         rot=90,
         label=task,
         flierprops={"marker": ".", "markersize": 1},
+        color=colors[i],
+        figsize=(15, 10)
     )
 plt.legend()
 plt.title("Comparsion of top regions for between tasks across subjects")
 plt.tight_layout()
+plt.show()
 
 
 # %%
 fs_variant = "pial"
 for task in tasks:
     surf_im = julichbrain_fs5.colorize(
-        signal_ensamble_averages[top_regions_sorted].mean(), surface_variant=fs_variant
+        signal_ensamble_averages[task].mean(axis=1),
+        surface_variant=fs_variant
     )
     plotting.plot_surf(
         surf_map=surf_im,
         hemi="both",
-        symmetric_cmap=False,
         cmap="magma",
         title=task,
     )
