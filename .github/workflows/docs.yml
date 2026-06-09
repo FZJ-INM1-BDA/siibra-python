@@ -2,7 +2,7 @@ name: '[Docs] Build docs and upload artifacts'
 
 on:
   push:
-    branches: [ 'main', 'doc_*', 'v1' ]
+    branches: [ 'main', 'doc_*', 'v1', 'fix_ng_resolution_resolve' ]
   release:
     types: [ 'published' ]
 
