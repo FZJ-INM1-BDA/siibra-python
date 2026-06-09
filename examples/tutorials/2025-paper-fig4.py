@@ -85,6 +85,7 @@ for i, region in enumerate(regions):
 # %%
 # Now, for further insight, query for expressions of a selection of genes coding
 # for these receptors.
+# :ignore:
 genes = ["CHRM1", "CHRM2", "CHRM3", "HTR1A", "HTR2A", "DRD1"]
 fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(7, 3))
 for i, region in enumerate(regions):

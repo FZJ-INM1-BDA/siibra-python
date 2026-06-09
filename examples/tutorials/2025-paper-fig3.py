@@ -172,6 +172,7 @@ fp.plot(ax=axs, capsize=4)
 
 # %%
 # Now, query for gene expressions for the same region
+# :ignore:
 genes = ["gabarapl1", "gabarapl2", "maoa", "tac1"]
 gene_expressions = siibra.features.get(selected_region, "gene expressions", gene=genes)
 print("\n".join(gene_expressions[0].urls))
