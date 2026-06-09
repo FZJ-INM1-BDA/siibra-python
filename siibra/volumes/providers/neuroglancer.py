@@ -371,6 +371,12 @@ class NeuroglancerVolume:
     def is_float(self):
         return self.dtype.kind == "f"
 
+    def determine_section(self):
+        for i in range(3):
+            if len({s.res_nm[i] for s in self.scales}) == 1:
+                return i
+        return None
+
     def _select_scale(
         self,
         resolution_mm: Union[None, float, Tuple[float, float, float]],
@@ -395,33 +401,41 @@ class NeuroglancerVolume:
         if resolution_mm is None or (isinstance(resolution_mm, (int, float)) and resolution_mm < 0):
             chosen_scale = min(self.scales)
         else:
-            suitable_scales = sorted([s for s in self.scales if s.resolves(resolution_mm)])
+            suitable_scales = sorted([
+                s for s in self.scales
+                if s.resolves(resolution_mm, self.determine_section())
+            ])
             if not suitable_scales:
                 raise ValueError(
                     f"Requested resolution {resolution_mm} is not feasible. Available resolutions: {[s.res_mm for s in self.scales]}"
                 )
             chosen_scale = max(suitable_scales)  # `max` for choosing the closest resolution
-            if not all('{:.6f}'.format(r).startswith(str(resolution_mm)) for r in chosen_scale.res_mm):
-                logger.info(f"Closest resolution to requested is {chosen_scale.res_mm}")
+            if not all(
+                "{:.6f}".format(r).startswith(str(resolution_mm))
+                for i, r in enumerate(chosen_scale.res_mm)
+                if i != self.determine_section()
+            ):
+                logger.info(f"Closest resolution to requested (resolution_mm={resolution_mm}) is {chosen_scale.res_mm}")
 
         # Further reduce resolution to fit into max_bytes if needed.
         scale_changed = False
-        while chosen_scale is not None and chosen_scale._estimate_nbytes(bbox) > max_bytes:
-            next_scale = chosen_scale.next()
+        feasible_scale = chosen_scale
+        while feasible_scale._estimate_nbytes(bbox) > max_bytes:
+            next_scale = feasible_scale.next()
             if not next_scale:
                 raise RuntimeError(
                     f"Infeasible resolution within {max_bytes / 1024**3} GiB."
                 )
-            chosen_scale = next_scale
+            feasible_scale = next_scale
             scale_changed = True
 
         if scale_changed:
             logger.warning((
-                f"Changed resolution from {chosen_scale.res_mm} to {chosen_scale.res_mm} to allowed download size. ",
+                f"Changed resolution from {chosen_scale.res_mm} to {feasible_scale.res_mm} to allowed download size. ",
                 "Increase `max_bytes` to allow higher-resolution downloads."
             ))
 
-        return chosen_scale
+        return feasible_scale
 
 
 class NeuroglancerScale:
@@ -442,17 +456,30 @@ class NeuroglancerScale:
     def res_mm(self):
         return self.res_nm / 1e6
 
-    def resolves(self, resolution_mm: Union[float, Tuple[float, float, float]]):
+    def resolves(
+        self,
+        resolution_mm: Union[float, Tuple[float, float, float]],
+        ignore_axis: Union[int, None] = None
+    ):
         """Test whether the resolution of this scale is sufficient to provide the given resolution."""
-        if isinstance(resolution_mm, tuple):
-            return all(self.res_nm / 1e6 <= resolution_mm)
-        if resolution_mm < 0:  # preserve legacy behaviour
-            return True
-        return all(r / 1e6 <= resolution_mm for r in self.res_nm)
+        if isinstance(resolution_mm, (int, float)):
+            if resolution_mm < 0:  # preserve legacy behaviour
+                return True
+            requested = np.full(3, float(resolution_mm))
+        else:
+            requested = np.asarray(resolution_mm, dtype=float)
+
+        mask = np.ones(3, dtype=bool)
+        if ignore_axis is not None:
+            mask[ignore_axis] = False
+        return bool(np.all(self.res_mm[mask] <= requested[mask]))
 
     def __lt__(self, other: "NeuroglancerScale"):
         """Sort scales by resolution."""
-        return all(self.res_nm[i] < other.res_nm[i] for i in range(3))
+        return (
+            np.all(self.res_nm <= other.res_nm)
+            and np.any(self.res_nm < other.res_nm)
+        )
 
     def __repr__(self):
         return str(self)
@@ -496,7 +523,7 @@ class NeuroglancerScale:
         affine_ = shift_ng_transfrom(
             transform_nm=self.volume.transform_nm,
             scale_resolution_nm=self.res_nm,
-            max_resolution_nm=self.volume.scales[0].res_nm[0],
+            max_resolution_nm=self.volume.scales[0].res_nm,
         )
         affine_[:3, :] /= 1e6
         return affine_
