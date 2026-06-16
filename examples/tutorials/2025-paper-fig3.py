@@ -15,6 +15,8 @@
 
 """
 
+:bdg-danger:`Advanced`
+
 Anatomical characterization and multimodal profiling of regions of interest
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

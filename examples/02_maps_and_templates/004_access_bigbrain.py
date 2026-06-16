@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+
+:bdg-secondary:`Intermediate`
+
 Access BigBrain high-resolution data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

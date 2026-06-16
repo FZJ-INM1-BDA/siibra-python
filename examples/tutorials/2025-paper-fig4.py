@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+
+:bdg-danger:`Advanced`
+
 Multimodal comparison of two cortical brain areas
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

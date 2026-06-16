@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+
+:bdg-success:`Basic`
+
 Find predefined reference spaces
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

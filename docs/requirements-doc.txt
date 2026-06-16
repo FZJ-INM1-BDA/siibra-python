@@ -1,16 +1,14 @@
 setuptools >= 67.7.2
 sphinx
 rtds_action
-nilearn==0.12.1
 -r ../requirements.txt
 memory-profiler
 ipykernel
-nbsphinx
 pylint
 astroid
 sphinx-autoapi
 IPython
-m2r2
+myst_parser
 sphinx-gallery
 plotly
 matplotlib >= 3.4.0

@@ -15,6 +15,9 @@
 
 
 """
+
+:bdg-danger:`Advanced`
+
 Anatomically guided reproducible extraction of full resolution image data from cloud resources
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

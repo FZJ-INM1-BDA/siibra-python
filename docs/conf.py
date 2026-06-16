@@ -13,9 +13,11 @@
 import os
 import sys
 from sphinx_gallery.sorting import FileNameSortKey
-import sphinx_book_theme  # this import must be kept to make sphinx_rtd_theme function
+import sphinx_book_theme  # this import must be kept to make sphinx_book_theme function
 import sphinx_autopackagesummary  # this import must be kept to make autopackagesummary function
 import plotly.io as pio
+
+from siibra.livequeries.allen import is_allen_api_microarray_service_available
 
 print("sphinx-book-theme:", sphinx_book_theme.__version__)
 print("sphinx-autopackagesummary", sphinx_autopackagesummary.__version__)
@@ -27,23 +29,10 @@ print("Path:", sys.path)
 
 pio.renderers.default = "sphinx_gallery"
 
-
-def is_allen_api_microarray_service_available():
-    import requests
-
-    # see https://community.brain-map.org/t/human-brain-atlas-api/2876
-    microarray_test_url = "http://api.brain-map.org/api/v2/data/query.json?criteria=service::human_microarray_expression[probes$eq1023146,1023147][donors$eq15496][structures$eq9148]"
-    try:
-        response = requests.get(microarray_test_url).json()
-    except requests.RequestException:
-        return False
-    return response["success"]
-
-
 # -- Project information -----------------------------------------------------
 
 project = "siibra-python"
-copyright = "2020-2025, Forschungszentrum Juelich GmbH"
+copyright = "2018-2026, Forschungszentrum Juelich GmbH"
 author = "Big Data Analytics Group, Institute of Neuroscience and Medicine, Forschungszentrum Juelich GmbH"
 language = "en"
 
@@ -83,7 +72,7 @@ extensions = [
     "sphinx_autopackagesummary",  # auto generation of API doc for nested Python packages; uses `autosummary`
     "autoapi.extension",  # "autodoc" style doc wo needing to load/run/import the project
     "IPython.sphinxext.ipython_console_highlighting",  # enables ipython syntax highlighting
-    "m2r2",  # converts a markdown file including rst markups to a valid rst format
+    "myst_parser",  # converts a markdown file including rst markups to a valid rst format
     "sphinxcontrib.jquery",  # work around for jQuery not being loaded automatically dependency removal from sphinx 7
     "sphinx.ext.graphviz",  # to allow drawing diagrams
     "sphinx.ext.inheritance_diagram",  # creates inheritance diagrams
@@ -106,7 +95,6 @@ if rtds_action_github_token:
     )
     rtds_action_path = ""  # The path where the artifact should be extracted # Note: this is relative to the conf.py file!
     rtds_action_artifact_prefix = "sphinx-docs-built-in-github-"  # The "prefix" used in the `upload-artifact` step of the docs github action
-    nbsphinx_execute = "never"
     run_stale_examples = False  # it will be run at github actions (since /docs/example are in gitignore) and locally but not on readthedocs.
 
 # napoleon settings
@@ -116,7 +104,6 @@ napoleon_use_ivar = True
 
 # Mappings
 intersphinx_mapping = {
-    "glossary": ("../concepts.html", None),
     "matplotlib": ("https://matplotlib.org/", None),
     "nilearn": ("https://nilearn.github.io/stable/index.html", None),
     "nibabel": ("https://nipy.org/nibabel/", None),
@@ -138,6 +125,7 @@ autoapi_options = [
     "show-module-summary",
     "imported-members",
 ]
+
 autoclass_content = "both"
 
 graphviz_output_format = "png"
@@ -164,13 +152,14 @@ sphinx_gallery_conf = {
         "examples/05_anatomical_assignment",
         "examples/tutorials",
     ],
-    "filename_pattern": r"^.*.py",  # which files to execute and include their outputs
+    "filename_pattern": r"^.*\.py",  # which files to execute and include their outputs
     "capture_repr": ("_repr_html_", "__repr__"),
     "within_subsection_order": FileNameSortKey,
     "remove_config_comments": True,
     "show_signature": True,
     "show_memory": True,
     "run_stale_examples": run_stale_examples,
+    "inspect_global_variables": False,
 }
 
 if not is_allen_api_microarray_service_available():
@@ -179,8 +168,6 @@ if not is_allen_api_microarray_service_available():
             "expected_failing_examples": [
                 "../examples/03_data_features/000_matchings.py",
                 "../examples/03_data_features/004_gene_expressions.py",
-                "../examples/tutorials/2025-paper-fig3.py",
-                "../examples/tutorials/2025-paper-fig4.py",
             ]
         }
     )
@@ -189,21 +176,19 @@ if not is_allen_api_microarray_service_available():
 html_theme = "sphinx_book_theme"
 html_show_sourcelink = False
 html_show_sphinx = True
-html_logo = "_static/siibra-python.jpeg"  # overridden by logo in html_theme_options
 html_favicon = "_static/siibra_favicon.ico"
 html_permalinks = False
 
 html_theme_options = {
-    "logo_only": True,
     "logo": {
         "image_light": "_static/siibra-python.jpeg",
         "image_dark": "_static/siibra-logo-darkmode.png",
+        "alt_text": "siibra documentation - Home",
     },
     "display_version": True,
     "prev_next_buttons_location": "bottom",
     "style_external_links": False,
     "vcs_pageview_mode": "",
-    "style_nav_header_background": "white",
     "collapse_navigation": True,
     "sticky_navigation": True,
     "navigation_depth": 3,

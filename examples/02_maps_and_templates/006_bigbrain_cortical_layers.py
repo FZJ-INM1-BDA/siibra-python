@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+
+:bdg-secondary:`Intermediate`
+
 Access to Big Brain cortical layer meshes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

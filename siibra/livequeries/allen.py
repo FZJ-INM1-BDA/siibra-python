@@ -43,9 +43,10 @@ def is_allen_api_microarray_service_available():
     microarray_test_url = "http://api.brain-map.org/api/v2/data/query.json?criteria= service::human_microarray_expression[probes$eq1023146,1023147][donors$eq15496][structures$eq9148]"
     try:
         response = requests.get(microarray_test_url).json()
-    except requests.RequestException:
+        response.raise_for_status()
+        return response.json().get("success", False)
+    except Exception:
         return False
-    return response["success"]
 
 
 def parse_gene(spec):

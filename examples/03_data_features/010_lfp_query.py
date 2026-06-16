@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+
+:bdg-secondary:`Intermediate`
+
 High-resolution Rat Local Field Potential Atlas
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -21,6 +24,10 @@ Local field potentials (LFPs) capture electrophysiological activity recorded
 from neural tissue. In this example, we query LFP recordings and spectra from
 a high-resolution rat atlas dataset linked to regions of the Waxholm Space
 atlas.
+
+.. info::
+    May perform many remote requests and/or fetch larger data depending on the
+    region and/or specification.
 """
 
 # %%

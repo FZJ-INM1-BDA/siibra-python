@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+
+:bdg-secondary:`Intermediate`
+
 Cortical cell body distributions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+
+:bdg-success:`Basic`
+
 Find brain regions in a parcellation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

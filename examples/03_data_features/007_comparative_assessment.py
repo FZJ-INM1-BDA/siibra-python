@@ -14,13 +14,19 @@
 # limitations under the License.
 
 """
+
+:bdg-secondary:`Intermediate`
+
 Comparative analysis of brain organisation in two brain regions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 
 `siibra` data features simplify analysis of multimodal aspects of brain regions.
 In this example, we select a region from the Broca region in the inferior frontal gyrus, IFG 44,
 involved in language processing, and a region from the visual system in the occipital cortex, V1.
+
+.. info::
+    This example may take longer to run on first execution because data are
+    fetched and cached locally.
 """
 
 # %%

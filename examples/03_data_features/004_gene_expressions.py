@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+
+:bdg-secondary:`Intermediate`
+
 Gene expressions
 ~~~~~~~~~~~~~~~~
 
@@ -33,6 +36,10 @@ region mask to filter the probes.
     <https://github.com/FZJ-INM1-BDA/siibra-jugex>`_, which provides an
     implementation for differential gene expression analysis between two
     different brain regions as proposed by Bludau et al.
+
+.. info::
+    This example may use external services, therefore, might fail if the
+    services are down.
 """
 
 # %%

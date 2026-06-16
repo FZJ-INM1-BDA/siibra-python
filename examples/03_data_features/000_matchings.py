@@ -14,12 +14,19 @@
 # limitations under the License.
 
 """
+
+:bdg-success:`Basic`
+
 Understanding links between data features and anatomical locations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
 All data features are requested with the same function, ``siibra.features.get()``.
 The type of feature (spatial, regional, or parcellation feature), and thus the way it is linked to an anatomical concept depends on the requested modality.
 This example shows how some features are linked to anatomical regions in different ways.
+
+.. info::
+    This example may use external services, therefore, might fail if the
+    services are down.
 """
 
 # %%

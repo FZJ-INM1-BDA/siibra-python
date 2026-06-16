@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+
+:bdg-info:`Research workflow`
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Case study: Anatomical evaluation of subcortical maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -43,6 +46,9 @@ Main findings include:
     2. Precentral SMA and dentatus coincide most with the histological masks
     3. dentatus-linked thalamus voxels are closest to optimal stimulation points from the literature; however with high variability
     4. volumina of parcels vary significantly per pipeline and data quality, thus target planning should not be done purely from the tractography-parcellation results
+
+.. info::
+    May require substantial working memory. See the end of the notebook for memory usage.
 """
 
 # %%

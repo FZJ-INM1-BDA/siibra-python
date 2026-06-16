@@ -36,3 +36,8 @@
 .wy-nav-content {
     max-width: 100dvw !important;
 }
+
+.navbar-brand img {
+    max-height: 125px;
+    width: auto;
+}

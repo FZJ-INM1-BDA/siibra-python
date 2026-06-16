@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+
+:bdg-success:`Basic`
+
 Basic brain region properties
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

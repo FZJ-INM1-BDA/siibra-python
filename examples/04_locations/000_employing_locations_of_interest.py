@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+
+:bdg-success:`Basic`
+
 Utilizing locations of interest
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

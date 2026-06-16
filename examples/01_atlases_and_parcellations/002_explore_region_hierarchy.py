@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+
+:bdg-success:`Basic`
+
 Explore brain region hierarchies
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
