@@ -21,7 +21,7 @@ from nilearn import image
 
 from . import point, pointcloud, boundingbox
 from ..volumes import volume
-from ..commons import translation_matrix, y_rotation_matrix
+from ..commons import translation_matrix, y_rotation_matrix, logger
 
 
 class AxisAlignedPatch(pointcloud.PointCloud):
@@ -166,10 +166,7 @@ class Plane:
         num_failed = np.count_nonzero(non_intersecting)
         result[non_intersecting, :] = np.nan
         if num_failed > 0:
-            print(
-                "WARNING: line segment intersection includes NaN rows "
-                f"for {num_failed} non-intersecting segments."
-            )
+            logger.warning(f"line segment intersection includes NaN rows for {num_failed} non-intersecting segments.")
         return result
 
     def intersect_mesh(self, mesh: dict) -> List[pointcloud.Contour]:
@@ -325,9 +322,7 @@ class Plane:
         )
         err = (self.project_points(corners).coordinates - corners.coordinates).sum()
         if err > 1e-5:
-            print(
-                f"WARNING: patch coordinates were not exactly in-plane (error={err})."
-            )
+            logger.warning(f"patch coordinates were not exactly in-plane (error={err}).")
 
         try:
             patch = AxisAlignedPatch(self.project_points(corners))
