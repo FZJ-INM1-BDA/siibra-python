@@ -410,12 +410,23 @@ class NeuroglancerVolume:
                     f"Requested resolution {resolution_mm} is not feasible. Available resolutions: {[s.res_mm for s in self.scales]}"
                 )
             chosen_scale = max(suitable_scales)  # `max` for choosing the closest resolution
-            if not all(
-                "{:.6f}".format(r).startswith(str(resolution_mm))
-                for i, r in enumerate(chosen_scale.res_mm)
-                if i != self.determine_section()
+            skip_axis = self.determine_section()
+            mask = np.ones(3, bool)
+            if skip_axis is not None:
+                mask[skip_axis] = False
+
+            if not np.allclose(
+                chosen_scale.res_mm[mask],
+                (
+                    np.repeat(resolution_mm, sum(mask))
+                    if isinstance(resolution_mm, (int, float))
+                    else np.asanyarray(resolution_mm)[mask]
+                ),
+                atol=1e-6,
             ):
-                logger.info(f"Closest resolution to requested (resolution_mm={resolution_mm}) is {chosen_scale.res_mm}")
+                logger.info(
+                    f"Closest resolution to requested (resolution_mm={resolution_mm}) is {chosen_scale.res_mm}"
+                )
 
         # Further reduce resolution to fit into max_bytes if needed.
         scale_changed = False
