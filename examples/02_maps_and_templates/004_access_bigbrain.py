@@ -38,7 +38,7 @@ from nilearn import plotting
 space = siibra.spaces['bigbrain']
 bigbrain_template = space.get_template()
 bigbrain_whole_img = bigbrain_template.fetch(resolution_mm=1)
-plotting.view_img(bigbrain_whole_img, bg_img=None, cmap='gray')
+plotting.view_img(bigbrain_whole_img, bg_img=False, cmap='gray')
 
 # %%
 # To see the full resolution, we may specify a bounding box in the physical
@@ -54,7 +54,7 @@ voi = siibra.locations.BoundingBox(
     space=space
 )
 bigbrain_chunk = bigbrain_template.fetch(voi=voi)
-plotting.view_img(bigbrain_chunk, bg_img=None, cmap='gray')
+plotting.view_img(bigbrain_chunk, bg_img=False, cmap='gray')
 
 # %%
 # Note that since both fetched image volumes are spatial images with a properly
@@ -124,6 +124,4 @@ print(f"Size of the bounding box: {hoc5_bbox.shape}")
 # this is quite large, so we shrink it
 voi = hoc5_bbox.zoom(0.1)
 crop = section1402.fetch(voi=voi)
-plotting.plot_img(crop, bg_img=None, cmap="gray", display_mode="y", colorbar=False)
-
-# %%
+plotting.plot_img(crop, bg_img=False, cmap="gray", display_mode="y", colorbar=False)

@@ -64,7 +64,7 @@ print(type(icbm_img))
 # %%
 # We can  display this template with common neuroimaging visualization tools.
 # Here we use the plotting tools provided by `nilearn <https://nilearn.github.io>`_
-plotting.view_img(icbm_img, bg_img=None, cmap='gray', colorbar=False)
+plotting.view_img(icbm_img, bg_img=False, cmap='gray', colorbar=False)
 
 # %%
 # As described above however, the template has multiple volume providers, representing different
