@@ -91,6 +91,16 @@ def get_region(parcellation: str, region: str):
     )
 
 
+# convenient access to a parcellation
+def get_parcellation(parcellation: str):
+    return _parcellation.Parcellation.get_instance(parcellation)
+
+
+# convenient access to spaces
+def get_space(space: str):
+    return _space.Space.get_instance(space)
+
+
 def set_feasible_download_size(maxsize_gbyte):
     from .volumes import volume
     volume.gbyte_feasible = maxsize_gbyte
@@ -137,6 +147,8 @@ def __dir__():
         "extend_configuration",
         "get_region",
         "find_regions",
+        "get_parcellation",
+        "get_space",
         "get_map",
         "get_template",
         "MapType",
