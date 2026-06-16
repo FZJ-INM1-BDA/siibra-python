@@ -1,4 +1,4 @@
-# Copyright 2018-2026
+# Copyright 2018-2025
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,8 @@
 
 Selecting a preconfigured atlas from an instance table
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:bdg-primary:`Basic`
 
 `siibra` provides a table of preconfigured atlas objects of
 different species.

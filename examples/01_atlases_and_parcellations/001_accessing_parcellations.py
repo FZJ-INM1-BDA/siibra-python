@@ -1,4 +1,4 @@
-# Copyright 2018-2026
+# Copyright 2018-2025
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +16,8 @@
 """
 Selecting preconfigured parcellations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:bdg-primary:`Basic`
 
 Just as for atlas objects, `siibra` provides an instance table of preconfigured
 brain parcellations.

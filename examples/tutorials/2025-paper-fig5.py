@@ -1,4 +1,4 @@
-# Copyright 2018-2026
+# Copyright 2018-2025
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,8 @@
 """
 Anatomically guided reproducible extraction of full resolution image data from cloud resources
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:bdg-warning:`Advanced` bdg-danger:`Memory-heavy` :bdg-secondary:`Network-heavy`
 
 `siibra` allows to implement reproducible workflows for sampling microscopy data from anatomically defined regions of interest.
 This example retrieves the probabilistic map of motor area 4p from the Julich-Brain atlas in the right hemisphere,
