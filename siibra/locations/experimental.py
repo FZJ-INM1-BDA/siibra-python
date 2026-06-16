@@ -53,6 +53,7 @@ class AxisAlignedPatch(pointcloud.PointCloud):
         self,
         image_volume: volume.Volume,
         resolution_mm: float,
+        **kwargs,
     ):
         """
         fetches image data in a planar patch.
@@ -74,7 +75,7 @@ class AxisAlignedPatch(pointcloud.PointCloud):
         # enforce the patch to have the same y dimensions
         voi.minpoint[1] = canvas.minpoint[1]
         voi.maxpoint[1] = canvas.maxpoint[1]
-        patch = image_volume.fetch(voi=voi, resolution_mm=resolution_mm)
+        patch = image_volume.fetch(voi=voi, resolution_mm=resolution_mm, **kwargs)
         assert patch is not None
 
         # patch rotation defined in physical space

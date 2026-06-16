@@ -103,6 +103,5 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
         return self.get_boundingbox().minpoint.bigbrain_section()
 
     def fetch(self, flip: bool = False, resolution_mm: float = -1, **kwargs):
-        assert len(kwargs) == 0
         p = self._patch.flip() if flip else self._patch
-        return p.extract_volume(self._section, resolution_mm=resolution_mm).fetch()
+        return p.extract_volume(self._section, resolution_mm=resolution_mm, **kwargs).fetch()
