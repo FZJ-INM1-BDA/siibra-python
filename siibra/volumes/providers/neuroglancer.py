@@ -411,8 +411,8 @@ class NeuroglancerVolume:
                 )
             chosen_scale = max(suitable_scales)  # `max` for choosing the closest resolution
             skip_axis = self.determine_section()
+            mask = np.ones(3, bool)
             if skip_axis is not None:
-                mask = np.ones(3, bool)
                 mask[skip_axis] = False
 
             if not np.allclose(
