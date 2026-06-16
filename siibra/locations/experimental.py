@@ -345,8 +345,8 @@ class Plane:
         assert isinstance(image, volume.Volume)
         if "neuroglancer/precomputed" in image.formats:
             ngpv = next(iter(image._providers["neuroglancer/precomputed"]._fragments.values()))
-            resmm = tuple([s for s in sorted(ngpv.scales) if s.resolves(1)][0].res_mm.to_list())
-            im_lowres = image.fetch(format="neuroglancer/precomputed", resolution_mm=resmm)
+            resmm = tuple([s for s in sorted(ngpv.scales, reverse=True) if s.resolves(1)][0].res_mm.tolist())
+            im_lowres = image.fetch(resolution_mm=resmm)
         else:
             im_lowres = image.fetch(resolution_mm=1)
         plane_dims = np.where(np.argsort(im_lowres.shape) < 2)[0]
