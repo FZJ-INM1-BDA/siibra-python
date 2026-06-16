@@ -17,6 +17,8 @@
 Selecting preconfigured parcellations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+:bdg-primary:`Basic`
+
 Just as for atlas objects, `siibra` provides an instance table of preconfigured
 brain parcellations.
 """

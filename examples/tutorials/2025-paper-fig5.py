@@ -18,6 +18,8 @@
 Anatomically guided reproducible extraction of full resolution image data from cloud resources
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+:bdg-warning:`Advanced` bdg-danger:`Memory-heavy` :bdg-secondary:`Network-heavy`
+
 `siibra` allows to implement reproducible workflows for sampling microscopy data from anatomically defined regions of interest.
 This example retrieves the probabilistic map of motor area 4p from the Julich-Brain atlas in the right hemisphere,
 uses it to find relevant high-resolution scans of whole-brain tissue sections in BigBrain space (B; ll. 8-10),

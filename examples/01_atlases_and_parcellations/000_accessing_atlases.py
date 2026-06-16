@@ -19,6 +19,8 @@
 Selecting a preconfigured atlas from an instance table
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+:bdg-primary:`Basic`
+
 `siibra` provides a table of preconfigured atlas objects of
 different species.
 Atlas objects are very simple structures: They are mostly used to group
