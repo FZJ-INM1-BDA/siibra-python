@@ -71,7 +71,7 @@ plt.imshow(patch.fetch().get_fdata().squeeze(), cmap='gray')
 # %%
 # To understand where and how siibra actually sampled this patch,
 # we first plot the position of the chosen brain section in MNI space.
-view = plotting.plot_glass_brain(region_map.fetch(), cmap='viridis')
+view = plotting.plot_glass_brain(region_map.fetch(), cmap='viridis', threshold=0)
 roi_mni = patch.get_boundingbox().warp('mni152')
 _, key, pos = min(zip(roi_mni.shape, view.axes.keys(), roi_mni.center))
 view.axes[key].ax.axvline(pos, color='red', linestyle='--', linewidth=2)
@@ -90,6 +90,7 @@ display = plotting.plot_img(
     section_img,
     display_mode="y",
     cmap='gray',
+    colorbar=False,
     annotate=False,
     title=f"BigBrain section #{patch.bigbrain_section}",
     figure=fig,
@@ -114,7 +115,7 @@ for dim, size in enumerate(roi.shape):
 fig = plt.figure(figsize=(6, 5))
 roi_img = patch.section.fetch(voi=roi)
 display = plotting.plot_img(
-    roi_img, display_mode="y", cmap='gray', annotate=False, figure=fig
+    roi_img, display_mode="y", cmap='gray', annotate=False, figure=fig, colorbar=False
 )
 
 # Intersect cortical layer surfaces with the image plane
@@ -142,7 +143,7 @@ for layername, contours in layer_contours.items():
 # with their relevance scores, ie. probabilities.
 fig = plt.figure(figsize=(6, 5))
 display = plotting.plot_img(
-    roi_img, display_mode="y", cmap='gray', annotate=False, figure=fig
+    roi_img, display_mode="y", cmap='gray', annotate=False, figure=fig, colorbar=False
 )
 
 # Concatenate all coordinates of the layer 4 intersected contours.

@@ -53,6 +53,7 @@ for r in regions:
         annotate=False,
         symmetric_cbar=True,
         title=r.name,
+        threshold=0
     )
 
 # %%

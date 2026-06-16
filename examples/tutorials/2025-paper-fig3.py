@@ -67,7 +67,7 @@ input_volume = siibra.volumes.from_nifti(
     img, space="mni152", name="example input volume"
 )
 plotting.plot_glass_brain(
-    input_volume.fetch(), alpha=1, cmap="RdBu", symmetric_cbar=True
+    input_volume.fetch(), alpha=1, cmap="RdBu", symmetric_cbar=True, colorbar=False
 )
 
 # %%
@@ -130,6 +130,7 @@ for cl in clusterlabels:
         cmap="RdBu",
         title=f"Cluster #{cl}",
         symmetric_cbar=True,
+        colorbar=False,
     )
     with siibra.QUIET:
         df = pmaps.assign(clustermap)
