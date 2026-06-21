@@ -197,8 +197,8 @@ if not is_allen_api_microarray_service_available():
             "expected_failing_examples": [
                 "../examples/03_data_features/000_matchings.py",
                 "../examples/03_data_features/004_gene_expressions.py",
-                "../tutorials/2025-paper-fig3.py",
-                "../tutorials/2025-paper-fig4.py",
+                "../examples/tutorials/2025-paper-fig3.py",
+                "../examples/tutorials/2025-paper-fig4.py",
             ]
         }
     )
