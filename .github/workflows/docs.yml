@@ -1,10 +1,10 @@
 name: '[Docs] Build docs and upload artifacts'
+
 on:
   push:
-    branches: [ 'main', 'doc_*', 'v1' ] 
+    branches: [ 'main', 'doc_*', 'v1' ]
   release:
     types: [ 'published' ]
-  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -13,14 +13,16 @@ concurrency:
 jobs:
   notebooks:
     name: "Build and run the notebooks for the docs"
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
         with:
-          python-version: 3.8
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
@@ -28,28 +30,45 @@ jobs:
           python -m pip install -U .
           python -m pip install -r ./docs/requirements-doc.txt
 
-      - name: Install apt packages
-        run: |
-          sudo apt-get install graphviz
-
-      - name: Create diagrams with pyreverse
-        run: |
-          pyreverse -k  -o dot -p siibra ./siibra --colorized --all-ancestors --output-directory ./docs/_static
-          dot -Grankdir=LR -Tsvg ./docs/_static/packages_siibra.dot -o ./docs/_static/packages_siibra.svg
-          dot -Grankdir=LR -Tsvg ./docs/_static/classes_siibra.dot -o ./docs/_static/classes_siibra.svg
-
       - name: Build the docs and execute the notebooks
         run: |
           sphinx-build docs ./docs/_build/
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload built docs artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: sphinx-docs-built-in-github-${{ github.sha }}
           path: docs
+          retention-days: 7
 
-      - name: Trigger RTDs build
-        uses: dfm/rtds-action@v1
+  upload-to-rtd:
+    name: "Trigger RTD build"
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    needs: notebooks
+    steps:
+      - name: Trigger RTD build
+        uses: dfm/rtds-action@e028de3bdec9ae8e4bda371425986df0fb6cc4bf  # v1.1.0
         with:
           webhook_url: ${{ secrets.RTDS_WEBHOOK_URL }}
           webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
           commit_ref: ${{ github.ref }}
+
+  cleanup:
+    name: "Clean up build artifacts and siibra cache"
+    runs-on: self-hosted
+    permissions: {}
+    needs: [notebooks, upload-to-rtd]
+    if: always()
+    steps:
+      - name: Clear siibra cache
+        continue-on-error: true
+        run: |
+          python -c "import siibra; siibra.cache.clear()"
+      - name: Remove checked-out repository files
+        continue-on-error: true
+        run: |
+          rm -rf ${{ github.workspace }}/*
+          rm -rf /tmp/*

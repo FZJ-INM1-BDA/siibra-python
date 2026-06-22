@@ -21,6 +21,7 @@ print("sphinx-book-theme:", sphinx_book_theme.__version__)
 print("sphinx-autopackagesummary", sphinx_autopackagesummary.__version__)
 
 os.environ["SIIBRA_LOG_LEVEL"] = "ERROR"
+os.environ["SIIBRA_NG_VOL_USE_CACHE"] = "True"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
 
@@ -107,25 +108,6 @@ if rtds_action_github_token:
     rtds_action_artifact_prefix = "sphinx-docs-built-in-github-"  # The "prefix" used in the `upload-artifact` step of the docs github action
     nbsphinx_execute = "never"
     run_stale_examples = False  # it will be run at github actions (since /docs/example are in gitignore) and locally but not on readthedocs.
-else:
-    # create package and class diagrams if they were not created with pyreverse and graphviz (see docs.yml)
-    cwd = os.getcwd()
-    if cwd.endswith("docs"):
-        staticpath = os.path.join(cwd, "_static")
-        siibrapath = os.path.join(os.path.split(cwd)[0], "siibra")
-    else:
-        staticpath = os.path.join(cwd, "docs/_static")
-        siibrapath = os.path.join(cwd, "siibra")
-    if any(
-        svg not in os.listdir(staticpath)
-        for svg in ["packages_siibra.svg", "classes_siibra.svg"]
-    ):
-        from subprocess import run
-
-        run(
-            f"pyreverse -k  -o svg -p siibra {siibrapath} --colorized --all-ancestors --output-directory {staticpath}",
-            shell=False,
-        )
 
 # napoleon settings
 napoleon_google_docstring = False
@@ -197,8 +179,6 @@ if not is_allen_api_microarray_service_available():
             "expected_failing_examples": [
                 "../examples/03_data_features/000_matchings.py",
                 "../examples/03_data_features/004_gene_expressions.py",
-                "../examples/tutorials/2025-paper-fig3.py",
-                "../examples/tutorials/2025-paper-fig4.py",
             ]
         }
     )
