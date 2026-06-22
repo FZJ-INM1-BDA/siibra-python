@@ -7,7 +7,7 @@
 
 #     http://www.apache.org/licenses/LICENSE-2.0
 
-# Unless required by applicable law or agreed to in writing, software
+# Unless required by a  pplicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
@@ -124,4 +124,4 @@ print(f"Size of the bounding box: {hoc5_bbox.shape}")
 # this is quite large, so we shrink it
 voi = hoc5_bbox.zoom(0.1)
 crop = section1402.fetch(voi=voi)
-plotting.plot_img(crop, bg_img=False, cmap="gray", display_mode="y", colorbar=False)
+plotting.plot_img(crop, cmap="gray", display_mode="y", colorbar=False)

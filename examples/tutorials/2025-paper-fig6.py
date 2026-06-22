@@ -407,7 +407,7 @@ view = plotting.plot_img(
 )
 for color, cont in contours.values():
     if cont is not None:
-        view.add_markers(cont.as_list(), marker_size=0.2, marker_color=color, colorbar=False)
+        view.add_markers(cont.as_list(), marker_size=0.2, marker_color=color)
 
 # %%
 # Detailed patch view

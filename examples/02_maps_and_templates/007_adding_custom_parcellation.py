@@ -68,7 +68,7 @@ plotting.plot_roi(aicha_map.fetch())
 
 # %%
 # Now let's fetch a specific region
-plotting.plot_roi(aicha_map.fetch("G_Fusiform-1-L"))
+plotting.plot_roi(aicha_map.fetch("G_Fusiform-1-L"), colorbar=False)
 
 # %%
 # We can already use this map to find spatial features, such as BigBrain
