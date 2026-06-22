@@ -15,7 +15,7 @@
 
 from io import BytesIO
 import os
-from typing import Union, Dict, Tuple
+from typing import Union, Dict, Tuple, Iterable
 import json
 
 import numpy as np
@@ -473,17 +473,17 @@ class NeuroglancerScale:
         ignore_axis: Union[int, None] = None
     ):
         """Test whether the resolution of this scale is sufficient to provide the given resolution."""
-        if isinstance(resolution_mm, (int, float)):
+        if isinstance(resolution_mm, Iterable) and len(resolution_mm) == 3:
+            requested = np.asarray(resolution_mm, dtype=float)
+        else:
             if resolution_mm < 0:  # preserve legacy behaviour
                 return True
             requested = np.full(3, float(resolution_mm))
-        else:
-            requested = np.asarray(resolution_mm, dtype=float)
 
         mask = np.ones(3, dtype=bool)
         if ignore_axis is not None:
             mask[ignore_axis] = False
-        return bool(np.all(self.res_mm[mask] <= requested[mask]))
+        return np.all(self.res_mm[mask] <= requested[mask])
 
     def __lt__(self, other: "NeuroglancerScale"):
         """Sort scales by resolution."""
