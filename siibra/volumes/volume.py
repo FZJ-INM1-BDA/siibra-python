@@ -754,8 +754,7 @@ class ReducedVolume(Volume):
         template_img = self.space.get_template().fetch(format=format, **kwargs)
         if format in [None, "image"] and "neuroglancer/precomputed" in self.formats:
             format = "neuroglancer/precomputed"
-            template_res = min(template_img.header.get_zooms())
-            kwargs["resolution_mm"] = kwargs.get("resolution_mm", template_res)
+            kwargs["resolution_mm"] = kwargs.get("resolution_mm", template_img.header.get_zooms())
 
         merged_array = np.zeros(template_img.shape, dtype=dtype)
         for i, vol in siibra_tqdm(
