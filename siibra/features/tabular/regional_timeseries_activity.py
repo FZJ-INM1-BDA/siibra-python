@@ -153,7 +153,6 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
             array,
             index=pd.TimedeltaIndex(
                 np.arange(0, array.shape[0]) * self.timestep[0],
-                unit=self.timestep[1],
                 name="time"
             )
         )
