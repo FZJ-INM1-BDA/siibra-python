@@ -17,14 +17,44 @@ on:
         required: false
         type: string
         default: "INFO_WO_PROGRESS_BARS"
-      test_folder:
-        required: false
-        type: string
-        default: "e2e"
 
 jobs:
-  e2e:
+  discover-e2e-tests:
     runs-on: ${{ inputs.os }}
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: discover
+        shell: bash
+        run: |
+          matrix=$(
+            find e2e -type f -name 'test_*.py' \
+              | sort \
+              | jq -R -s -c '
+                  split("\n")
+                  | map(select(length > 0))
+                  | {
+                      include: map({
+                        name: (. | sub("\\.py$"; "") | gsub("/"; "-")),
+                        test_target: .
+                      })
+                    }
+                '
+          )
+          if [ "$(echo "$matrix" | jq '.include | length')" -eq 0 ]; then
+            echo "No test files found under ${{ inputs.test_folder }}" >&2
+            exit 1
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    needs: discover-e2e-tests
+    runs-on: ${{ inputs.os }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover-e2e-tests.outputs.matrix) }}
     steps:
     - uses: actions/checkout@v4
 
@@ -45,10 +75,12 @@ jobs:
         python -m pip install -U .
         pip install -r requirements-test.txt
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
     - name: Install test dependencies
       run:  pip install pytest pytest-cov coverage
-    - name: Run test with pytest
+
+    - name: e2e / ${{ matrix.name }}
       env:
         SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
       shell: bash
-      run: pytest -rx ${{inputs.test_folder}} --durations=50
+      run: pytest -rx "${{ matrix.test_target }}" --durations=50
