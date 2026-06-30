@@ -92,10 +92,20 @@ def get_region(parcellation: str, region: str):
     )
 
 
-def set_feasible_download_size(maxsize_gbyte):
-    from .volumes import volume
-    volume.gbyte_feasible = maxsize_gbyte
+def set_multires_image_fetch_limit(maxsize_gbyte: float):
+    """
+    Sets the limit of per image download size for multi resoultion images.
+    `siibra` will automatically try to fetch the highest resolution with size
+    lower than this limit.
+    """
+    from .volumes.providers.neuroglancer import NeuroglancerProvider
+
+    NeuroglancerProvider.MAX_FETCH_SIZE_BYTES = maxsize_gbyte * (1024 ** 3)
     logger.info(f"Set feasible download size to {maxsize_gbyte} GiB.")
+
+
+if "SIIBRA_MAX_FETCH_SIZE_BYTES" in _os.environ:
+    set_multires_image_fetch_limit(float(_os.getenv("SIIBRA_MAX_FETCH_SIZE_BYTES")))
 
 
 def set_cache_size(maxsize_gbyte: int):
@@ -152,4 +162,5 @@ def __dir__():
         "warm_cache",
         "set_cache_size",
         "from_json",
+        "set_multires_image_fetch_limit",
     ]

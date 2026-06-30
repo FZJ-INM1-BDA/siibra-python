@@ -33,8 +33,6 @@ from ...commons import (
     logger,
     MapType,
     merge_meshes,
-    SIIBRA_MAX_FETCH_SIZE_BYTES,
-    SIIBRA_NG_VOL_USE_CACHE,
     QUIET,
     resample_img_to_img
 )
@@ -73,6 +71,8 @@ def shift_ng_transfrom(
 
 class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/precomputed"):
 
+    MAX_FETCH_SIZE_BYTES = 0.2 * 1024 ** 3  # Number of bytes at which an image array is considered to large to fetch
+
     def __init__(self, url: Union[str, Dict[str, str]]):
         _provider.VolumeProvider.__init__(self)
         self._init_url = url
@@ -93,7 +93,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
         fragment: str = None,
         resolution_mm: Union[float, Tuple[float, float, float]] = None,
         voi: _boundingbox.BoundingBox = None,
-        max_bytes: float = SIIBRA_MAX_FETCH_SIZE_BYTES,
+        max_bytes: float = MAX_FETCH_SIZE_BYTES,
         **kwargs,
     ) -> nib.Nifti1Image:
         """
@@ -109,7 +109,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             Desired resolution in millimeters.
         voi: BoundingBox
             optional specification of a volume of interest to fetch.
-        max_bytes: float: Default: NeuroglancerVolume.MAX_BYTES, 0.2GiB
+        max_bytes: float: Default: neuroglancer.MAX_FETCH_SIZE_BYTES, 0.2GiB
             Maximum allowable size (in bytes) for downloading the image. siibra
             will attempt to find the highest resolution image with a size less
             than this value.
@@ -212,7 +212,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
         self,
         resolution_mm: Union[float, Tuple[float, float, float]] = -1,
         voi: _boundingbox.BoundingBox = None,
-        max_bytes: float = SIIBRA_MAX_FETCH_SIZE_BYTES,
+        max_bytes: float = MAX_FETCH_SIZE_BYTES,
     ) -> nib.Nifti1Image:
         with QUIET:
             if voi is not None:
@@ -266,8 +266,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
 
 class NeuroglancerVolume:
 
-    USE_CACHE = SIIBRA_NG_VOL_USE_CACHE  # Whether to keep fetched data in local cache
-    MAX_BYTES = SIIBRA_MAX_FETCH_SIZE_BYTES  # Number of bytes at which an image array is considered to large to fetch
+    USE_CACHE = eval(os.getenv("SIIBRA_NG_VOL_USE_CACHE", "True"))  # Whether to keep fetched data in local cache
 
     def __init__(self, url: str):
         assert isinstance(url, str)
@@ -357,14 +356,14 @@ class NeuroglancerVolume:
         self,
         resolution_mm: Union[float, Tuple[float, float, float]] = -1,
         voi: _boundingbox.BoundingBox = None,
-        max_bytes: float = MAX_BYTES,
+        max_bytes: float = NeuroglancerProvider.MAX_FETCH_SIZE_BYTES,
         **kwargs
     ):
         # the caller has to make sure voi is defined in the correct reference space
         scale = self._select_scale(resolution_mm=resolution_mm, bbox=voi, max_bytes=max_bytes)
         return scale.fetch(voi=voi, **kwargs)
 
-    def get_shape(self, resolution_mm=None, max_bytes: float = MAX_BYTES):
+    def get_shape(self, resolution_mm=None, max_bytes: float = NeuroglancerProvider.MAX_FETCH_SIZE_BYTES):
         scale = self._select_scale(resolution_mm=resolution_mm, max_bytes=max_bytes)
         return scale.size
 
@@ -374,7 +373,7 @@ class NeuroglancerVolume:
     def _select_scale(
         self,
         resolution_mm: Union[None, float, Tuple[float, float, float]],
-        max_bytes: float = MAX_BYTES,
+        max_bytes: float = NeuroglancerProvider.MAX_FETCH_SIZE_BYTES,
         bbox: _boundingbox.BoundingBox = None
     ) -> 'NeuroglancerScale':
         """
