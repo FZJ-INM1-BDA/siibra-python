@@ -63,6 +63,7 @@ class DummyMap:
 
         self.maptype = maptype
         self.name = ""
+        self._nonunique_indices = set()
 
 
 class TestParcellationVersion(unittest.TestCase):

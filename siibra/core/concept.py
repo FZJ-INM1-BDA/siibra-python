@@ -1,4 +1,4 @@
-# Copyright 2018-2025
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -195,7 +195,7 @@ class AtlasConcept:
             r = siibra.volumes.Map.registry()
             """
             if len({o.__class__ for o in objects}) > 1:
-                logger.warning(
+                logger.debug(
                     f"{cls.__name__} registry contains multiple classes: "
                     f"{', '.join(list({o.__class__.__name__ for o in objects}))}"
                 )

@@ -1,4 +1,4 @@
-name: example test
+name: Test examples
 on:
   workflow_call:
     inputs:
@@ -16,10 +16,6 @@ on:
         required: false
         type: string
         default: "INFO_WO_PROGRESS_BARS"
-      test_file:
-        required: false
-        type: string
-        default: "examples/test_examples.py, examples/test_tutorials.py"
 
 jobs:
   test_examples:
@@ -44,10 +40,12 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install -U .
         pip install -r requirements-test.txt
+
     - name: Install test dependencies
       run:  pip install pytest pytest-cov coverage
-    - name: Run test with pytest
+
+    - name: Test example notebooks
       env:
         SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
       shell: bash
-      run: pytest -rx --durations=5 ${{ inputs.test_file }}
+      run: pytest e2e/examples/test_examples.py -rx -vv --durations=5
