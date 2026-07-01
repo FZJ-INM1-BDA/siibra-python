@@ -54,7 +54,6 @@ import pandas as pd
 from shapely.geometry import MultiPoint
 from shapely import concave_hull, geometry, intersection
 import re
-import json
 import requests
 import nibabel as nib
 from nilearn.image import resample_to_img
@@ -308,8 +307,9 @@ shortname = lambda n: re.sub(r"\s*\(.*\)", "", n)  # shorten area names for figu
 # ----------------------------------------------
 # 2.1 Load the reference contour in section 3797
 # ----------------------------------------------
-with open("./e2ec8c09.sands.json", "r") as f:
-    d = json.load(f)
+d = requests.get(
+    "https://raw.githubusercontent.com/FZJ-INM1-BDA/siibra-python/refs/heads/main/examples/tutorials/e2ec8c09.sands.json"
+).json()
 vim_reference = siibra.PointCloud(
     [[v["value"] for v in c] for c in d["coordinates"]], space="bigbrain"
 )
