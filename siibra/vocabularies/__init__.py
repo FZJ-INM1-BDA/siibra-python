@@ -42,3 +42,9 @@ with open(runtime_path('receptor_symbols.json'), 'r') as f:
 
 with open(runtime_path('region_aliases.json'), 'r') as f:
     REGION_ALIASES = json.load(f)
+
+
+def get_lfp_options():
+    from ..livequeries.local_field_potential import get_arg_options
+
+    return get_arg_options()

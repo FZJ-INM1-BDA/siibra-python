@@ -65,3 +65,7 @@ class EmptyPointCloudError(ValueError):
 
 class NoPredifinedColormapException(ValueError):
     pass
+
+
+class MissingFileException(Exception):
+    pass
