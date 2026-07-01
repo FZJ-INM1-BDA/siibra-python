@@ -30,15 +30,15 @@ import siibra
 # We start by selecting the Waxholm Space parcellation and choosing the
 # caudate putamen as the anatomical region of interest.
 waxholm = siibra.parcellations.get("waxholm v4")
-caudate_putamen = waxholm.get_region("Caudate putamen")
+ventral_orbital = waxholm.get_region("Ventral orbital area")
 
 # %%
 # Query all local field potential features linked to the caudate putamen.
-lfp_caudate_putamen = siibra.features.get(
-    caudate_putamen,
+lfp_ventral_orbital = siibra.features.get(
+    ventral_orbital,
     siibra.features.functional.LocalFieldPotential
 )
-print(f"Found {len(lfp_caudate_putamen)} local field potentials")
+print(f"Found {len(lfp_ventral_orbital)} local field potentials")
 
 # %%
 # LFP features provide metadata fields that can be used to filter the results.
@@ -49,10 +49,11 @@ siibra.vocabularies.get_lfp_options()
 # Here, we restrict the query to baseline recordings with typical signal quality.
 specs = {
     "pharmacology": "baseline",
-    "signal_quality": "typical"
+    "signal_quality": "typical",
+    "pathology": "lesioned hemisphere in 6-OHDA hemilesioned animal",
 }
 fts_w_specs = siibra.features.get(
-    caudate_putamen,
+    ventral_orbital,
     siibra.features.functional.LocalFieldPotential,
     **specs
 )
@@ -64,7 +65,7 @@ print(f"Found {len(fts_w_specs)} local field potentials with specs: {specs}")
 # data.
 specs["signal_quality"] = "atypical"
 fts_w_specs = siibra.features.get(
-    caudate_putamen,
+    ventral_orbital,
     siibra.features.functional.LocalFieldPotential,
     **specs
 )
@@ -73,7 +74,7 @@ print(f"Found {len(fts_w_specs)} local field potentials with specs: {specs}")
 # %%
 # Inspect the metadata of one LFP feature. These fields describe the subject,
 # recording session, pharmacological condition, pathology, and signal quality.
-f = lfp_caudate_putamen[0]
+f = lfp_ventral_orbital[0]
 print("subject:", f.subject)
 print("session:", f.session)
 print("pharmacology:", f.pharmacology)
@@ -83,15 +84,15 @@ print("signal_quality:", f.signal_quality)
 
 # %%
 # We can plot spectra using any regions including the whole Waxholm parcellation
-# using `plot_spectra`` method. Here selecting atypical recordings from the
-# lesioned hemisphere in 6-OHDA hemilesioned animals with baseline pharmacology.
+# using `plot_spectra`` method. Here selecting Ventral orbital area, typical
+# recordings from the healthy animals with no pharmacological treatment.
 specs = dict(
-    pathology="lesioned hemisphere in 6-OHDA hemilesioned animal",
+    pathology="none",
     pharmacology="baseline",
-    signal_quality="atypical",
+    signal_quality="typical",
 )
 lfp_spectrum_w_specs = siibra.features.get(
-    waxholm,
+    ventral_orbital,
     siibra.features.functional.LocalFieldPotential,
     **specs
 )
@@ -102,13 +103,13 @@ siibra.features.functional.LocalFieldPotential.plot_spectra(lfp_spectrum_w_specs
 # Alternatively, region-wise potentials can be queried already grouped for ease
 # of navigation. These are divided by pathology, pharmacology, and
 # signal quality tuples.
-lfp_spectrum_caudate_putamen = siibra.features.get(
-    caudate_putamen,
+lfp_spectrum_ventral_orbital = siibra.features.get(
+    ventral_orbital,
     siibra.features.functional.RegionalLocalFieldPotential,
     **specs
 )
-lfp_spectrum_caudate_putamen[0].data
+lfp_spectrum_ventral_orbital[0].data
 
 # %%
 # Plotting functionality requires no further input
-lfp_spectrum_caudate_putamen[0].plot(backend='plotly')
+lfp_spectrum_ventral_orbital[0].plot(backend='plotly')
