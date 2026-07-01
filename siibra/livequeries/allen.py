@@ -144,7 +144,7 @@ class AllenBrainAtlasQuery(_query.LiveQuery, args=['gene'], FeatureType=GeneExpr
             raise InvalidAllenAPIResponseException(
                 'The service "web API of the Allen Brain Atlas for the human microarray expression" '
                 'is not available at the moment, therefore siibra is not able to fetch '
-                'gene expression features. This is a known issue which we are investigating: '
+                'gene expression features. This is issue is tracked here: '
                 'https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.'
             )
         if len(self.genes) == 0:
