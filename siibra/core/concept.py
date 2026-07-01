@@ -195,7 +195,7 @@ class AtlasConcept:
             r = siibra.volumes.Map.registry()
             """
             if len({o.__class__ for o in objects}) > 1:
-                logger.warning(
+                logger.debug(
                     f"{cls.__name__} registry contains multiple classes: "
                     f"{', '.join(list({o.__class__.__name__ for o in objects}))}"
                 )
