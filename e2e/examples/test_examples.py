@@ -9,11 +9,7 @@ from e2e.util import ALLEN_UNAVAILABLE_EXIT_CODE
 
 def get_examples():
     for example in pathlib.Path("./examples").resolve().rglob("*.py"):
-        marks = []
-        if example.parent.name == "tutorials":
-            marks.append(pytest.mark.tutorial)
-
-        yield pytest.param(example, id=example.name, marks=marks)
+        yield pytest.param(example, id=example.name)
 
 
 @pytest.mark.parametrize("example", get_examples())

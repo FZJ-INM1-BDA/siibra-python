@@ -1,4 +1,4 @@
-name: example test
+name: Test examples
 on:
   workflow_call:
     inputs:
@@ -44,8 +44,8 @@ jobs:
     - name: Install test dependencies
       run:  pip install pytest pytest-cov coverage
 
-    - name: Run ${{ matrix.group.name }} with pytest
+    - name: Test example notebooks
       env:
         SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
       shell: bash
-      run: pytest e2e/examples/test_examples.py -rx -vv --durations=5 -m "${{ matrix.group.marker }}"
+      run: pytest e2e/examples/test_examples.py -rx -vv --durations=5

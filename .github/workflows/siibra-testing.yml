@@ -105,13 +105,6 @@ jobs:
       os: self-hosted
       python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
-    strategy:
-      matrix:
-        group:
-          - name: examples
-            marker: "not tutorial"
-          - name: tutorials
-            marker: "tutorial"
 
   cleanup:
     name: "Clean up build artifacts and pip cache"
