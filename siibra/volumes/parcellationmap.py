@@ -158,8 +158,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         all_indices = sum(self._indices.values(), [])
         seen = set()
         duplicates = {x for x in all_indices if x in seen or seen.add(x)}
-        if len(duplicates) > 0:
-            logger.warning(f"Non unique indices encountered in {self}: {duplicates}")
+        self._nonunique_indices = duplicates
         self._affine_cached = None
 
     @property

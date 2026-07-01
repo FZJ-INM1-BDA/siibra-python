@@ -206,6 +206,8 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
                     f"Choosing the first map from {[c.name for c in spec_candidates]}."
                 )
             return spec_candidates[0]
+        if len(candidates[0]._nonunique_indices) > 0:
+            logger.warning(f"Non unique indices encountered in {self}: {candidates[0]._nonunique_indices}")
         return candidates[0]
 
     @property
