@@ -37,9 +37,8 @@ from .locations import Point, PointCloud, Plane, BoundingBox
 
 
 logger.info(f"Version: {__version__}")
-logger.warning("This is a development release. Use at your own risk.")
 logger.info(
-    "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
+    f"{'This is an alpha release. ' if 'alpha' in __version__ else ''}Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
 # forward access to some functions
