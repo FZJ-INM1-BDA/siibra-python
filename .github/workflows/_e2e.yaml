@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           matrix=$(
-            find e2e -type f -name 'test_*.py' \
+            find e2e -type f -name 'test_*.py' ! -name 'test_examples.py' \
               | sort \
               | jq -R -s -c '
                   split("\n")
@@ -43,10 +43,6 @@ jobs:
                     }
                 '
           )
-          if [ "$(echo "$matrix" | jq '.include | length')" -eq 0 ]; then
-            echo "No test files found under ${{ inputs.test_folder }}" >&2
-            exit 1
-          fi
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   e2e:

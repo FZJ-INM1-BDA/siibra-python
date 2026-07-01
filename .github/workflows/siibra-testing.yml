@@ -99,8 +99,7 @@ jobs:
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
 
   test-examples:
-    needs: ['use-custom-cfg', 'e2e-tests-full']
-    if: ${{ always() && needs.e2e-tests-full.result == 'skipped' }}
+    needs: 'use-custom-cfg'
     uses: ./.github/workflows/_run_examples.yaml
     with:
       os: self-hosted
