@@ -15,6 +15,7 @@
 
 from typing import List, Union
 import sqlite3
+from io import BytesIO
 
 import pandas as pd
 
@@ -115,6 +116,8 @@ class RegionalLFPQuery(
     FeatureType=tabular.RegionalLocalFieldPotential,
 ):
 
+    BUCKET_URL = "https://data-proxy.ebrains.eu/api/v1/buckets/regional-local-field-potentials-rat/RegionalLocalFieldPotential_v1/PowerSpectrums/"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -129,6 +132,17 @@ class RegionalLFPQuery(
             for whs_label in df["whs_label"].unique()
         }
         return options
+
+    @classmethod
+    def create_loader(cls, regionname, pat, phar, sq):
+        filename = f"group-{regionname.lower().replace(',', '')}"
+        filename += f"_pathology-{pat}_pharmacology-{phar}_signal_quality-{sq}"
+        filename = filename.replace(' ', '_')
+        filename += "_LocalFieldPotential.tsv"
+        return requests.HttpRequest(
+            cls.BUCKET_URL + filename,
+            func=lambda b: pd.read_csv(BytesIO(b), sep=",", index_col=0)
+        )
 
     def query(self, concept):
         df = self.resolve_db_rows(concept)
@@ -162,6 +176,7 @@ class RegionalLFPQuery(
                         pathology=pat,
                         pharmacology=phar,
                         signal_quality=sq,
+                        loader=self.create_loader(whs_label, pat, phar, sq)
                     )
                 )
         return results

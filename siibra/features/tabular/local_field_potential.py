@@ -324,6 +324,7 @@ class RegionalLocalFieldPotential(tabular.Tabular, category="functional"):
         pathology: Union[str, None] = None,
         pharmacology: Union[str, None] = None,
         signal_quality: Union[str, None] = None,
+        loader=None
     ):
         tabular.Tabular.__init__(
             self,
@@ -340,6 +341,7 @@ class RegionalLocalFieldPotential(tabular.Tabular, category="functional"):
         self.pharmacology = pharmacology
         self.pathology = pathology
         self.signal_quality = signal_quality
+        self._loader = loader
 
     @property
     def name(self):
@@ -384,6 +386,12 @@ class RegionalLocalFieldPotential(tabular.Tabular, category="functional"):
         Accessing this property downloads the required power spectral density
         files and recomputes the spectrum.
         """
+        if self._loader is not None:
+            try:
+                return self._loader.get()
+            except SiibraHttpRequestError:
+                pass
+
         return _get_spectra(lfp_entries=self._db_entries)
 
     def plot(self, *args, backend="matplotlib", **kwargs):
