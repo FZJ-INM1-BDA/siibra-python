@@ -139,6 +139,7 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
             anchor=anchor,
             id=self.ID_TEMPLATE.format(index=db_entry.Index),
             datasets=[EbrainsV3DatasetVersion("41673110-f3eb-43cd-9d9c-c845c6f0573c")],
+            data=None
         )
         self._db_entry = db_entry
 
@@ -288,7 +289,20 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
         elif backend == "plotly":
             kwargs["facet_row"] = 'variable'
             fig = data.plot(backend=backend, **kwargs)
+            facet_labels = [
+                ann.text.replace("variable=", "")
+                for ann in fig.layout.annotations
+            ]
             fig.update_yaxes(matches=None)
+            fig.update_layout(showlegend=False)
+            fig.for_each_annotation(lambda a: a.update(text=""))
+            for axis, label in zip(
+                [fig.layout[f"yaxis{i if i > 1 else ''}"] for i in range(1, len(facet_labels) + 1)],
+                facet_labels[::-1],
+            ):
+                axis.title.text = label
+            fig.update_layout(height=900)
+            fig.layout.xaxis.title.text = "Frequency (Hz)"
             return fig
         else:
             return data.plot(backend=backend, **kwargs)
@@ -396,7 +410,20 @@ class RegionalLocalFieldPotential(tabular.Tabular, category="functional"):
         elif backend == "plotly":
             kwargs["facet_row"] = 'variable'
             fig = self.data.plot(*args, backend=backend, **kwargs)
+            facet_labels = [
+                ann.text.replace("variable=", "")
+                for ann in fig.layout.annotations
+            ]
             fig.update_yaxes(matches=None)
+            fig.update_layout(showlegend=False)
+            fig.for_each_annotation(lambda a: a.update(text=""))
+            for axis, label in zip(
+                [fig.layout[f"yaxis{i if i > 1 else ''}"] for i in range(1, len(facet_labels) + 1)],
+                facet_labels[::-1],
+            ):
+                axis.title.text = label
+            fig.update_layout(height=900)
+            fig.layout.xaxis.title.text = "Frequency (Hz)"
             return fig
         else:
             return self.data.plot(*args, backend=backend, **kwargs)
