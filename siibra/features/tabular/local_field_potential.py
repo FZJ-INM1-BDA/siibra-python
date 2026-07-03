@@ -411,7 +411,12 @@ class RegionalLocalFieldPotential(tabular.Tabular, category="functional"):
         object
             Plot object returned by the selected backend.
         """
-        kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, 50)))
+        if kwargs.get("title") is None:
+            title = self.modality
+            for attr in ["pathology", "pharmacology", "signal_quality"]:
+                if getattr(self, attr) is not None:
+                    title += f" - {attr}: {getattr(self, attr)}"
+            kwargs["title"] = "\n".join(wrap(title, 50))
         if backend == "matplotlib":
             kwargs["grid"] = "major"
             kwargs["subplots"] = True
