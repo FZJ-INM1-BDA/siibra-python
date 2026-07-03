@@ -141,7 +141,7 @@ class RegionalLFPQuery(
         filename += "_LocalFieldPotential.tsv"
         return requests.HttpRequest(
             cls.BUCKET_URL + filename,
-            func=lambda b: pd.read_csv(BytesIO(b), sep=",", index_col=0)
+            func=lambda b: pd.read_csv(BytesIO(b), sep="\t", index_col=0)
         )
 
     def query(self, concept):
