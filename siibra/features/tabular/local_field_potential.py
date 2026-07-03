@@ -15,6 +15,8 @@
 
 from typing import TYPE_CHECKING, Dict, List, Union
 from hashlib import md5
+from textwrap import wrap
+
 import numpy as np
 import pandas as pd
 
@@ -65,7 +67,7 @@ def _get_spectra(lfp_entries: pd.DataFrame):
         return HttpRequest(BASE_URL.format(filepath=row.psd_file)).get()
 
     n_files = len(lfp_entries)
-    spectrum_types = ["spectrogram", "spectrogram_rhythmic", "spectrogram_arrhythmic"]
+    spectrum_types = ["spectrogram", "spectrogram_arrhythmic", "spectrogram_rhythmic"]
     P_m = {}
     for first_succes, row in enumerate(lfp_entries.itertuples()):
         if row.psd_file is np.nan:
@@ -76,7 +78,11 @@ def _get_spectra(lfp_entries: pd.DataFrame):
             times = psdf["/times"][:]
             freqs = psdf["/frequencies"][:]
             for st in spectrum_types:
-                P_m[st] = np.nanmedian(psdf[f"/{st}"][:], axis=0)  # Average over time
+                if st == "spectrogram_rhythmic":
+                    spectogram = psdf[f"/{st}"][:]
+                else:
+                    spectogram = 10 * np.log10(psdf[f"/{st}"][:])
+                P_m[st] = np.nanmedian(spectogram, axis=0)  # Average over time
         times = times.flatten()
         freqs = freqs.flatten()
         break
@@ -94,7 +100,11 @@ def _get_spectra(lfp_entries: pd.DataFrame):
         try:
             with get_psd_file(row) as psdf:
                 for st in spectrum_types:
-                    P_m[st] = P_m[st] + np.nanmedian(psdf[f"/{st}"][:], axis=0)
+                    if st == "spectrogram_rhythmic":
+                        spectogram = psdf[f"/{st}"][:]
+                    else:
+                        spectogram = 10 * np.log10(psdf[f"/{st}"][:])
+                    P_m[st] = P_m[st] + np.nanmedian(spectogram, axis=0)
         except SiibraHttpRequestError:
             logger.error(f"Broken url: {BASE_URL.format(filepath=row.psd_file)}")
             n_files -= 1
@@ -104,12 +114,13 @@ def _get_spectra(lfp_entries: pd.DataFrame):
     spectra /= n_files  # Calculate average
     spectra.rename(
         columns={
-            "spectrogram": "spectrogram (dB)",
-            "spectrogram_rhythmic": "spectrogram rhythmic (dB (fractal))",
-            "spectrogram_arrhythmic": "spectrogram arrhythmic (dB)",
+            "spectrogram": "PSD (dB)",
+            "spectrogram_rhythmic": "PSD - rhythmic (dB (fractal))",
+            "spectrogram_arrhythmic": "PSD - arrhythmic (dB)",
         },
         inplace=True
     )
+    spectra.index.set_names("Frequency (Hz)", inplace=True)
     return spectra
 
 
@@ -148,19 +159,11 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
 
     @property
     def name(self):
-        return (
-            super().name + " - "
-            + str(
-                {
-                    attr: getattr(self, attr)
-                    for attr in [
-                        "pathology",
-                        "pharmacology",
-                        "signal_quality",
-                    ]
-                }
-            )[1:-1]
-        )
+        name_ = super().name
+        for attr in ["pathology", "pharmacology", "signal_quality"]:
+            if getattr(self, attr) is not None:
+                name_ += f" - {attr}: {getattr(self, attr)}"
+        return name_
 
     @property
     def pharmacology(self):
@@ -300,8 +303,11 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
             fig.update_layout(showlegend=False)
             fig.for_each_annotation(lambda a: a.update(text=""))
             for axis, label in zip(
-                [fig.layout[f"yaxis{i if i > 1 else ''}"] for i in range(1, len(facet_labels) + 1)],
-                facet_labels[::-1],
+                [
+                    fig.layout[f"yaxis{i if i > 1 else ''}"]
+                    for i in range(1, len(facet_labels) + 1)
+                ],
+                facet_labels,
             ):
                 axis.title.text = label
             fig.update_layout(height=900)
@@ -345,19 +351,11 @@ class RegionalLocalFieldPotential(tabular.Tabular, category="functional"):
 
     @property
     def name(self):
-        return (
-            super().name + " - "
-            + str(
-                {
-                    attr: getattr(self, attr)
-                    for attr in [
-                        "pathology",
-                        "pharmacology",
-                        "signal_quality",
-                    ]
-                }
-            )[1:-1]
-        )
+        name_ = super().name
+        for attr in ["pathology", "pharmacology", "signal_quality"]:
+            if getattr(self, attr) is not None:
+                name_ += f" - {attr}: {getattr(self, attr)}"
+        return name_
 
     @property
     def subjects(self):
@@ -413,13 +411,13 @@ class RegionalLocalFieldPotential(tabular.Tabular, category="functional"):
         object
             Plot object returned by the selected backend.
         """
-        kwargs["title"] = self.name
+        kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, 50)))
         if backend == "matplotlib":
-            kwargs["xlabel"] = kwargs.get("xlabel", "Frequency (Hz)")
             kwargs["grid"] = "major"
             kwargs["subplots"] = True
             self.data.plot(*args, backend=backend, **kwargs)
         elif backend == "plotly":
+            kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             kwargs["facet_row"] = 'variable'
             fig = self.data.plot(*args, backend=backend, **kwargs)
             facet_labels = [
@@ -430,12 +428,14 @@ class RegionalLocalFieldPotential(tabular.Tabular, category="functional"):
             fig.update_layout(showlegend=False)
             fig.for_each_annotation(lambda a: a.update(text=""))
             for axis, label in zip(
-                [fig.layout[f"yaxis{i if i > 1 else ''}"] for i in range(1, len(facet_labels) + 1)],
-                facet_labels[::-1],
+                [
+                    fig.layout[f"yaxis{i if i > 1 else ''}"]
+                    for i in range(1, len(facet_labels) + 1)
+                ],
+                facet_labels,
             ):
                 axis.title.text = label
-            fig.update_layout(height=900)
-            fig.layout.xaxis.title.text = "Frequency (Hz)"
+            fig.update_layout(height=1000)
             return fig
         else:
             return self.data.plot(*args, backend=backend, **kwargs)
