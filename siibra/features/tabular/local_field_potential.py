@@ -35,7 +35,7 @@ class MissingFileException(Exception):
 
 
 BASE_URL = "https://data-proxy.ebrains.eu/api/v1/buckets/d-41673110-f3eb-43cd-9d9c-c845c6f0573c/{filepath}"
-
+_EBRAINS_DSV_REF = EbrainsV3DatasetVersion("41673110-f3eb-43cd-9d9c-c845c6f0573c")
 
 @staticmethod
 def _get_spectra(lfp_entries: pd.DataFrame):
@@ -152,7 +152,7 @@ class LocalFieldPotential(tabular.Tabular, category="functional"):
             modality="Local field potential",
             anchor=anchor,
             id=self.ID_TEMPLATE.format(index=db_entry.Index),
-            datasets=[EbrainsV3DatasetVersion("41673110-f3eb-43cd-9d9c-c845c6f0573c")],
+            datasets=[_EBRAINS_DSV_REF],
             data=None
         )
         self._db_entry = db_entry
@@ -341,7 +341,7 @@ class RegionalLocalFieldPotential(tabular.Tabular, category="functional"):
             id=self.ID_TEMPLATE.format(
                 indices_as_hex=md5(str(db_entries.index).encode("utf-8")).hexdigest()
             ),
-            datasets=[EbrainsV3DatasetVersion("41673110-f3eb-43cd-9d9c-c845c6f0573c")],
+            datasets=[_EBRAINS_DSV_REF],
         )
         self._db_entries = db_entries
         self.pharmacology = pharmacology
