@@ -1,4 +1,4 @@
-# Copyright 2018-2025
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,9 +37,8 @@ from .locations import Point, PointCloud, Plane, BoundingBox
 
 
 logger.info(f"Version: {__version__}")
-logger.warning("This is a development release. Use at your own risk.")
 logger.info(
-    "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
+    f"{'This is an alpha release. ' if 'alpha' in __version__ else ''}Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
 # forward access to some functions
@@ -92,6 +91,16 @@ def get_region(parcellation: str, region: str):
     )
 
 
+# convenient access to a parcellation
+def get_parcellation(parcellation: str):
+    return _parcellation.Parcellation.get_instance(parcellation)
+
+
+# convenient access to spaces
+def get_space(space: str):
+    return _space.Space.get_instance(space)
+
+
 def set_feasible_download_size(maxsize_gbyte):
     from .volumes import volume
     volume.gbyte_feasible = maxsize_gbyte
@@ -138,6 +147,8 @@ def __dir__():
         "extend_configuration",
         "get_region",
         "find_regions",
+        "get_parcellation",
+        "get_space",
         "get_map",
         "get_template",
         "MapType",

@@ -1,4 +1,4 @@
-# Copyright 2018-2025
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ from nilearn import image
 
 from . import point, pointcloud, boundingbox
 from ..volumes import volume
-from ..commons import translation_matrix, y_rotation_matrix
+from ..commons import translation_matrix, y_rotation_matrix, logger
 
 
 class AxisAlignedPatch(pointcloud.PointCloud):
@@ -53,6 +53,7 @@ class AxisAlignedPatch(pointcloud.PointCloud):
         self,
         image_volume: volume.Volume,
         resolution_mm: float,
+        **kwargs,
     ):
         """
         fetches image data in a planar patch.
@@ -74,7 +75,7 @@ class AxisAlignedPatch(pointcloud.PointCloud):
         # enforce the patch to have the same y dimensions
         voi.minpoint[1] = canvas.minpoint[1]
         voi.maxpoint[1] = canvas.maxpoint[1]
-        patch = image_volume.fetch(voi=voi, resolution_mm=resolution_mm)
+        patch = image_volume.fetch(voi=voi, resolution_mm=resolution_mm, **kwargs)
         assert patch is not None
 
         # patch rotation defined in physical space
@@ -165,10 +166,7 @@ class Plane:
         num_failed = np.count_nonzero(non_intersecting)
         result[non_intersecting, :] = np.nan
         if num_failed > 0:
-            print(
-                "WARNING: line segment intersection includes NaN rows "
-                f"for {num_failed} non-intersecting segments."
-            )
+            logger.warning(f"line segment intersection includes NaN rows for {num_failed} non-intersecting segments.")
         return result
 
     def intersect_mesh(self, mesh: dict) -> List[pointcloud.Contour]:
@@ -324,9 +322,7 @@ class Plane:
         )
         err = (self.project_points(corners).coordinates - corners.coordinates).sum()
         if err > 1e-5:
-            print(
-                f"WARNING: patch coordinates were not exactly in-plane (error={err})."
-            )
+            logger.warning(f"patch coordinates were not exactly in-plane (error={err}).")
 
         try:
             patch = AxisAlignedPatch(self.project_points(corners))
@@ -342,7 +338,12 @@ class Plane:
         The plane is defined in the physical space of the volume.
         """
         assert isinstance(image, volume.Volume)
-        im_lowres = image.fetch(resolution_mm=1)
+        if "neuroglancer/precomputed" in image.formats:
+            ngpv = next(iter(image._providers["neuroglancer/precomputed"]._fragments.values()))
+            resmm = tuple([s for s in sorted(ngpv.scales, reverse=True) if s.resolves(1)][0].res_mm.tolist())
+            im_lowres = image.fetch(resolution_mm=resmm)
+        else:
+            im_lowres = image.fetch(resolution_mm=1)
         plane_dims = np.where(np.argsort(im_lowres.shape) < 2)[0]
         voxels = pointcloud.PointCloud(
             np.vstack(([0, 0, 0], np.identity(3)[plane_dims])), space=None

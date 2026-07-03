@@ -1,4 +1,4 @@
-# Copyright 2018-2025
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,3 +22,4 @@ from .layerwise_cell_density import LayerwiseCellDensity
 from .receptor_density_fingerprint import ReceptorDensityFingerprint
 from .receptor_density_profile import ReceptorDensityProfile
 from .regional_timeseries_activity import RegionalBOLD
+from .local_field_potential import LocalFieldPotential, RegionalLocalFieldPotential

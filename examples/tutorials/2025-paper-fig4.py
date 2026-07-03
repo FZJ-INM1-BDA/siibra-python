@@ -1,4 +1,4 @@
-# Copyright 2018-2025
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -86,12 +86,15 @@ for i, region in enumerate(regions):
 # for these receptors.
 genes = ["CHRM1", "CHRM2", "CHRM3", "HTR1A", "HTR2A", "DRD1"]
 fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(7, 3))
-for i, region in enumerate(regions):
-    gene_expressions = siibra.features.get(region, "gene expressions", gene=genes)
-    assert len(gene_expressions) == 1
-    gene_expressions[0].plot(ax=axs[i])
-    axs[i].title.set_size(11)
-    print(gene_expressions[0].urls)
+try:
+    for i, region in enumerate(regions):
+        gene_expressions = siibra.features.get(region, "gene expressions", gene=genes)
+        assert len(gene_expressions) == 1
+        gene_expressions[0].plot(ax=axs[i])
+        axs[i].title.set_size(11)
+        print(gene_expressions[0].urls)
+except Exception as e:
+    print(e)  # Allen API is down, see https://github.com/FZJ-INM1-BDA/siibra-python/issues/636
 
 # %%
 # For each of the two brain areas, collect functional connectivity profiles referring to

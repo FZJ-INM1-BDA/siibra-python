@@ -1,4 +1,4 @@
-# Copyright 2018-2025
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -206,6 +206,8 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
                     f"Choosing the first map from {[c.name for c in spec_candidates]}."
                 )
             return spec_candidates[0]
+        if len(candidates[0]._nonunique_indices) > 0:
+            logger.warning(f"Non unique indices encountered in {self}: {candidates[0]._nonunique_indices}")
         return candidates[0]
 
     @property

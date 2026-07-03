@@ -1,4 +1,4 @@
-# Copyright 2018-2025
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -138,5 +138,12 @@ print(features[0].last_match_description)
 # For example, the gene expressions retrieved from the Allen atlas are linked by the coordinate
 # For example, the gene expressions retrieved from the Allen atlas are linked by the coordinate
 # of their tissue probes in MNI space. If a coordinate is inside the selected brain regions, it is an exact match.
+#
+# .. warning::
+#     The service "web API of the Allen Brain Atlas for the human microarray expression"
+#     is not available at the moment, therefore siibra is not able to fetch
+#     gene expression features. This is a known issue which we are investigating:
+#     https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.
+#
 features = siibra.features.get(v1, siibra.features.molecular.GeneExpressions, gene="TAC1")
 print(features[0].last_match_description)

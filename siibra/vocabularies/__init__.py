@@ -1,4 +1,4 @@
-# Copyright 2018-2025
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,3 +42,9 @@ with open(runtime_path('receptor_symbols.json'), 'r') as f:
 
 with open(runtime_path('region_aliases.json'), 'r') as f:
     REGION_ALIASES = json.load(f)
+
+
+def get_lfp_options():
+    from ..livequeries.local_field_potential import get_arg_options
+
+    return get_arg_options()

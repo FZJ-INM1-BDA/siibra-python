@@ -1,35 +1,8 @@
 import pytest
 from typing import Union, List
-from json import JSONDecodeError
-from requests import RequestException
-from functools import wraps
 import siibra
 
-
-def xfail_if_allen_api_unavailable(test_func):
-    @wraps(test_func)
-    def wrapper(*args, **kwargs):
-        try:
-            return test_func(*args, **kwargs)
-        except JSONDecodeError:
-            pytest.xfail(
-                f"Skipping test {test_func.__name__} due to JSONDecodeError since Allen API sent a malformed JSON"
-            )
-        except RuntimeError as e:
-            if str(e) == "Allen institute site unavailable - please try again later.":
-                pytest.xfail("Skipping since Allen Institute API is unavailable.")
-            else:
-                raise e
-        except siibra.livequeries.allen.InvalidAllenAPIResponseException as e:
-            pytest.xfail(
-                f"Skipping test {test_func.__name__} due to invalid response from Allen API:\n{e}"
-            )
-        except (RequestException, siibra.retrieval.requests.SiibraHttpRequestError) as e:
-            pytest.xfail(
-                f"Skipping test {test_func.__name__} due to request error from Allen API:\n{e}"
-            )
-
-    return wrapper
+from e2e.util import xfail_if_allen_api_unavailable
 
 
 test_params = [

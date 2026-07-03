@@ -1,4 +1,4 @@
-# Copyright 2018-2025
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -825,8 +825,7 @@ class ReducedVolume(Volume):
         template_img = self.space.get_template().fetch(format=format, **kwargs)
         if format in [None, "image"] and "neuroglancer/precomputed" in self.formats:
             format = "neuroglancer/precomputed"
-            template_res = min(template_img.header.get_zooms())
-            kwargs["resolution_mm"] = kwargs.get("resolution_mm", template_res)
+            kwargs["resolution_mm"] = kwargs.get("resolution_mm", template_img.header.get_zooms())
 
         merged_array = np.zeros(template_img.shape, dtype=dtype)
         for i, vol in siibra_tqdm(
