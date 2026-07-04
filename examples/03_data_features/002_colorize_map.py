@@ -54,7 +54,7 @@ mapping = {
 
 # %%
 # Now colorize the Julich-Brain maximum probability map and plot it.
-colorized_map = julich_brain.get_map(space='mni152').colorize(mapping).fetch()
+colorized_map = julich_brain.get_map(space='mni152').colorize(mapping)
 plotting.view_img(
     colorized_map, cmap='magma',
     title=f"Average densities available for {receptor}", symmetric_cmap=False
