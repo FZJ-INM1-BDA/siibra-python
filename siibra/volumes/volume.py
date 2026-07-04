@@ -631,7 +631,7 @@ class Volume(structure.BrainStructure):
             )
         if isinstance(self, TimeSeriesVolume):
             pts, timelabels = zip(*[
-                (p, v_t.time_index)
+                (p, v_t.time)
                 for v_t in siibra_tqdm(self, unit="slice")
                 for p in v_t.find_peaks(mindist=mindist, sigma_mm=sigma_mm, **kwargs)
             ])
@@ -681,7 +681,7 @@ class FilteredVolume(Volume):
             If a volume is fragmented, get a specified one.
         threshold : float, default None
             Provide a float value to threshold the image.
-        time_index: int = None,
+        time: int = None,
             If parent volume is a timeseries Nifti, filter a time index without fetching the full image.
         """
         name = parent_volume.name

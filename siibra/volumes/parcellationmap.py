@@ -954,7 +954,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # format assignments as pandas dataframe
         columns = [
             "input structure",
-            "time_index",
+            "time",
             "centroid",
             "volume",
             "fragment",
@@ -1148,7 +1148,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         queryvolume: "_volume.Volume",
         lower_threshold: float,
         split_components: bool = True,
-        time_index: int = None,
+        time: int = None,
         **kwargs,
     ) -> List[AssignImageResult]:
         """
@@ -1216,7 +1216,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 volume=index.volume,
                                 fragment=index.fragment,
                                 map_value=index.label,
-                                time=time_index,
+                                time=time,
                                 **asdict(scores)
                             )
                         )
@@ -1231,12 +1231,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         **kwargs
     ) -> List[AssignImageResult]:
         assignments = []
-        for v_t in siibra_tqdm(queryvolume, unit='time_index'):
+        for v_t in siibra_tqdm(queryvolume, unit='time point'):
             assignments_t = self._assign_volume(
                 v_t,
                 lower_threshold=lower_threshold,
                 split_components=split_components,
-                time_index=v_t.time,
+                time=v_t.time,
                 **kwargs
             )
             assignments.extend(assignments_t)

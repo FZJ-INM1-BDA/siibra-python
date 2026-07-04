@@ -18,7 +18,7 @@ def create_synthetic_data():
         arr[:, :, :, i] += img.dataobj
     return siibra.volumes.from_nifti(
         nibabel.nifti1.Nifti1Image(arr, affine=template_img.affine),
-        time_index=np.asanyarray(range(length)),
+        time=np.asanyarray(range(length)),
         space='mni152',
         name="synthetic timeseries volume"
     )

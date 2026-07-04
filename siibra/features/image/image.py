@@ -93,7 +93,7 @@ class Image(
         if time is not None:
             _volume.TimeSeriesVolume.__init__(self, time=time, **vol_kwargs)
         else:
-            _volume.Volume.__init__(self, time_index=time, **vol_kwargs)
+            _volume.Volume.__init__(self, **vol_kwargs)
 
         self._anchor_cached = ImageAnchor(self, region=region)
         self._description_cached = None

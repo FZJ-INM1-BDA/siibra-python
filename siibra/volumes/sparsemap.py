@@ -342,7 +342,7 @@ class SparseMap(parcellationmap.Map):
         minsize_voxel: int,
         lower_threshold: float,
         split_components: bool = True,
-        time_index: int = None,
+        time: int = None,
     ) -> List[parcellationmap.AssignImageResult]:
         """
         Assign an image volume to this sparse map.
@@ -391,7 +391,7 @@ class SparseMap(parcellationmap.Map):
                 continue
 
             spind = self.sparse_index
-            timeindexstr = f"-t={time_index}" if time_index else ""
+            timeindexstr = f"-t={time}" if time else ""
             for volume in siibra_tqdm(
                 range(len(self)),
                 desc=f"Assigning structure #{mode}{timeindexstr} to {len(self)} sparse maps",
@@ -451,7 +451,7 @@ class SparseMap(parcellationmap.Map):
 
                 assignments.append(
                     parcellationmap.AssignImageResult(
-                        time=time_index,
+                        time=time,
                         input_structure=mode,
                         centroid=tuple(position.round(2)),
                         volume=volume,
