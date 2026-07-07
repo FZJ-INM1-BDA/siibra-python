@@ -41,6 +41,19 @@ jobs:
           path: docs
           retention-days: 7
 
+      - name: Clear siibra cache
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          python -c "import siibra; siibra.cache.clear()"
+
+      - name: Remove checked-out repository files
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          rm -rf "${{ github.workspace }}"/*
+          rm -rf /tmp/*
+
   upload-to-rtd:
     name: "Trigger RTD build"
     runs-on: ubuntu-latest
@@ -55,20 +68,3 @@ jobs:
           webhook_url: ${{ secrets.RTDS_WEBHOOK_URL }}
           webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
           commit_ref: ${{ github.ref }}
-
-  cleanup:
-    name: "Clean up build artifacts and siibra cache"
-    runs-on: self-hosted
-    permissions: {}
-    needs: [notebooks, upload-to-rtd]
-    if: always()
-    steps:
-      - name: Clear siibra cache
-        continue-on-error: true
-        run: |
-          python -c "import siibra; siibra.cache.clear()"
-      - name: Remove checked-out repository files
-        continue-on-error: true
-        run: |
-          rm -rf ${{ github.workspace }}/*
-          rm -rf /tmp/*

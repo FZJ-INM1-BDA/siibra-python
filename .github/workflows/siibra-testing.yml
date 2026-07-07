@@ -105,20 +105,3 @@ jobs:
       os: self-hosted
       python-version: "3.8"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
-
-  cleanup:
-    name: "Clean up build artifacts and pip cache"
-    runs-on: self-hosted
-    needs: test-examples
-    # Always run cleanup, even if the build job failed
-    if: always()
-    steps:
-      - name: Clear siibra cache
-        continue-on-error: true
-        run: |
-          python -c "import siibra; siibra.cache.clear()"
-
-      - name: Remove checked-out repository files
-        continue-on-error: true
-        run: |
-          rm -rf ${{ github.workspace }}/*
