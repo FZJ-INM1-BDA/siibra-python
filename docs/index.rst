@@ -53,7 +53,62 @@ workflows.
     :class-title: sd-text-primary
     :margin: 2 2 0 0
 
-    Tutorial notebooks with no-install options to run for workshops and trainings.
+    Tutorial notebooks for workshops and trainings with no-install options to run.
+
+  .. grid-item-card:: siibra-explorer :octicon:`link-external`
+    :link: https://atlases.ebrains.eu/viewer/
+    :link-type: url
+    :columns: 12 12 12 12
+    :class-card: sd-shadow-md
+    :class-title: sd-text-primary
+    :margin: 2 2 auto auto
+
+    .. grid::
+      :gutter: 3
+      :margin: 0
+      :padding: 0
+
+      .. grid-item::
+          :columns: 12 3 3 3
+
+          .. image:: https://raw.githubusercontent.com/FZJ-INM1-BDA/siibra-explorer/refs/heads/master/docs/images/siibra-explorer-square.jpeg
+
+      .. grid-item::
+        :columns: 12 9 9 9
+
+        .. div:: sd-font-weight-bold
+
+        Use the web viewer to interactively browse reference spaces,
+        templates, parcellation maps, brain areas, and linked multimodal
+        data. It is a companion for discovering atlas content before using
+        it in Python workflows.
+
+  .. grid-item-card:: EBRAINS research infrastructure :octicon:`link-external`
+    :link:  https://www.ebrains.eu/
+    :link-type: url
+    :columns: 12 12 12 12
+    :class-card: sd-shadow-md
+    :class-title: sd-text-primary
+    :margin: 2 2 auto auto
+    
+    .. grid::
+      :gutter: 3
+      :margin: 0
+      :padding: 0
+
+      .. grid-item::
+        :columns: 12 3 3 3
+
+        .. image:: https://search.kg.ebrains.eu/static/img/ebrains_logo.svg
+
+      .. grid-item::
+        :columns: 12 9 9 9
+
+        .. div:: sd-font-weight-bold
+
+        Many atlas elements and data features accessible through siibra are
+        linked to resources hosted or registered in EBRAINS, supporting
+        findable and reusable access to curated neuroscience data.
 
 
 With `siibra-python`, you can:
@@ -71,6 +126,16 @@ metadata, configurations, and live queries to access distributed data resources
 on demand. Data are fetched lazily and can be cached locally, so workflows only
 download the elements they use.
 
+Documentation overview
+======================
+
+The documentation is organized around installation, concepts, examples, and API
+reference material. The :ref:`getting-started` page covers installation and
+first steps with `siibra-python`. The :ref:`glossary` page explains the
+central concepts used throughout the documentation. The :ref:`examples`
+section provides documented code examples for common atlas workflows. The
+:ref:`api` section contains the generated API reference for classes, functions,
+and modules.
 
 siibra toolsuite
 ================
@@ -88,78 +153,6 @@ The interfaces share the same conceptual basis: reference atlases,
 brain-region terminologies, reference coordinate systems, maps, locations, and
 data features.
 
-.. grid::
-  .. grid-item-card:: siibra-explorer :octicon:`link-external`
-    :link: https://atlases.ebrains.eu/viewer/
-    :link-type: url
-    :columns: 12 12 12 12
-    :class-card: sd-shadow-md
-    :class-title: sd-text-primary
-    :margin: 2 2 auto auto
-
-    .. grid::
-      :gutter: 3
-      :margin: 0
-      :padding: 0
-
-      .. grid-item::
-          :columns: 12 4 4 4
-
-          .. image:: https://raw.githubusercontent.com/FZJ-INM1-BDA/siibra-explorer/refs/heads/master/docs/images/siibra-explorer-square.jpeg
-
-      .. grid-item::
-          :columns: 12 8 8 8
-
-          .. div:: sd-font-weight-bold
-
-          Explore atlases in your browser
-
-          Use the web viewer to interactively browse reference spaces,
-          templates, parcellation maps, brain areas, and linked multimodal
-          data. It is a companion for discovering atlas content before using
-          it in Python workflows.
-
-EBRAINS research infrastructure
-===============================
-
-.. grid::
-  .. grid-item-card:: EBRAINS platform :octicon:`link-external`
-    :link:  https://www.ebrains.eu/
-    :link-type: url
-    :columns: 12 12 12 12
-    :class-card: sd-shadow-md
-    :class-title: sd-text-primary
-    :margin: 2 2 auto auto
-    
-    .. grid::
-      :gutter: 3
-      :margin: 0
-      :padding: 1
-
-      .. grid-item::
-        :columns: 12 4 4 4
-
-      .. image:: https://search.kg.ebrains.eu/static/img/ebrains_logo.svg
-
-    .. grid-item::
-        :columns: 12 8 8 8
-
-        .. div:: sd-font-weight-bold
-
-        Many atlas elements and data features accessible through siibra are
-        linked to resources hosted or registered in EBRAINS, supporting
-        findable and reusable access to curated neuroscience data.
-
-Documentation overview
-======================
-
-The documentation is organized around installation, concepts, examples, and API
-reference material. The :ref:`getting-started` page covers installation and
-first steps with `siibra-python`. The :ref:`glossary` page explains the
-central concepts used throughout the documentation. The :ref:`examples`
-section provides documented code examples for common atlas workflows. The
-:ref:`api` section contains the generated API reference for classes, functions,
-and modules.
 
 .. toctree::
   :hidden:
