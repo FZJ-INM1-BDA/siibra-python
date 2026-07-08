@@ -150,19 +150,19 @@ autosummary_generate = True
 sphinx_gallery_conf = {
     "examples_dirs": [
         "../examples/01_atlases_and_parcellations",
-        "../examples/02_maps_and_templates",
-        "../examples/03_data_features",
-        "../examples/04_locations",
-        "../examples/05_anatomical_assignment",
-        "../examples/tutorials",
+        # "../examples/02_maps_and_templates",
+        # "../examples/03_data_features",
+        # "../examples/04_locations",
+        # "../examples/05_anatomical_assignment",
+        # "../examples/tutorials",
     ],
     "gallery_dirs": [
         "examples/01_atlases_and_parcellations",
-        "examples/02_maps_and_templates",
-        "examples/03_data_features",
-        "examples/04_locations",
-        "examples/05_anatomical_assignment",
-        "examples/tutorials",
+        # "examples/02_maps_and_templates",
+        # "examples/03_data_features",
+        # "examples/04_locations",
+        # "examples/05_anatomical_assignment",
+        # "examples/tutorials",
     ],
     "filename_pattern": r"^.*.py",  # which files to execute and include their outputs
     "capture_repr": ("_repr_html_", "__repr__"),
@@ -173,15 +173,15 @@ sphinx_gallery_conf = {
     "run_stale_examples": run_stale_examples,
 }
 
-if not is_allen_api_microarray_service_available():
-    sphinx_gallery_conf.update(
-        {
-            "expected_failing_examples": [
-                "../examples/03_data_features/000_matchings.py",
-                "../examples/03_data_features/004_gene_expressions.py",
-            ]
-        }
-    )
+# if not is_allen_api_microarray_service_available():
+#     sphinx_gallery_conf.update(
+#         {
+#             "expected_failing_examples": [
+#                 "../examples/03_data_features/000_matchings.py",
+#                 "../examples/03_data_features/004_gene_expressions.py",
+#             ]
+#         }
+#     )
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = "sphinx_book_theme"
