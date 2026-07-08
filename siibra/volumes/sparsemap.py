@@ -482,8 +482,6 @@ class SparseMap(parcellationmap.Map):
         makser_kwargs.setdefault("verbose", 1)
 
         masker = maskers.NiftiMapsMasker(maps_stacked, **makser_kwargs)
-        masker.fit()
-        masker.set_output(transform="pandas")
         return masker
 
     def _stack_maps(self):

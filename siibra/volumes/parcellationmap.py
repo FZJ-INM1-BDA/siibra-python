@@ -680,6 +680,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         masker_kwargs.setdefault("background_label", background_label)
         masker = self.as_nilearn_masker(**masker_kwargs)
+        masker.fit()
 
         # ensure the order of columns follow the bids table used for masker
         values = values[masker.lut["name"]]
@@ -1360,8 +1361,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         else:
             masker = maskers.SurfaceLabelsMasker(mp._as_surfaceimage(variant=surface_variant), **masker_kwargs)
 
-        masker.fit()
-        masker.set_output(transform="pandas")
         return masker
 
     def extract_signals_with_nilearn(
@@ -1420,20 +1419,41 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             surface_variant=surface_variant,
             **masker_kwargs
         )
+        try:
+            masker.set_output(transform="pandas")
+            convert_to_dataframe = False
+        except NotImplementedError:
+            convert_to_dataframe = True
 
         if "gii-timeseries" in volume.formats:
-            signals = masker.transform(volume._as_surfaceimage(variant=surface_variant), confounds=confounds, sample_mask=sample_mask)
+            signals = masker.fit_transform(
+                volume._as_surfaceimage(variant=surface_variant),
+                confounds=confounds,
+                sample_mask=sample_mask
+            )
         else:
-            signals = masker.transform(volume.fetch(), confounds=confounds, sample_mask=sample_mask)
+            signals = masker.fit_transform(
+                volume.fetch(),
+                confounds=confounds,
+                sample_mask=sample_mask
+            )
 
         if self.is_labelled:
             # nilearn masker kwarg, `keep_missing_labels` is not working. This is a workaround
-            regions_in_order = self.to_BIDS_lookup_table()["name"]
-            missing_regions = set(regions_in_order) - set(signals.columns)
-            if len(missing_regions) > 0:
+            missing_regions_mask = np.asanyarray(
+                [lb not in masker.labels_ for lb in masker.lut['index']],
+                dtype=bool
+            )
+            if convert_to_dataframe:
+                signals = pd.DataFrame(
+                    signals,
+                    columns=masker.lut[~missing_regions_mask]["name"]
+                )
+            if any(missing_regions_mask):
+                missing_regions = masker.lut[missing_regions_mask]["name"]
                 logger.info(f"Regions that were removed after resampling are filled with zeros:\n{missing_regions}")
-                signals[list(missing_regions)] = 0
-                signals = signals[self.regions]
+                signals[missing_regions.tolist()] = 0
+                signals = signals[masker.lut["name"]]
         else:
             regions = list(self._indices.keys())
             signals.rename(
