@@ -722,7 +722,7 @@ class FilteredVolume(Volume):
         result = super().fetch(format=format, **kwargs)
         if self.timepoint is not None:
             assert isinstance(self._parent, TimeSeriesVolume)
-            timeindex = self._parent.time.to_list().index(self.timepoint)
+            timeindex = self._parent.time.tolist().index(self.timepoint)
             if isinstance(result, Nifti1Image):
                 result = result.slicer[:, :, :, timeindex]
             else:

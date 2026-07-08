@@ -1236,7 +1236,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 v_t,
                 lower_threshold=lower_threshold,
                 split_components=split_components,
-                time=v_t.time,
+                time=v_t.timepoint,
                 **kwargs
             )
             assignments.extend(assignments_t)
