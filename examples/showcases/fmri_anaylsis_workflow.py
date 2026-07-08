@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
+
+:bdg-info:`Research workflow`
+
 Extrating Regionwise Signals From Activity Recording
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -55,7 +58,7 @@ url_template = dataset_base_url + folder + "{file}"
 file = f"{subject}_task-workingmemory_acq-seq_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz"
 workingmemory_fmri = siibra.volumes.from_url(
     url_template.format(file=file), space="mni152", time=[]
-)  # TODO: need to get the time index from the dataset
+)
 print(type(workingmemory_fmri))
 
 # %%
@@ -66,7 +69,7 @@ print(type(workingmemory_fmri))
 file = f"{subject}_task-restingstate_acq-seq_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz"
 restingstate_fmri = siibra.volumes.from_url(
     url_template.format(file=file), space="mni152", time=[]
-)  # TODO: need to get the time index from the dataset
+)
 
 
 # %%
