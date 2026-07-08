@@ -31,8 +31,7 @@ jobs:
           python -m pip install -r ./docs/requirements-doc.txt
 
       - name: Build the docs and execute the notebooks
-        run: |
-          sphinx-build docs ./docs/_build/
+        run: sphinx-build docs ./docs/_build/
 
       - name: Upload built docs artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -54,17 +53,40 @@ jobs:
           rm -rf "${{ github.workspace }}"/*
           rm -rf /tmp/*
 
-  upload-to-rtd:
+  trigger-rtd-build:
     name: "Trigger RTD build"
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
     needs: notebooks
     steps:
       - name: Trigger RTD build
-        uses: dfm/rtds-action@e028de3bdec9ae8e4bda371425986df0fb6cc4bf  # v1.1.0
-        with:
-          webhook_url: ${{ secrets.RTDS_WEBHOOK_URL }}
-          webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
-          commit_ref: ${{ github.ref }}
+        env:
+          RTDS_WEBHOOK_URL: ${{ secrets.RTDS_WEBHOOK_URL }}
+          RTDS_WEBHOOK_TOKEN: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "release" ]; then
+            rtd_version="$RELEASE_TAG"
+          elif [ "$REF_TYPE" = "branch" ] || [ "$REF_TYPE" = "tag" ]; then
+            rtd_version="$REF_NAME"
+          else
+            echo "Unsupported event/ref for ReadTheDocs build: $EVENT_NAME / $REF_TYPE" >&2
+            exit 0
+          fi
+
+          if [ -z "$rtd_version" ]; then
+            echo "Could not determine ReadTheDocs version to build" >&2
+            exit 1
+          fi
+
+          echo "Triggering ReadTheDocs build for version: $rtd_version"
+
+          curl -fsS -X POST "$RTDS_WEBHOOK_URL" \
+            -d "branches=$rtd_version" \
+            -d "token=$RTDS_WEBHOOK_TOKEN"
