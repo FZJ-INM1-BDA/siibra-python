@@ -51,24 +51,33 @@ The following flowchart summarizes the usual decision process.
 
 ```{mermaid}
 flowchart TD
-  start["I have data or atlas content"] --> local["Do I only need it in my local workflow?"]
+  start["Is my data or atlas content supported by siibra?\n(siibra.retrieval.requests.DECODERS)"]
+  start -- "yes" --> contenttype["What is the content type?\n (see Glossary)"]
+  start -- "no" --> contact(("Contact\nsiibra-team"))
+  contenttype -- "Data feautre" --> feature{{"Feature"}}
+  contenttype -- "Space,\nParcellation scheme,\n and/or Annotation set" --> atlasstructure{{"Atlas structure"}}
+  feature --> supported["Is the modality already supported by siibra?\n(siibra.features.TYPES)"]
+  supported -- "yes" --> writejson(("Write a JSON\nspecification"))
+  supported -- "no, a new feature class may be needed" --> codechange(("Implement or extend the corresponding siibra-python class"))
+  codechange -- "Code implementated?" ---> writejson
+  atlasstructure --> writejson
+  codechange -- "Have questions or can't implement?" --> contact
 
-  local --> |"yes"| supported["Is the content type already supported by siibra v1?"]
-  local -->|"no, I want it available by default"| public["Can the content be shared publicly or through an accepted repository?"]
+  writejson --> fromjson["Test with siibra.from_json"]
+  fromjson -- "object is constructed" --> fetchtest["Fetch or inspect the object in a small smoke test"]
+  fromjson -- "have issues" --> contact
+  fetchtest -- "does not fetch" --> check["check implementation and source"] -- "need help?" --> contact
 
-  supported -- "yes" --> writejson["Write a local JSON specification"]
-  supported -- "no" --> newtype["A new feature/map/provider type may be needed"]
+  fetchtest -- "fetched data?" --> local["Do you only need it in your local workflow?"]
 
-  writejson --> testjson["Test with siibra.from_json"]
-  testjson --> localconfig["Use a local configuration repository or direct JSON loading"]
-  localconfig --> workflow["Use the object in siibra workflows"]
+  local -- "yes" --> private["Keep the content in a private local configuration"]
+  private --> workflow(("Use the object\nin siibra workflows"))
 
-  newtype --> codechange["Implement or extend the corresponding siibra-python class"]
-  codechange --> writejson
+  local -- "no, I want it available in siibra by default" ---> public["Can the content be shared publicly or through an accepted repository?"]
 
-  public -->|"yes"| compare["Compare with existing siibra-configurations examples"]
-  compare --> pr["Open an issue or pull request in siibra-configurations"]
-  public -->|"no"| private["Keep the content in a private local configuration"]
+  public -- "yes" ---> issue["Open an issue or pull request in siibra-configurations (and siibra-python if code change is present)"]
+
+  public -- "no" ----> private
 ```
 
 ## Configuration routes in siibra
