@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-
+.. _002_colorize_map
 :bdg-secondary:`Intermediate`
 
 Colorizing a map with neurotransmitter receptor densities

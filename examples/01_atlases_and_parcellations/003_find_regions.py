@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-
+.. _003_find_regions
 :bdg-success:`Basic`
 
 Find brain regions in a parcellation

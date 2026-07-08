@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-
+.. _008_functional_timeseries
 :bdg-secondary:`Intermediate`
 
 Parcellation-based functional data

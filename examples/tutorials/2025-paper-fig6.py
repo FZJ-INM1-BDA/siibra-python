@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-
+.. _2025-paper-fig6
 :bdg-info:`Research workflow`
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

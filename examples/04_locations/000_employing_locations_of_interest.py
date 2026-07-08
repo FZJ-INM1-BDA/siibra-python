@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-
+.. _000_employing_locations_of_interest
 :bdg-success:`Basic`
 
 Utilizing locations of interest

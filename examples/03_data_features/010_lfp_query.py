@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-
+.. _010_lfp_query
 :bdg-secondary:`Intermediate`
 
 High-resolution Rat Local Field Potential Atlas

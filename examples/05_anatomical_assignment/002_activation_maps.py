@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-
+.. _002_activation_maps
 :bdg-secondary:`Intermediate`
 
 Assign modes in activation maps to brain regions

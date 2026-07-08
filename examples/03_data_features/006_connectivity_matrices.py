@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-
+.. _006_connectivity_matrices
 :bdg-secondary:`Intermediate`
 
 Connectivity matrices

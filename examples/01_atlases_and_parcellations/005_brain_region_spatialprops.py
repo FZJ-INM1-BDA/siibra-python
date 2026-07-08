@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-
+.. _005_brain_region_spatialprops
 :bdg-secondary:`Intermediate`
 
 Spatial properties of brain regions

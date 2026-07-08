@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-
+.. _2025-paper-fig3
 :bdg-danger:`Advanced`
 
 Anatomical characterization and multimodal profiling of regions of interest
