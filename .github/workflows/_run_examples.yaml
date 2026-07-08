@@ -49,3 +49,16 @@ jobs:
         SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
       shell: bash
       run: pytest e2e/examples/test_examples.py -rx -vv --durations=5
+
+    - name: Clear siibra cache
+      if: ${{ always() }}
+      continue-on-error: true
+      run: |
+        python -c "import siibra; siibra.cache.clear()"
+
+    - name: Remove checked-out repository files
+      if: ${{ always() }}
+      continue-on-error: true
+      run: |
+        rm -rf "${{ github.workspace }}"/*
+        rm -rf /tmp/*
