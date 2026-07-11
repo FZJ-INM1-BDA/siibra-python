@@ -373,4 +373,3 @@ References
    constraints to align preterm, infant and adult human brain images acquired
    in vivo and post mortem. Brain Structure and Function, 223(9),
    4153-4168, 2018. doi: 10.1007/s00429-018-1735-9
-```

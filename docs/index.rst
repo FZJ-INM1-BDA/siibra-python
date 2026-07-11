@@ -174,4 +174,5 @@ data features.
   create_preconfiguration
   developer
   contribute
+  report_issues
   GitHub Repository <https://github.com/FZJ-INM1-BDA/siibra-python>

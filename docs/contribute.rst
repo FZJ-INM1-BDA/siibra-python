@@ -2,28 +2,12 @@
 How to contribute
 =================
 
-Contributions to `siibra-python` are welcome through issue reports,
-discussions, documentation improvements, and pull requests.
+Contributions to `siibra-python` are welcome through issue reports
+(see :ref:`report_issues`), discussions, documentation improvements, and pull
+requests.
 
-The source code is hosted on GitHub:
+The source code is hosted on GitHub: https://github.com/FZJ-INM1-BDA/siibra-python
 
-https://github.com/FZJ-INM1-BDA/siibra-python
-
-Reporting issues
-================
-
-Use the GitHub issue tracker to report bugs, request improvements, or discuss
-unexpected behavior. A useful issue report includes:
-
-* the installed `siibra-python` version,
-* the Python version,
-* the operating system,
-* a minimal code example that reproduces the issue,
-* the complete error message or traceback, if available.
-
-For questions related to EBRAINS services, account access, or infrastructure
-availability, the EBRAINS support channels may be more appropriate than a
-software issue.
 
 Contributing code
 =================
@@ -69,9 +53,3 @@ The documentation for adding and curating foundational content is maintained
 separately:
 
 :doc:`create_preconfiguration`
-
-Citing siibra-python
-====================
-
-If `siibra-python` is used in published work, cite the software release and
-the atlas content or datasets used in the workflow. See :doc:`howtocite`.
