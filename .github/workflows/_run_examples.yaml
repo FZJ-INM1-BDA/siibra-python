@@ -1,4 +1,5 @@
 name: Test examples
+
 on:
   workflow_call:
     inputs:
@@ -8,57 +9,82 @@ on:
       python-version:
         required: true
         type: string
+        default: "3.9"
       use-cfg:
         required: false
         type: string
-        default: ''
+        default: ""
       siibra_log_level:
         required: false
         type: string
-        default: "INFO_WO_PROGRESS_BARS"
+        default: "WARNING"
 
 jobs:
   test_examples:
     runs-on: ${{ inputs.os }}
+
     env:
       SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
+      JOB_DIR: ${{ github.workspace }}/.ci-test-examples-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ inputs.python-version }}
+
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ inputs.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ inputs.python-version }}
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
-    - if: ${{ inputs.use-cfg != '' }}
-      uses: './.github/workflows/setup-custom-cfg'
-      with:
-        siibra-cfg-ref: ${{ inputs.use-cfg }}
+      - name: Define job directories
+        shell: bash
+        run: |
+          {
+            echo "VIRTUAL_ENV=$JOB_DIR/venv"
+            echo "SIIBRA_CACHEDIR=$JOB_DIR/siibra-cache"
+            echo "UV_CACHE_DIR=$JOB_DIR/uv-cache"
+            echo "UV_PYTHON_INSTALL_DIR=$JOB_DIR/python"
+          } >> "$GITHUB_ENV"
 
-    - name: Install dependencies
-      shell: bash
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install -U .
-        pip install -r requirements-test.txt
+      - name: Set up uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          enable-cache: false
 
-    - name: Install test dependencies
-      run:  pip install pytest pytest-cov coverage
+      - name: Create virtual environment
+        shell: bash
+        run: |
+          mkdir -p "$JOB_DIR" "$SIIBRA_CACHEDIR"
 
-    - name: Test example notebooks
-      env:
-        SIIBRA_LOG_LEVEL: ${{ inputs.siibra_log_level }}
-      shell: bash
-      run: pytest e2e/examples/test_examples.py -rx -vv --durations=5
+          uv venv "$VIRTUAL_ENV" \
+            --python "${{ inputs.python-version }}"
 
-    - name: Clear siibra cache
-      if: ${{ always() }}
-      continue-on-error: true
-      run: |
-        python -c "import siibra; siibra.cache.clear()"
+          echo "$VIRTUAL_ENV/bin" >> "$GITHUB_PATH"
 
-    - name: Remove checked-out repository files
-      if: ${{ always() }}
-      continue-on-error: true
-      run: |
-        rm -rf "${{ github.workspace }}"/*
-        rm -rf /tmp/*
+      - name: Set up custom siibra configuration
+        if: ${{ inputs.use-cfg != '' }}
+        uses: ./.github/workflows/setup-custom-cfg
+        with:
+          siibra-cfg-ref: ${{ inputs.use-cfg }}
+
+      - name: Install project and test dependencies
+        shell: bash
+        run: |
+          uv pip install \
+            --python "$VIRTUAL_ENV/bin/python" \
+            . \
+            -r requirements-test.txt
+
+      - name: Test example notebooks
+        shell: bash
+        run: |
+          pytest e2e/examples/test_examples.py -rx -v --durations=5
+
+      - name: Clean up
+        if: ${{ always() }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          rm -rf -- "$JOB_DIR"
+
+          find "$GITHUB_WORKSPACE" \
+            -mindepth 1 \
+            -maxdepth 1 \
+            -exec rm -rf -- {} +

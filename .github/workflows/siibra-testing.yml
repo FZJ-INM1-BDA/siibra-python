@@ -23,7 +23,7 @@ jobs:
       # see https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
       COMMIT_MSG: ${{ github.event.head_commit.message }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # 7.0.0
       - id: "use-ref"
         run: |
           SED_S_PATTERN=$(echo '${{ env.USE_CONFIG_COMMIT_KW }}' | sed 's/\[/\\[/' | sed 's/]/\\]/')
@@ -103,5 +103,5 @@ jobs:
     uses: ./.github/workflows/_run_examples.yaml
     with:
       os: self-hosted
-      python-version: "3.8"
+      python-version: "3.9"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}

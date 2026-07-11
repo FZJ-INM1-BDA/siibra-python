@@ -1,11 +1,11 @@
-name: '[Docs] Build docs and upload artifacts'
+name: "[Docs] Build docs and upload artifacts"
 
 on:
   push:
     branches: [ 'main', 'doc_*', 'v1', 'feat_timeseries_volume']
 
   release:
-    types: [ 'published' ]
+    types: ["published"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -13,50 +13,78 @@ concurrency:
 
 jobs:
   notebooks:
-    name: "Build and run the notebooks for the docs"
+    name: Build and run the notebooks for the docs
     runs-on: self-hosted
+
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+    env:
+      PYTHON_VERSION: "3.11"
+      JOB_DIR: ${{ github.workspace }}/.ci-docs-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          python-version: '3.11'
+          persist-credentials: false
+
+      - name: Define job directories
+        shell: bash
+        run: |
+          {
+            echo "VIRTUAL_ENV=$JOB_DIR/venv"
+            echo "SIIBRA_CACHEDIR=$JOB_DIR/siibra-cache"
+            echo "UV_CACHE_DIR=$JOB_DIR/uv-cache"
+            echo "UV_PYTHON_INSTALL_DIR=$JOB_DIR/python"
+          } >> "$GITHUB_ENV"
+          
+      - name: Set up uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          enable-cache: false
+
+      - name: Create virtual environment
+        shell: bash
+        run: |
+          mkdir -p "$JOB_DIR" "$SIIBRA_CACHEDIR"
+          uv venv "$VIRTUAL_ENV" --python "$PYTHON_VERSION"
+          echo "$VIRTUAL_ENV/bin" >> "$GITHUB_PATH"
 
       - name: Install dependencies
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -U .
-          python -m pip install -r ./docs/requirements-doc.txt
+          uv pip install \
+            --python "$VIRTUAL_ENV/bin/python" \
+            . \
+            -r docs/requirements-doc.txt
 
       - name: Build the docs and execute the notebooks
+        shell: bash
         run: |
-          sphinx-build docs ./docs/_build/
+          python -m sphinx docs docs/_build
 
       - name: Upload built docs artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: sphinx-docs-built-in-github-${{ github.sha }}
           path: docs
-          retention-days: 7
+          retention-days: 2
 
-      - name: Clear siibra cache
+      - name: Clean up
         if: ${{ always() }}
         continue-on-error: true
+        shell: bash
         run: |
-          python -c "import siibra; siibra.cache.clear()"
+          rm -rf -- "$JOB_DIR"
 
-      - name: Remove checked-out repository files
-        if: ${{ always() }}
-        continue-on-error: true
-        run: |
-          rm -rf "${{ github.workspace }}"/*
-          rm -rf /tmp/*
+          find "$GITHUB_WORKSPACE" \
+            -mindepth 1 \
+            -maxdepth 1 \
+            -exec rm -rf -- {} +
 
   upload-to-rtd:
-    name: "Trigger RTD build"
+    name: Trigger RTD build
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -64,7 +92,7 @@ jobs:
     needs: notebooks
     steps:
       - name: Trigger RTD build
-        uses: dfm/rtds-action@e028de3bdec9ae8e4bda371425986df0fb6cc4bf  # v1.1.0
+        uses: dfm/rtds-action@e028de3bdec9ae8e4bda371425986df0fb6cc4bf # v1.1.0
         with:
           webhook_url: ${{ secrets.RTDS_WEBHOOK_URL }}
           webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
