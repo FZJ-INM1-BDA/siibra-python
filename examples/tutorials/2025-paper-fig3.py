@@ -1,4 +1,4 @@
-# Copyright 2018-2025
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -171,11 +171,14 @@ fp.plot(ax=axs, capsize=4)
 
 # %%
 # Now, query for gene expressions for the same region
-genes = ["gabarapl1", "gabarapl2", "maoa", "tac1"]
-gene_expressions = siibra.features.get(selected_region, "gene expressions", gene=genes)
-print("\n".join(gene_expressions[0].urls))
-fig, axs = plt.subplots(1, 1, figsize=(4, 3.5))
-gene_expressions[0].plot(ax=axs)
+try:
+    genes = ["gabarapl1", "gabarapl2", "maoa", "tac1"]
+    gene_expressions = siibra.features.get(selected_region, "gene expressions", gene=genes)
+    print("\n".join(gene_expressions[0].urls))
+    fig, axs = plt.subplots(1, 1, figsize=(4, 3.5))
+    gene_expressions[0].plot(ax=axs)
+except Exception as e:
+    print(e)  # Allen API is down, see https://github.com/FZJ-INM1-BDA/siibra-python/issues/636
 
 
 # %%

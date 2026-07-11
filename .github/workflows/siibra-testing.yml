@@ -23,7 +23,7 @@ jobs:
       # see https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
       COMMIT_MSG: ${{ github.event.head_commit.message }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # 7.0.0
       - id: "use-ref"
         run: |
           SED_S_PATTERN=$(echo '${{ env.USE_CONFIG_COMMIT_KW }}' | sed 's/\[/\\[/' | sed 's/]/\\]/')
@@ -87,7 +87,6 @@ jobs:
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
-      fail-fast: false
       matrix:
         python-version: ["3.12", "3.11", "3.10", "3.9", "3.8"]
 
@@ -98,37 +97,11 @@ jobs:
     with:
       os: ubuntu-latest
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
-      test_folder: ${{ matrix.test_folder }}
-    strategy:
-      fail-fast: false
-      matrix:
-        test_folder: ["e2e/core", "e2e/volumes", "e2e/retrieval", "e2e/locations", "e2e/features/activity_timeseries", "e2e/features/connectivity", "e2e/features/image", "e2e/features/external", "e2e/features/molecular", "e2e/features/test_get.py", "e2e/features/test_plot.py", "e2e/features/test_generic.py"]
 
   test-examples:
     needs: 'use-custom-cfg'
     uses: ./.github/workflows/_run_examples.yaml
     with:
       os: self-hosted
-      python-version: "3.8"
+      python-version: "3.9"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
-      test_file: ${{ matrix.test_file }}
-    strategy:
-      matrix:
-        test_file: [examples/test_examples.py, examples/test_tutorials.py]
-
-  cleanup:
-    name: "Clean up build artifacts and pip cache"
-    runs-on: self-hosted
-    needs: test-examples
-    # Always run cleanup, even if the build job failed
-    if: always()
-    steps:
-      - name: Clear siibra cache
-        continue-on-error: true
-        run: |
-          python -c "import siibra; siibra.cache.clear()"
-
-      - name: Remove checked-out repository files
-        continue-on-error: true
-        run: |
-          rm -rf ${{ github.workspace }}/*

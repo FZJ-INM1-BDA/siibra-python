@@ -1,4 +1,4 @@
-# Copyright 2018-2025
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -103,9 +103,8 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
         return self.get_boundingbox().minpoint.bigbrain_section()
 
     def fetch(self, flip: bool = False, resolution_mm: float = -1, **kwargs):
-        assert len(kwargs) == 0
         p = self._patch.flip() if flip else self._patch
-        return p.extract_volume(self._section, resolution_mm=resolution_mm).fetch()
+        return p.extract_volume(self._section, resolution_mm=resolution_mm, **kwargs).fetch()
 
 
 class AutoradiographySection(
