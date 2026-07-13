@@ -1,17 +1,30 @@
-==============================================================
 siibra - Software interface for interacting with brain atlases
-==============================================================
+##############################################################
 
 `siibra-python` is the Python interface of the siibra tool suite. It provides
 programmatic access to reference atlases, brain-region terminologies, reference
-coordinate systems, atlas maps, locations in the brain, and linked multimodal
-data features.
-
-The main content distributed with siibra implements the Multilevel Human Brain
-Atlas. It links anatomical concepts with maps and measurements across multiple
-spatial scales, from macroscopic MRI and surface spaces to microscopic BigBrain
+coordinate systems, atlas maps, locations in the brain, and multimodal data
+features. It links anatomical concepts with maps and measurements across
+multiple spatial scales, from macroscopic MRI and surface spaces to microscopic
 resources. The package supports scripts, notebooks, and reproducible analysis
-workflows.
+workflows. Please see :ref:`glossary` page for details of the central concepts
+used throughout the documentation.
+
+With `siibra-python`, you can:
+
+* browse and access brain areas, parcellations, spaces, templates, and maps,
+* define coordinates, point sets, bounding boxes, and image-based regions of
+  interest,
+* assign locations and regions of interest to brain areas,
+* query multimodal data features linked to brain areas or spatial locations,
+* fetch image, tabular, and numerical data in Python-friendly formats,
+* combine atlas information with common scientific Python tools,
+* and combine these in workflows (see :ref:`usecases`).
+
+`siibra-python` does not ship the atlas datasets themselves. Instead, it uses
+metadata, configurations, and live queries to access distributed data resources
+on demand. Data are fetched lazily and can be cached locally, so workflows only
+download the elements they use.
 
 .. grid::
 
@@ -110,48 +123,29 @@ workflows.
         linked to resources hosted or registered in EBRAINS, supporting
         findable and reusable access to curated neuroscience data.
 
-
-With `siibra-python`, you can:
-
-* find brain areas, parcellations, spaces, templates, and maps,
-* define coordinates, point sets, bounding boxes, and image-based regions of
-  interest,
-* assign locations and regions of interest to brain areas,
-* query multimodal data features linked to brain areas or spatial locations,
-* fetch image, tabular, and numerical data in Python-friendly formats,
-* combine atlas information with common scientific Python tools.
-
-`siibra-python` does not ship the atlas datasets themselves. Instead, it uses
-metadata, configurations, and live queries to access distributed data resources
-on demand. Data are fetched lazily and can be cached locally, so workflows only
-download the elements they use.
-
-Documentation overview
-======================
-
-The documentation is organized around installation, concepts, examples, and API
-reference material. The :ref:`getting-started` page covers installation and
-first steps with `siibra-python`. The :ref:`glossary` page explains the
-central concepts used throughout the documentation. The :ref:`examples`
-section provides documented code examples for common atlas workflows. The
-:ref:`api` section contains the generated API reference for classes, functions,
-and modules.
-
-siibra toolsuite
+Acknowledgements
 ================
 
-siibra provides complementary interfaces for different use cases:
+`siibra-python` is developed and maintained by the Big Data Analytics Group,
+Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH,
+with contributions from collaborators and users.
 
-* `siibra-explorer` is the interactive web viewer for visual exploration of
-  atlases, maps, templates, and linked data resources.
-* `siibra-python` is the Python library for scripting, notebooks, analysis,
-  and reproducible workflows.
-* `siibra-api` exposes atlas functionality through HTTP endpoints for
-  application development.
+Development of `siibra-python` and the wider siibra tool suite has been
+supported by European and national research infrastructure projects, including
+the Human Brain Project and EBRAINS. The software contributes to atlas services
+for accessing and using multilevel brain atlas content in reproducible
+workflows.
 
-The interfaces share the same conceptual basis: reference atlases,
-brain-region terminologies, reference coordinate systems, maps, locations, and
-data features.
+We thank all contributors who have helped develop, test, document, and improve
+`siibra-python` through code contributions, issue reports, discussions,
+tutorials, workshops, and user feedback.
+
+Many atlas elements and data features accessible through siibra are curated,
+hosted, or registered through EBRAINS and related community resources. We
+acknowledge the researchers, data providers, curators, and infrastructure teams
+who make these resources available for reuse.
+
+For details on software authorship and citation, see :doc:`howtocite`.
 
 
 .. toctree::
