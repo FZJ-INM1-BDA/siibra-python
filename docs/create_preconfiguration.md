@@ -51,13 +51,13 @@ The following flowchart summarizes the usual decision process.
 
 ```{mermaid}
 flowchart TD
-  start["Is my data or atlas content supported by siibra?\n(siibra.retrieval.requests.DECODERS)"]
-  start -- "yes" --> contenttype["What is the content type?\n (see Glossary)"]
-  start -- "no" --> contact(("Contact\nsiibra-team"))
+  start["Is my data or atlas content supported by siibra?<br>(siibra.retrieval.requests.DECODERS)"]
+  start -- "yes" --> contenttype["What is the content type?<br> (see Glossary)"]
+  start -- "no" --> contact(("Contact<br>siibra-team"))
   contenttype -- "Data feautre" --> feature{{"Feature"}}
-  contenttype -- "Space,\nParcellation scheme,\n and/or Annotation set" --> atlasstructure{{"Atlas structure"}}
-  feature --> supported["Is the modality already supported by siibra?\n(siibra.features.TYPES)"]
-  supported -- "yes" --> writejson(("Write a JSON\nspecification"))
+  contenttype -- "Space,<br>Parcellation scheme,<br> and/or Annotation set" --> atlasstructure{{"Atlas structure"}}
+  feature --> supported["Is the modality already supported by siibra?<br>(siibra.features.TYPES)"]
+  supported -- "yes" --> writejson(("Write a JSON<br>specification"))
   supported -- "no, a new feature class may be needed" --> codechange(("Implement or extend the corresponding siibra-python class"))
   codechange -- "Code implementated?" ---> writejson
   atlasstructure --> writejson
@@ -71,7 +71,7 @@ flowchart TD
   fetchtest -- "fetched data?" --> local["Do you only need it in your local workflow?"]
 
   local -- "yes" --> private["Keep the content in a private local configuration"]
-  private --> workflow(("Use the object\nin siibra workflows"))
+  private --> workflow(("Use the object<br>in siibra workflows"))
 
   local -- "no, I want it available in siibra by default" ---> public["Can the content be shared publicly or through an accepted repository?"]
 
