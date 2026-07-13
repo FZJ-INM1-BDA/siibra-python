@@ -45,7 +45,7 @@ computer.
 For sensitive data, check which parts of the workflow use local files only and
 which parts call external services.
 
-## Choosing the right route
+## Flowchart
 
 The following flowchart summarizes the usual decision process.
 
@@ -90,20 +90,8 @@ Foundational content is described by JSON configuration files. These files
 define atlas concepts such as spaces, parcellations, maps, and selected data
 features.
 
-The default foundational content is maintained in the `v1` branch of the
-`siibra-configurations` repository:
-
-https://github.com/FZJ-INM1-BDA/siibra-configurations/tree/v1
-
-### Dynamic content from live queries
-
-Dynamic content from live queries is discovered at runtime by querying external
-services. Live queries are implemented in `siibra-python` and translate external
-metadata into siibra feature objects.
-
-Use configuration files when the content should be explicitly described by
-JSON. Use live queries when content should be discovered dynamically from a
-service with a stable API.
+The default foundational content is maintained in `siibra-configurations`
+repository: https://github.com/FZJ-INM1-BDA/siibra-configurations/
 
 ### Local user content
 
@@ -115,6 +103,18 @@ annotations.
 Local content can be described by JSON files and loaded directly with
 `siibra.from_json(...)` or made available through a local configuration
 repository.
+
+### Dynamic content from live queries
+
+Dynamic content from live queries is discovered at runtime by querying external
+services. Live queries are implemented in `siibra-python` and translate external
+metadata into siibra feature objects.
+
+Use configuration files when the content should be explicitly described by
+JSON. Use live queries when content should be discovered dynamically from a
+service with a stable API.
+
+
 
 ## What a configuration file describes
 
@@ -155,9 +155,9 @@ configuration files and the JSON schemas as references.
 
 The first step is deciding what kind of object the JSON file should create.
 
-### Atlas concepts
+### Atlas elements
 
-Atlas concepts describe the structural organization of an atlas. Common types
+Atlas elements describe the structural organization of an atlas. Common types
 include:
 
 * reference atlas,
@@ -200,7 +200,7 @@ Examples include:
 * microscopy-derived features,
 * MRI-derived features.
 
-In siibra v1, each configured data feature must correspond to a feature class
+In siibra, each configured data feature must correspond to a feature class
 known to the installed `siibra-python` version. Adding a completely new
 unsupported modality may require code changes.
 
@@ -260,64 +260,7 @@ configurations and the supported volume provider formats in the code.
 The examples below are schematic. Use them as starting points and adapt them
 to the schema and object type required for the data.
 
-### Local image volume
-
-This example sketches a local image volume that can be loaded as a siibra
-object.
-
-```json
-{
-  "@type": "siibra/volume/v0.0.1",
-  "providers": {
-    "nii": "/path/to/project/data/my_image.nii.gz"
-  }
-}
-```
-
-Test it with:
-
-```python
-import siibra
-
-obj = siibra.from_json("/path/to/my_volume.json")
-print(type(obj))
-
-img = obj.fetch()
-print(img)
-```
-
-### Image feature anchored by a bounding box
-
-This example sketches an image-like data feature with a spatial anchor. The
-bounding box coordinates must be expressed in the specified reference
-coordinate system.
-
-```json
-{
-  "@id": "my-project-feature-001",
-  "@type": "siibra/feature/volume_of_interest/v0.1",
-  "name": "Example local volume of interest",
-  "modality": "MRI",
-  "space": {
-    "@id": "minds/core/referencespace/v1.0.0/example-space-id"
-  },
-  "providers": {
-    "nii": "/path/to/project/data/example_voi.nii.gz"
-  },
-  "boundingbox": {
-    "@type": "siibra/location/boundingbox/v0.1",
-    "space": {
-      "@id": "minds/core/referencespace/v1.0.0/example-space-id"
-    },
-    "coordinates": [
-      [-20.0, -30.0, 40.0],
-      [-10.0, -20.0, 50.0]
-    ]
-  }
-}
-```
-
-Test the object type first:
+As a first test, check the object type by:
 
 ```python
 import siibra
@@ -330,9 +273,30 @@ print(feature)
 If the object can be constructed, test the data access:
 
 ```python
-data = feature.fetch()
-print(data)
+feature.data  # for tabular data
 ```
+
+or
+
+```python
+feature.fetch()  # for images
+```
+
+### Image feature registered to a common reference space
+
+This example sketches an image-like data feature with a spatial anchor.
+
+```json
+{
+  "@id": "my-project-feature-001",
+  "@type": "siibra/feature/volume_of_interest/v0.1",
+  "name": "Example local volume of interest",
+  "modality": "MRI",
+  "space": {"name": "mni 152 2009c asym"},
+  "providers": {"nii": "/path/to/project/data/example_voi.nii.gz"}
+}
+```
+
 
 ### Labelled map with a local volume
 

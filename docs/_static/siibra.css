@@ -41,3 +41,14 @@
     max-height: 125px;
     width: auto;
 }
+
+.mermaid {
+  width: 100%;
+  max-width: 100%;
+}
+
+.mermaid svg {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
