@@ -25,7 +25,7 @@ locations, and multimodal data features, cite the siibra tool-suite paper.
 
 A peer-reviewed version of this manuscript has been accepted for publication in
 Nature Methods and will be available soon. Until the final publication details
-are available, please cite the preprint::
+are available, please cite the preprint
 
     Dickscheid, T., Gui, X., Simsek, A. N., Schiffer, C., Mangin, J.-F.,
     Leprince, Y., Jirsa, V., Bjaalie, J. G., Leergaard, T. B., Bludau, S.,
