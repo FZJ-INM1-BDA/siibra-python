@@ -21,6 +21,8 @@ jobs:
     env:
       PYTHON_VERSION: "3.11"
       JOB_DIR: ${{ github.workspace }}/.ci-docs-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+      SIIBRA_LOG_LEVEL: ERROR
+      SIIBRA_NG_VOL_USE_CACHE: "True"
 
     steps:
       - name: Check out repository
