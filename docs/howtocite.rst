@@ -1,13 +1,5 @@
-===========
 How to cite
-===========
-
-Please cite the version of `siibra-python` used in your work. Version-specific
-citation information is provided in the repository's `CITATION.cff` file and
-through the Zenodo record associated with the software release.
-
-Software citation
-=================
+###########
 
 The general software DOI for `siibra-python` is:
 
@@ -17,6 +9,12 @@ Vadim Marcenko, Christian Schiffer, Sebastian Bludau, and Katrin Amunts.
 
 When possible, cite the specific release used for the analysis. This helps make
 workflows reproducible and links results to the exact software version.
+Version-specific citation information is provided in the repository's
+`CITATION.cff` file or through the `Zenodo record <https://zenodo.org/records/15591482>`_
+associated with the software release.
+
+    Find out `siibra-python` version with:
+        ``python -c "import siibra; print(siibra.__version__"``
 
 Tool-suite publication
 ======================
@@ -42,9 +40,6 @@ Citing atlas content and data features
 `siibra-python` provides access to atlas maps, templates, and multimodal data
 features that are often published as independent datasets. When a workflow uses
 such content, cite the corresponding atlas or dataset publications in addition
-to citing the software.
-
-Relevant citations may include, depending on the workflow:
-
-* `siibra-python` software release (``python -c "import siibra; print(siibra.__version__"``),
-* parcellation, map, reference coordinate system, data feature (through `publications` attribute).
+to citing the software. Extract this citation information through `publications`
+attribute of parcellations, maps, reference coordinate systems, and data
+features.
