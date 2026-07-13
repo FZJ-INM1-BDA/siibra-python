@@ -1,8 +1,7 @@
 .. _examples:
 
-========
 Examples
-========
+########
 
 This section provides documented code examples for common `siibra-python`
 workflows. The examples are organized by the main concepts used throughout the
@@ -92,8 +91,8 @@ class details, see :ref:`api`.
     :class-card: sd-shadow-sm
     :margin: 2 2 auto auto
 
-    Work through longer examples that combine several siibra concepts in
-    reproducible analysis workflows.
+    Work through longer examples that combine several siibra concepts and
+    features in reproducible analysis workflows.
 
 
 .. toctree::
