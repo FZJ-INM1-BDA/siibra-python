@@ -5,3 +5,7 @@ contact_links:
   url: https://neurostars.org/tag/siibra/753
   about: |
     Ask a question about siibra-python on Neurostars.
+- name: '💬 Matrix space'
+  url: https://matrix.to/#/#siibra:fz-juelich.de
+  about: |
+    Chat with the community and siibra maintainers about siibra.
