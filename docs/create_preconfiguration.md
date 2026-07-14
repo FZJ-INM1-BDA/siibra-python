@@ -1,234 +1,188 @@
-# Configuring atlas content
+# Expansion with new content
 
-`siibra-python` can work with atlas content that is not part of the default
-configuration. This page explains how to describe such content with
-configuration files.
+`siibra-python` can load atlas content that is not included in its default
+configuration. This guide explains how to:
 
-Configuration files are useful when a workflow needs to use private, local, or
-project-specific data together with siibra objects. They can also be used as a
-starting point for contributing content to the default `siibra-configurations`
-repository.
+* [1. Choose how to add your content](#1-choose-how-to-add-your-content)
+* [2. Write a JSON specification](#2-write-a-json-specification)
+* [3. Examples](#3-examples)
+* [4. Test the specification](#4-test-the-specification)
+* [5. Reuse specifications in a local configuration](#5-reuse-specifications-in-a-local-configuration)
+* [6. Contribute content to the default configuration](#6-contribute-content-to-the-default-configuration)
+* [7. When code changes are required](#7-when-code-changes-are-required)
 
-The focus of this guide is local and private configuration. Integration into
-the default configuration is described briefly at the end.
+For definitions of atlas elements, maps, spaces, data features, and anatomical
+anchors, see {ref}`concepts`.
 
-## What configuration files are for
+## 1. Choose how to add your content
 
-Configuration files describe **foundational content**: atlas concepts and data
-features that siibra can load as objects. A configuration file usually contains
-metadata, anatomical references, and pointers to the actual data.
-
-Typical use cases include:
-
-* adding a local image volume as a data feature,
-* adding a project-specific annotation map,
-* adding a private region of interest or spatially anchored dataset,
-* testing a new feature specification before sharing it,
-* preparing content for a contribution to `siibra-configurations`.
-
-Configuration files do not have to contain the data themselves. They usually
-point to files or resources that siibra can access. In local workflows, these
-resources can be files in local directories.
-
-## Privacy and data access
-
-Local configuration files and local data files can be used privately. When a
-configuration points to local files, siibra reads the data from the local system.
-
-However, some workflows use external services. In particular, transformations
-between reference coordinate systems may require sending coordinate or location
-information to a server that performs the spatial conversion. The image or data
-file itself is not necessarily uploaded for such a coordinate transformation,
-but the location information required for the transformation leaves the local
-computer.
-
-For sensitive data, check which parts of the workflow use local files only and
-which parts call external services.
-
-## Flowchart
-
-The following flowchart summarizes the usual decision process.
+Before writing a specification, decide how the content should be used.
 
 ```{mermaid}
 flowchart TD
-  start["Is my data or atlas content supported by siibra?<br>(siibra.retrieval.requests.DECODERS)"]
-  start -- "yes" --> contenttype["What is the content type?<br> (see concepts)"]
-  start -- "no" --> contact(("Contact<br>siibra-team"))
-  contenttype -- "Data feature" --> feature{{"Feature"}}
-  contenttype -- "Space,<br>Parcellation scheme,<br> and/or Annotation set" --> atlasstructure{{"Atlas structure"}}
-  feature --> supported["Is the modality already supported by siibra?<br>(siibra.features.TYPES)"]
-  supported -- "yes" --> writejson(("Write a JSON<br>specification"))
-  supported -- "no, a new feature class may be needed" --> codechange(("Implement or extend the corresponding siibra-python class"))
-  codechange -- "Code implemented?" ---> writejson
-  atlasstructure --> writejson
-  codechange -- "Have questions or can't implement?" --> contact
+  supported["Is the object type supported by siibra-python?"]
 
-  writejson --> fromjson["Test with siibra.from_json"]
-  fromjson -- "object is constructed" --> fetchtest["Fetch or inspect the object in a small smoke test"]
-  fromjson -- "have issues" --> contact
-  fetchtest -- "does not fetch" --> check["check implementation and source"] -- "need help?" --> contact
+  supported -- "no" --> code["A code change may be required"]
+  code --> discuss["Open an issue or consult the developer documentation"]
 
-  fetchtest -- "fetched data?" --> local["Do you only need it in your local workflow?"]
+  supported -- "yes" --> provider["Is the data format or provider supported?"]
+  provider -- "no" --> code
+  provider -- "yes" --> write["Write a JSON specification"]
 
-  local -- "yes" --> private["Keep the content in a private local configuration"]
-  private --> workflow(("Use the object<br>in siibra workflows"))
+  write --> test["Load and test it with siibra.from_json"]
 
-  local -- "no, I want it available in siibra by default" ---> public["Can the content be shared publicly or through an accepted repository?"]
+  test -- "fails" --> fix["Check the schema, identifiers, and data source"]
+  fix --> test
 
-  public -- "yes" ---> issue["Open an issue or pull request in siibra-configurations (and siibra-python if code change is present)"]
+  test -- "works" --> reuse["How should the content be used?"]
 
-  public -- "no" ----> private
+  reuse -- "One-off local use" --> direct["Load the JSON directly"]
+  reuse -- "Repeated local use" --> local["Add it to a local configuration"]
+  reuse -- "Available by default" --> public["Prepare a contribution to siibra-configurations"]
+
+  public --> shareable["Can the data and metadata be shared through a stable resource?"]
+  shareable -- "yes" --> contribute["Open an issue or pull request"]
+  shareable -- "no" --> local
 ```
 
-## Configuration routes in siibra
+The main routes are:
 
-siibra content can enter the system in three ways.
+| Goal                                   | Recommended approach                          |
+| -------------------------------------- | --------------------------------------------- |
+| Test one object locally                | Load a JSON file with `siibra.from_json(...)` |
+| Reuse several custom objects           | Create a local configuration                  |
+| Add content to the default atlas       | Contribute to `siibra-configurations`         |
+| Add an unsupported object or data type | Extend `siibra-python`                        |
 
-### Foundational content
+Dynamic content discovered through live queries is implemented in
+`siibra-python` and is not configured through static JSON files. See
+{ref}`concepts` for the distinction between foundational, dynamic, and local
+content.
 
-Foundational content is described by JSON configuration files. These files
-define atlas concepts such as spaces, parcellations, maps, and selected data
-features.
+## 2. Write a JSON specification
 
-The default foundational content is maintained in `siibra-configurations`
-repository: https://github.com/FZJ-INM1-BDA/siibra-configurations/
+A **specification** is a JSON description of one siibra object.
 
-### Local user content
+A **configuration** is a collection of such specifications, usually organized
+in a directory or repository.
 
-Local user content is content that is used in a local workflow but is not
-intended to be part of the default siibra configuration. Examples include local
-images, private feature files, custom maps, or project-specific spatial
-annotations.
+A specification commonly defines:
 
-Local content can be described by JSON files and loaded directly with
-`siibra.from_json(...)` or made available through a local configuration
-repository.
+1. the type and identity of the object,
+2. metadata describing the object,
+3. its anatomical or spatial references,
+4. access to the underlying data.
 
-### Dynamic content from live queries
+The exact fields depend on the selected object type. Start from an existing
+specification of the same type and validate the result against the corresponding
+schema.
 
-Dynamic content from live queries is discovered at runtime by querying external
-services. Live queries are implemented in `siibra-python` and translate external
-metadata into siibra feature objects.
+### Select the object type
 
-Use configuration files when the content should be explicitly described by
-JSON. Use live queries when content should be discovered dynamically from a
-service with a stable API.
+The `@type` field determines which siibra object is created from the
+specification.
 
+For example:
 
+```json
+{
+  "@type": "siibra/volume/v0.0.1"
+}
+```
 
-## What a configuration file describes
+Common configurable object categories include:
 
-A configuration file typically describes four things:
+* atlases,
+* parcellations,
+* spaces,
+* reference templates,
+* labelled and statistical maps,
+* data features,
+* volumes and other data providers.
 
-1. **Identity and metadata**
+The object type must be supported by the installed version of
+`siibra-python`.
 
-   * unique identifier,
-   * name,
-   * modality or category,
-   * publications or dataset references, if available.
+When the intended object type is unclear, first identify the corresponding
+concept on the {ref}`concepts` page and then inspect similar specifications in
+the default configuration.
 
-2. **Anatomical reference**
+### Add identity and metadata
 
-   * a brain area,
-   * a parcellation,
-   * a reference coordinate system,
-   * a point, point set, or bounding box,
-   * or a combination of semantic and spatial information.
+Most specifications require a stable identifier and a human-readable name.
 
-3. **Data access**
+A minimal metadata block may look like this:
 
-   * local file paths,
-   * remote URLs,
-   * cloud image resources,
-   * archives or file collections,
-   * provider-specific options.
+```json
+{
+  "@id": "my-project/example-feature",
+  "@type": "siibra/feature/volume_of_interest/v0.1",
+  "name": "Example volume of interest"
+}
+```
 
-4. **Object type**
+Depending on the object type, additional metadata may include:
 
-   * the `@type` field tells siibra which object class should be created from
-     the JSON specification.
+* modality,
+* description,
+* version,
+* publications,
+* dataset references,
+* contributors,
+* license information,
+* links to external metadata records.
 
-The exact required fields depend on the configured object type. Use existing
-configuration files and the JSON schemas as references.
+Use identifiers that are stable within the configuration. Avoid identifiers
+that depend on local filenames or temporary directory structures.
 
-## Choosing the content type
+### Add anatomical references
 
-The first step is deciding what kind of object the JSON file should create.
+Atlas content should state what anatomy it refers to.
 
-### Atlas elements
+Depending on the object type, the specification may reference:
 
-Atlas elements describe the structural organization of an atlas. Common types
-include:
-
-* reference atlas,
-* brain-region terminology or parcellation,
-* brain area,
-* reference coordinate system,
-* reference template,
-* annotation map.
-
-These objects usually belong in the corresponding folders of a configuration
-repository, such as `atlases`, `parcellations`, `spaces`, or `maps`.
-
-### Maps and templates
-
-Maps and templates are spatial objects.
-
-A **template** represents anatomy in a reference coordinate system. A template
-may point to an image volume or a surface representation.
-
-A **map** is an annotation set for a brain-region terminology in a reference
-coordinate system. Maps may be labelled or statistical.
-
-Use a labelled map when the data assign integer labels to brain areas. Use a
-statistical map when the data contain continuous values, such as probabilities
-or other weights.
-
-### Data features
-
-Data features describe multimodal measurements linked to brain areas or spatial
-locations.
-
-Examples include:
-
-* image sections,
-* volumes of interest,
-* receptor density fingerprints,
-* receptor density profiles,
-* connectivity matrices,
-* activity or BOLD time series,
-* microscopy-derived features,
-* MRI-derived features.
-
-In siibra, each configured data feature must correspond to a feature class
-known to the installed `siibra-python` version. Adding a completely new
-unsupported modality may require code changes.
-
-## Anatomical anchors for data features
-
-A data feature needs an anatomical anchor. The anchor tells siibra what the
-feature is about and how it can be matched to atlas concepts.
-
-A feature can be anchored to:
-
-* a brain area,
+* a brain region,
 * a parcellation,
-* a reference coordinate system,
-* a point, point set, or bounding box,
-* an image or spatial extent,
-* a combination of semantic and spatial references.
+* a reference space,
+* a point or point cloud,
+* a bounding box,
+* an image extent,
+* a combination of semantic and spatial information.
 
-Semantic anchors are useful when the measurement is known to belong to a brain
-area. Spatial anchors are useful when the measurement is tied to coordinates,
-bounding boxes, or image extents. Combining both can make feature matching more
-specific.
+For example, an image feature may refer to a supported reference space:
 
-## Data providers and local files
+```json
+{
+  "@id": "my-project/example-voi",
+  "@type": "siibra/feature/volume_of_interest/v0.1",
+  "name": "Example local volume of interest",
+  "modality": "MRI",
+  "space": {
+    "name": "MNI 152 2009c nonlinear asymmetric"
+  }
+}
+```
 
-Providers describe how siibra can access the actual data. The provider key
-indicates the format or retrieval mechanism, and the value points to the data.
+A feature associated with a known brain region may instead use a semantic
+reference to that region.
 
-A schematic volume definition looks like this:
+Prefer the most precise anatomical information available. When both a semantic
+region assignment and a spatial location are known, include both when supported
+by the schema.
+
+See {ref}`concepts` for the distinction between semantic and spatial anatomical
+anchors.
+
+### Define data providers
+
+Providers describe how siibra retrieves the underlying data.
+
+A provider entry consists of:
+
+* a provider key describing the format or access mechanism,
+* a path, URL, or provider-specific value.
+
+A local NIfTI volume can be described schematically as:
 
 ```json
 {
@@ -239,8 +193,7 @@ A schematic volume definition looks like this:
 }
 ```
 
-For archive-based resources, a provider may refer to an archive and a file
-inside the archive. A schematic example is:
+A NIfTI file stored inside a local ZIP archive may be described as:
 
 ```json
 {
@@ -251,69 +204,60 @@ inside the archive. A schematic example is:
 }
 ```
 
-Provider keys depend on the formats supported by the installed
-`siibra-python` version. For volume data, check existing map and template
-configurations and the supported volume provider formats in the code.
+Provider keys depend on the installed `siibra-python` version. Use an existing
+map, template, or feature specification as the reference for the required
+provider syntax.
 
-## Minimal examples
+The specification normally points to the data rather than embedding it.
 
-The examples below are schematic. Use them as starting points and adapt them
-to the schema and object type required for the data.
+## 3. Examples
 
-As a first test, check the object type by:
+The examples below illustrate the main structure of specifications. For a real
+configuration, confirm all fields against the corresponding schema and a current
+specification of the same type.
 
-```python
-import siibra
+### Local image feature
 
-feature = siibra.from_json("/path/to/my_feature.json")
-print(type(feature))
-print(feature)
-```
-
-If the object can be constructed, test the data access:
-
-```python
-feature.data  # for tabular data
-```
-
-or
-
-```python
-feature.fetch()  # for images
-```
-
-### Image feature registered to a common reference space
-
-This example sketches an image-like data feature with a spatial anchor.
+This example defines an image feature in an existing reference space:
 
 ```json
 {
-  "@id": "my-project-feature-001",
+  "@id": "my-project/example-voi",
   "@type": "siibra/feature/volume_of_interest/v0.1",
   "name": "Example local volume of interest",
   "modality": "MRI",
-  "space": {"name": "mni 152 2009c asym"},
-  "providers": {"nii": "/path/to/project/data/example_voi.nii.gz"}
+  "space": {
+    "name": "MNI 152 2009c nonlinear asymmetric"
+  },
+  "providers": {
+    "nii": "/path/to/project/data/example_voi.nii.gz"
+  }
 }
 ```
 
+The specification contains:
 
-### Labelled map with a local volume
+* a feature type,
+* a stable identifier,
+* descriptive metadata,
+* a spatial reference,
+* a local data provider.
 
-This example sketches a labelled map that points to a local integer-labelled
-NIfTI image. The parcellation, space, and region-to-label mapping must match
-the expected schema for the map type.
+### Local labelled map
+
+A labelled map additionally connects image labels to regions in a
+parcellation:
 
 ```json
 {
-  "@id": "my-labelled-map",
+  "@id": "my-project/example-labelled-map",
   "@type": "siibra/map/labelled/v0.1",
   "name": "Example local labelled map",
   "space": {
-    "@id": "minds/core/referencespace/v1.0.0/example-space-id"
+    "@id": "example-space-id"
   },
   "parcellation": {
-    "@id": "minds/core/parcellationatlas/v1.0.0/example-parcellation-id"
+    "@id": "example-parcellation-id"
   },
   "volumes": [
     {
@@ -336,69 +280,131 @@ the expected schema for the map type.
 }
 ```
 
-Use an existing labelled-map configuration as the reference when creating a
-real file, because exact field names and index specifications depend on the
-map schema.
+The referenced space, parcellation, and regions must exist in the active
+configuration or be supplied together with the map.
 
-## Testing a configuration file
+Use a current labelled-map specification from `siibra-configurations` as the
+starting point because required identifiers and index fields depend on the map
+schema.
 
-A useful testing sequence is:
+## 4. Test the specification
 
-1. Start from a similar existing configuration.
-2. Write the JSON file.
-3. Validate against the schema, if possible.
-4. Load the file with `siibra.from_json(...)`.
-5. Inspect the created object.
-6. Call `fetch()` or a small query to test data access.
-7. Add the file to a local configuration repository if it should be reused.
+Test a new specification before adding it to a larger configuration.
 
-### Schema check
+A useful sequence is:
 
-JSON schemas are available in the `config_schema` folder of the
-`siibra-python` repository. They describe expected fields for supported
-configuration types.
+1. validate the JSON syntax and schema,
+2. construct the object with `siibra.from_json(...)`,
+3. inspect the resulting object,
+4. fetch a small amount of data,
+5. test the object in its intended workflow.
 
-From a checkout of `siibra-python`, a schema check can be run with the helper
-script:
+### Load it with `siibra.from_json`
 
-```bash
-python config_schema/check_schema.py /path/to/my_configuration.json
-```
-
-If the command-line interface changes, inspect the helper script or run it with
-`-h` to see the accepted arguments.
-
-### Loading with siibra.from_json
-
-The most direct functional test is to let siibra create an object from the JSON
-file:
+The most direct functional test is:
 
 ```python
 import siibra
 
-obj = siibra.from_json("/path/to/my_configuration.json")
+obj = siibra.from_json("/path/to/my_specification.json")
+
 print(type(obj))
 print(obj)
 ```
 
-If the object is a volume, map, template, or feature, test whether the linked
-data can be fetched:
+This checks whether siibra can:
+
+* parse the file,
+* resolve the `@type`,
+* construct the expected object,
+* interpret its main metadata and references.
+
+Loading the object does not necessarily fetch the underlying data.
+
+### Fetch or inspect the data
+
+After constructing the object, test its data access.
+
+For image-like objects:
 
 ```python
 data = obj.fetch()
 print(data)
 ```
 
-For larger data, use a small region, lower resolution, or a minimal example
-first.
+For a feature exposing tabular data:
 
-## Using a local configuration repository
+```python
+data = obj.data
+print(data)
+```
 
-For one-off testing, `siibra.from_json(...)` is often sufficient. For repeated
-workflows, a local configuration repository can be more convenient.
+For large resources, begin with:
 
-A local configuration repository mirrors the structure of
-`siibra-configurations`, for example:
+* a small local test file,
+* a limited region of interest,
+* a lower resolution,
+* or another minimal representative sample.
+
+Successful object construction alone does not confirm that provider paths,
+remote resources, archive members, or data formats are valid.
+
+### Validate against the schema
+
+Configuration schemas define the expected fields for supported object types.
+
+From a checkout containing the schema validation tools, a validation command
+may look like:
+
+```bash
+python config_schema/check_schema.py /path/to/my_specification.json
+```
+
+Run the helper with `-h` when the available command-line options are unclear:
+
+```bash
+python config_schema/check_schema.py -h
+```
+
+Schema validation can detect:
+
+* missing required fields,
+* invalid field names,
+* unsupported values,
+* incorrect nested structures,
+* incompatible schema versions.
+
+It cannot confirm that referenced files or remote resources are accessible.
+Always combine schema validation with a functional fetch test.
+
+### Common problems
+
+If `siibra.from_json(...)` fails, check:
+
+* whether `@type` is supported,
+* whether required fields are present,
+* whether referenced identifiers exist,
+* whether the schema version matches the installed package,
+* whether file paths are correct,
+* whether provider keys are supported,
+* whether the object was placed in the correct configuration context.
+
+If object creation succeeds but fetching fails, check:
+
+* file or URL accessibility,
+* archive member names,
+* file format compatibility,
+* permissions,
+* provider-specific options,
+* whether the resource contains the expected data.
+
+## 5. Reuse specifications in a local configuration
+
+Loading a JSON file directly is suitable for one-off tests. For repeated
+workflows or several related objects, collect the specifications in a local
+configuration.
+
+A local configuration may mirror the structure of the default configuration:
 
 ```text
 my-siibra-config/
@@ -409,17 +415,15 @@ my-siibra-config/
 └── features/
 ```
 
-Place the JSON file in the folder corresponding to its content type. Then use
-siibra's configuration-loading functions to make the repository available in a
-workflow.
+Only the required directories need to be present.
 
-```python
-import siibra
+Place each specification in the directory corresponding to its object type.
+Related objects should use consistent identifiers and references.
 
-siibra.use_configuration("/path/to/my-siibra-config")
-```
+### Extend the default configuration
 
-or, when extending the default configuration:
+Use an extended configuration when custom content should be available together
+with the default siibra content:
 
 ```python
 import siibra
@@ -427,54 +431,105 @@ import siibra
 siibra.extend_configuration("/path/to/my-siibra-config")
 ```
 
-Use `use_configuration(...)` when the local configuration should replace the
-active configuration. Use `extend_configuration(...)` when the local content
-should be added to the default configuration.
+This is appropriate when, for example:
 
-## Preparing content for siibra-configurations
+* a custom map uses an existing siibra space,
+* a local feature refers to a region from Julich-Brain,
+* project-specific content should supplement the default atlas.
 
-Content that should become part of the default siibra configuration should be
-prepared in the `v1` branch of the `siibra-configurations` repository:
+Identifiers in the local configuration must not unintentionally conflict with
+existing identifiers.
+
+### Replace the active configuration
+
+Use a replacement configuration when the workflow should use only the supplied
+configuration:
+
+```python
+import siibra
+
+siibra.use_configuration("/path/to/my-siibra-config")
+```
+
+This is useful for:
+
+* isolated tests,
+* custom atlas deployments,
+* configurations for other species,
+* controlled environments with a fixed content set.
+
+A replacement configuration must provide every atlas element required by the
+workflow. References to objects that exist only in the default configuration
+will otherwise remain unresolved.
+
+## 6. Contribute content to the default configuration
+
+Content intended for general use can be proposed for inclusion in the
+`siibra-configurations` repository:
 
 https://github.com/FZJ-INM1-BDA/siibra-configurations/tree/v1
 
-A contribution should usually include:
+Before preparing a large contribution, open an issue to discuss:
 
-* a JSON specification in the appropriate folder,
-* stable data access paths,
-* clear names and identifiers,
-* anatomical references,
-* dataset or publication references where available,
-* a small test or smoke test if the contribution changes expected behavior.
+* whether the content fits the scope of the Multilevel Human Brain Atlas,
+* which object type and schema should be used,
+* where the data and metadata should be hosted,
+* whether additional `siibra-python` functionality is required.
 
-For data requests or larger integration discussions, open a GitHub issue before
-preparing a large pull request.
+A contribution should normally include:
 
-## Unsupported modalities and code changes
+* a valid JSON specification in the appropriate directory,
+* stable identifiers,
+* clear names and descriptions,
+* appropriate anatomical references,
+* stable data-access paths,
+* dataset and publication references where available,
+* license and provenance information,
+* a functional smoke test.
 
-If a data type is not supported by the installed `siibra-python` version, a JSON
-file alone may not be enough. A new feature type, provider, decoder, or factory
-mapping may be required.
+Data referenced by the default configuration should normally be available
+through a stable and maintainable resource. Local filesystem paths are not
+suitable for shared foundational content.
 
-A typical implementation path is:
+## 7. When code changes are required
 
-1. Define the new configuration `@type`.
-2. Add or extend the corresponding feature, map, volume, or provider class.
-3. Register the class with the appropriate configuration folder or factory.
-4. Export the class from the appropriate module if it is part of the public API.
-5. Add tests for object creation and data access.
-6. Add example configuration files.
-7. Update documentation.
+A JSON specification can only create object types and use providers supported
+by the installed `siibra-python` version.
 
-For implementation details, see the developer documentation.
+Code changes may be required when introducing:
 
-## Further resources
+* a new feature modality,
+* a new map or volume representation,
+* an unsupported file format,
+* a new provider or decoder,
+* a new live query,
+* behavior that cannot be expressed by an existing schema.
 
-* {ref}`Concepts <concepts>` explains the atlas concepts used in configuration files.
-* {ref}`API reference <api>` documents the Python objects used to load and inspect configured content.
-* {ref}`Developer documentation <developer>` describes implementation details and internal architecture.
-* {ref}`Workflow examples <examples>` provides executable examples using configured atlas content.
-* The `siibra-configurations` repository contains the default configuration files used by siibra:
-  https://github.com/FZJ-INM1-BDA/siibra-configurations/tree/v1
-* The configuration schema tools are available in the same repository:
-  https://github.com/FZJ-INM1-BDA/siibra-configurations/tree/v1/config_schema
+The implementation may involve:
+
+1. defining or extending a Python class,
+2. registering a configuration type,
+3. adding a provider or decoder,
+4. adding schema support,
+5. adding tests,
+6. adding an example specification,
+7. documenting the new functionality.
+
+These steps belong to the developer workflow rather than the normal
+configuration workflow.
+
+For implementation details, see {ref}`developer`.
+
+# Further resources
+
+* {ref}`concepts` explains the atlas and data-access concepts used by
+  configuration specifications.
+* {ref}`api` documents the Python objects used to load and inspect configured
+  content.
+* {ref}`developer` describes implementation details and extension points.
+* {ref}`examples` provides executable workflows using atlas elements and data
+  features.
+* The default configuration is maintained in
+  https://github.com/FZJ-INM1-BDA/siibra-configurations/.
+* Schema definitions and validation tools are available in the configuration
+  and `siibra-python` repositories.
