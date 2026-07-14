@@ -10,62 +10,6 @@ for use in Python scripts, interactive Python sessions, and notebooks.
 Installation
 ============
 
-Install the package with `pip`:
-
-.. code-block:: bash
-
-  pip install siibra
-
-To check the installation, start Python and import the package:
-
-.. code-block:: python
-
-  import siibra
-  print(siibra.__version__)
-
-A minimal query can be used to verify that siibra can access its default
-configuration:
-
-.. code-block:: python
-
-  import siibra
-
-  parcellation = siibra.get_parcellation("julich")
-  space = siibra.get_space("mni152")
-  julich_map = siibra.get_map(
-  parcellation=parcellation,
-  space=space,
-  maptype="statistical",
-  )
-
-  print(parcellation)
-  print(space)
-  print(julich_map)
-
-Update to latest or install a specific version or branch
---------------------------------------------------------
-
-- Update to latest release:
-
-  .. code-block:: bash
-
-    pip install -U siibra
-
-- Install specific version:
-
-  .. code-block:: bash
-
-    pip install siibra==x.y.z
-
-- Install the head of specific branch:
-
-  .. code-block:: bash
-
-    pip install git+https://github.com/FZJ-INM1-BDA/siibra-python.git@branchname
-
-Creating a python environment
-=============================
-
 A separate Python environment is recommended when installing scientific Python
 packages. For example, using built-in `venv` package:
 
@@ -108,33 +52,50 @@ download a suitable Python version depending on the local ``uv`` configuration.
 For details, see the `uv documentation on creating virtual environments
 <https://docs.astral.sh/uv/reference/cli/#uv-venv>`__.
 
+If you prefer to skip creating a virtual environment, you can install the
+package with `pip`:
 
-Atlas data and cache
-====================
+.. code-block:: bash
 
-`siibra-python` does not download all atlas data during installation. Atlas
-metadata are loaded from configurations, and data are fetched lazily when a
-workflow requests them.
+  pip install siibra
 
-Fetched files are stored in the local siibra cache. This avoids repeated
-downloads and allows later runs of the same workflow to reuse data that are
-already available locally.
+To check the installation, start Python and import the package:
 
-The first access to a map, template, or data feature may take longer than later
-accesses because the requested data have to be downloaded.
+.. code-block:: python
 
-Network access
---------------
+  import siibra
+  print(siibra.__version__)
 
-Many atlas elements and data features point to external resources. A network
-connection is therefore required for typical first-time use.
 
-In restricted environments, such as institutional networks or offline analysis
-setups, workflows may require cache preparation or a local configuration. See
-the development and configuration documentation for details:
+Update to latest or install a specific version or branch
+--------------------------------------------------------
 
-* :ref:`developer`
-* :doc:`create_preconfiguration`
+- If you encounter a bug or would like to see if there are a new content or
+  features are available, please check https://github.com/FZJ-INM1-BDA/siibra-python/tags.
+  If there is an update and you would like to get the latest configuration,
+  features, and/or bug fixes, you can update to latest release by:
+
+  .. code-block:: bash
+
+    pip install -U siibra
+
+- Install specific version:
+
+  .. code-block:: bash
+
+    pip install siibra==x.y.z
+
+- Install the head of specific branch:
+
+  .. code-block:: bash
+
+    pip install git+https://github.com/FZJ-INM1-BDA/siibra-python.git@branchname
+
+
+You might need to run ``python -c "import siibra; siibra.cache.clear()"`` if you
+encounter problems after the install to clear the cached files since they may
+differ between releases and branches.
+
 
 Getting help
 ============

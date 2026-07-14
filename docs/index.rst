@@ -10,22 +10,6 @@ MRI and surface spaces to microscopic resources. The package supports scripts,
 notebooks, and reproducible analysis workflows. Please see :ref:`concepts` page
 for details of the central concepts used throughout the documentation.
 
-With `siibra-python`, you can:
-
-* browse and access brain areas, parcellations, spaces, templates, and maps,
-* define coordinates, point sets, bounding boxes, and image-based regions of
-  interest,
-* assign locations and regions of interest to brain areas,
-* query multimodal data features linked to brain areas or spatial locations,
-* fetch image, tabular, and numerical data in Python-friendly formats,
-* combine atlas information with common scientific Python tools,
-* and combine these in workflows (see :ref:`usecases`).
-
-`siibra-python` does not ship the atlas datasets themselves. Instead, it uses
-metadata, configurations, and live queries to access distributed data resources
-on demand. Data are fetched lazily and can be cached locally, so workflows only
-download the elements they use.
-
 .. grid::
 
   .. grid-item-card:: :fas:`rocket` Quickstart
@@ -67,6 +51,24 @@ download the elements they use.
     :margin: 2 2 0 0
 
     Tutorial notebooks for workshops and trainings with no-install options to run.
+
+With `siibra-python`, you can:
+
+* browse and access brain areas, parcellations, spaces, templates, and maps,
+* define coordinates, point sets, bounding boxes, and image-based regions of
+  interest,
+* assign locations and regions of interest to brain areas,
+* query multimodal data features linked to brain areas or spatial locations,
+* fetch image, tabular, and numerical data in Python-friendly formats,
+* combine atlas information with common scientific Python tools,
+* and combine these in workflows (see :ref:`usecases`).
+
+`siibra-python` does not ship the atlas datasets themselves. Instead, it uses
+metadata, configurations, and live queries to access distributed data resources
+on demand. Data are fetched lazily and can be cached locally, so workflows only
+download the elements they use.
+
+.. grid::
 
   .. grid-item-card:: siibra-explorer :octicon:`link-external`
     :link: https://atlases.ebrains.eu/viewer/

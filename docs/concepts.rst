@@ -323,3 +323,17 @@ User content
 Local or custom atlas elements can also be used in siibra workflows. Such content
 can be combined with siibra objects as long as the required spatial reference
 information is available. Please see :doc:`create_preconfiguration` for details.
+
+Atlas data and cache
+====================
+
+`siibra-python` does not download all atlas data during installation. Atlas
+metadata are loaded from configurations, and data are fetched lazily when a
+workflow requests them.
+
+Fetched files are stored in the local siibra cache. This avoids repeated
+downloads and allows later runs of the same workflow to reuse data that are
+already available locally.
+
+The first access to a map, template, or data feature may take longer than later
+accesses because the requested data have to be downloaded.
