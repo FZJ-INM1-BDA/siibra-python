@@ -52,14 +52,14 @@ The following flowchart summarizes the usual decision process.
 ```{mermaid}
 flowchart TD
   start["Is my data or atlas content supported by siibra?<br>(siibra.retrieval.requests.DECODERS)"]
-  start -- "yes" --> contenttype["What is the content type?<br> (see Glossary)"]
+  start -- "yes" --> contenttype["What is the content type?<br> (see concepts)"]
   start -- "no" --> contact(("Contact<br>siibra-team"))
-  contenttype -- "Data feautre" --> feature{{"Feature"}}
+  contenttype -- "Data feature" --> feature{{"Feature"}}
   contenttype -- "Space,<br>Parcellation scheme,<br> and/or Annotation set" --> atlasstructure{{"Atlas structure"}}
   feature --> supported["Is the modality already supported by siibra?<br>(siibra.features.TYPES)"]
   supported -- "yes" --> writejson(("Write a JSON<br>specification"))
   supported -- "no, a new feature class may be needed" --> codechange(("Implement or extend the corresponding siibra-python class"))
-  codechange -- "Code implementated?" ---> writejson
+  codechange -- "Code implemented?" ---> writejson
   atlasstructure --> writejson
   codechange -- "Have questions or can't implement?" --> contact
 
@@ -470,7 +470,7 @@ For implementation details, see the developer documentation.
 
 ## Further resources
 
-* {ref}`Concepts <glossary>` explains the atlas concepts used in configuration files.
+* {ref}`Concepts <concepts>` explains the atlas concepts used in configuration files.
 * {ref}`API reference <api>` documents the Python objects used to load and inspect configured content.
 * {ref}`Developer documentation <developer>` describes implementation details and internal architecture.
 * {ref}`Workflow examples <examples>` provides executable examples using configured atlas content.

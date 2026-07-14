@@ -1,9 +1,9 @@
-.. _glossary:
+.. _concepts:
 
-Glossary
-########
+Main concepts
+#############
 
-siibra tool-suite share the same conceptual basis: reference atlases,
+siibra tool suite share the same conceptual basis: reference atlases,
 brain-region terminologies, reference coordinate systems, maps, locations,
 data features, and link multimodal resources in a common framework. They provide
 complementary interfaces for different use cases:
@@ -24,8 +24,9 @@ atlases. It links reference atlases and coordinate systems across spatial scales
 from macroscopic MRI templates and cortical surfaces to microscopic BigBrain
 resources, and connects them with multimodal data features. In siibra, these are
 referred to as "atlas elements". Together, these concepts allow siibra workflows
-to move between anatomical names, spatial coordinates, atlas maps, and
-multimodal data while preserving the links between them.
+to move between anatomical names, spatial coordinates, maps of brain
+parcellations and regions, and multimodal data while preserving the links
+between them.
 
 
 Atlas elements
@@ -35,9 +36,9 @@ A brain atlas is more than a single image or parcellation file. In siibra,
 atlas content is represented as a set of connected concepts:
 
 * **reference atlases**, which organize anatomical knowledge,
-* **pacercellation terminologies**, which define named brain areas,
-* **brain areas**, which are regions distingished within a parcellation
-  according to the specific pacellation methodology.
+* **parcellation terminologies**, which define named brain areas,
+* **brain areas**, which are regions distinguished within a parcellation
+  according to the specific parcellation methodology.
 * **reference coordinate systems**, also called **spaces**, in which locations
   can be expressed,
 * **reference templates**, which represent anatomy in a space,
@@ -68,10 +69,10 @@ atlas-level metadata.
         Find a reference atlas. This is useful for inspecting atlas metadata or
         explicitly selecting an atlas context.
 
-Pacercellation terminologies and areas
---------------------------------------
+Parcellation terminologies and areas
+------------------------------------
 
-A **pacercellation terminology** defines the anatomical concepts used by an
+A **parcellation terminology** defines the anatomical concepts used by an
 atlas. In many cases, a terminology is hierarchical: large anatomical structures
 contain smaller substructures, and named brain areas may have aliases or
 alternative names.
@@ -95,8 +96,8 @@ API argument or object.
 Reference coordinate systems and templates
 ------------------------------------------
 
-A **reference coordinate system** defines how locations in the brain are
-specified. In siibra, this is often called a **space**.
+A **reference coordinate system** defines how coordinate-based brain locations
+are specified. In siibra, this is often called a **space**.
 
 A **reference template** is a spatial representation of anatomy in such a
 space. Depending on the space, a template may be a 3D image volume, a surface
@@ -319,6 +320,6 @@ same feature mechanisms used for foundational content.
 User content
 ------------
 
-Local or custom atlas elemets can also be used in siibra workflows. Such content
+Local or custom atlas elements can also be used in siibra workflows. Such content
 can be combined with siibra objects as long as the required spatial reference
 information is available. Please see :doc:`create_preconfiguration` for details.

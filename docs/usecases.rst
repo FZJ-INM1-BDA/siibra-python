@@ -9,7 +9,7 @@ atlas-based interpretation, multimodal data access, or reproducible links
 between brain regions, coordinate spaces, maps, and measurements.
 
 This page gives a research-oriented overview of possible use cases. For the
-concepts behind these workflows, see :ref:`glossary`. For executable examples,
+concepts behind these workflows, see :ref:`concepts`. For executable examples,
 see :ref:`examples`.
 
 Spatial interpretation of findings

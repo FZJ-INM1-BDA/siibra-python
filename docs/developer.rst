@@ -10,7 +10,7 @@ types, or maintain interfaces between atlas concepts, data access, and feature
 queries.
 
 For the generated API reference, see :ref:`api`. For the user-facing concept
-guide, see :ref:`glossary`. For adding or curating foundational content, see
+guide, see :ref:`concepts`. For adding or curating foundational content, see
 :doc:`create_preconfiguration`.
 
 Architecture overview

@@ -86,7 +86,7 @@ extensions = [
 run_stale_examples = True
 rtds_action_github_token = os.environ.get(
     "GITHUB_TOKEN"
-)  # A GitHub personal access token is required
+)  # A GitHub personal access token is required for rtds action but not for building locally
 if rtds_action_github_token:
     extensions.append("rtds_action")
     # rtds action settings
@@ -128,7 +128,7 @@ autoapi_options = [
 
 autoclass_content = "both"
 
-graphviz_output_format = "png"
+graphviz_output_format = "svg"
 inheritance_graph_attrs = dict(rankdir="LR")
 
 # sphinx_autopackagesummary options
@@ -194,7 +194,6 @@ html_theme_options = {
     "navigation_depth": 3,
     "includehidden": True,
     "titles_only": False,
-    "extra_footer": "<div>This software code is funded from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 945539 (Human Brain Project SGA3).</div>",
     "repository_url": "https://github.com/FZJ-INM1-BDA/siibra-python",
     "use_repository_button": True,
     "use_download_button": False,

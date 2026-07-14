@@ -16,12 +16,12 @@ associated with the software release.
     Find out `siibra-python` version with:
         ``python -c "import siibra; print(siibra.__version__"``
 
-Tool-suite publication
+Tool suite publication
 ======================
 
 When referring to siibra as a software tool suite, the Multilevel Human Brain
 Atlas, or the conceptual framework connecting atlases, reference spaces,
-locations, and multimodal data features, cite the siibra tool-suite paper.
+locations, and multimodal data features, cite the siibra tool suite paper.
 
 A peer-reviewed version of this manuscript has been accepted for publication in
 Nature Methods and will be available soon. Until the final publication details
@@ -37,9 +37,9 @@ are available, please cite the preprint
 Citing atlas content and data features
 ======================================
 
-`siibra-python` provides access to atlas maps, templates, and multimodal data
-features that are often published as independent datasets. When a workflow uses
-such content, cite the corresponding atlas or dataset publications in addition
-to citing the software. Extract this citation information through `publications`
-attribute of parcellations, maps, reference coordinate systems, and data
-features.
+`siibra-python` provides access to maps of brain parcellations and regions,
+templates, and multimodal data features that are often published as independent
+datasets. When a workflow uses such content, cite the corresponding atlas or
+dataset publications in addition to citing the software. Extract this citation
+information through `publications` attribute of parcellations, maps, reference
+coordinate systems, and data features.

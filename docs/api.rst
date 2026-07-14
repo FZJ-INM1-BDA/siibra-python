@@ -9,7 +9,7 @@ library.
 
 The entries below are grouped by common tasks and by the main object types used
 in siibra workflows. For workflow-oriented examples, see :ref:`examples`. For
-the conceptual background, see :ref:`glossary`.
+the conceptual background, see :ref:`concepts`.
 
 Class and package diagrams are available in the :ref:`developer documentation <developer>`.
 

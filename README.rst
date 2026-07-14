@@ -11,8 +11,8 @@ Medicine (INM-1), Forschungszentrum Jülich GmbH*
 
 `siibra-python` is the Python interface of the siibra tool suite. It provides
 programmatic access to reference atlases, brain-region terminologies, reference
-coordinate systems, atlas maps, locations in the brain, and linked multimodal
-data features.
+coordinate systems, maps of brain parcellations and regions, locations in the
+brain, and linked multimodal data features.
 
 The main content distributed with siibra implements the Multilevel Human Brain
 Atlas, linking anatomical concepts with maps and measurements across spatial
@@ -117,7 +117,7 @@ Vadim Marcenko, Christian Schiffer, Sebastian Bludau, and Katrin Amunts.
 
 When referring to siibra as a software tool suite, the Multilevel Human Brain
 Atlas, or the conceptual framework connecting atlases, reference spaces,
-locations, and multimodal data features, cite the siibra tool-suite paper.
+locations, and multimodal data features, cite the siibra tool suite paper.
 
 A peer-reviewed version of this manuscript has been accepted for publication in
 Nature Methods and will be available soon. Until the final publication details

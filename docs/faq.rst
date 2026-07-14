@@ -6,7 +6,7 @@ Frequently asked questions
 
 This page collects short answers to common questions about using
 `siibra-python`. For a structured explanation of the main terms used here,
-see :ref:`glossary`.
+see :ref:`concepts`.
 
 General use
 ===========
@@ -15,8 +15,8 @@ General use
 
   `siibra-python` is the Python interface of the siibra tool suite. It
   provides programmatic access to reference atlases, brain-region
-  terminologies, reference coordinate systems, atlas maps, locations, and
-  linked multimodal data features.
+  terminologies, reference coordinate systems, maps of brain parcellations and
+  regions, locations, and linked multimodal data features.
 
   The main content distributed with siibra implements the Multilevel Human
   Brain Atlas, but the software is designed to work with configurable atlas
@@ -32,7 +32,7 @@ General use
   In practice, a parcellation describes *what* the brain areas are, while a map
   describes *where* they are represented in a space.
 
-  See :ref:`glossary` for a more complete explanation.
+  See :ref:`concepts` for a more complete explanation.
 
 .. dropdown:: What is the difference between a labelled map and a statistical map?
 
@@ -45,7 +45,7 @@ General use
   and uncertainty, which is important for atlases that capture inter-subject
   variability.
 
-  See :ref:`glossary` for details.
+  See :ref:`concepts` for details.
 
 .. dropdown:: What is a data feature?
 

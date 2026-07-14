@@ -9,7 +9,7 @@ package: reference atlases, brain-region terminologies, maps, reference spaces,
 locations, anatomical assignment, and multimodal data features.
 
 The examples are intended to complement the concept guide and the generated API
-reference. For conceptual background, see :ref:`glossary`. For function and
+reference. For conceptual background, see :ref:`concepts`. For function and
 class details, see :ref:`api`.
 
 .. list-table::
@@ -82,7 +82,7 @@ class details, see :ref:`api`.
     :margin: 2 2 auto auto
 
     Assign coordinates, regions of interest, and image maps to brain areas
-    using labelled or statistical atlas maps.
+    using labelled or statistical maps of brain parcellations and regions.
 
   .. grid-item-card:: :material-outlined:`menu_book;2em` Advanced workflows
     :link: examples/tutorials/index.html

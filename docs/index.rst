@@ -1,14 +1,14 @@
-siibra - Software interface for interacting with brain atlases
-##############################################################
+Siibra - software tool suite for working with multi scale brain atlases
+#######################################################################
 
 `siibra-python` is the Python interface of the siibra tool suite. It provides
 programmatic access to reference atlases, brain-region terminologies, reference
-coordinate systems, atlas maps, locations in the brain, and multimodal data
-features. It links anatomical concepts with maps and measurements across
-multiple spatial scales, from macroscopic MRI and surface spaces to microscopic
-resources. The package supports scripts, notebooks, and reproducible analysis
-workflows. Please see :ref:`glossary` page for details of the central concepts
-used throughout the documentation.
+coordinate systems, maps of brain parcellations and regions, coordinate-based
+brain locations, and multimodal data features. It links anatomical concepts
+with maps and measurements across multiple spatial scales, from macroscopic
+MRI and surface spaces to microscopic resources. The package supports scripts,
+notebooks, and reproducible analysis workflows. Please see :ref:`concepts` page
+for details of the central concepts used throughout the documentation.
 
 With `siibra-python`, you can:
 
@@ -128,24 +128,16 @@ Acknowledgements
 
 `siibra-python` is developed and maintained by the Big Data Analytics Group,
 Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH,
-with contributions from collaborators and users.
+with contributions from collaborators and users
 
 Development of `siibra-python` and the wider siibra tool suite has been
-supported by European and national research infrastructure projects, including
-the Human Brain Project and EBRAINS. The software contributes to atlas services
-for accessing and using multilevel brain atlas content in reproducible
-workflows.
+supported by the European Union’s Horizon 2020 Framework Programme for Research
+and Innovation under the Specific Grant Agreement No. 10114731 (EBRAINS 2.0).
 
 We thank all contributors who have helped develop, test, document, and improve
 `siibra-python` through code contributions, issue reports, discussions,
 tutorials, workshops, and user feedback.
 
-Many atlas elements and data features accessible through siibra are curated,
-hosted, or registered through EBRAINS and related community resources. We
-acknowledge the researchers, data providers, curators, and infrastructure teams
-who make these resources available for reuse.
-
-For details on software authorship and citation, see :doc:`howtocite`.
 
 
 .. toctree::

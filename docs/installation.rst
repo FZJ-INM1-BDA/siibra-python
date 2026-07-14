@@ -141,7 +141,7 @@ Getting help
 
 The following resources provide further information:
 
-* :ref:`glossary` introduces the central concepts used in siibra.
+* :ref:`concepts` introduces the central concepts used in siibra.
 * :ref:`examples` provides documented code examples.
 * :ref:`api` contains the generated API reference.
 * The source code and issue tracker are available from the GitHub repository:
