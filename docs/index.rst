@@ -160,6 +160,7 @@ tutorials, workshops, and user feedback.
   :caption: Development
 
   create_preconfiguration
+  offline_use
   developer
   contribute
   report_issues
