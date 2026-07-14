@@ -3,337 +3,590 @@
 Main concepts
 #############
 
-siibra tool suite share the same conceptual basis: reference atlases,
-brain-region terminologies, reference coordinate systems, maps, locations,
-data features, and link multimodal resources in a common framework. They provide
-complementary interfaces for different use cases:
+The siibra tool suite integrates reference atlases, coordinate systems, brain
+regions, spatial locations, and multimodal neuroscience data in a common
+framework. Its components provide complementary interfaces:
 
-* `siibra-explorer` is the interactive web viewer for visual exploration of
-  atlases, maps, templates, and linked data resources.
-* `siibra-python` is the Python library for scripting, notebooks, analysis,
-  and reproducible workflows.
-* `siibra-api` exposes atlas functionality through HTTP endpoints for
-  application development.
+* `siibra-explorer <https://atlases.ebrains.eu/viewer/>`_ supports interactive
+  exploration in a web browser.
+* `siibra-python <https://siibra-python.readthedocs.io/>`_ supports scripts,
+  notebooks, analyses, and reproducible workflows.
+* `siibra-api <https://siibra-api-stable.apps.hbp.eu/>`_ exposes siibra
+  functionality through HTTP endpoints.
 
-This page introduces the main concepts used throughout the siibra
-documentation. It is intended to provide an overview and the nomencleture. For
-the complete Python API, see :ref:`api`.
+This page introduces the principal atlas concepts and the technical concepts
+that determine how atlas content is represented and accessed. For details of
+individual Python classes and functions, see :ref:`api`.
 
-The main content distributed with siibra implements the multilevel brain
-atlases. It links reference atlases and coordinate systems across spatial scales,
-from macroscopic MRI templates and cortical surfaces to microscopic BigBrain
-resources, and connects them with multimodal data features. In siibra, these are
-referred to as "atlas elements". Together, these concepts allow siibra workflows
-to move between anatomical names, spatial coordinates, maps of brain
-parcellations and regions, and multimodal data while preserving the links
-between them.
+Atlas and anatomical concepts
+==============================
 
+Multilevel atlases
+------------------
 
-Atlas elements
-==============
+A **multilevel atlas** integrates several complementary reference atlases,
+coordinate systems, and datasets across spatial scales and modalities.
 
-A brain atlas is more than a single image or parcellation file. In siibra,
-atlas content is represented as a set of connected concepts:
+It is therefore more than a single parcellation, template, or image. It provides
+relationships that allow anatomical concepts, spatial locations, and
+measurements to be interpreted together.
 
-* **reference atlases**, which organize anatomical knowledge,
-* **parcellation terminologies**, which define named brain areas,
-* **brain areas**, which are regions distinguished within a parcellation
-  according to the specific parcellation methodology.
-* **reference coordinate systems**, also called **spaces**, in which locations
-  can be expressed,
-* **reference templates**, which represent anatomy in a space,
-* **annotation sets**, which map brain areas into a space,
-* **locations**, which describe user-defined
-  positions or spatial extents in the brain,
-* **data features**, which provide multimodal measurements linked to brain
-  areas or locations.
+For example, the Multilevel Human Brain Atlas connects cytoarchitectonic brain
+regions from Julich-Brain with macroscopic MNI templates, the microscopic
+BigBrain template, and measurements such as receptor densities, cell
+distributions, connectivity, and gene expression.
 
-Reference atlases
------------------
+See also:
 
-A **reference atlas** is a structured anatomical resource. It provides a set of
-brain areas and one or more spatial representations of these areas.
+* :doc:`Anatomical characterization and multimodal profiling of regions of interest <examples/tutorials/2025-paper-fig3>`
+* :doc:`Multimodal comparison of two cortical brain areas <examples/tutorials/2025-paper-fig4>`
 
-A reference atlas should not be confused with a single parcellation image. A
-single atlas may contain several maps in different spaces or with different
-representation types. For example, an atlas may provide probabilistic maps in
-an MNI space and another representation in a surface or microscopic space.
+Reference atlases and atlas objects
+-----------------------------------
 
-In current user-facing siibra-python workflows, atlas content is usually
-accessed directly through functions such as :func:`siibra.get_parcellation`,
-:func:`siibra.get_region`, :func:`siibra.get_space`, and
-:func:`siibra.get_map`. Atlas objects remain available for inspecting
-atlas-level metadata.
+A **reference atlas** defines brain areas according to a particular
+organizational principle and provides spatial annotations of those areas.
 
-    ``siibra.get_atlas(...)``
-        Find a reference atlas. This is useful for inspecting atlas metadata or
-        explicitly selecting an atlas context.
+Examples include a cytoarchitectonic atlas, a fibre-bundle atlas, or an atlas of
+functional modes. A multilevel atlas combines several such reference atlases.
 
-Parcellation terminologies and areas
-------------------------------------
+The term `Atlas` has a more specific meaning in the `siibra-python` API. An
+`Atlas` object mainly groups compatible parcellations and reference spaces,
+usually for one species. The terminology and regions of an individual reference
+atlas are normally represented by a :class:`~siibra.core.parcellation.Parcellation`
+object and its associated maps.
 
-A **parcellation terminology** defines the anatomical concepts used by an
-atlas. In many cases, a terminology is hierarchical: large anatomical structures
-contain smaller substructures, and named brain areas may have aliases or
-alternative names.
+For example, the Multilevel Human Atlas is available as an `Atlas` object,
+while Julich-Brain is selected as one of its parcellations:
 
-A **brain area** is therefore a semantic concept, not just a number in an image.
-The same brain area may have different spatial representations in different
-maps, spaces, or spatial resolutions.
+.. code-block:: python
 
-In the siibra-python API, the term `region` is used in many places for such
-brain-area concepts. In the documentation, we use **brain area** when referring
-to the anatomical concept, and `region` when referring to the corresponding
-API argument or object.
+  import siibra
 
-    ``siibra.get_region(...)``
-        Find a brain area from a terminology.
-
-    ``siibra.get_parcellation(...)``
-        Find a brain-region terminology, such as Julich-Brain_.
+  atlas = siibra.atlases.get("human")
+  julich_brain = atlas.parcellations.get("julich")
 
 
-Reference coordinate systems and templates
-------------------------------------------
+See also:
 
-A **reference coordinate system** defines how coordinate-based brain locations
-are specified. In siibra, this is often called a **space**.
+* :doc:`Selecting a preconfigured atlas from an instance table <examples/01_atlases_and_parcellations/000_accessing_atlases>`
+* :doc:`Selecting preconfigured parcellations <examples/01_atlases_and_parcellations/001_accessing_parcellations>`
 
-A **reference template** is a spatial representation of anatomy in such a
-space. Depending on the space, a template may be a 3D image volume, a surface
-mesh, or another spatial representation.
+Parcellation terminologies and brain regions
+--------------------------------------------
 
-Examples of human reference spaces used by siibra include:
+A **parcellation** defines a terminology of brain regions. The terminology is
+often hierarchical: broad anatomical structures contain progressively more
+specific regions.
 
-* the MNI ICBM 152 2009c nonlinear asymmetric space,
-* the BigBrain space,
-* FreeSurfer surface spaces such as fsaverage and fsaverage6.
+A **brain region** is a semantic anatomical concept. It is not identical to a
+label value, voxel mask, or surface mesh. Those are spatial representations of
+the region.
 
-These spaces differ in scale, subject basis, topology, and typical use case.
-MNI spaces are commonly used for MRI-scale neuroimaging analyses. BigBrain is
-a microscopic 3D reconstruction of a single postmortem human brain. Surface
-spaces represent cortical anatomy on meshes rather than in voxel volumes.
+For example, `Area 44 (IFG) left` is a region in the Julich-Brain
+terminology. It may be represented by different maps in different reference
+spaces.
 
-    ``siibra.get_space(...)``
-        Find a reference coordinate system.
+.. code-block:: python
 
-    ``space.get_template()``
-        Quick access to a reference template for a coordinate system.
+  parcellation = siibra.parcellations.get("julich")
+  region = siibra.get_region(parcellation, "Area 44 left")
 
 
-Annotation sets
----------------
+See also:
 
-An **annotation set** is a spatial representation of a terminology in a
-reference coordinate system. It assigns brain-area information to locations in a
-space. In siibra-python, when referring to such a spatial subdivision we use
-**parcellation map** as the more general term covering labelled, statistical,
-volumetric, and surface-based representations.
+* :doc:`Explore brain region hierarchies <examples/01_atlases_and_parcellations/002_explore_region_hierarchy>`
+* :doc:`Find brain regions in a parcellation <examples/01_atlases_and_parcellations/003_find_regions>`
+* :doc:`Basic brain region properties <examples/01_atlases_and_parcellations/004_brain_region_metadata>`
+* :doc:`Spatial properties of brain regions <examples/01_atlases_and_parcellations/005_brain_region_spatialprops>`
 
-In siibra-python, annotation sets are usually accessed as maps, for example
-with :func:`siibra.get_map`.
-    
-    ``siibra.get_map(...)``
-        Find and access an annotation map for a given parcellation, space, and
-        map type. Pass ``maptype="labelled"`` or ``maptype="statistical"`` to
-        get the desired map type.
+Reference coordinate systems
+------------------------------
 
+A **reference coordinate system**, called a **space** in `siibra-python`,
+defines how spatial positions in a brain are expressed.
+
+Coordinates are only meaningful together with their reference space. The same
+numerical coordinates can refer to different anatomical positions in different
+spaces.
+
+For example, `(27, -42, 63)` in the MNI 152 space does not describe the same
+physical location as `(27, -42, 63)` in BigBrain space.
+
+.. code-block:: python
+
+  space = siibra.spaces.get("mni152")
+
+
+See also:
+
+* :doc:`Find predefined reference spaces <examples/02_maps_and_templates/001_selecting_reference_spaces>`
+
+Reference templates
+^^^^^^^^^^^^^^^^^^^
+
+A **reference template** is a concrete spatial representation associated with a
+reference coordinate system.
+
+A template may be a volumetric image, a surface mesh, or another representation
+of the reference anatomy. A single space can have templates with different
+resolutions or data formats.
+
+For example, the MNI 152 space provides an MRI-scale volumetric template,
+whereas FreeSurfer spaces provide cortical surface representations.
+
+.. code-block:: python
+
+  space = siibra.spaces.get("mni152")
+  template = space.get_template()
+
+
+See also:
+
+* :doc:`Accessing brain reference templates <examples/02_maps_and_templates/002_accessing_reference_templates>`
+* :doc:`Access BigBrain high-resolution data <examples/02_maps_and_templates/004_access_bigbrain>`
+
+Annotation sets (maps)
+----------------------
+
+An **annotation set** is a spatial realization of a brain-region terminology in
+a particular reference coordinate system. It connects semantic brain regions to
+voxels, vertices, or other spatial elements.
+
+In `siibra-python`, annotation sets are accessed through map objects. A map
+specifies:
+
+* the parcellation whose regions it represents,
+* the reference space in which it is defined,
+* whether its representation is labelled or statistical,
+* the available image or surface data.
+
+For example, Julich-Brain has labelled and statistical representations in MNI
+space:
+
+.. code-block:: python
+
+  labelled_map = siibra.get_map(
+      parcellation="julich",
+      space="mni152",
+      maptype="labelled",
+  )
+
+  statistical_map = siibra.get_map(
+      parcellation="julich",
+      space="mni152",
+      maptype="statistical",
+  )
+
+See also:
+
+* :doc:`Accessing parcellation maps <examples/02_maps_and_templates/003_accessing_maps>`
+* :doc:`Access parcellation maps in surface space <examples/02_maps_and_templates/005_surface_maps>`
 
 Labelled maps
 ^^^^^^^^^^^^^
 
+A **labelled map** assigns a discrete label to each represented spatial
+location. A label table connects each label value to a brain region.
 
-A **labelled map** assigns each spatial location to a discrete label. The label
-identifies a brain area from the corresponding terminology.
+For example, a voxel value of `17` may identify a particular region. The
+number itself has no anatomical meaning without the map's label table.
 
-Labelled maps are useful when each location should belong to one area only.
-They are often compact and convenient for visualization, masking, and
-region-wise analyses.
+Labelled maps are useful for visualization, masking, and analyses in which each
+location should be assigned to one region.
 
-Statistical maps
-^^^^^^^^^^^^^^^^
+See also:
 
-A **statistical map** assigns continuous weights to brain areas. A common
-special case is a **probabilistic map**, where the weights express the
-probability of finding a brain area at a location.
+* :doc:`Accessing parcellation maps <examples/02_maps_and_templates/003_accessing_maps>`
+* :doc:`Adding a custom parcellation map <examples/02_maps_and_templates/007_adding_custom_parcellation>`
 
-In a statistical map, different brain areas may overlap. A single coordinate
-can therefore be associated with multiple brain areas, each with a different
-weight.
+Statistical and probabilistic maps
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This is important for atlases that represent inter-subject variability, such as
-probabilistic cytoarchitectonic maps. Rather than forcing each coordinate into
-a single label, statistical maps preserve uncertainty and overlap between brain
-areas.
+A **statistical map** assigns a continuous value to a brain region at each
+represented location. Different regions may therefore overlap.
 
+A **probabilistic map** is a statistical map whose values quantify the
+estimated probability or frequency of finding a region at a location. Such maps
+can represent anatomical variability across subjects.
 
-Locations
----------
+For example, one coordinate may have a map value of `0.64` for Area 3b and
+`0.18` for Area 1. The coordinate is therefore not forced into a single
+discrete region.
+
+See also:
+
+* :doc:`Assigning coordinates to brain regions <examples/05_anatomical_assignment/001_coordinates>`
+
+Locations and regions of interest
+-----------------------------------
 
 A **location** describes a position or spatial extent in a reference coordinate
-system. siibra supports different forms of locations, including:
+system. Supported location concepts include:
 
 * points,
-* point sets,
+* point clouds,
 * bounding boxes,
-* image masks,
-* image/surface maps.
+* image masks and image-based spatial objects.
 
-A **region of interest** (ROI) is a user-defined location or spatial object that
-is used for an analysis task. An ROI may be a coordinate, a cluster from an
-activation map, a mask image, a bounding box, or a brain area selected from an
-atlas.
+A **region of interest** is a location selected for a particular analysis. It
+may be an atlas region, coordinate, activation cluster, image mask, or bounding
+box.
 
-Every spatial location in siibra belongs to a reference coordinate system. This
-allows siibra to compare locations, maps, and data features safely, and to apply
-coordinate transformations when needed.
+For example, an activation peak can be represented as a point, electrode
+contacts as a point cloud, and a tissue sample as a bounding box.
 
-    ``siibra.Point``, ``siibra.PointCloud``, ``siibra.BoundingBox``
-        Define spatial locations in a reference coordinate system.
+.. code-block:: python
 
-    ``siibra.volumes.from_file``
-        Define a volumetric map in a reference coordinate system with NiftI or GiftI.
-
-Uncertain locations
-^^^^^^^^^^^^^^^^^^^
-
-Some locations are not exact. For example, a reported activation coordinate
-may have limited spatial precision, or a measurement may correspond to a small
-volume rather than to a mathematical point.
-
-siibra can represent such cases using spatial objects rather than only point
-coordinates. In some workflows, uncertain coordinates can be treated as small
-image regions, allowing assignment and feature queries to account for spatial
-uncertainty.
+  point = siibra.Point(
+      (27.75, -32.0, 63.725),
+      space="mni152",
+  )
 
 
+See also:
+
+* :doc:`Utilizing locations of interest <examples/04_locations/000_employing_locations_of_interest>`
+* :doc:`Anatomical characterization and multimodal profiling of regions of interest <examples/tutorials/2025-paper-fig3>`
+
+Location uncertainty
+^^^^^^^^^^^^^^^^^^^^^
+
+A location may have limited precision because of measurement resolution,
+registration error, or uncertainty in a reported coordinate.
+
+`siibra-python` can attach a spatial uncertainty to points. During
+image-based assignment, an uncertain point can be represented by a Gaussian
+volume instead of being treated as an exact mathematical position.
+
+For example, an electrode position with an estimated uncertainty of
+three millimetres can be represented as follows:
+
+.. code-block:: python
+
+  point = siibra.Point(
+      (27.75, -32.0, 63.725),
+      space="mni152",
+      sigma_mm=3.0,
+  )
+
+This allows assignments to consider the surrounding volume and return overlap,
+correlation, and containedness measures.
+
+See also:
+
+* :doc:`Utilizing locations of interest <examples/04_locations/000_employing_locations_of_interest>`
+* :doc:`Assigning coordinates to brain regions <examples/05_anatomical_assignment/001_coordinates>`
 
 Spatial transformations
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Many workflows require comparing information from different reference
-coordinate systems. For example, a user-defined coordinate may be specified in
-an MNI space, while a relevant microscopic image feature may be anchored in
-BigBrain space.
+A **spatial transformation** relates locations in different reference
+coordinate systems.
 
-siibra can use precomputed spatial transformations to relate coordinates across
-supported spaces. These transformations make it possible to preserve locations
-when switching spaces, query data features across spaces, or compare maps that
-are available in different representations.
+For example, a coordinate specified in MNI space can be transformed into
+BigBrain space before it is compared with microscopic data:
 
-Spatial transformations are useful, but they are not exact. Their precision
-depends on the source and target spaces, the transformation model, the local
-anatomy, and the spatial scale of the analysis. When interpreting results,
-especially at microscopic resolution or near areal borders, the uncertainty
-introduced by cross-space transformations should be considered.
+.. code-block:: python
+
+  point_mni = siibra.Point(
+      (27.75, -32.0, 63.725),
+      space="mni152",
+  )
+  point_bigbrain = point_mni.warp("bigbrain")
+
+
+Spatial transformations are not exact. Their accuracy depends on the source and
+target brains, the transformation method, local anatomical variability, and the
+spatial scale of the analysis. Results near regional borders or at microscopic
+resolution should therefore be interpreted carefully.
+
+See also:
+
+* :doc:`Utilizing locations of interest <examples/04_locations/000_employing_locations_of_interest>`
+* :doc:`Anatomically guided reproducible extraction of full resolution image data
+  from cloud resources <examples/tutorials/2025-paper-fig5>`
 
 Anatomical assignment
 ^^^^^^^^^^^^^^^^^^^^^
 
-**Anatomical assignment** links a user-defined location or ROI to brain areas
-from a reference atlas.
+**Anatomical assignment** relates a location or region of interest to brain
+regions from a parcellation.
 
-Depending on the input and map type, assignment may use different measures:
+The comparison depends on the input object and map representation. Common
+measures include:
 
-* **incidence**, for example whether a point falls inside a labelled region,
-* **overlap**, for example how much an ROI overlaps with a brain-area map,
-* **correlation**, for example how similar an image map is to a statistical
-  brain-area map.
+* **incidence**, indicating whether a point lies inside a mapped region;
+* **overlap**, quantifying the shared spatial extent of two objects;
+* **containedness**, quantifying how much one object is contained in another;
+* **correlation**, measuring spatial similarity between image-based objects.
 
-For statistical and probabilistic maps, assignment can return multiple
-candidate brain areas with weights, probabilities, overlap values, or
-correlation scores. This is often preferable to assigning a location to only one
-area, because it preserves uncertainty and inter-subject variability.
+For example, assigning an uncertain MNI coordinate to the Julich-Brain
+statistical map can return several candidate regions with different map values,
+correlations, and containedness scores.
 
-Anatomical assignment is a central operation in siibra. It allows coordinates,
-masks, activation clusters, and other ROIs to be characterized in terms of known
-brain areas.
+.. code-block:: python
 
-See 
+  parcellation_map = siibra.get_map(
+      parcellation="julich",
+      space="mni152",
+      maptype="statistical",
+  )
+
+  assignments = parcellation_map.assign(point)
+
+An assignment is therefore not necessarily a categorical decision. Multiple
+results can preserve information about spatial overlap, anatomical variability,
+and localization uncertainty.
+
+See also:
+
 * :doc:`Assigning coordinates to brain regions <examples/05_anatomical_assignment/001_coordinates>`
 * :doc:`Assign modes in activation maps to brain regions <examples/05_anatomical_assignment/002_activation_maps>`
+* :doc:`Case study: Anatomical evaluation of subcortical maps <examples/tutorials/2025-paper-fig6>`
 
 Data features
 -------------
 
-A **data feature** is a multimodal measurement or dataset linked to an
-anatomical concept or spatial location. Data features can describe different
-aspects of brain organization, such as:
+A **data feature** is a measurement or dataset linked to an anatomical concept
+or spatial location.
+
+Features may describe:
 
 * cellular architecture,
-* molecular organization,
+* molecular architecture,
 * fibre architecture,
 * functional organization,
 * structural or functional connectivity,
+* gene expression,
+* electrophysiology,
 * macrostructural anatomy.
 
-Data features may be linked semantically to brain areas, spatially to
-coordinates or bounding boxes, or by a combination of anatomical and spatial
-metadata.
+For example, receptor-density measurements can be queried for a
+cytoarchitectonic region:
 
-In siibra-python, data features are commonly queried with
-:func:`siibra.features.get`. A query can start from a brain area, a map, a
-location, or another supported concept.
+.. code-block:: python
 
-Data features can expose different data structures depending on the underlying
-resource and modality. Common examples include:
+  region = siibra.get_region("julich", "Area 44 left")
 
-* image data, represented as NiBabel image objects where possible,
-* tabular data, represented as pandas DataFrames,
-* numerical arrays, represented as NumPy arrays,
-* metadata links to external dataset pages.
+  features = siibra.features.get(
+      region,
+      siibra.features.molecular.ReceptorDensityFingerprint,
+  )
 
-This makes data retrieved through siibra compatible with common Python tools
-for neuroimaging, statistics, visualization, and scientific computing.
+See also:
 
-    ``siibra.features.get(...)``
-        Query data features linked to a brain area, location, map, or other
-        supported concept.
+* :doc:`Neurotransmitter receptor densities <examples/03_data_features/001_receptor_densities>`
+* :doc:`Cortical cell body distributions <examples/03_data_features/003_cell_distributions>`
+* :doc:`Gene expressions <examples/03_data_features/004_gene_expressions>`
+* :doc:`Connectivity matrices <examples/03_data_features/006_connectivity_matrices>`
 
+Anatomical anchors and match qualification
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Atlas element configuration
-===========================
+A data feature may be linked to anatomy:
 
-siibra separates software from content. The Python package provides the
-interfaces, data models, and access mechanisms. The actual atlas content and
-data features are described in configuration files or discovered through live
-queries, and point to data hosted in external repositories. siibra content can
-enter the system in different ways.
+* **semantically**, through a brain region or parcellation;
+* **spatially**, through a point, bounding box, image, or other location;
+* through a combination of semantic and spatial information.
 
-**Foundational content** is defined by configuration files. These files describe
-atlas elements such as spaces, templates, maps, brain areas, and selected data
-features. They contain metadata and references to external resources, but not
-necessarily the data itself.
+These links can have different levels of precision. `siibra-python` evaluates
+the available relationships when matching a feature to a query.
 
-The default configuration used by siibra-python provides the foundational
-content of the Multilevel Human Brain Atlas.
+For example, a receptor-density measurement may be linked directly to a
+histologically identified brain region. A microscopic image may instead be
+linked by a bounding box in BigBrain space. The first match is primarily
+semantic, while the second is primarily spatial.
 
-**Dynamic content from live queries** is discovered at runtime by querying
-external services. Live queries allow siibra to retrieve or construct data
-feature descriptions from supported resources without requiring every feature to
-be listed statically in the configuration.
+Information such as overlap, containedness, coordinate accuracy, and
+parent-child relationships in a region hierarchy can contribute to the
+qualification of a match.
 
-For example, live queries can connect siibra to external metadata services,
-image resources, or modality-specific APIs, and expose the results through the
-same feature mechanisms used for foundational content.
+See also:
 
-User content
-------------
+* :doc:`Understanding links between data features and anatomical locations <examples/03_data_features/000_matchings>`
 
-Local or custom atlas elements can also be used in siibra workflows. Such content
-can be combined with siibra objects as long as the required spatial reference
-information is available. Please see :doc:`create_preconfiguration` for details.
+Software and data-access concepts
+=================================
 
-Atlas data and cache
-====================
+Separation of software and content
+----------------------------------
 
-`siibra-python` does not download all atlas data during installation. Atlas
-metadata are loaded from configurations, and data are fetched lazily when a
-workflow requests them.
+siibra separates its software from its atlas content.
 
-Fetched files are stored in the local siibra cache. This avoids repeated
-downloads and allows later runs of the same workflow to reuse data that are
-already available locally.
+The software implements data models, queries, transformations, and data-access
+mechanisms. Atlas elements and features are described separately and usually
+refer to data hosted in external repositories or cloud services.
 
-The first access to a map, template, or data feature may take longer than later
-accesses because the requested data have to be downloaded.
+For example, a parcellation-map specification contains metadata, its reference
+space, region associations, and pointers to the underlying image data. The
+image itself does not need to be distributed with `siibra-python`.
+
+This separation allows atlas content to evolve independently of software
+releases.
+
+See also:
+
+* :doc:`Adding a custom parcellation map <examples/02_maps_and_templates/007_adding_custom_parcellation>`
+* :doc:`Creating custom configurations <create_preconfiguration>`
+
+Routes for providing content
+----------------------------
+
+siibra content can enter the system through three principal routes:
+
+* foundational content,
+* dynamic content,
+* local content.
+
+These routes differ in how content is discovered and maintained, but the
+resulting objects can be used through the same main interfaces.
+
+Foundational content
+^^^^^^^^^^^^^^^^^^^^
+
+**Foundational content** is defined by versioned JSON specifications collected
+in a configuration.
+
+A specification describes an atlas element or feature and points to its
+metadata and data resources.
+
+For example, a map specification may identify its parcellation, reference
+space, map type, region labels, and image provider.
+
+The default siibra configuration defines the foundational content of the
+Multilevel Human Brain Atlas.
+
+See also:
+
+* :doc:`Creating custom configurations <create_preconfiguration>`
+
+Dynamic content
+^^^^^^^^^^^^^^^
+
+**Dynamic content** is discovered at runtime through a **live query**.
+
+A live query communicates with an external service and translates matching
+resources into siibra feature objects. This avoids listing every available
+feature in the static configuration.
+
+For example, a live query can retrieve gene-expression measurements from an
+external API or discover anatomically anchored datasets from a metadata
+service.
+
+From the user's perspective, dynamically discovered features are queried with
+the same :func:`siibra.features.get` function as foundational features.
+
+See also:
+
+* :doc:`Gene expressions <examples/03_data_features/004_gene_expressions>`
+* :doc:`EBRAINS regional datasets <examples/03_data_features/005_ebrains_datasets>`
+
+Local content
+^^^^^^^^^^^^^
+
+**Local content** is supplied directly by a user and does not need to be part
+of the default configuration.
+
+For example, a local NIfTI image containing a custom parcellation can be
+associated with its reference space and used in a local analysis.
+
+See also:
+
+* :doc:`Adding a custom parcellation map <examples/02_maps_and_templates/007_adding_custom_parcellation>`
+* :doc:`Working with your data <use_your_own_data>`
+
+Lazy data access and caching
+----------------------------
+
+Installing `siibra-python` does not download all atlas data.
+
+Configuration metadata are loaded first. Image volumes, meshes, and feature
+data are fetched only when a workflow requests them. Retrieved files are stored
+in a configurable local cache and can be reused by later operations.
+
+For example, selecting a reference template does not necessarily download its
+image data. The data are retrieved when :meth:`~siibra.volumes.volume.Volume.fetch`
+is called.
+
+.. code-block:: python
+
+  template = siibra.spaces.get("mni152").get_template()
+  image = template.fetch()
+
+The first access may therefore take longer than later accesses.
+
+Configurations and required data can also be prepared locally for workflows
+with restricted or unavailable network access.
+
+See also:
+
+* :doc:`Selecting a preconfigured atlas from an instance table <examples/01_atlases_and_parcellations/000_accessing_atlases>`
+* :doc:`Access BigBrain high-resolution data <examples/02_maps_and_templates/004_access_bigbrain>`
+
+Unified access to small and large images
+----------------------------------------
+
+siibra provides a common interface for conventional image files and very large
+multi-resolution cloud images.
+
+For a conventional image, fetching usually returns the original volume. For a
+very large resource, siibra may return a suitable resolution or require a
+region of interest that limits the amount of transferred data.
+
+For example, a small cortical patch can be extracted from a terabyte-scale
+BigBrain resource without downloading the complete brain volume. Cropping and
+resampling are reflected in the spatial metadata of the resulting image, so the
+patch remains localized in its original reference space.
+
+See also:
+
+* :doc:`Access BigBrain high-resolution data <examples/02_maps_and_templates/004_access_bigbrain>`
+* :doc:`Anatomically guided reproducible extraction of full resolution image data
+  from cloud resources <examples/tutorials/2025-paper-fig5>`
+
+Efficient handling of statistical maps
+--------------------------------------
+
+Statistical parcellation maps may contain one volume for every represented
+brain region. Loading all volumes as dense arrays can require substantial
+download time and memory.
+
+siibra can use a sparse representation that stores only non-zero regional
+values. This is an internal optimization: assignment and map operations remain
+available through the normal map interface.
+
+For example, assigning a coordinate to a statistical Julich-Brain map can
+evaluate all relevant regional values without requiring users to manage the
+individual region volumes themselves.
+
+See also:
+
+* :doc:`Assigning coordinates to brain regions <examples/05_anatomical_assignment/001_coordinates>`
+
+Interoperable outputs and provenance
+------------------------------------
+
+siibra exposes fetched data through commonly used Python and neuroscience data
+structures.
+
+Typical representations include:
+
+* NiBabel image objects for volumetric image data,
+* pandas data frames for tabular measurements and assignment results,
+* NumPy arrays for numerical data,
+* mesh representations for surface data.
+
+For example, fetching a volumetric map usually returns a NiBabel
+`Nifti1Image`, while receptor-density measurements are exposed through
+tabular data structures.
+
+Atlas elements and features also retain metadata and links to their source
+resources. These links make it possible to inspect provenance, publications,
+dataset pages, and persistent identifiers where available.
+
+See also:
+
+* :doc:`Accessing parcellation maps <examples/02_maps_and_templates/003_accessing_maps>`
+* :doc:`Neurotransmitter receptor densities <examples/03_data_features/001_receptor_densities>`
+* :doc:`Understanding links between data features and anatomical locations <examples/03_data_features/000_matchings>`
