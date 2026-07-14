@@ -198,4 +198,5 @@ html_theme_options = {
     "use_repository_button": True,
     "use_download_button": False,
     "use_fullscreen_button": False,
+    "show_toc_level": 3
 }
