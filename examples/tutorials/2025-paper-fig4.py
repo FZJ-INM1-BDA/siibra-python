@@ -84,6 +84,12 @@ for i, region in enumerate(regions):
 # %%
 # Now, for further insight, query for expressions of a selection of genes coding
 # for these receptors.
+# .. note::
+#    The service "web API of the Allen Brain Atlas for the human microarray expression"
+#    is not available at the moment, therefore siibra is not able to fetch
+#    gene expression features. This is a known issue tracked here:
+#    https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.
+#
 genes = ["CHRM1", "CHRM2", "CHRM3", "HTR1A", "HTR2A", "DRD1"]
 fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(7, 3))
 try:

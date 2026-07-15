@@ -171,6 +171,12 @@ fp.plot(ax=axs, capsize=4)
 
 # %%
 # Now, query for gene expressions for the same region
+# .. note::
+#    The service "web API of the Allen Brain Atlas for the human microarray expression"
+#    is not available at the moment, therefore siibra is not able to fetch
+#    gene expression features. This is a known issue tracked here:
+#    https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.
+#
 try:
     genes = ["gabarapl1", "gabarapl2", "maoa", "tac1"]
     gene_expressions = siibra.features.get(selected_region, "gene expressions", gene=genes)
