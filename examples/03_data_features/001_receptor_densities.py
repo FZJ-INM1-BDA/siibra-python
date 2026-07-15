@@ -69,5 +69,5 @@ for p in v1_profiles:
 p.data
 
 # %%
-# The data can be simply ploted as such
+# The data can be simply plotted as such
 p.plot()
