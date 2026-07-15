@@ -115,7 +115,7 @@ v1l_pmap = julich_pmaps.fetch(index=v1l_index)
 # in fetch() right away, and let the parcellation map
 # translate the index in the background:
 v1l_pmap = julich_pmaps.fetch(region="v1 left")
-plotting.plot_roi(v1l_pmap, title="v1 left", cmap='viridis')
+plotting.plot_stat_map(v1l_pmap, title="v1 left", cmap='viridis')
 
 # %%
 # In addition to parcellation maps, `siibra` can produce binary masks of brain
@@ -124,7 +124,7 @@ plotting.plot_roi(v1l_pmap, title="v1 left", cmap='viridis')
 voneconomo = siibra.parcellations.get('von Economo & Koskinas')
 fdtL = voneconomo.get_region('FDT: Area frontalis granularis triangularis - left hemisphere')
 fdtL_mask = fdtL.get_regional_mask(space="mni152", maptype="labelled")
-plotting.plot_roi(fdtL_mask.fetch(), title=fdtL.name)
+plotting.plot_roi(fdtL_mask.fetch(), title=fdtL.name, colorbar=False)
 
 # %%
 # Let us now show the same region in the full map context

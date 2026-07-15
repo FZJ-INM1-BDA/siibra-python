@@ -67,7 +67,11 @@ input_volume = siibra.volumes.from_nifti(
     img, space="mni152", name="example input volume"
 )
 plotting.plot_glass_brain(
-    input_volume.fetch(), alpha=1, cmap="RdBu", symmetric_cbar=True
+    input_volume.fetch(),
+    alpha=1,
+    cmap="RdBu",
+    symmetric_cbar=True,
+    colorbar=False,
 )
 
 # %%
@@ -96,7 +100,7 @@ clusterlabels = set(samples.labels) - {-1}
 
 # Let's have a look at the clustered pointcloud
 view = plotting.plot_glass_brain(
-    input_volume.fetch(), alpha=1, threshold=15, cmap="RdGy"
+    input_volume.fetch(), alpha=1, threshold=15, cmap="RdGy", colorbar=False
 )
 view.add_markers(
     np.array(samples.as_list())[samples.labels >= 0],
@@ -147,7 +151,7 @@ for n, a in all_assignments.iterrows():
     if a.region in regions:
         continue
     pmap = pmaps.fetch(a.region)
-    plotting.plot_glass_brain(pmap, cmap="hot_r")
+    plotting.plot_glass_brain(pmap, cmap="hot_r", colorbar=False)
     regions.add(a.region)
     print(a.region, a.correlation)
     if len(regions) == 3:

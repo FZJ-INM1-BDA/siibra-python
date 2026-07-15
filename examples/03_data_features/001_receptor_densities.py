@@ -35,7 +35,7 @@ import siibra
 parcellation = siibra.parcellations.get('julich 2.9')
 all_features = siibra.features.get(parcellation, siibra.features.molecular.ReceptorDensityFingerprint)
 print("Receptor density fingerprints found at the following anatomical anchors:")
-print("\n".join(str(f.anchor) for f in all_features))
+print('\n'.join({str(f.anchor) for f in all_features}))
 
 # %%
 # When providing a particular region instead, the returned list is filtered accordingly.
@@ -65,7 +65,9 @@ v1_profiles = siibra.features.get(
 for p in v1_profiles:
     print(p.receptor)
     if "GABAA" in p.receptor:
-        print(p.receptor)
         break
-print(p.data)
+p.data
+
+# %%
+# The data can be simply ploted as such
 p.plot()

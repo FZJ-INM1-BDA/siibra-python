@@ -17,7 +17,9 @@
 Multimodal comparison of two cortical brain areas
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The tutorial shows how maps and mutimodal regional measurements are obtained using siibra-python for language area IFG 44 and primary visual region hOc1, as defined in the Julich-Brain cytoarchitectonic atlas.
+The tutorial shows how maps and mutimodal regional measurements are obtained
+using siibra-python for language area IFG 44 and primary visual region hOc1, as
+defined in the Julich-Brain cytoarchitectonic atlas.
 """
 
 # %%
@@ -53,6 +55,7 @@ for r in regions:
         annotate=False,
         symmetric_cbar=True,
         title=r.name,
+        threshold=0.0,
     )
 
 # %%
