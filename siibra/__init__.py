@@ -36,10 +36,7 @@ from .retrieval.cache import Warmup, WarmupLevel
 from .locations import Point, PointCloud, Plane, BoundingBox
 
 
-logger.info(f"Version: {__version__}")
-logger.info(
-    f"{'This is an alpha release. ' if 'alpha' in __version__ else ''}Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
-)
+logger.info(f"Version: {__version__}\nPlease file issues at https://github.com/FZJ-INM1-BDA/siibra-python.")
 
 # forward access to some functions
 find_regions = _parcellation.find_regions
