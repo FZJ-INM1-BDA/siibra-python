@@ -63,11 +63,6 @@ With `siibra-python`, you can:
 * combine atlas information with common scientific Python tools,
 * and combine these in workflows (see :ref:`usecases`).
 
-`siibra-python` does not ship the atlas datasets themselves. Instead, it uses
-metadata, configurations, and live queries to access distributed data resources
-on demand. Data are fetched lazily and can be cached locally, so workflows only
-download the elements they use.
-
 .. grid::
 
   .. grid-item-card:: siibra-explorer :octicon:`link-external`
@@ -125,22 +120,6 @@ download the elements they use.
         linked to resources hosted or registered in EBRAINS, supporting
         findable and reusable access to curated neuroscience data.
 
-Acknowledgements
-================
-
-`siibra-python` is developed and maintained by the Big Data Analytics Group,
-Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH,
-with contributions from collaborators and users
-
-Development of `siibra-python` and the wider siibra tool suite has been
-supported by the European Union’s Horizon 2020 Framework Programme for Research
-and Innovation under the Specific Grant Agreement No. 10114731 (EBRAINS 2.0).
-
-We thank all contributors who have helped develop, test, document, and improve
-`siibra-python` through code contributions, issue reports, discussions,
-tutorials, workshops, and user feedback.
-
-
 
 .. toctree::
   :hidden:
@@ -153,14 +132,14 @@ tutorials, workshops, and user feedback.
   api
   faq
   howtocite
+  create_preconfiguration
+  offline_use
 
 .. toctree::
   :hidden:
   :maxdepth: 2
   :caption: Development
 
-  create_preconfiguration
-  offline_use
   developer
   contribute
   report_issues
