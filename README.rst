@@ -4,7 +4,7 @@
 siibra - Software interface for interacting with brain atlases
 ==============================================================
 
-Copyright 2018-2025, Forschungszentrum Jülich GmbH
+Copyright 2018-2026, Forschungszentrum Jülich GmbH
 
 *Authors: Big Data Analytics Group, Institute of Neuroscience and
 Medicine (INM-1), Forschungszentrum Jülich GmbH*
