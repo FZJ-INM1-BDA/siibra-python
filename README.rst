@@ -44,34 +44,39 @@ Installation
 ``siibra`` is available on pypi. 
 To install the latest released version, simply run ``pip install siibra``. 
 The installation typically takes about 2 minutes on a standard computer where Python is already installed.
-In order to work with the latest version from github, use ``pip install git+https://github.com/FZJ-INM1-BDA/siibra-python.git@main``.
+In order to work with the latest version from github, use:
 
-``siibra-python`` should be installable on recent versions of Windows, Linux and Mac OS in a recent Python 3 environment.
-We run continuous integration tests for versions 3.7 - 3.12 on recent Ubuntu images. 
+.. code-block:: bash
+
+   pip install git+https://github.com/FZJ-INM1-BDA/siibra-python.git@main
+
+``siibra-python`` should be installable on recent versions of Windows, Linux and
+Mac OS in a recent Python 3 environment. We run continuous integration tests for
+versions 3.7 - 3.12 on recent Ubuntu images. 
 
 The library requires a couple of open source packages, namely:
-```
-anytree >= 2.12.1
-nibabel >= 5.3.2
-appdirs >= 1.4.4
-scikit-image >= 0.25.0
-requests >= 2.32.3
-neuroglancer-scripts >= 1.2.0
-nilearn >= 0.11.0
-filelock >= 3.16.1
-ebrains-drive >= 0.6.0
-```
+
+   ```
+   anytree >= 2.12.1
+   nibabel >= 5.3.2
+   appdirs >= 1.4.4
+   scikit-image >= 0.25.0
+   requests >= 2.32.3
+   neuroglancer-scripts >= 1.2.0
+   nilearn >= 0.11.0
+   filelock >= 3.16.1
+   ebrains-drive >= 0.6.0
+   ```
 
 You can also install a docker image with all dependencies included:
-.. code-block:: sh
+
+.. code-block:: bash
 
   docker run -dit \
         -p 10000:8888 \
         --rm \
         --name siibra \
         docker-registry.ebrains.eu/siibra/siibra-python:latest
-
-
 
 Documentation & Help
 ====================
