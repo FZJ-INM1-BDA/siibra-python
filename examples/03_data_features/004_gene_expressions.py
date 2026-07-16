@@ -20,10 +20,10 @@
 Gene expressions
 ~~~~~~~~~~~~~~~~
 
-.. warning::
+.. attention::
     The service "web API of the Allen Brain Atlas for the human microarray expression"
     is not available at the moment, therefore siibra is not able to fetch
-    gene expression features. This is a known issue which we are investigating:
+    gene expression features. This is a known issue tracked here:
     https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.
 
 ``siibra`` can query gene expression data from the Allen brain atlas. The gene

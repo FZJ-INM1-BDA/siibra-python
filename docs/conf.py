@@ -194,6 +194,7 @@ html_theme_options = {
     "navigation_depth": 3,
     "includehidden": True,
     "titles_only": False,
+    "extra_footer": "<div>This project receives funding from the European Union’s Horizon Europe Programme (EBRAINS 2.0 Project, grant agreement 101147319), and recieved funding from the European Union’s Horizon 2020 Research and Innovation Programme (HBP SGA3, grant agreement 945539), and EBRAIN-Health (101058516).</div>",
     "repository_url": "https://github.com/FZJ-INM1-BDA/siibra-python",
     "use_repository_button": True,
     "use_download_button": False,

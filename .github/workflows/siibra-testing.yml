@@ -103,5 +103,5 @@ jobs:
     uses: ./.github/workflows/_run_examples.yaml
     with:
       os: self-hosted
-      python-version: "3.9"
+      python-version: "3.10"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}

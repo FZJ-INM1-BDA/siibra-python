@@ -74,7 +74,7 @@ plt.imshow(patch.fetch().get_fdata().squeeze(), cmap='gray')
 # %%
 # To understand where and how siibra actually sampled this patch,
 # we first plot the position of the chosen brain section in MNI space.
-view = plotting.plot_glass_brain(region_map.fetch(), cmap='viridis')
+view = plotting.plot_glass_brain(region_map.fetch(), cmap='viridis', threshold=0.0)
 roi_mni = patch.get_boundingbox().warp('mni152')
 _, key, pos = min(zip(roi_mni.shape, view.axes.keys(), roi_mni.center))
 view.axes[key].ax.axvline(pos, color='red', linestyle='--', linewidth=2)
@@ -88,7 +88,7 @@ roi = patch_locations.boundingbox.zoom(1.5)
 
 # fetch the section at reduced resolution for plotting.
 section_img = patch.section.fetch(resolution_mm=0.2)
-fig = plt.figure(figsize=(6, 5))
+fig = plt.figure(figsize=(10, 8))
 display = plotting.plot_img(
     section_img,
     display_mode="y",
@@ -96,6 +96,7 @@ display = plotting.plot_img(
     annotate=False,
     title=f"BigBrain section #{patch.bigbrain_section}",
     figure=fig,
+    colorbar=False,
 )
 # Annotate the region of interest bounding box
 (x, w), _, (z, d) = zip(roi.minpoint, roi.shape)
@@ -114,10 +115,15 @@ for dim, size in enumerate(roi.shape):
         roi.maxpoint[dim] = patch.get_boundingbox().maxpoint[dim]
 
 # Fetch the region of interest from the section, and plot it.
-fig = plt.figure(figsize=(6, 5))
+fig = plt.figure(figsize=(8, 7))
 roi_img = patch.section.fetch(voi=roi)
 display = plotting.plot_img(
-    roi_img, display_mode="y", cmap='gray', annotate=False, figure=fig
+    roi_img,
+    display_mode="y",
+    cmap="gray",
+    annotate=False,
+    figure=fig,
+    colorbar=False,
 )
 
 # Intersect cortical layer surfaces with the image plane
@@ -143,9 +149,14 @@ for layername, contours in layer_contours.items():
 # Plot the region of interest again, this time with the cortical profile that
 # defined the patch, as well as other candidate patch's locations
 # with their relevance scores, ie. probabilities.
-fig = plt.figure(figsize=(6, 5))
+fig = plt.figure(figsize=(8, 7))
 display = plotting.plot_img(
-    roi_img, display_mode="y", cmap='gray', annotate=False, figure=fig
+    roi_img,
+    display_mode="y",
+    cmap="gray",
+    annotate=False,
+    figure=fig,
+    colorbar=False,
 )
 
 # Concatenate all coordinates of the layer 4 intersected contours.

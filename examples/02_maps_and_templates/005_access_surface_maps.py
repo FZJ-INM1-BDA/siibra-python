@@ -74,4 +74,3 @@ plotting.view_surf(
     surf_map=mesh['labels'],
     cmap=julich_brain_cmap, symmetric_cmap=False, colorbar=False
 )
-# %%

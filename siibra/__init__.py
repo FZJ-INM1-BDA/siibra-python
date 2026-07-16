@@ -36,10 +36,7 @@ from .retrieval.cache import Warmup, WarmupLevel
 from .locations import Point, PointCloud, Plane, BoundingBox
 
 
-logger.info(f"Version: {__version__}")
-logger.info(
-    f"{'This is an alpha release. ' if 'alpha' in __version__ else ''}Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
-)
+logger.info(f"Version: {__version__}\nPlease file issues at https://github.com/FZJ-INM1-BDA/siibra-python.")
 
 # forward access to some functions
 find_regions = _parcellation.find_regions
@@ -65,25 +62,100 @@ def __getattr__(attr: str):
 
 
 # convenient access to reference space templates
-def get_template(space_spec: str, **kwargs):
+def get_template(space_spec: str, variant: str = None):
+    """
+    Get the reference template for a brain reference space.
+
+    Parameters
+    ----------
+    space_spec : str
+        Specification of the reference space.
+    variant: str, optional
+        Some templates are provided in different variants, e.g.
+        freesurfer is available as either white matter, pial or
+        inflated surface for left and right hemispheres (6 variants).
+        This field could be used to request a specific variant.
+        Per default, the first found variant is returned.
+
+    Returns
+    -------
+    siibra.volumes.volume.Volume or None
+        The reference template associated with the requested space, or
+        ``None`` if no suitable template is available.
+    """
     return (
         _space.Space
         .get_instance(space_spec)
-        .get_template(**kwargs)
+        .get_template(variant=variant)
     )
 
 
 # convenient access to parcellation maps
-def get_map(parcellation: str, space: str, maptype: MapType = MapType.LABELLED, **kwargs):
+def get_map(
+    parcellation: str,
+    space: str,
+    maptype: MapType = MapType.LABELLED,
+    spec: str = "",
+):
+    """
+    Get a parcellation map in a specified reference space.
+
+    Parameters
+    ----------
+    parcellation: str
+        Specification of the parcellation containing the region. This
+        may be a partial parcellation name.
+    space: str
+        Specification of the reference space in which the map is
+        requested, such as its name or identifier.
+    maptype: MapType, default: ``MapType.LABELLED``
+        Type of parcellation map to retrieve. Use
+        ``MapType.LABELLED`` for a discrete label map or
+        ``MapType.STATISTICAL`` for statistical maps.
+    spec: str
+        Used to distinguish between multiple matching maps of same parcellation,
+        space, and map type.
+
+    Returns
+    -------
+    siibra.volumes.parcellationmap.Map or siibra.volumes.sparsemap.SparseMap
+        The requested parcellation map. Statistical maps may be
+        represented as a sparse collection of region maps.
+    """
     return (
         _parcellation.Parcellation
         .get_instance(parcellation)
-        .get_map(space=space, maptype=maptype, **kwargs)
+        .get_map(space=space, maptype=maptype, spec=spec)
     )
 
 
 # convenient access to regions of a parcellation
 def get_region(parcellation: str, region: str):
+    """
+    Get a brain region from a parcellation.
+
+    Parameters
+    ----------
+    parcellation: str
+        Specification of the parcellation containing the region. This
+        may be a partial parcellation name.
+    region: str
+        Region specification to resolve. Inexact names and identifier
+        keys may be accepted if they uniquely identify a region.
+
+    Returns
+    -------
+    siibra.core.region.Region
+        The region matching the supplied specification.
+
+    Raises
+    ------
+    ValueError
+        If the region specification cannot be matched to a region.
+    RuntimeError
+        If the specification produces multiple matches that cannot be
+        resolved to a single region.
+    """
     return (
         _parcellation.Parcellation
         .get_instance(parcellation)
@@ -93,16 +165,61 @@ def get_region(parcellation: str, region: str):
 
 # convenient access to a parcellation
 def get_parcellation(parcellation: str):
+    """
+    Get a preconfigured brain parcellation.
+
+    Parameters
+    ----------
+    parcellation : str
+        Specification of the parcellation containing the region. This
+        may be a partial parcellation name.
+
+    Returns
+    -------
+    siibra.core.parcellation.Parcellation
+        The parcellation matching the supplied specification.
+    """
     return _parcellation.Parcellation.get_instance(parcellation)
 
 
 # convenient access to spaces
 def get_space(space: str):
+    """
+    Get a preconfigured brain reference space.
+
+    Parameters
+    ----------
+    space : str
+        Specification of the reference space.
+
+    Returns
+    -------
+    siibra.core.space.Space
+        The reference space matching the supplied specification.
+    """
     return _space.Space.get_instance(space)
 
 
 def set_feasible_download_size(maxsize_gbyte):
+    """
+    Set the maximum download size considered feasible.
+
+    This changes the global size threshold used by volume retrieval
+    operations when assessing whether a download is feasible.
+
+    Parameters
+    ----------
+    maxsize_gbyte : float
+        Maximum feasible download size in gibibytes (GiB).
+
+    Returns
+    -------
+    None
+        This function modifies the global download-size threshold
+        in place.
+    """
     from .volumes import volume
+
     volume.gbyte_feasible = maxsize_gbyte
     logger.info(f"Set feasible download size to {maxsize_gbyte} GiB.")
 

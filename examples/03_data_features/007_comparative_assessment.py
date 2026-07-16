@@ -1,4 +1,4 @@
-# Copyright 2018-2022
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -77,7 +77,7 @@ modalities = [
     siibra.features.cellular.BigBrainIntensityProfile,
 ]
 
-fig, axs = plt.subplots(len(modalities), len(regions))
+fig, axs = plt.subplots(len(modalities), len(regions), layout="constrained")
 
 for i, region in enumerate(regions):
     for j, modality in enumerate(modalities):
@@ -85,4 +85,4 @@ for i, region in enumerate(regions):
         p = cf[0]
         p.plot(ax=axs[j, i])
 
-fig.set(figheight=15, figwidth=10)
+fig.set(figheight=18, figwidth=10)

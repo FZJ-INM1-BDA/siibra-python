@@ -61,7 +61,7 @@ plotting.view_surf(
 # of mesh vertices. Here we compare the layer depth distribution of
 # layers 4 and 5 across the left hemisphere.
 plt.figure()
-layers = [2, 4, 5]
+layers = [4, 2, 5]
 thicknesses = {}
 for layer in layers:
     upper_surf = layermap.fetch(f"layer {layer + 1} left", format="mesh")

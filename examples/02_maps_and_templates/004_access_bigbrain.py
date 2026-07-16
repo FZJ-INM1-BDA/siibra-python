@@ -57,7 +57,7 @@ voi = siibra.locations.BoundingBox(
     space=space
 )
 bigbrain_chunk = bigbrain_template.fetch(voi=voi)
-plotting.view_img(bigbrain_chunk, bg_img=None, cmap='gray')
+plotting.view_img(bigbrain_chunk, bg_img=None, cmap="gray", colorbar=False)
 
 # %%
 # Note that since both fetched image volumes are spatial images with a properly
@@ -67,7 +67,8 @@ plotting.view_img(
     bigbrain_chunk,
     bg_img=bigbrain_whole_img,
     cmap='magma',
-    cut_coords=tuple(voi.center)
+    cut_coords=tuple(voi.center),
+    colorbar=False,
 )
 
 # %%
@@ -82,7 +83,13 @@ mask
 # %%
 # Since we operate in physical coordinates, we can plot both image chunks
 # superimposed, even if their resolution is not exactly identical.
-plotting.view_img(mask, bg_img=bigbrain_chunk, opacity=.2, symmetric_cmap=False)
+plotting.view_img(
+    mask,
+    bg_img=bigbrain_chunk,
+    opacity=.2,
+    symmetric_cmap=False,
+    cmap=layermap.get_colormap(),
+)
 
 # %%
 # `siibra` can help us to assign a brain region to the position of the volume
@@ -128,5 +135,3 @@ print(f"Size of the bounding box: {hoc5_bbox.shape}")
 voi = hoc5_bbox.zoom(0.1)
 crop = section1402.fetch(voi=voi)
 plotting.plot_img(crop, bg_img=None, cmap="gray", display_mode="y", colorbar=False)
-
-# %%

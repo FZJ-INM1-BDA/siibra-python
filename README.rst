@@ -20,7 +20,8 @@ scales, from macroscopic MRI and surface spaces to microscopic BigBrain
 resources. The package supports scripts, notebooks, and reproducible analysis
 workflows.
 
-# Key capabilities
+Key capabilities
+================
 
 With `siibra-python`, workflows can:
 
@@ -36,7 +37,8 @@ With `siibra-python`, workflows can:
 it uses metadata, configurations, and live queries to access distributed data
 resources on demand. Data are fetched lazily and can be cached locally.
 
-# Installation
+Installation
+============
 
 Install `siibra-python` from the Python Package Index:
 
@@ -50,7 +52,8 @@ To install the current development version of the `v1` branch:
 
 pip install git+https://github.com/FZJ-INM1-BDA/siibra-python.git@v1
 
-# Minimal example
+Minimal example
+===============
 
 .. code-block:: python
 
@@ -73,37 +76,33 @@ print(julich_map)
 print(region)
 print(features)
 
-# Documentation
+Documentation
+=============
 
 The documentation includes installation instructions, a concept guide,
 documented examples, frequently asked questions, and the generated API
-reference:
+reference: https://siibra-python.readthedocs.io/
 
-https://siibra-python.readthedocs.io/en/v1/
 
-The siibra-explorer web viewer is available at:
+The siibra-explorer web viewer is available at: https://atlases.ebrains.eu/viewer/
 
-https://atlases.ebrains.eu/viewer/
+The siibra HTTP API is available at: https://siibra-api.apps.ebrains.eu/v3_0/docs
 
-The siibra HTTP API is available at:
-
-https://siibra-api.apps.ebrains.eu/v3_0/docs
-
-# Support and contribution
+Support and contribution
+========================
 
 Usage questions and discussions can be posted on Neurostars using the
 `siibra` tag.
 
 Bugs, feature requests, and data requests can be reported on the GitHub issue
-tracker:
-
-https://github.com/FZJ-INM1-BDA/siibra-python/issues
+tracker: https://github.com/FZJ-INM1-BDA/siibra-python/issues
 
 Code and documentation contributions can be proposed through pull requests.
 Atlas content and data features are generally added through configuration files
 or live queries rather than by modifying the Python source code directly.
 
-# Citation
+Citation
+========
 
 Please cite the version of `siibra-python` used in your work. Version-specific
 citation information is provided in `CITATION.cff` and through the Zenodo
@@ -132,7 +131,8 @@ doi: 10.1101/2025.05.20.655042
 Cite atlas content, data features, and datasets used in a workflow in addition
 to citing the software.
 
-# Versioning
+Versioning
+==========
 
 `siibra-python` follows semantic versioning. Given a version number
 `MAJOR.MINOR.PATCH`, increments imply:
@@ -145,7 +145,8 @@ to citing the software.
 Pre-release versions follow the pattern `x.y.z-alpha.t`. By changing `t`,
 different `siibra-configurations` versions are targeted.
 
-# License
+License
+=======
 
 `siibra-python` is released under the Apache License 2.0.
 
@@ -163,3 +164,10 @@ different `siibra-configurations` versions are targeted.
 
 .. |doi| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.7885728.svg
 :target: https://doi.org/10.5281/zenodo.7885728
+
+Acknowledgements
+================
+This project receives funding from the European Union’s Horizon Europe Programme
+(EBRAINS 2.0 Project, grant agreement 101147319), and recieved funding from the
+European Union’s Horizon 2020 Research and Innovation Programme (HBP SGA3, grant
+agreement 945539), and EBRAIN-Health (101058516).

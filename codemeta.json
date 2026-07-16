@@ -1,0 +1,77 @@
+{
+  "@context": "https://w3id.org/codemeta/3.0",
+  "@type": "SoftwareSourceCode",
+  "name": "siibra-python",
+  "description": "siibra is a Python client to a brain atlas framework that integrates brain\nparcellations and reference spaces at different spatial scales, and connects\nthem with a broad range of multimodal regional data features. It aims to\nfacilitate programmatic and reproducible incorporation of brain parcellations\nand brain region features from different sources into neuroscience workflows.\n",
+  "version": "v1.0.1-alpha.20",
+  "datePublished": "2026-07-15T00:00:00.000Z",
+  "license": "https://spdx.org/licenses/Apache-2.0",
+  "codeRepository": "https://github.com/FZJ-INM1-BDA/siibra-python",
+  "identifier": "https://doi.org/10.5281/zenodo.7885728",
+  "author": [
+    {
+      "type": "Person",
+      "givenName": "Timo",
+      "familyName": "Dickscheid",
+      "id": "https://orcid.org/0000-0002-9051-3701"
+    },
+    {
+      "type": "Person",
+      "givenName": "Xiaoyun",
+      "familyName": "Gui"
+    },
+    {
+      "type": "Person",
+      "givenName": "Ahmet Nihat",
+      "familyName": "Simsek"
+    },
+    {
+      "type": "Person",
+      "givenName": "Louisa",
+      "familyName": "Koehnen"
+    },
+    {
+      "type": "Person",
+      "givenName": "Vadim",
+      "familyName": "Marcenko"
+    },
+    {
+      "type": "Person",
+      "givenName": "Christian",
+      "familyName": "Schiffer"
+    },
+    {
+      "type": "Person",
+      "givenName": "Sebastian",
+      "familyName": "Bludau"
+    },
+    {
+      "type": "Person",
+      "givenName": "Katrin",
+      "familyName": "Amunts"
+    }
+  ],
+  "maintainer": [
+    {
+      "type": "Person",
+      "givenName": "Timo",
+      "familyName": "Dickscheid",
+      "email": "t.dickscheid@fz-juelich.de",
+      "affiliation": {
+        "type": "Organization",
+        "name": "INM-1, Forschungszentrum Juelich, Germany"
+      }
+    }
+  ],
+  "dateModified": "2026-07-15",
+  "downloadUrl": "https://github.com/FZJ-INM1-BDA/siibra-python/archive/refs/tags/v1.0.1-alpha.20.zip",
+  "relatedLink": [
+    "https://siibra-python.readthedocs.io/en/latest/"
+  ],
+  "softwareHelp": [
+    "https://github.com/FZJ-INM1-BDA/siibra-python/issues/new/choose",
+    "https://neurostars.org/tag/siibra/753",
+    "https://matrix.to/#/#siibra:fz-juelich.de"
+  ],
+  "referencePublication": "https://doi.org/10.1101/2025.05.20.655042"
+}

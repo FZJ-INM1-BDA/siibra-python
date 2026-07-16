@@ -66,9 +66,15 @@ selected_regions = [
     'SF (Amygdala) left', 'SF (Amygdala) right', 'Area Ph2 (PhG) left',
     'Area Ph2 (PhG) right', 'Area Fo4 (OFC) left', 'Area Fo4 (OFC) right',
     'Area 7A (SPL) left', 'Area 7A (SPL) right', 'CA1 (Hippocampus) left',
-    'CA1 (Hippocampus) right', 'CA1 (Hippocampus) left', 'CA1 (Hippocampus) right'
+    'CA1 (Hippocampus) right',
 ]
 cf[0].plot_carpet(regions=selected_regions)
+
 # %%
 # Alternatively, we can visualize the mean signal strength per region:
-cf[0].plot(regions=selected_regions)
+fig = cf[0].plot(regions=selected_regions, backend="plotly")
+fig.update_layout(
+    xaxis_title="region",
+    yaxis_title="average BOLD signal",
+    showlegend=False,
+)

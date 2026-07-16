@@ -20,7 +20,9 @@
 Multimodal comparison of two cortical brain areas
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The tutorial shows how maps and mutimodal regional measurements are obtained using siibra-python for language area IFG 44 and primary visual region hOc1, as defined in the Julich-Brain cytoarchitectonic atlas.
+The tutorial shows how maps and mutimodal regional measurements are obtained
+using siibra-python for language area IFG 44 and primary visual region hOc1, as
+defined in the Julich-Brain cytoarchitectonic atlas.
 """
 
 # %%
@@ -56,6 +58,7 @@ for r in regions:
         annotate=False,
         symmetric_cbar=True,
         title=r.name,
+        threshold=0.0,
     )
 
 # %%
@@ -87,6 +90,13 @@ for i, region in enumerate(regions):
 # %%
 # Now, for further insight, query for expressions of a selection of genes coding
 # for these receptors.
+#
+# .. attention::
+#    The service "web API of the Allen Brain Atlas for the human microarray expression"
+#    is not available at the moment, therefore siibra is not able to fetch
+#    gene expression features. This is a known issue tracked here:
+#    https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.
+#
 genes = ["CHRM1", "CHRM2", "CHRM3", "HTR1A", "HTR2A", "DRD1"]
 fig, axs = plt.subplots(1, len(regions), sharey=True, figsize=(7, 3))
 try:
