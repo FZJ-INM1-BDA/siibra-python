@@ -34,8 +34,8 @@ body:
         ````
         ```
         ````
-      validations:
-        required: true
+    validations:
+      required: true
 
   - type: textarea
     id: problem
@@ -45,8 +45,8 @@ body:
         Describe what happened and provide any additional context that may be
         relevant, such as the atlas, parcellation, space, region, feature, or
         data provider involved.
-      validations:
-        required: true
+    validations:
+      required: true
 
   - type: textarea
     id: expected-behavior
@@ -54,8 +54,8 @@ body:
       label: Expected behavior
       description: >
         Describe what you expected to happen.
-      validations:
-        required: true
+    validations:
+      required: true
 
   - type: textarea
     id: traceback
@@ -63,7 +63,7 @@ body:
       label: Traceback or log output
       description: >
         Paste the complete traceback or relevant log output.
-        render: shell
+      render: shell
 
   - type: textarea
     id: environment
@@ -75,14 +75,12 @@ body:
       value: |
         <details>
 
-        ````
         ```shell
         python --version
         python -c "import siibra; print(siibra.__version__)"
         ```
 
         </details>
-        ````
 
-      validations:
-        required: true
+    validations:
+      required: true
