@@ -106,7 +106,10 @@ You can also star the project to show us that you are using it.
 Acknowledgements
 ================
 
-This software code is funded from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 945539 (Human Brain Project SGA3).
+This project receives funding from the European Union’s Horizon Europe Programme
+(EBRAINS 2.0 Project, grant agreement 101147319), and recieved funding from the
+European Union’s Horizon 2020 Research and Innovation Programme (HBP SGA3, grant
+agreement 945539), and EBRAIN-Health (101058516).
 
 .. acknowledgments-end
 
