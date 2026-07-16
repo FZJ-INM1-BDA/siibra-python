@@ -134,6 +134,7 @@ for cl in clusterlabels:
         cmap="RdBu",
         title=f"Cluster #{cl}",
         symmetric_cbar=True,
+        colorbar=False,
     )
     with siibra.QUIET:
         df = pmaps.assign(clustermap)
@@ -175,7 +176,8 @@ fp.plot(ax=axs, capsize=4)
 
 # %%
 # Now, query for gene expressions for the same region
-# .. note::
+#
+# .. attention::::
 #    The service "web API of the Allen Brain Atlas for the human microarray expression"
 #    is not available at the moment, therefore siibra is not able to fetch
 #    gene expression features. This is a known issue tracked here:

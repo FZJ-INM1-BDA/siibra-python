@@ -139,7 +139,7 @@ print(features[0].last_match_description)
 # For example, the gene expressions retrieved from the Allen atlas are linked by the coordinate
 # of their tissue probes in MNI space. If a coordinate is inside the selected brain regions, it is an exact match.
 #
-# .. note::
+# .. attention::
 #    The service "web API of the Allen Brain Atlas for the human microarray expression"
 #    is not available at the moment, therefore siibra is not able to fetch
 #    gene expression features. This is a known issue tracked here:

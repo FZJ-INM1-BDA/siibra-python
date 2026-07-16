@@ -214,6 +214,7 @@ cluster_scores.round(2)
 
 # %%
 # Bar plot of Distal dice scores versus Julich-Brain correlations
+plt.figure(layout="constrained")
 cluster_scores.plot(
     kind="bar",
     y=["Julich-Brain Correlation (VIM)", "Dice score (study)"],
@@ -230,7 +231,6 @@ plt.legend(
     loc="center left",
     bbox_to_anchor=(0.15, -1.0),
 )
-plt.tight_layout()
 
 # %%
 # 2. Investigate in histology data

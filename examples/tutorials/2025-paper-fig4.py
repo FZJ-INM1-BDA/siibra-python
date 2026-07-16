@@ -87,7 +87,8 @@ for i, region in enumerate(regions):
 # %%
 # Now, for further insight, query for expressions of a selection of genes coding
 # for these receptors.
-# .. note::
+#
+# .. attention::
 #    The service "web API of the Allen Brain Atlas for the human microarray expression"
 #    is not available at the moment, therefore siibra is not able to fetch
 #    gene expression features. This is a known issue tracked here:

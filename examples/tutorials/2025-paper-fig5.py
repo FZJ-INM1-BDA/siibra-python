@@ -85,7 +85,7 @@ roi = patch_locations.boundingbox.zoom(1.5)
 
 # fetch the section at reduced resolution for plotting.
 section_img = patch.section.fetch(resolution_mm=0.2)
-fig = plt.figure(figsize=(6, 5))
+fig = plt.figure(figsize=(10, 8))
 display = plotting.plot_img(
     section_img,
     display_mode="y",
@@ -112,7 +112,7 @@ for dim, size in enumerate(roi.shape):
         roi.maxpoint[dim] = patch.get_boundingbox().maxpoint[dim]
 
 # Fetch the region of interest from the section, and plot it.
-fig = plt.figure(figsize=(6, 5))
+fig = plt.figure(figsize=(8, 7))
 roi_img = patch.section.fetch(voi=roi)
 display = plotting.plot_img(
     roi_img,
@@ -146,7 +146,7 @@ for layername, contours in layer_contours.items():
 # Plot the region of interest again, this time with the cortical profile that
 # defined the patch, as well as other candidate patch's locations
 # with their relevance scores, ie. probabilities.
-fig = plt.figure(figsize=(6, 5))
+fig = plt.figure(figsize=(8, 7))
 display = plotting.plot_img(
     roi_img,
     display_mode="y",

@@ -71,7 +71,7 @@ modalities = [
     siibra.features.cellular.BigBrainIntensityProfile,
 ]
 
-fig, axs = plt.subplots(len(modalities), len(regions))
+fig, axs = plt.subplots(len(modalities), len(regions), layout="constrained")
 
 for i, region in enumerate(regions):
     for j, modality in enumerate(modalities):
@@ -79,4 +79,4 @@ for i, region in enumerate(regions):
         p = cf[0]
         p.plot(ax=axs[j, i])
 
-fig.set(figheight=15, figwidth=10)
+fig.set(figheight=18, figwidth=10)
