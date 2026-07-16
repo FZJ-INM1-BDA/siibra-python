@@ -107,7 +107,7 @@ Acknowledgements
 ================
 
 This project receives funding from the European Union’s Horizon Europe Programme
-(EBRAINS 2.0 Project, grant agreement 101147319), and recieved funding from the
+(EBRAINS 2.0 Project, grant agreement 101147319), and received funding from the
 European Union’s Horizon 2020 Research and Innovation Programme (HBP SGA3, grant
 agreement 945539), and EBRAIN-Health (101058516).
 
