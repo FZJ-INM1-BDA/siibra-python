@@ -52,7 +52,7 @@ In order to work with the latest version from github, use:
 
 ``siibra-python`` should be installable on recent versions of Windows, Linux and
 Mac OS in a recent Python 3 environment. We run continuous integration tests for
-versions 3.7 - 3.12 on recent Ubuntu images. 
+versions 3.8 - 3.12 on recent Ubuntu images. 
 
 The library requires a couple of open source packages, namely:
 
