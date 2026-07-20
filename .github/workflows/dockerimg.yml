@@ -54,7 +54,7 @@ jobs:
         echo "curl first otherwise docker login result in tls handshake timeout"
         curl -v https://docker-registry.ebrains.eu/v2/
         echo "Login to docker registry"
-        if [ -n "{{ matrix.docker-repo }}" ]; then
+        if [ -n '{{ matrix.docker-repo }}' ]; then
           echo '${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER }}' | \
           docker login -u '${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER_NAME }}' --password-stdin '${{ matrix.docker-repo }}'
         fi
