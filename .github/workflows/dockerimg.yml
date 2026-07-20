@@ -4,6 +4,8 @@ on:
   release:
     types:
       - created
+  push:
+    branches: ["debug/buildPushDockerImg"]
 
 jobs:
   build-docker-img:
