@@ -122,12 +122,12 @@ agreement 945539), and EBRAIN-Health (101058516).
 
 How to cite
 ===========
-Please cite the version used according to the citation file
-or all versions by
-`Timo Dickscheid, Xiayun Gui, Ahmet Nihat Simsek, Vadim Marcenko,
-Louisa Köhnen, Sebastian Bludau, & Katrin Amunts. (2023). siibra-python -
-Software interface for interacting with brain atlases. Zenodo.
-https://doi.org/10.5281/zenodo.7885728`.
+Please cite the siibra tool suite paper:
+
+`Dickscheid, T., Gui, X., Simsek, A. N., Schiffer, C., Mangin, J.-F., Leprince,
+Y., Jirsa, V., Bjaalie, J. G., Leergaard, T. B., Bludau, S., & Amunts, K.
+(2026). Siibra: A software tool suite for realizing a Multilevel Human Brain
+Atlas from complex data resources. Nature Methods.`
 
 .. howtocite-ends
 
