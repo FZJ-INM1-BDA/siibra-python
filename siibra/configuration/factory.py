@@ -463,13 +463,9 @@ class Factory:
                 modality="transmittance", **kwargs
             )
         elif modality == "XPCT":
-            return volume_of_interest.XPCTVolumeOfInterest(
-                modality="XPCT", **kwargs
-            )
-        elif modality == "DTI":
-            return volume_of_interest.DTIVolumeOfInterest(
-                modality=modality, **kwargs
-            )
+            return volume_of_interest.XPCTVolumeOfInterest(modality="XPCT", **kwargs)
+        elif "DTI" in modality.upper():
+            return volume_of_interest.DTIVolumeOfInterest(modality=modality, **kwargs)
         # elif modality == "segmentation":
         #     return volume_of_interest.SegmentedVolumeOfInterest(**kwargs)
         elif "MRI" in modality:

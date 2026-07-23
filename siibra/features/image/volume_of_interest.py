@@ -37,7 +37,7 @@ class BlockfaceVolumeOfInterest(
 
 class DTIVolumeOfInterest(
     image.Image,
-    configuration_folder="features/images/vois/blockface",
+    configuration_folder="features/images/vois/dti",
     category="fibres"
 ):
     def __init__(self, modality, **kwargs):
