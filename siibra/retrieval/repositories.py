@@ -169,12 +169,14 @@ class GitlabConnector(RepositoryConnector):
         )
         self.reftag = reftag
         self._per_page = 100
-        self._branchloader = HttpRequest(
-            f"{self.base_url}/branches", DECODERS[".json"], refresh=True
-        )
+
+        # in the context of a python session, it is EXTREMELY unlikely that commits will be pushed
+        # in contrast, this loader is one of the major triggerer of 429
+        self._branchloader = HttpRequest(f"{self.base_url}/branches", DECODERS[".json"])
         self._tag_checked = True if skip_branchtest else False
         self._want_commit_cached = None
         self.archive_mode = archive_mode
+        self._archive_local: LocalFileRepository = None
 
     def __str__(self):
         return f"{self.__class__.__name__} {self.base_url} {self.reftag}"
@@ -202,6 +204,41 @@ class GitlabConnector(RepositoryConnector):
     @property
     def branches(self):
         return self._branchloader.data
+    
+    @property
+    def archive_local_repo(self):
+        if not self.archive_mode:
+            return None
+        
+        if not self._archive_local:
+            
+            ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
+            archive_directory = CACHE.build_filename(self.base_url + ref)
+            if not os.path.isdir(archive_directory):
+
+                url = self.base_url + f"/archive.tar.gz?sha={ref}"
+                resp = requests.get(url)
+                tar_filename = f"{archive_directory}.tar.gz"
+
+                resp.raise_for_status()
+                with open(tar_filename, "wb") as fp:
+                    fp.write(resp.content)
+
+                import tarfile
+                tar = tarfile.open(tar_filename, "r:gz")
+                tar.extractall(archive_directory)
+                for _dir in os.listdir(archive_directory):
+                    for file in os.listdir(f"{archive_directory}/{_dir}"):
+                        os.rename(f"{archive_directory}/{_dir}/{file}", f"{archive_directory}/{file}")
+                    os.rmdir(f"{archive_directory}/{_dir}")
+
+            self._archive_local = LocalFileRepository(archive_directory)
+        return self._archive_local
+
+    def get_loader(self, filename, folder="", decode_func=None):
+        if self.archive_local_repo:
+            return self.archive_local_repo.get_loader(filename, folder=folder, decode_func=decode_func)
+        return super().get_loader(filename, folder, decode_func)
 
     def _build_url(self, folder="", filename=None, recursive=False, page=1):
         ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
@@ -214,6 +251,8 @@ class GitlabConnector(RepositoryConnector):
             return f"{self.base_url}/files/{filepath}/raw?ref={ref}"
 
     def search_files(self, folder="", suffix=None, recursive=False):
+        if self.archive_local_repo:
+            return self.archive_local_repo.search_files(folder=folder, suffix=suffix, recursive=recursive)
         page = 1
         results = []
         while True:
@@ -232,34 +271,6 @@ class GitlabConnector(RepositoryConnector):
             for e in results
             if e["type"] == "blob" and e["name"].endswith(end)
         ]
-
-    def get(self, filename, folder="", decode_func=None):
-        if not self.archive_mode:
-            return super().get(filename, folder, decode_func)
-
-        ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
-        archive_directory = CACHE.build_filename(self.base_url + ref) if self.archive_mode else None
-
-        if not os.path.isdir(archive_directory):
-
-            url = self.base_url + f"/archive.tar.gz?sha={ref}"
-            resp = requests.get(url)
-            tar_filename = f"{archive_directory}.tar.gz"
-
-            resp.raise_for_status()
-            with open(tar_filename, "wb") as fp:
-                fp.write(resp.content)
-
-            import tarfile
-            tar = tarfile.open(tar_filename, "r:gz")
-            tar.extractall(archive_directory)
-            for _dir in os.listdir(archive_directory):
-                for file in os.listdir(f"{archive_directory}/{_dir}"):
-                    os.rename(f"{archive_directory}/{_dir}/{file}", f"{archive_directory}/{file}")
-                os.rmdir(f"{archive_directory}/{_dir}")
-
-        with open(f"{archive_directory}/{folder}/{filename}", "rb") as fp:
-            return self._decode_response(fp.read(), filename)
 
     def __eq__(self, other):
         return all([
