@@ -492,7 +492,7 @@ class Factory:
             )
         elif modality == "XPCT":
             return volume_of_interest.XPCTVolumeOfInterest(modality="XPCT", **kwargs)
-        elif modality == "DTI":
+        elif "DTI" in modality.upper():
             return volume_of_interest.DTIVolumeOfInterest(modality=modality, **kwargs)
         # elif modality == "segmentation":
         #     return volume_of_interest.SegmentedVolumeOfInterest(**kwargs)
