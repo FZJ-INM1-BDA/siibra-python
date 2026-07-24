@@ -19,8 +19,8 @@ def test_feature_has_datasets(feature: Image):
     assert len(feature.datasets) > 0, f"{feature} has no datasets"
 
 
-expected_ds_count = 14
 def test_images_datasets_names():
+    expected_ds_count = 14
     start = time.time()
     all_ds_names = {ds.name for f in all_image_features for ds in f.datasets}
     end = time.time()
