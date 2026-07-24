@@ -42,7 +42,7 @@ class Configuration:
         conn(
             server_or_owner,
             project_or_repo,
-            reftag="feat_timeseries_volume",
+            reftag="siibra-{}".format(__version__),
             skip_branchtest=True
         )
         for conn, server_or_owner, project_or_repo in CONFIG_REPOS
