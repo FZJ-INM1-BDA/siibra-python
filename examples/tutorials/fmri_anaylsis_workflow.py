@@ -13,9 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-
-:bdg-info:`Research workflow`
-
 Extrating Regionwise Signals From Activity Recording
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -38,6 +35,26 @@ import pandas as pd
 import json
 import pathlib
 import requests
+
+# %%
+# .. attention::
+#    Surface timeseries analysis at the end of this notebook and require
+#    `Freesurefer fsaverage5` template and a parcellation map on this template.
+#    Currently, Julich Brain in fsaverage4 is not part of siibra-python's
+#    main configuration because the map has not been validated by a
+#    neuroscientist yet. However, the downsampling process with `workbench`,
+#    which is how the map was computed, is standard practice and this notebook
+#    specifcally pulls the branch containing aforementioned map to perform the
+#    analysis. If you have other maps in fsaverage5, fsaverage6, or fsaverage7
+#    you can create a configuration for them and utilize the same methodolgy.
+#
+siibra.use_configuration(
+    siibra.retrieval.repositories.GithubConnector(
+        owner="FZJ-INM1-BDA",
+        repo="siibra-configurations",
+        reftag="feat_timeseries_volume",
+    )
+)
 
 # %%
 # The fMRI data used in this example comes from the AOMIC-PIOP2 dataset hosted
