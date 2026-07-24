@@ -127,7 +127,7 @@ Please cite the siibra tool suite paper:
 `Dickscheid, T., Gui, X., Simsek, A. N., Schiffer, C., Mangin, J.-F., Leprince,
 Y., Jirsa, V., Bjaalie, J. G., Leergaard, T. B., Bludau, S., & Amunts, K.
 (2026). Siibra: A software tool suite for realizing a Multilevel Human Brain
-Atlas from complex data resources. Nature Methods.`
+Atlas from complex data resources. Nature Methods. https://doi.org/10.1038/s41592-026-03159-x`
 
 .. howtocite-ends
 
