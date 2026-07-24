@@ -63,4 +63,8 @@ centroid.space.name
 # using plotting functions like the ones in `nilearn <https://nilearn.github.io/stable/index.html>`_:
 mask = v1_left.get_regional_mask(space, maptype="labelled")
 from nilearn import plotting
-plotting.plot_roi(mask.fetch(), title=f"Mask of {v1_left.name} in {space.name}")
+plotting.plot_roi(
+    mask.fetch(),
+    title=f"Mask of {v1_left.name} in {space.name}",
+    colorbar=False,
+)

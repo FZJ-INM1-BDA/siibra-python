@@ -1,0 +1,49 @@
+name: "Feature request"
+description: Suggest an idea or improvement for siibra-python.
+labels: ["user feedback"]
+assignees: []
+
+body:
+
+  - type: markdown
+    attributes:
+    value: Thanks for suggesting an improvement to siibra-python.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I have checked that a similar feature has not already been requested.
+          required: true
+        - label: I have checked the documentation for an existing way to achieve this.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: >
+        Describe the problem you are trying to solve. Include the relevant
+        workflow, atlas, parcellation, space, region, feature, or data type
+        where applicable.
+        placeholder: >
+        I am trying to ..., but currently ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: >
+        Describe the behavior or interface you would like siibra-python to
+        provide. Code examples or API sketches are welcome.
+      value: |
+        ```python
+
+        ````
+        ```
+        ````
+    validations:
+      required: true

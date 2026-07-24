@@ -43,7 +43,7 @@ def is_allen_api_microarray_service_available():
 # -- Project information -----------------------------------------------------
 
 project = "siibra-python"
-copyright = "2020-2025, Forschungszentrum Juelich GmbH"
+copyright = "2018-2026, Forschungszentrum Juelich GmbH"
 author = "Big Data Analytics Group, Institute of Neuroscience and Medicine, Forschungszentrum Juelich GmbH"
 language = "en"
 
@@ -209,7 +209,7 @@ html_theme_options = {
     "navigation_depth": 3,
     "includehidden": True,
     "titles_only": False,
-    "extra_footer": "<div>This software code is funded from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 945539 (Human Brain Project SGA3).</div>",
+    "extra_footer": "<div>This project receives funding from the European Union’s Horizon Europe Programme (EBRAINS 2.0 Project, grant agreement 101147319), and recieved funding from the European Union’s Horizon 2020 Research and Innovation Programme (HBP SGA3, grant agreement 945539), and EBRAIN-Health (101058516).</div>",
     "repository_url": "https://github.com/FZJ-INM1-BDA/siibra-python",
     "use_repository_button": True,
     "use_download_button": False,

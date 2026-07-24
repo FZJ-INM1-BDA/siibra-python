@@ -1,4 +1,4 @@
-# Copyright 2018-2023
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -63,12 +63,15 @@ aicha_map = siibra.volumes.parcellationmap.from_volume(
 )
 
 # %%
-# Let us plot the full map to test
-plotting.plot_roi(aicha_map.fetch())
+# Let us plot the full map to test. First, create a colormap. Since the table
+# does not contain color values, we pass `fill_uncolored=True` to randomly
+# selected colors that are reproducible for this specific map object.
+cmap = aicha_map.get_colormap(fill_uncolored=True)
+plotting.plot_roi(aicha_map.fetch(), cmap=cmap)
 
 # %%
 # Now let's fetch a specific region
-plotting.plot_roi(aicha_map.fetch("G_Fusiform-1-L"))
+plotting.plot_roi(aicha_map.fetch("G_Fusiform-1-L"), colorbar=False)
 
 # %%
 # We can already use this map to find spatial features, such as BigBrain
@@ -79,7 +82,7 @@ intensity_profiles = siibra.features.get(
     siibra.features.cellular.BigBrainIntensityProfile
 )[0]
 print(f"{len(intensity_profiles)} {intensity_profiles.name} found.")
-
+intensity_profiles.plot()
 
 # %%
 # On the other hand, some features are only anchored to a semantic region

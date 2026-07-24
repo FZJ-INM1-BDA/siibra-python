@@ -67,7 +67,11 @@ input_volume = siibra.volumes.from_nifti(
     img, space="mni152", name="example input volume"
 )
 plotting.plot_glass_brain(
-    input_volume.fetch(), alpha=1, cmap="RdBu", symmetric_cbar=True
+    input_volume.fetch(),
+    alpha=1,
+    cmap="RdBu",
+    symmetric_cbar=True,
+    colorbar=False,
 )
 
 # %%
@@ -96,7 +100,7 @@ clusterlabels = set(samples.labels) - {-1}
 
 # Let's have a look at the clustered pointcloud
 view = plotting.plot_glass_brain(
-    input_volume.fetch(), alpha=1, threshold=15, cmap="RdGy"
+    input_volume.fetch(), alpha=1, threshold=15, cmap="RdGy", colorbar=False
 )
 view.add_markers(
     np.array(samples.as_list())[samples.labels >= 0],
@@ -130,6 +134,7 @@ for cl in clusterlabels:
         cmap="RdBu",
         title=f"Cluster #{cl}",
         symmetric_cbar=True,
+        colorbar=False,
     )
     with siibra.QUIET:
         df = pmaps.assign(clustermap)
@@ -147,7 +152,7 @@ for n, a in all_assignments.iterrows():
     if a.region in regions:
         continue
     pmap = pmaps.fetch(a.region)
-    plotting.plot_glass_brain(pmap, cmap="hot_r")
+    plotting.plot_glass_brain(pmap, cmap="hot_r", colorbar=False)
     regions.add(a.region)
     print(a.region, a.correlation)
     if len(regions) == 3:
@@ -171,6 +176,13 @@ fp.plot(ax=axs, capsize=4)
 
 # %%
 # Now, query for gene expressions for the same region
+#
+# .. attention::::
+#    The service "web API of the Allen Brain Atlas for the human microarray expression"
+#    is not available at the moment, therefore siibra is not able to fetch
+#    gene expression features. This is a known issue tracked here:
+#    https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.
+#
 try:
     genes = ["gabarapl1", "gabarapl2", "maoa", "tac1"]
     gene_expressions = siibra.features.get(selected_region, "gene expressions", gene=genes)
