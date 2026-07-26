@@ -775,6 +775,11 @@ class RegionRelationAssessments(RelationAssignment[Region]):
 
     anony_client = BucketApiClient()
 
+    pe_types = (
+        "https://openminds.om-i.org/types/ParcellationEntity",
+        "https://openminds.ebrains.eu/sands/ParcellationEntity",
+    )
+
     @staticmethod
     def get_uuid(long_id: Union[str, Dict]):
         if isinstance(long_id, str):
@@ -840,7 +845,7 @@ class RegionRelationAssessments(RelationAssignment[Region]):
             for found_target in found_targets:
                 yield cls(query_structure=src, assigned_structure=found_target, qualification=RegionRelationship.parse_relation_assessment(overlap))
 
-            if "https://openminds.ebrains.eu/sands/ParcellationEntity" in target.get("type"):
+            if any (pe_type in target.get("type") for pe_type in cls.pe_types):
                 pev_uuids = [
                     cls.get_uuid(has_version)
                     for pe in cls.get_snapshot_factory("ParcellationEntity")(target_id)
