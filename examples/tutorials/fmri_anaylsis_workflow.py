@@ -317,7 +317,7 @@ for task in tasks:
                 fmri_vol,
                 strategy="mean",  # mean signal value per region per timepoint
                 surface_variant=fs_variant,
-            ).mean()  # std over time per region
+            ).std()  # std over time per region
             for fmri_vol in fmri_vols
             if task in fmri_vol.name
         ),
@@ -356,6 +356,8 @@ plt.show()
 
 # %%
 fs_variant = "pial"
+vmin = min([regional_signal_averages[task].min().min() for task in tasks])
+vmax = max([regional_signal_averages[task].max().max() for task in tasks])
 for task in tasks:
     surf_im = julichbrain_fs5.colorize(
         regional_signal_averages[task].mean(axis=1),
@@ -366,4 +368,6 @@ for task in tasks:
         hemi="both",
         cmap="magma",
         title=task,
+        vmin=vmin,
+        vmax=vmax,
     )
