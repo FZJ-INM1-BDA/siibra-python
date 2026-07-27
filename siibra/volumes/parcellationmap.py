@@ -1456,10 +1456,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 signals = signals[masker.lut["name"]]
         else:
             regions = list(self._indices.keys())
-            signals.rename(
-                columns=lambda c: regions[eval(c.replace("niftimapsmasker", ""))],
-                inplace=True
-            )
+            if convert_to_dataframe:
+                signals = pd.DataFrame(
+                    signals,
+                    columns=regions
+                )
+            else:
+                signals.rename(
+                    columns=lambda c: regions[eval(c.replace("niftimapsmasker", ""))],
+                    inplace=True
+                )
 
         return signals
 
