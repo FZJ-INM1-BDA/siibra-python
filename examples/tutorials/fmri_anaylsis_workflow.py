@@ -38,16 +38,16 @@ import requests
 
 # %%
 # .. attention::
-#    Surface timeseries analysis at the end of this notebook and require
-#    `Freesurefer fsaverage5` template and a parcellation map on this template.
-#    Currently, Julich Brain in fsaverage4 is not part of siibra-python's
-#    main configuration because the map has not been validated by a
-#    neuroscientist yet. However, the downsampling process with `workbench`,
-#    which is how the map was computed, is standard practice and this notebook
-#    specifcally pulls the branch containing aforementioned map to perform the
-#    analysis. If you have other maps in fsaverage5, fsaverage6, or fsaverage7
-#    you can create a configuration for them and utilize the same methodolgy.
-#
+#   The surface time-series analysis at the end of this notebook requires a
+#   FreeSurfer `fsaverage5` template and a parcellation map defined in the same
+#   space. The Julich-Brain `fsaverage5` map is not yet included in the main
+#   siibra-python configuration because it has not been validated by a
+#   neuroscientist yet. This notebook therefore loads the map from a dedicated
+#   configuration branch. The map was generated using a standard
+#   `Workbench`-based downsampling procedure. The same workflow can be applied
+#   to other parcellation maps in `fsaverage5`, `fsaverage6`, or `fsaverage7`
+#   by creating an appropriate siibra configuration.
+
 siibra.use_configuration(
     siibra.retrieval.repositories.GithubConnector(
         owner="FZJ-INM1-BDA",
