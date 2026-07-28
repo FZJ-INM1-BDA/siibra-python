@@ -27,6 +27,7 @@ class details, see :ref:`api`.
    * - :bdg-info:`Research workflow`
      - Notebook organized around a research-style question or analysis.
 
+
 .. grid::
 
    .. grid-item-card:: :material-outlined:`account_tree;2em` Atlases and brain-region terminologies
