@@ -36,6 +36,7 @@ jobs:
             echo "SIIBRA_CACHEDIR=$JOB_DIR/siibra-cache"
             echo "UV_CACHE_DIR=$JOB_DIR/uv-cache"
             echo "UV_PYTHON_INSTALL_DIR=$JOB_DIR/python"
+            echo "MPLCONFIGDIR=$JOB_DIR/matplotlib"
           } >> "$GITHUB_ENV"
           
       - name: Set up uv
