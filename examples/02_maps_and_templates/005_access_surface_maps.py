@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _005_access_surface_maps
+:bdg-secondary:`Intermediate`
+
 Access parcellation maps in surface space
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

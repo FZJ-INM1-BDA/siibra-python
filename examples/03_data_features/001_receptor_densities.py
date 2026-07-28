@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _001_receptor_densities
+:bdg-secondary:`Intermediate`
+
 Neurotransmitter receptor densities
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

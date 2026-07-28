@@ -15,6 +15,7 @@
 
 """
 .. _templates:
+:bdg-secondary:`Intermediate`
 
 Accessing brain reference templates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

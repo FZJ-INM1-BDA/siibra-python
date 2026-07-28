@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _007_comparative_assessment
+:bdg-secondary:`Intermediate`
+
 Comparative analysis of brain organisation in two brain regions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

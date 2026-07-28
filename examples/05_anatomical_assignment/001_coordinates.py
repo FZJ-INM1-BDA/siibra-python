@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _001_coordinates
+:bdg-secondary:`Intermediate`
+
 Assigning coordinates to brain regions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
