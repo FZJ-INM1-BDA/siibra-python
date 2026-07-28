@@ -116,7 +116,6 @@ napoleon_use_ivar = True
 
 # Mappings
 intersphinx_mapping = {
-    "glossary": ("../concepts.html", None),
     "matplotlib": ("https://matplotlib.org/", None),
     "nilearn": ("https://nilearn.github.io/stable/index.html", None),
     "nibabel": ("https://nipy.org/nibabel/", None),
