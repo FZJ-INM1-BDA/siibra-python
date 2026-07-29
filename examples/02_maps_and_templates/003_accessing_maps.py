@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _003_accessing_maps
+:bdg-secondary:`Intermediate`
+
 Accessing parcellation maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

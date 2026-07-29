@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _009_compound_features
+:bdg-secondary:`Intermediate`
+
 Compound features
 ~~~~~~~~~~~~~~~~~
 
