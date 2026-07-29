@@ -56,17 +56,15 @@ versions 3.8 - 3.12 on recent Ubuntu images.
 
 The library requires a couple of open source packages, namely:
 
-   ```
-   anytree >= 2.12.1
-   nibabel >= 5.3.2
-   appdirs >= 1.4.4
-   scikit-image >= 0.25.0
-   requests >= 2.32.3
-   neuroglancer-scripts >= 1.2.0
-   nilearn >= 0.11.0
-   filelock >= 3.16.1
-   ebrains-drive >= 0.6.0
-   ```
+   - anytree >= 2.12.1
+   - nibabel >= 5.3.2
+   - appdirs >= 1.4.4
+   - scikit-image >= 0.25.0
+   - requests >= 2.32.3
+   - neuroglancer-scripts >= 1.2.0
+   - nilearn >= 0.11.0
+   - filelock >= 3.16.1
+   - ebrains-drive >= 0.6.0
 
 You can also install a docker image with all dependencies included:
 

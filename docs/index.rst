@@ -12,7 +12,7 @@ siibra - Software interface for interacting with brain atlases
         :class-title: sd-text-primary
         :margin: 2 2 0 0
 
-        Get started with ``siibra-python``
+        Install and get started with ``siibra-python``
 
     .. grid-item-card:: :material-outlined:`stairs;1.5em` Examples
         :link: examples
@@ -22,7 +22,7 @@ siibra - Software interface for interacting with brain atlases
         :class-title: sd-text-primary
         :margin: 2 2 0 0
 
-        Documented, working code examples to help you start using siibra
+        Browse documented code examples for common atlas workflows.
         
     .. grid-item-card:: :fas:`book` Tutorials :octicon:`link-external`
         :link: https://github.com/FZJ-INM1-BDA/siibra-tutorials
@@ -32,7 +32,7 @@ siibra - Software interface for interacting with brain atlases
         :class-title: sd-text-primary
         :margin: 2 2 0 0
 
-        Find and interactively run siibra tutorials here!
+        Tutorial notebooks for workshops and trainings with no-install options to run.
         
 .. include:: ../README.rst
   :start-after: intro-start
@@ -63,7 +63,7 @@ siibra - Software interface for interacting with brain atlases
 
                 .. div:: sd-font-weight-bold
 
-                Explore atlases with on your browser
+                Explore atlases on your web browser
 
                 It is built around an interactive 3D view of the brain
                 displaying a unique selection of detailed templates and

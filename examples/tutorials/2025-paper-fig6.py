@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _2025-paper-fig6
+:bdg-info:`Research workflow`
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Case study: Anatomical evaluation of subcortical maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -454,3 +457,5 @@ canvas = geometry.Polygon([[0, 0], [0, w], [w, w], [w, 0], [0, 0]])
 X, Y = intersection(polygon, canvas).exterior.xy
 plt.plot(X, Y, color="g", lw=6)
 plt.axis("off")
+
+# sphinx_gallery_thumbnail_number = -1

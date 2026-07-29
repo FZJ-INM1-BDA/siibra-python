@@ -116,7 +116,6 @@ napoleon_use_ivar = True
 
 # Mappings
 intersphinx_mapping = {
-    "glossary": ("../concepts.html", None),
     "matplotlib": ("https://matplotlib.org/", None),
     "nilearn": ("https://nilearn.github.io/stable/index.html", None),
     "nibabel": ("https://nipy.org/nibabel/", None),
@@ -201,7 +200,6 @@ html_theme_options = {
     "prev_next_buttons_location": "bottom",
     "style_external_links": False,
     "vcs_pageview_mode": "",
-    "style_nav_header_background": "white",
     "collapse_navigation": True,
     "sticky_navigation": True,
     "navigation_depth": 3,
@@ -212,4 +210,5 @@ html_theme_options = {
     "use_repository_button": True,
     "use_download_button": False,
     "use_fullscreen_button": False,
+    "show_toc_level": 3,
 }

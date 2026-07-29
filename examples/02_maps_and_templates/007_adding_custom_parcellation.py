@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _007_adding_custom_parcellation
+:bdg-secondary:`Intermediate`
+
 Adding a custom parcellation map
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
