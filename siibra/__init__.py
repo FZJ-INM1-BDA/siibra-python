@@ -24,7 +24,7 @@ from .commons import (
     __version__
 )
 from . import configuration, features, livequeries
-from .configuration import factory
+from .configuration import factory, create_templateflow_configs
 from .core import (
     atlas as _atlas,
     parcellation as _parcellation,
@@ -280,4 +280,5 @@ def __dir__():
         "warm_cache",
         "set_cache_size",
         "from_json",
+        "create_templateflow_configs",
     ]
