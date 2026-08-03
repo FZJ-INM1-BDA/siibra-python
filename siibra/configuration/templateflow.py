@@ -186,7 +186,7 @@ class TemplateFlow:
             )
             raise e
 
-        uuid = hashlib.md5(str(description).encode("utf-8")).hexdigest()
+        uuid = hashlib.md5(f"{tf_key}:{description}".encode("utf-8")).hexdigest()
         volumes = [
             {
                 "@type": "siibra/volume/v0.0.1",
