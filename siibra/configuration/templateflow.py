@@ -19,6 +19,8 @@ import hashlib
 from urllib.parse import quote
 from zipfile import ZipFile
 import json
+from typing import Union, Literal, List, Dict
+from dataclasses import dataclass
 
 from ..commons import logger, Species
 from ..retrieval.cache import CACHE
@@ -30,23 +32,11 @@ SKELETON_URL = (
     "{revision}/templateflow/conf/templateflow-skel.zip"
 )
 TEMPLATEFLOW_S3 = "https://templateflow.s3.amazonaws.com"
-TEMPLATE_VARIANTS = {
-    "T1w": "T1 weighted",
-    "T2w": "T2 weighted",
-    "T1map": "T1 map",
-    "T2map": "T2 map",
-    "T2star": "T2*",
-    "PD": "proton density",
-    "FLAIR": "FLAIR",
-}
-
-NIFTI_EXTENSIONS = ("nii.gz", "nii")
-
 MAP_EXTENSIONS = {
-    "dseg",
-    "probseg",
+    "dseg": "labelled",
+    "dparc": "labelled",
+    "probseg": "statistical",
 }
-
 TEMPLATE_EXTENSIONS = {
     "T1w",
     "T2w",
@@ -54,9 +44,38 @@ TEMPLATE_EXTENSIONS = {
     "T2map",
     "T2star",
     "PD",
+    "PDw",
     "FLAIR",
+    "boldref",
+    "epi",
+    "UNIT1",
+    "SPECT",
+    "PET",
+    "MP2RAGE",
+    "MD",
+    "FA",
+    "veryinflated",
+    "inflated",
+    "sphere",
+    "pial",
+    "thickness",
+    "midthickness",
+    "flat",
+    "sulc",
+    "white",
+    "roi",
+    "curv",
+    "myelinmap",
+    "area",
+    "mask",
 }
-
+SUPPORTED_FILE_FORMATS = {
+    "nii.gz": "nii",
+    "nii": "nii",
+    "label.gii": "gii-label",
+    "surf.gii": "gii-mesh",
+    "gii": "gii-label",
+}
 TEMPLATEFLOW_CITATION = (
     "TemplateFlow: a community archive of imaging templates and atlases for "
     "improved consistency in neuroimaging R Ciric, R Lorenz, WH Thompson, M "
@@ -66,116 +85,162 @@ TEMPLATEFLOW_CITATION = (
 )
 
 
+@dataclass
+class TemplateFlowFile:
+    space: str
+    cohort: Union[str, None]
+    filepath: str
+    entities: Dict[str, str]
+    provider_type: str
+    siibra_type: Literal["map", "template"]
+    modality: str
+
+    @property
+    def url(self):
+        return f"{TEMPLATEFLOW_S3}/" f"{quote(self.filepath, safe='/')}"
+
+    def parcellation_spec(self):
+        if self.siibra_type == "map":
+            return self.entities.get("atlas", self.space.removeprefix("tpl-"))
+        raise ValueError("Parcellation spec is only applicable to `map` types.")
+
+    def volume_spec(self):
+        if self.siibra_type == "map":
+            specs = [f"{k}: {v}" for k, v in self.entities.items() if k != "atlas"]
+            return " - ".join(specs)
+        if self.siibra_type == "template":
+            specs = [f"{k}: {v}" for k, v in self.entities.items()]
+            return " - ".join([self.modality] + specs)
+
+        raise ValueError(f"Invalid siibra_type: {self.siibra_type}")
+
+
+@dataclass
 class TemplateFlow:
+    revision: str = "master"
 
-    @staticmethod
-    def classify_templateflow_files(
-        revision: str = "master",
-    ) -> dict[str, dict[str, list[str]]]:
-        """Classify TemplateFlow templates, maps, and map TSV files."""
-        spaces = {}
-        req = HttpRequest(SKELETON_URL.format(revision=revision))
-        with req.get() as archive:
-            assert isinstance(archive, ZipFile)
+    def __post_init__(self):
+        self._files: List["TemplateFlowFile"] = self.classify_templateflow_files()
+        logger.info(
+            (
+                "Please cite TemplateFlow if you use it in your research:\n"
+                f"{TEMPLATEFLOW_CITATION}"
+            )
+        )
 
-            cohort_divided = {
-                f.filename.split("/")[0]: None
-                for f in archive.filelist
-                if f.is_dir() and "cohort" in f.filename
-            }
+    @property
+    def skeleton_archive(self) -> ZipFile:
+        req = HttpRequest(SKELETON_URL.format(revision=self.revision))
+        return req.get()
 
-            spaces = {}
+    def classify_templateflow_files(self):
+        files: List["TemplateFlowFile"] = []
+        with self.skeleton_archive as archive:
             for f in archive.filelist:
-                if not f.is_dir() or "scripts" in f.filename:
+                if not any(f.filename.endswith(s) for s in SUPPORTED_FILE_FORMATS):
                     continue
 
                 parts = f.filename.split("/")
-                key = parts[0]
-                if key in cohort_divided and "cohort" in parts[1]:
-                    spaces[f"{key}/{parts[1]}"] = spaces[key]
+                for part in parts[:-1]:
+                    if "cohort" in part.lower():
+                        cohort = part
+                        break
                 else:
-                    desc_file = f.filename + "template_description.json"
-                    with archive.open(desc_file, "r") as fp:
-                        description = json.load(fp=fp)
-                    try:
-                        license = archive.read(f.filename + "LICENSE").decode()
-                    except KeyError:
-                        license = description.get("License", "No license information was found.")
+                    cohort = None
 
-                    spaces.setdefault(
-                        key,
-                        {
-                            "license": license,
-                            "description": description,
-                            "templates": {},
-                            "maps": [],
-                            "tsvs": [],
-                        },
-                    )
+                fname = parts[-1]
+                stem, *suffixes = fname.split(".")
+                entities = stem.split("_")
+                space = entities[0].removeprefix("tpl-")
+                if "desc-" in entities[-1]:
+                    bids_modality_suffix = None
+                else:
+                    bids_modality_suffix = entities[-1]
+                entities = (
+                    entities[1:] if bids_modality_suffix is None else entities[1:-1]
+                )
 
-            # remove top level key for templates divided by cohorts
-            for key in cohort_divided.keys():
-                spaces.pop(key)
-
-            for f in archive.filelist:
-                if f.is_dir():
-                    continue
-
-                parts = f.filename.split("/")
-                key = parts[0]
-                if key in cohort_divided and "cohort" in parts[1]:
-                    key = f"{key}/{parts[1]}"
-
-                parts = f.filename.split(".")
-                suffix = ".".join(parts[1:])
-                entities = parts[0].split("_")
-                bids_extension = entities[-1]
-
-                if suffix == "tsv":
-                    if key in spaces:
-                        spaces[key]["tsvs"].append(f.filename)
+                if bids_modality_suffix in MAP_EXTENSIONS:
+                    siibra_type = "map"
+                    modality_suffix = MAP_EXTENSIONS[bids_modality_suffix]
+                elif bids_modality_suffix in TEMPLATE_EXTENSIONS:
+                    siibra_type = "template"
+                    modality_suffix = bids_modality_suffix
+                else:
+                    if fname.endswith("label.gii"):
+                        siibra_type = "map"
+                        modality_suffix = "labelled"
                     else:
-                        for k in spaces.keys():
-                            if k.startswith(key):
-                                spaces[k]["tsvs"].append(f.filename)
-                    continue
+                        logger.warning(f"Unknown BIDS suffix: {fname}")
 
-                if suffix not in NIFTI_EXTENSIONS:
-                    continue
+                provider_type = SUPPORTED_FILE_FORMATS.get(".".join(suffixes))
+                if provider_type is None and "gii" in suffixes:
+                    provider_type = "gii-label"  # TODO: allow digesting other gii files
+                files.append(
+                    TemplateFlowFile(
+                        space=space,
+                        filepath=f.filename,
+                        provider_type=provider_type,
+                        entities={
+                            ent.split("-")[0]: ent.split("-")[1] for ent in entities
+                        },
+                        siibra_type=siibra_type,
+                        modality=modality_suffix,
+                        cohort=cohort,
+                    )
+                )
 
-                if bids_extension in MAP_EXTENSIONS:
-                    spaces[key]["maps"].append(f.filename)
-                if bids_extension in TEMPLATE_EXTENSIONS:
-                    variant = TEMPLATE_VARIANTS.get(bids_extension)
-                    qualifiers = [
-                        ent
-                        for ent in entities[:-1]
-                        if ent.startswith(("res-", "desc-"))
-                    ]
-                    if qualifiers:
-                        variant += f" ({'_'.join(qualifiers)})"
-                    spaces[key]["templates"][variant] = f.filename
+        return files
 
-        return spaces
+    @property
+    def spaces(self):
+        return sorted(list(set(f.space for f in self._files)))
 
-    def __init__(self, revision: str = "master"):
-        self.revision = revision
-        self._skeleton_cache = self.classify_templateflow_files(revision=revision)
-        logger.info((
-            "Please cite TemplateFlow if you use it in your research:\n"
-            f"{TEMPLATEFLOW_CITATION}"
-        ))
+    def find_parcellations(self, space: str):
+        assert space in self.spaces
+        return sorted(list({
+            f.parcellation_spec()
+            for f in self.ls_map_files(space)
+        }))
+
+    def ls_template_files(
+        self, space: Union[str, None] = None
+    ) -> List[TemplateFlowFile]:
+        return list(
+            f
+            for f in self._files
+            if f.siibra_type == "template" and (space is None or f.space == space)
+        )
+
+    def ls_map_files(
+        self,
+        space: Union[str, None] = None,
+        maptype: Union[Literal["labelled", "statistical"], None] = None,
+    ) -> List[TemplateFlowFile]:
+        return list(
+            f
+            for f in self._files
+            if f.siibra_type == "map"
+            and (space is None or f.space == space)
+            and (maptype is None or f.modality == maptype)
+        )
+
+    def _check_urls(self):
+        import requests
+
+        for f in self._files:
+            req = requests.get(f.url, stream=True)
+            try:
+                req.raise_for_status()
+            except Exception as e:
+                print(e)
 
     @property
     def citation(self):
         return TEMPLATEFLOW_CITATION
 
-    @staticmethod
-    def _get_url(path: str) -> str:
-        return f"{TEMPLATEFLOW_S3}/" f"{quote(path, safe='/')}"
-
-    def create_space_config(self, tf_key: str):
-        description = self._skeleton_cache[tf_key]["description"]
+    def create_space_config(self, space: str):
+        description = self.get_description(space=space)
         species = description.get("Species")
         name = description.get("Name")
         try:
@@ -186,26 +251,26 @@ class TemplateFlow:
             )
             raise e
 
-        uuid = hashlib.md5(f"{tf_key}:{description}".encode("utf-8")).hexdigest()
+        uuid = hashlib.md5(f"{space}:{description}".encode("utf-8")).hexdigest()
         volumes = [
             {
                 "@type": "siibra/volume/v0.0.1",
-                "variant": variant,
+                "variant": tf_file.volume_spec(),
                 "providers": {
-                    "nii": self._get_url(path),
+                    tf_file.provider_type: tf_file.url,
                 },
             }
-            for variant, path in self._skeleton_cache[tf_key].get("templates").items()
+            for tf_file in self.ls_template_files(space)
         ]
         config = {
             "@type": "siibra/space/v0.0.1",
             "@id": "minds/core/referencespace/v1.0.0/" f"templateflow/{uuid}",
             "name": f"[TemplateFlow] {name}",
-            "shortName": f"TemplateFlow: {tf_key}",
+            "shortName": f"TemplateFlow: {space}",
             "modality": "MRI",
             "species": species,
             "volumes": volumes,
-            "license": self._skeleton_cache[tf_key].get("license"),
+            "license": self.get_license(space=space),
             "description": (
                 "This reference space was generated automatically by siibra "
                 f"from the TemplateFlow template:\n'{description}'."
@@ -213,6 +278,23 @@ class TemplateFlow:
             "publications": self._publications_from_description(description),
         }
         return config
+
+    def create_map_config(self, space: str, parcellation_spec: str):
+        pass
+
+    def get_description(self, space: str) -> dict:
+        desc_file = f"{space}/template_description.json"
+        with self.skeleton_archive.open(desc_file, "r") as fp:
+            description = json.load(fp=fp)
+        return description
+
+    def get_license(self, space: str) -> str:
+        try:
+            return self.skeleton_archive.read(f"{space}/LICENSE").decode()
+        except KeyError:
+            return self.get_description(space).get(
+                "License", "No license information was found."
+            )
 
     @staticmethod
     def _publications_from_description(description: dict) -> list[dict[str, str]]:
@@ -231,19 +313,30 @@ class TemplateFlow:
         ]
 
 
-def create_local_repository(revision: str = "master") -> LocalFileRepository:
-    tf_config_path = pathlib.Path(f"{CACHE.folder}/TemplateFlow-{revision}")
+def create_local_repository(
+    revision: str = "master",
+    *,
+    output_folder: Union[str, pathlib.Path, None] = None,
+) -> LocalFileRepository:
+    tf_config_path = pathlib.Path(
+        f"{CACHE.folder}/TemplateFlow-{revision}"
+        if output_folder is None
+        else output_folder
+    )
     tf_config_path.joinpath("spaces").mkdir(exist_ok=True, parents=True)
     tf_config_path.joinpath("maps").mkdir(exist_ok=True, parents=True)
     tf_config_path.joinpath("parcellations").mkdir(exist_ok=True, parents=True)
     tf = TemplateFlow(revision=revision)
-    for key in tf._skeleton_cache:
+
+    # spaces
+    for space in tf.spaces:
         try:
-            space_conf = tf.create_space_config(key)
+            space_conf = tf.create_space_config(space)
+            filename = f"TemplateFlow-{space}.json"
         except ValueError:
             continue
         with open(
-            f"{tf_config_path}/spaces/{key.replace('/', '_')}.json",
+            f"{tf_config_path}/spaces/{filename}",
             mode="wt",
             encoding="utf-8",
         ) as fp:

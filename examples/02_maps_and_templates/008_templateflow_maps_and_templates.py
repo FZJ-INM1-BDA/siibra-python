@@ -27,13 +27,17 @@ import siibra
 from nilearn import plotting
 
 # %%
+# TODO: delete this cell for the final notebook
+from siibra.configuration import templateflow
+
+tf = templateflow.TemplateFlow()
+tf._check_urls()
+# %%
 siibra.extend_configuration(siibra.create_templateflow_configs())
 siibra.spaces.dataframe
 
 # %%
-MNI152NLin6Asym = siibra.spaces.get(
-    "MNI ICBM 152 non-linear 6th Generation Asymmetric"
-)
+MNI152NLin6Asym = siibra.spaces.get("MNI ICBM 152 non-linear 6th Generation Asymmetric")
 MNI152NLin6Asym
 
 # %%
@@ -46,5 +50,5 @@ for template in MNI152NLin6Asym.volumes:
     print(template.variant)
 
 # %%
-tmp_img = MNI152NLin6Asym.get_template("T1 weighted (res-01)").fetch()
+tmp_img = MNI152NLin6Asym.get_template("T1w - res: 01").fetch()
 plotting.view_img(tmp_img, bg_img=None, symmetric_cmap=False, cmap="gray")
