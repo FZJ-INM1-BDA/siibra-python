@@ -22,6 +22,8 @@ import json
 from typing import Union, Literal, List, Dict
 from dataclasses import dataclass
 
+import pandas as pd
+
 from ..commons import logger, Species
 from ..retrieval.cache import CACHE
 from ..retrieval.requests import HttpRequest
@@ -83,6 +85,15 @@ TEMPLATEFLOW_CITATION = (
     "Gorgolewski, RA Poldrack, O Esteban bioRxiv 2021.02.10.430678; "
     "doi:10.1101/2021.02.10.430678"
 )
+TSV_INDEX_HEADERS = {
+    "index",
+    "Index",
+    "label",
+}
+TSV_NAME_HEADERS = {
+    "name",
+    "structure",
+}
 
 
 @dataclass
@@ -99,11 +110,7 @@ class TemplateFlowFile:
     def url(self):
         return f"{TEMPLATEFLOW_S3}/" f"{quote(self.filepath, safe='/')}"
 
-    def parcellation_spec(self):
-        if self.siibra_type == "map":
-            return self.entities.get("atlas", self.space.removeprefix("tpl-"))
-        raise ValueError("Parcellation spec is only applicable to `map` types.")
-
+    @property
     def volume_spec(self):
         if self.siibra_type == "map":
             specs = [f"{k}: {v}" for k, v in self.entities.items() if k != "atlas"]
@@ -196,12 +203,26 @@ class TemplateFlow:
     def spaces(self):
         return sorted(list(set(f.space for f in self._files)))
 
-    def find_parcellations(self, space: str):
-        assert space in self.spaces
-        return sorted(list({
-            f.parcellation_spec()
-            for f in self.ls_map_files(space)
-        }))
+    def find_parcellations(self, space: Union[str, None] = None):
+        assert space is None or space in self.spaces
+        return sorted(
+            list({f.entities.get("atlas", f.space) for f in self.ls_map_files(space)})
+        )
+
+    def _find_lut_files(
+        self,
+        space: str,
+        parecellation: str,
+        bids_map_type: Literal["dseg", "probseg"],
+    ):
+        tsvs = [
+            fn
+            for fn in self.skeleton_archive.namelist()
+            if fn.endswith(f"{bids_map_type}.tsv")
+            and fn.startswith(f"tpl-{space}")
+            and parecellation in fn
+        ]
+        return tsvs
 
     def ls_template_files(
         self, space: Union[str, None] = None
@@ -215,14 +236,16 @@ class TemplateFlow:
     def ls_map_files(
         self,
         space: Union[str, None] = None,
-        maptype: Union[Literal["labelled", "statistical"], None] = None,
+        parcellation: Union[str, None] = None,
+        map_type: Union[Literal["labelled", "statistical"], None] = None,
     ) -> List[TemplateFlowFile]:
         return list(
             f
             for f in self._files
             if f.siibra_type == "map"
             and (space is None or f.space == space)
-            and (maptype is None or f.modality == maptype)
+            and (parcellation is None or parcellation in f.filepath)
+            and (map_type is None or f.modality == map_type)
         )
 
     def _check_urls(self):
@@ -255,7 +278,7 @@ class TemplateFlow:
         volumes = [
             {
                 "@type": "siibra/volume/v0.0.1",
-                "variant": tf_file.volume_spec(),
+                "variant": tf_file.volume_spec,
                 "providers": {
                     tf_file.provider_type: tf_file.url,
                 },
@@ -264,9 +287,9 @@ class TemplateFlow:
         ]
         config = {
             "@type": "siibra/space/v0.0.1",
-            "@id": "minds/core/referencespace/v1.0.0/" f"templateflow/{uuid}",
+            "@id": f"minds/core/referencespace/v1.0.0/templateflow-{self.revision}/{uuid}",
             "name": f"[TemplateFlow] {name}",
-            "shortName": f"TemplateFlow: {space}",
+            "shortName": f"[TemplateFlow] {space.removeprefix('tpl-')}",
             "modality": "MRI",
             "species": species,
             "volumes": volumes,
@@ -279,11 +302,114 @@ class TemplateFlow:
         }
         return config
 
-    def create_map_config(self, space: str, parcellation_spec: str):
-        pass
+    def create_parc_and_map_configs(
+        self,
+        space: str,
+        parcellation: str,
+        map_type: Literal["labelled", "statistical"],
+    ):
+        tsv_mapping = self._find_maps(
+            space=space,
+            parcellation=parcellation,
+            map_type=map_type,
+        )
+
+        def get_conf_base(tsv_entities: List[str]):
+            sub_parc_name = "[TemplateFlow] " + " - ".join(tsv_entities)
+            uuid = hashlib.md5(f"{space}:{sub_parc_name}".encode("utf-8")).hexdigest()
+            return {
+                "@type": "siibra/map/v0.0.1",
+                "@id": f"siibra-map-v0.0.templateflow-{self.revision}_{uuid}",
+                "name": sub_parc_name,
+                "space": {"name": self.get_description(space=space)["Name"]},
+                "parcellation": {"name": sub_parc_name},
+                **(
+                    {"represented_as:_sparsemap": True}
+                    if map_type == "statistical"
+                    else {}
+                ),
+            }
+
+        configs = {}
+        for tsv, meta in tsv_mapping.items():
+            with self.skeleton_archive.open(tsv) as fp:
+                lut = pd.read_csv(fp, sep="\t")
+
+            for index_col in TSV_INDEX_HEADERS:
+                if index_col in lut.columns:
+                    break
+            else:
+                continue
+            for region_col in TSV_NAME_HEADERS:
+                if region_col in lut.columns:
+                    break
+            else:
+                continue
+
+            key = tuple(meta["entities"])
+            configs[key] = {
+                **get_conf_base(meta["entities"]),
+                "volumes": [],
+                "indices": {
+                    getattr(row, region_col): []
+                    for row in lut.itertuples()
+                },
+            }
+            for v_idx, v in enumerate(meta["volumes"]):
+                configs[key]["volumes"].append(
+                    {
+                        "@type": "siibra/volume/v0.0.1",
+                        "providers": {"nii": v.url}
+                    }
+                )
+                for row in lut.itertuples():
+                    configs[key]["indices"][getattr(row, region_col)].append(
+                        {"volume": v_idx, "label": getattr(row, index_col)}
+                    )
+
+        return configs
+
+    def _find_maps(
+        self,
+        space: str,
+        parcellation: str,
+        map_type: Literal["labelled", "statistical"],
+    ) -> Dict[str, List["TemplateFlowFile"]]:
+        if map_type == "labelled":
+            bids_map_type = "dseg"
+        if map_type == "statistical":
+            bids_map_type = "probseg"
+
+        tsvs = [
+            fn
+            for fn in self.skeleton_archive.namelist()
+            if fn.endswith(f"{bids_map_type}.tsv")
+            and fn.startswith(f"tpl-{space}")
+            and parcellation in fn
+        ]
+        if len(tsvs) == 0:
+            raise ValueError
+
+        map_files = self.ls_map_files(
+            space=space, parcellation=parcellation, map_type=map_type
+        )
+
+        tsv_mapping = {}
+        for tsv in tsvs:
+            entities = tsv.split("/")[-1].split(".")[0].split("_")[1:]
+            tsv_mapping[tsv] = {
+                "entities": entities,
+                "volumes": [
+                    mf
+                    for mf in map_files
+                    if all(ent in mf.filepath for ent in entities)
+                ],
+            }
+
+        return tsv_mapping
 
     def get_description(self, space: str) -> dict:
-        desc_file = f"{space}/template_description.json"
+        desc_file = f"tpl-{space}/template_description.json"
         with self.skeleton_archive.open(desc_file, "r") as fp:
             description = json.load(fp=fp)
         return description
@@ -333,7 +459,7 @@ def create_local_repository(
         try:
             space_conf = tf.create_space_config(space)
             filename = f"TemplateFlow-{space}.json"
-        except ValueError:
+        except (ValueError, KeyError):
             continue
         with open(
             f"{tf_config_path}/spaces/{filename}",
@@ -342,5 +468,37 @@ def create_local_repository(
         ) as fp:
             json.dump(space_conf, indent="\t", fp=fp)
             fp.write("\n")
+
+    # maps and parcellations
+    for space in tf.spaces:
+        continue
+        parcs = tf.find_parcellations(space=space)
+        for parc in parcs:
+            for mt in ["labelled", "statistical"]:
+                try:
+                    map_confs = tf.create_parc_and_map_configs(
+                        space=space, parcellation=parc, map_type=mt,
+                    )
+                except ValueError:
+                    continue
+
+            # parc_filename = f"TemplateFlow-{parc}.json"
+            # with open(
+            #     f"{tf_config_path}/maps/{parc_filename}",
+            #     mode="wt",
+            #     encoding="utf-8",
+            # ) as fp:
+            #     json.dump(parc_conf, indent="\t", fp=fp)
+            #     fp.write("\n")
+
+            for map_conf in map_confs:
+                map_filename = f"{map_conf['name']}.json"
+                with open(
+                    f"{tf_config_path}/maps/{map_filename}",
+                    mode="wt",
+                    encoding="utf-8",
+                ) as fp:
+                    json.dump(map_conf, indent="\t", fp=fp)
+                    fp.write("\n")
 
     return LocalFileRepository(tf_config_path)

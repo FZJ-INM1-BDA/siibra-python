@@ -1024,7 +1024,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         "intersection over union": a.intersection_over_union,
                         "map value": a.map_value,
                         "map weighted mean": a.weighted_mean_of_first,
-                        "map containedness": a.intersection_over_first,
+                        "map containedness": a.intersection_over_first,  # intersection over input. how much of the map is inside the input
                         "input weighted mean": a.weighted_mean_of_second,
                         "input containedness": a.intersection_over_second,
                     }

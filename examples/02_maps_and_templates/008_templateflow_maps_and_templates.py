@@ -24,31 +24,66 @@ Extending siibra with TemplateFlow maps and templates
 
 # %%
 import siibra
+from siibra.configuration import templateflow
 from nilearn import plotting
 
 # %%
-# TODO: delete this cell for the final notebook
-from siibra.configuration import templateflow
-
-tf = templateflow.TemplateFlow()
-tf._check_urls()
-# %%
 siibra.extend_configuration(siibra.create_templateflow_configs())
-siibra.spaces.dataframe
+for s in siibra.spaces:
+    if "[TemplateFlow]" not in s.name:
+        continue
+    print(s.species)
+    print(s.name)
 
 # %%
-MNI152NLin6Asym = siibra.spaces.get("MNI ICBM 152 non-linear 6th Generation Asymmetric")
-MNI152NLin6Asym
+MNI152NLin2009cAsym = siibra.spaces.get(
+    "[TemplateFlow] ICBM 152 Nonlinear Asymmetrical template version 2009c"
+)
+MNI152NLin2009cAsym
 
 # %%
-print(MNI152NLin6Asym.name)
-print(MNI152NLin6Asym.publications)
-print(MNI152NLin6Asym.description)
+print(MNI152NLin2009cAsym.name)
+print(MNI152NLin2009cAsym.shortname)
+print(MNI152NLin2009cAsym.publications)
+print(MNI152NLin2009cAsym.description)
 
 # %%
-for template in MNI152NLin6Asym.volumes:
+for template in MNI152NLin2009cAsym.volumes:
     print(template.variant)
 
 # %%
-tmp_img = MNI152NLin6Asym.get_template("T1w - res: 01").fetch()
+tmp_img = MNI152NLin2009cAsym.get_template("T1w - res: 01").fetch()
 plotting.view_img(tmp_img, bg_img=None, symmetric_cmap=False, cmap="gray")
+
+
+# %%
+# TEMP: this is just for testing. Eventually, the user will just get the map as
+# usual, similar to space above
+tf = templateflow.TemplateFlow()
+space_spec = MNI152NLin2009cAsym.shortname.removeprefix(
+    "[TemplateFlow] "
+)  # TODO: remove the need for this workaround
+tf.find_parcellations(space_spec)
+# %%
+parc = "Schaefer2018"
+map_type = "labelled"
+confs = tf.create_parc_and_map_configs(space_spec, parc, map_type)
+for entities, conf in confs.items():
+    print(entities)
+
+# %%
+mp = siibra.from_json(conf)
+r = mp.regions[0]
+print(r)
+for idx in mp.find_indices(r):
+    print(idx)
+    print(mp.fetch(index=idx).shape)
+
+# %%
+plotting.view_img(
+    mp.fetch(r),
+    bg_img=tmp_img,
+    symmetric_cmap=False,
+    resampling_interpolation="nearest",
+    colorbar=False,
+)
