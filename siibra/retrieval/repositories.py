@@ -20,8 +20,11 @@ import pathlib
 import os
 from zipfile import ZipFile
 from typing import List
+import re
 
-from .cache import CACHE
+from ebrains_drive import BucketApiClient
+
+from .cache import CACHE, cache_user_fn
 from .requests import (
     HttpRequest,
     EbrainsRequest,
@@ -766,3 +769,72 @@ class EbrainsPublicDatasetConnectorMinds(RepositoryConnector):
         """Get a lazy loader for a file, for executing the query
         only once loader.data is accessed."""
         return HttpRequest(self._build_url(folder, filename), decode_func)
+
+
+class DataProxyConnector(RepositoryConnector):
+    _TRIM_START_PATTERN = re.compile(r"^\.\/")
+    _EXTRACT_BUCKETNAME = re.compile(r"https://data-proxy.ebrains.eu/api/v1/buckets/(?P<bucketname>[\w\-_]+)/?.*?$")
+    _EXTRACT_BUCKETNAME2 = re.compile(r"https://data-proxy.ebrains.eu/(?P<bucketname>[\w\-_]+)(/\?)?.*?$")
+    _EXTRACT_BUCKETNAME3 = re.compile(r"^(?P<bucketname>[\w\-_]+)$")
+
+    def __init__(self, bucketname: str, main_folder: str = ""):
+        _extracted_bucketname = None
+        matched = self._EXTRACT_BUCKETNAME.search(bucketname)
+        if matched:
+            _extracted_bucketname = matched.group('bucketname')
+        if not _extracted_bucketname:
+            matched = self._EXTRACT_BUCKETNAME2.search(bucketname)
+            if matched:
+                _extracted_bucketname = matched.group('bucketname')
+        if not _extracted_bucketname:
+            matched = self._EXTRACT_BUCKETNAME3.search(bucketname)
+            if matched:
+                _extracted_bucketname = matched.group('bucketname')
+
+        assert _extracted_bucketname is not None, f"bucketname {bucketname} cannot be properly parsed"
+
+        super().__init__(
+            base_url=f"https://data-proxy.ebrains.eu/api/v1/buckets/{_extracted_bucketname}"
+        )
+        client = BucketApiClient()
+        self._bucket = client.buckets.get_bucket(_extracted_bucketname)
+        self.bucketname = _extracted_bucketname
+        self.main_folder = main_folder
+
+        def ls(prefix: str = ""):
+            return list(self._bucket.ls(prefix=prefix))
+
+        self._ls = cache_user_fn(ls)
+
+    # only defined for typing purpose
+    # actual ._ls is defined in __init__ function for joblib caching
+    def _ls(self, prefix: str):
+        return list(self._bucket.ls(prefix=prefix))
+
+    def search_files(self, folder: str = "", suffix: str = "", recursive: bool = False):
+        if recursive is False:
+            raise Exception("None recursive search file not yet implemented in dataproxy connector")
+
+        prefix = self._TRIM_START_PATTERN.sub("", self.main_folder + folder)
+        suffix = suffix or ""
+
+        return [
+            f.name
+            for f in self._ls(prefix=prefix)
+            if f.name.endswith(suffix)
+        ]
+
+    def _build_url(self, folder: str, filename: str):
+        if (
+            folder == ""
+            and pathlib.Path(self.main_folder) not in pathlib.Path(filename).parents
+        ):
+            folder = self.main_folder
+
+        folder = self._TRIM_START_PATTERN.sub("", folder)
+        filename = self._TRIM_START_PATTERN.sub("", filename)
+        path = ""
+        if folder:
+            path += quote(folder) + "/"
+        path += quote(filename)
+        return f"{self.base_url}/{path}"
