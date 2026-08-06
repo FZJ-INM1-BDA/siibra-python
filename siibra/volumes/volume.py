@@ -82,10 +82,17 @@ class ComponentSpatialProperties:
         spatial_props: List[ComponentSpatialProperties] = []
         for _, component in iter_components(img):
             nonzero: np.ndarray = np.c_[np.nonzero(component)]
+            centroid = nonzero.mean(0)
+            candidate = np.rint(centroid).astype(int)
+            # check if candidate lies within the region (non-convex case)
+            if component[tuple(candidate)] == 0:
+                squared_distances = np.sum((nonzero - centroid) ** 2, axis=1)
+                centroid = nonzero[np.argmin(squared_distances)]
+
             spatial_props.append(
                 ComponentSpatialProperties(
                     centroid=point.Point(
-                        np.dot(img.affine, np.r_[nonzero.mean(0), 1])[:3],
+                        np.dot(img.affine, np.r_[centroid, 1])[:3],
                         space=space
                     ),
                     volume=nonzero.shape[0] * scale,
