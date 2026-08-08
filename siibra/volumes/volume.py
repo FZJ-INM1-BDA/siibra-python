@@ -107,7 +107,8 @@ class Volume(structure.BrainStructure):
     IMAGE_FORMATS = [
         "nii",
         "zip/nii",
-        "neuroglancer/precomputed"
+        "neuroglancer/precomputed",
+        "tif/2d",
     ]
 
     MESH_FORMATS = [
