@@ -18,20 +18,22 @@ import json
 from zipfile import ZipFile
 import requests
 import os
+import shutil
+from pathlib import Path
 import gzip
-from io import BytesIO
 import urllib.parse
-from typing import List, Callable, TYPE_CHECKING
+from typing import List, Callable, TYPE_CHECKING, Literal, Optional
 from enum import Enum
 from functools import wraps
 from time import sleep
 import sys
+from dataclasses import dataclass, field
 
 from filelock import FileLock as Lock
 import numpy as np
 import pandas as pd
 from skimage import io as skimage_io
-from nibabel import Nifti1Image, GiftiImage, streamlines, freesurfer
+from nibabel import load as load_nibabel, streamlines, freesurfer
 import h5py
 
 from . import exceptions as _exceptions
@@ -52,80 +54,333 @@ if TYPE_CHECKING:
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
 
-def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
+def _get_suffix(filename: str) -> Optional[str]:
     """
-    Helper method to provide BytesIO to methods that only takes file path and
-    cannot handle BytesIO normally (e.g., `nibabel.freesurfer.read_annot()`).
+    Return the meaningful file suffix to preserve in the cache.
 
-    Writes the bytes to a temporary file on cache and reads with the
-    original function.
+    Compound gzip suffixes are preserved, e.g. ``.nii.gz`` or ``.csv.gz``.
+    For non-gzipped files, only the final suffix is returned.
 
     Parameters
     ----------
-    function : Callable
-    suffix : str
-        Must match the suffix expected by the function provided.
-    bytesio : BytesIO
+    filename : str
+        Local filename or URL.
 
     Returns
     -------
-    Return type of the provided function.
+    str or None
+        File suffix suitable for ``CACHE.build_filename()``, or ``None`` if
+        the filename has no suffix.
     """
-    tempfile = CACHE.build_filename(f"temp_{suffix}") + suffix
-    with open(tempfile, "wb") as bf:
-        bf.write(bytesio.getbuffer())
-    result = function(tempfile)
-    os.remove(tempfile)
-    return result
+    path = urllib.parse.urlsplit(filename).path
+    suffixes = Path(path).suffixes
+
+    if not suffixes:
+        return None
+
+    if suffixes[-1] == ".gz" and len(suffixes) > 1:
+        return "".join(suffixes[-2:])
+
+    return suffixes[-1]
+
+
+@dataclass(frozen=True)
+class Decoder:
+    """
+    Decode cached resources using either their filesystem path or raw bytes.
+
+    Parameters
+    ----------
+    func : Callable
+        Function performing the actual decoding. Its first positional argument
+        receives either a filename or bytes according to ``input_type``.
+    input_type : {"FILE", "BYTES"}
+        Preferred representation passed to ``func``. ``FILE`` allows readers
+        which support file-backed or memory-mapped access to operate directly
+        on the cached resource.
+    gzip : {"native", "decompress"} or None
+        Defines how gzip-compressed resources are handled.
+
+        ``"native"``
+            Pass the compressed resource directly to ``func``. This should be
+            used when the underlying reader supports gzip itself.
+
+        ``"decompress"``
+            Decompress the resource before calling ``func``. For ``FILE``
+            decoders, the decompressed resource is persisted in the siibra
+            cache so file-backed objects can safely retain access to it.
+
+        ``None``
+            No special gzip handling is performed.
+    kwargs : dict
+        Keyword arguments forwarded to ``func``.
+    """
+
+    func: Callable
+    input_type: Literal["FILE", "BYTES"] = "BYTES"
+    gzip: Optional[Literal["native", "decompress"]] = "decompress"
+    kwargs: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        if self.input_type not in {"FILE", "BYTES"}:
+            raise ValueError(
+                f"Unknown decoder input type {self.input_type!r}. "
+                "Expected 'FILE' or 'BYTES'."
+            )
+
+        if self.gzip not in {None, "native", "decompress"}:
+            raise ValueError(
+                f"Unknown gzip handling {self.gzip!r}. "
+                "Expected 'native', 'decompress', or None."
+            )
+
+    @classmethod
+    def from_filename(cls, filename: str) -> Optional["Decoder"]:
+        """
+        Find the decoder associated with a filename or URL.
+
+        A trailing ``.gz`` is ignored when identifying the underlying format;
+        gzip handling itself is delegated to the selected decoder.
+
+        For backwards compatibility, an otherwise unknown ``*.gz`` resource
+        is decoded into its uncompressed bytes.
+
+        Parameters
+        ----------
+        filename : str
+            Filename or URL whose suffix determines the decoder.
+
+        Returns
+        -------
+        Decoder or None
+            Matching decoder, or ``None`` if no decoder can be inferred.
+        """
+        path = urllib.parse.urlsplit(filename).path
+        decoder_path = path[:-3] if path.endswith(".gz") else path
+
+        matches = [
+            decoder
+            for suffix, decoder in DECODERS.items()
+            if decoder_path.endswith(suffix)
+        ]
+
+        if len(matches) == 1:
+            return matches[0]
+
+        if len(matches) == 0 and path.endswith(".gz"):
+            return cls(lambda data: data)
+
+        return None
+
+    def __call__(self, value):
+        """
+        Decode a value according to this decoder's preferred input type.
+
+        For ``FILE`` decoders, ``value`` is interpreted as a filename.
+        For ``BYTES`` decoders, ``value`` is interpreted as bytes.
+        """
+        if self.input_type == "FILE":
+            return self.decode_file(value)
+
+        return self.decode_bytes(value)
+
+    def decode_file(self, filename: str):
+        """
+        Decode a resource available as a local file.
+
+        File-based decoders receive the cached filename directly whenever
+        possible. Byte-based decoders read the file only when decoding starts.
+
+        Gzipped resources are either passed through unchanged to readers with
+        native gzip support or decompressed according to this decoder's
+        ``gzip`` configuration.
+
+        Parameters
+        ----------
+        filename : str
+            Path to the cached resource.
+
+        Returns
+        -------
+        object
+            Result returned by the configured decoder function.
+        """
+        is_gzipped = str(filename).endswith(".gz")
+
+        if is_gzipped and self.gzip == "decompress":
+            if self.input_type == "FILE":
+                filename = self._gunzip_to_cache(filename)
+            else:
+                with gzip.open(filename, "rb") as f:
+                    return self.func(f.read(), **self.kwargs)
+
+        if self.input_type == "FILE":
+            return self.func(filename, **self.kwargs)
+
+        with open(filename, "rb") as f:
+            return self.func(f.read(), **self.kwargs)
+
+    def decode_bytes(self, data: bytes, gzipped: bool = False):
+        """
+        Decode an in-memory byte representation.
+
+        Parameters
+        ----------
+        data : bytes
+            Resource contents.
+        gzipped : bool, optional
+            Whether ``data`` contains a gzip-compressed stream. This must be
+            supplied explicitly because compression cannot reliably be inferred
+            once the filename has been discarded.
+
+        Returns
+        -------
+        object
+            Result returned by the configured decoder function.
+
+        Raises
+        ------
+        TypeError
+            If this decoder requires a filesystem path.
+        """
+        if self.input_type != "BYTES":
+            raise TypeError(
+                "Cannot decode bytes with a FILE decoder."
+            )
+
+        if gzipped and self.gzip == "decompress":
+            data = gzip.decompress(data)
+
+        return self.func(data, **self.kwargs)
+
+    def _gunzip_to_cache(self, filename: str) -> str:
+        """
+        Materialize a gzip-compressed file in the siibra cache.
+
+        The decompressed file remains in the cache rather than being temporary.
+        This is important for readers returning objects backed by the source
+        file, such as memory-mapped arrays.
+
+        Parameters
+        ----------
+        filename : str
+            Path to the gzip-compressed cached resource.
+
+        Returns
+        -------
+        str
+            Path to the persistent decompressed cache file.
+        """
+        stat = os.stat(filename)
+        source = os.fsencode(os.path.abspath(filename)).hex()
+
+        target = CACHE.build_filename(
+            f"gunzip:{source}:{stat.st_size}:{stat.st_mtime_ns}",
+            suffix=_get_suffix(filename[:-3]),
+        )
+
+        if os.path.isfile(target):
+            return target
+
+        tempfile = f"{target}_temp"
+
+        with Lock(f"{target}.lock"):
+            if os.path.isfile(target):
+                return target
+
+            try:
+                with (
+                    gzip.open(filename, "rb") as src,
+                    open(tempfile, "wb") as dst,
+                ):
+                    shutil.copyfileobj(src, dst)
+
+                os.replace(tempfile, target)
+
+            finally:
+                if os.path.isfile(tempfile):
+                    os.remove(tempfile)
+
+        return target
+
+
+# Backwards-compatible entry point.
+def find_suitable_decoder(filename: str) -> Optional[Decoder]:
+    """
+    Infer a decoder from a filename or URL.
+
+    This function is retained for backwards compatibility. New code may use
+    ``Decoder.from_filename()`` directly.
+    """
+    return Decoder.from_filename(filename)
 
 
 DECODERS = {
-    ".nii": lambda b: Nifti1Image.from_bytes(b),
-    ".gii": lambda b: GiftiImage.from_bytes(b),
-    ".json": lambda b: json.loads(b.decode()),
-    ".tck": lambda b: streamlines.load(BytesIO(b)),
-    ".csv": lambda b: pd.read_csv(BytesIO(b)),
-    ".tsv": lambda b: pd.read_csv(BytesIO(b), delimiter="\t").dropna(axis=0, how="all"),
-    ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
-    ".zip": lambda b: ZipFile(BytesIO(b)),
-    ".png": lambda b: skimage_io.imread(BytesIO(b)),
-    ".npy": lambda b: np.load(BytesIO(b)),
-    ".annot": lambda b: read_as_bytesio(freesurfer.read_annot, '.annot', BytesIO(b)),
-    ".h5": lambda b: h5py.File(BytesIO(b)),
-    ".nwb": lambda b: h5py.File(BytesIO(b)),
+    ".nii": Decoder(
+        load_nibabel,
+        input_type="FILE",
+        gzip="native",
+    ),
+    ".gii": Decoder(
+        load_nibabel,
+        input_type="FILE",
+        gzip="native",
+    ),
+    ".json": Decoder(
+        lambda b: json.loads(b.decode()),
+    ),
+    ".tck": Decoder(
+        streamlines.load,
+        input_type="FILE",
+    ),
+    ".csv": Decoder(
+        pd.read_csv,
+        input_type="FILE",
+        gzip="native",
+    ),
+    ".tsv": Decoder(
+        pd.read_csv,
+        input_type="FILE",
+        gzip="native",
+        kwargs={"delimiter": "\t"},
+    ),
+    ".txt": Decoder(
+        pd.read_csv,
+        input_type="FILE",
+        gzip="native",
+        kwargs={
+            "delimiter": " ",
+            "header": None,
+        },
+    ),
+    ".zip": Decoder(
+        ZipFile,
+        input_type="FILE",
+        gzip=None,
+    ),
+    ".png": Decoder(
+        skimage_io.imread,
+        input_type="FILE",
+    ),
+    ".npy": Decoder(
+        np.load,
+        input_type="FILE",
+    ),
+    ".annot": Decoder(
+        freesurfer.read_annot,
+        input_type="FILE",
+    ),
+    ".h5": Decoder(
+        h5py.File,
+        input_type="FILE",
+        kwargs={"mode": "r"},
+    ),
+    ".nwb": Decoder(
+        h5py.File,
+        input_type="FILE",
+        kwargs={"mode": "r"},
+    ),
 }
-
-
-def find_suitable_decoder(url: str) -> Callable:
-    """
-    By supplying a url or a filename, obtain a suitable decoder function
-    for siibra to digest based on predefined DECODERS. An extra layer of
-    gzip decompressor automatically added for gzipped files.
-
-    Parameters
-    ----------
-    url : str
-        The url or filename with extension.
-
-    Returns
-    -------
-    Callable or None
-    """
-    urlpath = urllib.parse.urlsplit(url).path
-    if urlpath.endswith(".gz"):
-        dec = find_suitable_decoder(urlpath[:-3])
-        if dec is None:
-            return lambda b: gzip.decompress(b)
-        else:
-            return lambda b: dec(gzip.decompress(b))
-
-    suitable_decoders = [
-        dec for sfx, dec in DECODERS.items() if urlpath.endswith(sfx)
-    ]
-    if len(suitable_decoders) == 1:
-        return suitable_decoders[0]
-    else:
-        return None
 
 
 class SiibraHttpRequestError(Exception):
@@ -174,7 +429,10 @@ class HttpRequest:
         self.url = url
         self._set_decoder_func(func)
         self.kwargs = kwargs
-        self.cachefile = CACHE.build_filename(self.url + json.dumps(kwargs))
+        self.cachefile = CACHE.build_filename(
+            self.url + json.dumps(kwargs),
+            suffix=_get_suffix(self.url)
+        )
         self.msg_if_not_cached = msg_if_not_cached
         self.refresh = refresh
         self.post = post
@@ -188,7 +446,16 @@ class HttpRequest:
         ----------
         func : Callable, default: None
         """
-        self.func = func or find_suitable_decoder(self.url)
+        if func is None:
+            self.func = Decoder.from_filename(self.url)
+        elif isinstance(func, Decoder):
+            self.func = func
+        else:
+            # Existing user-provided func= callbacks continue receiving bytes.
+            self.func = Decoder(
+                func,
+                input_type="BYTES",
+            )
 
     @property
     def cached(self):
@@ -254,10 +521,13 @@ class HttpRequest:
 
     def get(self):
         self._retrieve()
-        with open(self.cachefile, "rb") as f:
-            data = f.read()
         try:
-            return data if self.func is None else self.func(data)
+            if self.func is None:
+                with open(self.cachefile, "rb") as f:
+                    return f.read()
+
+            return self.func.decode_file(self.cachefile)
+
         except Exception as e:
             # if network error results in bad cache, it may get raised here
             # e.g. BadZipFile("File is not a zip file")
@@ -281,8 +551,10 @@ class FileLoader(HttpRequest):
     """
     def __init__(self, filepath, func=None):
         HttpRequest.__init__(
-            self, filepath, refresh=False,
-            func=func or find_suitable_decoder(filepath)
+            self,
+            filepath,
+            refresh=False,
+            func=func,
         )
         self.cachefile = filepath
 
@@ -302,20 +574,66 @@ class ZipfileRequest(HttpRequest):
 
     def get(self):
         self._retrieve()
-        zipfile = ZipFile(self.cachefile)
-        filenames = zipfile.namelist()
-        matches = [fn for fn in filenames if fn.endswith(self.filename)]
-        if len(matches) == 0:
-            raise RuntimeError(
-                f"Requested filename {self.filename} not found in archive at {self.url}"
+
+        with ZipFile(self.cachefile) as zipfile:
+            filenames = zipfile.namelist()
+            matches = [
+                fn for fn in filenames
+                if fn.endswith(self.filename)
+            ]
+
+            if len(matches) == 0:
+                raise RuntimeError(
+                    f"Requested filename {self.filename} not found "
+                    f"in archive at {self.url}"
+                )
+
+            if len(matches) > 1:
+                raise RuntimeError(
+                    f"Requested filename {self.filename} was not unique "
+                    f"in archive at {self.url}. Candidates were: "
+                    f'{", ".join(matches)}'
+                )
+
+            member = matches[0]
+
+            if self.func is None:
+                with zipfile.open(member) as f:
+                    return f.read()
+
+            if self.func.input_type == "BYTES":
+                with zipfile.open(member) as f:
+                    return self.func.decode_bytes(f.read())
+
+            stat = os.stat(self.cachefile)
+
+            member_cachefile = CACHE.build_filename(
+                (
+                    f"{self.url}:{member}:"
+                    f"{stat.st_size}:{stat.st_mtime_ns}"
+                ),
+                suffix=_get_suffix(member),
             )
-        if len(matches) > 1:
-            raise RuntimeError(
-                f'Requested filename {self.filename} was not unique in archive at {self.url}. Candidates were: {", ".join(matches)}'
-            )
-        with zipfile.open(matches[0]) as f:
-            data = f.read()
-        return data if self.func is None else self.func(data)
+
+            if not os.path.isfile(member_cachefile):
+                tempfile = f"{member_cachefile}_temp"
+
+                with Lock(f"{member_cachefile}.lock"):
+                    if not os.path.isfile(member_cachefile):
+                        try:
+                            with (
+                                zipfile.open(member) as src,
+                                open(tempfile, "wb") as dst,
+                            ):
+                                shutil.copyfileobj(src, dst)
+
+                            os.replace(tempfile, member_cachefile)
+
+                        finally:
+                            if os.path.isfile(tempfile):
+                                os.remove(tempfile)
+
+            return self.func.decode_file(member_cachefile)
 
 
 class EbrainsRequest(HttpRequest):
