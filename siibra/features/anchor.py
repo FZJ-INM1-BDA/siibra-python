@@ -167,13 +167,27 @@ class AnatomicalAnchor:
 
         if concept not in self._assignments:
             assignments: List[AnatomicalAssignment] = []
-            if self.location is not None:
+
+            skip_location_assignment = False
+            if (
+                self._regionspec is not None
+                and self.location is not None
+                and isinstance(concept, Region)
+            ):
+                skip_location_assignment = True
+
+            for region in self.regions:
+                region_assignment = region.assign(concept)
+                if region_assignment is not None:
+                    skip_location_assignment = True
+                    assignments.append(region_assignment)
+
+            if self.location is not None and not skip_location_assignment:
                 try:
                     assignments.append(self.location.assign(concept))
                 except SpaceWarpingFailedError as e:
                     logger.debug(e)
-            for region in self.regions:
-                assignments.append(region.assign(concept))
+
             self._assignments[concept] = sorted(a for a in assignments if a is not None)
 
         self._last_matched_concept = concept if len(self._assignments[concept]) > 0 else None
