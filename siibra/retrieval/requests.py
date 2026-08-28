@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from .repositories import GitlabConnector
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
+_SESSION = requests.Session()
 
 
 def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
@@ -212,7 +213,7 @@ class HttpRequest:
             key: self.kwargs[key] for key in self.kwargs if key != "headers"
         }
 
-        http_method = requests.post if self.post else requests.get
+        http_method = _SESSION.post if self.post else _SESSION.get
         r = http_method(
             self.url,
             headers={
