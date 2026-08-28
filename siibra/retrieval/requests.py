@@ -289,10 +289,7 @@ class Decoder:
                 return target
 
             try:
-                with (
-                    gzip.open(filename, "rb") as src,
-                    open(tempfile, "wb") as dst,
-                ):
+                with gzip.open(filename, "rb") as src, open(tempfile, "wb") as dst:
                     shutil.copyfileobj(src, dst)
 
                 os.replace(tempfile, target)
@@ -621,11 +618,9 @@ class ZipfileRequest(HttpRequest):
                 with Lock(f"{member_cachefile}.lock"):
                     if not os.path.isfile(member_cachefile):
                         try:
-                            with (
-                                zipfile.open(member) as src,
-                                open(tempfile, "wb") as dst,
-                            ):
-                                shutil.copyfileobj(src, dst)
+                            with zipfile.open(member) as src:
+                                with open(tempfile, "wb") as dst:
+                                    shutil.copyfileobj(src, dst)
 
                             os.replace(tempfile, member_cachefile)
 
