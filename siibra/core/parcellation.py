@@ -186,10 +186,12 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             maptype = MapType[maptype.upper()]
         assert isinstance(maptype, MapType), "Possible values of `maptype` are `MapType`s, 'labelled', 'statistical'."
 
-        space = get_registry("Space").get(space)
+        space_matches = get_registry("Space").find(space)
         candidates = [
-            m for m in get_registry("Map")
-            if m.space.matches(space)
+            m
+            for m in get_registry("Map")
+            for sp in space_matches
+            if m.space.matches(sp)
             and m.maptype == maptype
             and m.parcellation.matches(self)
         ]
