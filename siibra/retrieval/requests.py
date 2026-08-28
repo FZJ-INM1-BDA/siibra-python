@@ -205,7 +205,7 @@ class HttpRequest:
 
         # not yet in cache, perform http request.
         if self.msg_if_not_cached is not None:
-            logger.debug(self.msg_if_not_cached)
+            logger.info(self.msg_if_not_cached)
 
         headers = self.kwargs.get("headers", {})
         other_kwargs = {

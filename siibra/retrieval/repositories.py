@@ -209,6 +209,13 @@ class GithubConnector(RepositoryConnector):
         self._recursed_tree = None
 
     def search_files(self, folder="", suffix="", recursive=False) -> List[str]:
+        if self.archive_mode:
+            self._archive()
+            return self._archive_conn.search_files(
+                folder=folder,
+                suffix=suffix,
+                recursive=recursive,
+            )
         if self._recursed_tree is None:
             self._recursed_tree = HttpRequest(
                 f"{self.base_url}/git/trees/{self.reftag}?recursive=1",
@@ -241,8 +248,12 @@ class GithubConnector(RepositoryConnector):
             import tarfile
 
             tarball_url = f"{self.base_url}/tarball/{self.reftag}"
-            req = HttpRequest(tarball_url, func=lambda b: b)
-            req.get()
+            req = HttpRequest(
+                tarball_url,
+                func=lambda b: b,
+                msg_if_not_cached=f"Archiving {self.base_url}",
+            )
+            req._retrieve()
             with tarfile.open(name=req.cachefile, mode="r:gz") as tar:
                 tar.extractall(CACHE.folder)
                 foldername = tar.getnames()[0]
@@ -313,6 +324,13 @@ class GitlabConnector(RepositoryConnector):
             return f"{self.base_url}/files/{filepath}/raw?ref={ref}"
 
     def search_files(self, folder="", suffix=None, recursive=False):
+        if self.archive_mode:
+            self._archive()
+            return self._archive_conn.search_files(
+                folder=folder,
+                suffix=suffix,
+                recursive=recursive,
+            )
         page = 1
         results = []
         while True:
@@ -347,8 +365,12 @@ class GitlabConnector(RepositoryConnector):
             import tarfile
 
             tarball_url = self.base_url + f"/archive.tar.gz?sha={ref}"
-            req = HttpRequest(tarball_url, func=lambda b: b)
-            req.get()
+            req = HttpRequest(
+                tarball_url,
+                func=lambda b: b,
+                msg_if_not_cached=f"Archiving {self.base_url}",
+            )
+            req._retrieve()
             with tarfile.open(name=req.cachefile, mode="r:gz") as tar:
                 tar.extractall(CACHE.folder)
                 foldername = tar.getnames()[0]
