@@ -251,7 +251,7 @@ class GithubConnector(RepositoryConnector):
             req = HttpRequest(
                 tarball_url,
                 func=lambda b: b,
-                msg_if_not_cached=f"Archiving {self.base_url}",
+                msg_if_not_cached=f"Downloading {tarball_url}",
             )
             req._retrieve()
             with tarfile.open(name=req.cachefile, mode="r:gz") as tar:
@@ -368,7 +368,7 @@ class GitlabConnector(RepositoryConnector):
             req = HttpRequest(
                 tarball_url,
                 func=lambda b: b,
-                msg_if_not_cached=f"Archiving {self.base_url}",
+                msg_if_not_cached=f"Downloading {tarball_url}",
             )
             req._retrieve()
             with tarfile.open(name=req.cachefile, mode="r:gz") as tar:
