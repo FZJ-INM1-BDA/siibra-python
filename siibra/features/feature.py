@@ -232,14 +232,11 @@ class Feature:
         from ..configuration.configuration import Configuration
         conf = Configuration()
         Configuration.register_cleanup(cls._clean_instances)
-        if cls._configuration_folder not in conf.folders:
-            logger.debug(f"{cls._configuration_folder} is not in current configuration")
-            return []
 
-        cls._preconfigured_instances = [
-            o for o in conf.build_objects(cls._configuration_folder)
-            if isinstance(o, cls)
-        ]
+        cls._preconfigured_instances = conf.build_objects(
+            cls._configuration_folder,
+            expected_class=cls,
+        )
         logger.debug(
             f"Built {len(cls._preconfigured_instances)} preconfigured {cls.__name__} "
             f"objects from {cls._configuration_folder}."

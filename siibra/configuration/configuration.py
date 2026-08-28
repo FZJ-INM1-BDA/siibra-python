@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union, List, Callable
+from typing import Union, List, Callable, Type, TypeVar, Optional
 from collections import defaultdict
 from requests.exceptions import ConnectionError
 from os import path
@@ -22,6 +22,9 @@ from ..commons import logger, __version__, SIIBRA_USE_CONFIGURATION, siibra_tqdm
 from ..retrieval.repositories import GitlabConnector, RepositoryConnector, GithubConnector
 from ..retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
 from ..retrieval.requests import SiibraHttpRequestError
+
+
+T = TypeVar("T")
 
 
 class Configuration:
@@ -142,41 +145,50 @@ class Configuration:
         """
         cls._cleanup_funcs.append(func)
 
-    def build_objects(self, folder: str, **kwargs):
+    def build_objects(
+        self,
+        folder: str,
+        expected_class: Optional[Type[T]] = None,
+    ) -> Union[List[T], List[Type]]:
         """
-        Build the preconfigured objects of the specified class, if any.
+        Build preconfigured objects from the requested configuration folder.
+
+        If the folder does not exist, fall back to inspecting all configuration
+        specifications and return objects matching `expected_class`.
         """
-        result = []
-
-        if folder not in self.folders:
-            logger.warning(f"No configuration found for building from configuration folder {folder}.")
-            return result
-
         from .factory import Factory
-        specloaders = self.spec_loaders.get(folder, [])
-        if len(specloaders) == 0:  # no loaders found in this configuration folder!
-            return result
 
-        obj0 = Factory.from_json(
-            dict(
-                specloaders[0][1].data,
-                **{'filename': specloaders[0][0]}
-            )
-        )
-        obj_class = obj0[0].__class__.__name__ if isinstance(obj0, list) else obj0.__class__.__name__
+        if folder in self.spec_loaders:
+            specloaders = self.spec_loaders[folder]
+        else:
+            if expected_class is None:
+                logger.warning(
+                    f"No configuration folder '{folder}' found and no expected "
+                    "class provided for fallback discovery."
+                )
+                return []
+
+            specloaders = [
+                spec for specs in self.spec_loaders.values() for spec in specs
+            ]
+
+        result = []
+        obj_class = expected_class.__name__ if expected_class else folder
 
         for fname, loader in siibra_tqdm(
             specloaders,
             total=len(specloaders),
             desc=f"Loading preconfigured {obj_class} instances",
-            unit=obj_class
+            unit=obj_class,
         ):
-            # filename is added to allow Factory creating reasonable default object identifiers\
-            obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
-            if isinstance(obj, list):
-                result.extend(obj)
-            else:
-                result.append(obj)
+            obj = Factory.from_json(dict(loader.data, filename=fname))
+
+            objects = obj if isinstance(obj, list) else [obj]
+
+            if expected_class is not None:
+                objects = [o for o in objects if isinstance(o, expected_class)]
+
+            result.extend(objects)
 
         return result
 
