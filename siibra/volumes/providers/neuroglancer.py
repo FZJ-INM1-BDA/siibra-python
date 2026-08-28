@@ -31,7 +31,6 @@ from ...retrieval import requests, cache
 from ...locations import boundingbox as _boundingbox
 from ...commons import (
     logger,
-    MapType,
     merge_meshes,
     SIIBRA_MAX_FETCH_SIZE_BYTES,
     SIIBRA_NG_VOL_USE_CACHE,
@@ -307,23 +306,6 @@ class NeuroglancerVolume:
             accessor = HttpAccessor(self.url)
             self._io = get_IO_for_existing_dataset(accessor)
         return self._io
-
-    @property
-    def map_type(self):
-        if self._info is None:
-            self._bootstrap()
-        return (
-            MapType.LABELLED
-            if self._info.get("type") == "segmentation"
-            else MapType.STATISTICAL
-        )
-
-    @map_type.setter
-    def map_type(self, val):
-        if val is not None:
-            logger.debug(
-                "NeuroglancerVolume can determine its own maptype from self._info.get('type')"
-            )
 
     def _bootstrap(self):
         self._info = requests.HttpRequest(f"{self.url}/info", func=lambda b: json.loads(b.decode())).get()
