@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
 import pytest
@@ -46,20 +46,18 @@ def test_init(DummyClsKwarg):
 def test_class_registry_init(DummyClsKwarg):
     with patch.object(Configuration, "register_cleanup") as mock_register_cleanup:
         with patch.object(Configuration, "build_objects") as mock_build_objects:
-            with patch.object(
-                Configuration,
-                "folders",
-                new_callable=PropertyMock,
-                return_value=[CONF_FOLDER],
-            ) as mock_folder_prop:
-                mock_build_objects.return_value = [DummyItem(), DummyItem()]
-                reg = DummyClsKwarg.registry()
-                assert isinstance(reg, InstanceTable)
-                mock_folder_prop.assert_called_once()
-                mock_build_objects.assert_called_once_with(CONF_FOLDER)
-                mock_register_cleanup.assert_called_once_with(
-                    DummyClsKwarg.clear_registry
-                )
+            mock_build_objects.return_value = [DummyItem(), DummyItem()]
+
+            reg = DummyClsKwarg.registry()
+
+            assert isinstance(reg, InstanceTable)
+            mock_build_objects.assert_called_once_with(
+                CONF_FOLDER,
+                expected_class=DummyClsKwarg,
+            )
+            mock_register_cleanup.assert_called_once_with(
+                DummyClsKwarg.clear_registry
+            )
 
 
 def test_class_registry_cached(DummyClsKwarg):
