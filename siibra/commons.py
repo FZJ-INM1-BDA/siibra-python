@@ -179,19 +179,26 @@ class InstanceTable(Generic[T], Iterable):
                 f"{__class__.__name__} has no entry matching the specification '{spec}'."
                 f"Possible values are:\n" + str(self)
             )
-        elif len(matches) == 1:
+        if len(matches) == 1:
             return matches[0]
-        else:
-            try:
-                S = sorted(matches, reverse=True)
-            except TypeError:
-                # not all object types support sorting, accept this
-                S = matches
-            largest = S[0]
-            logger.info(
-                f"Multiple elements matched the specification '{spec}' - the first in order was chosen: {largest}"
-            )
-            return largest
+
+        exact_matches = [
+            m for m in matches
+            if spec == m.name.lower()
+        ]
+        if len(exact_matches) == 1:
+            return exact_matches[0]
+
+        try:
+            S = sorted(matches, reverse=True)
+        except TypeError:
+            # not all object types support sorting, accept this
+            S = matches
+        largest = S[0]
+        logger.info(
+            f"Multiple elements matched the specification '{spec}' - the first in order was chosen: {largest}"
+        )
+        return largest
 
     def __sub__(self, obj) -> "InstanceTable[T]":
         """
