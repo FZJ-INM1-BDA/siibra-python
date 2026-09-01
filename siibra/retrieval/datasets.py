@@ -183,9 +183,15 @@ class EbrainsDataset(EbrainsBaseDataset):
 
 
 class EbrainsV3DatasetVersion(EbrainsBaseDataset):
+
+    person_types = (
+        "https://openminds.om-i.org/types/Person",
+        "https://openminds.ebrains.eu/core/Person",
+    )
+
     @staticmethod
     def parse_person(d: dict) -> EbrainsDatasetPerson:
-        assert "https://openminds.ebrains.eu/core/Person" in d.get("type"), "Cannot convert a non person to a person dict!"
+        assert any(pt in d.get("type") for pt in EbrainsV3DatasetVersion.person_types), "Cannot convert a non person to a person dict!"
         _id = d.get("id")
         name = f"{d.get('givenName')} {d.get('familyName')}"
         return {
