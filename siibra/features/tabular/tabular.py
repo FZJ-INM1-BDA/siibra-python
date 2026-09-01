@@ -26,7 +26,7 @@ from ...commons import logger
 from ...retrieval import requests
 
 
-class Tabular(feature.Feature, category="generic", configuration_folder="features/tabular"):
+class Tabular(feature.Feature, category="generic"):
     """
     Represents a table of different measures anchored to a brain location.
 
