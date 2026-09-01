@@ -118,7 +118,7 @@ class Factory:
     @classmethod
     def extract_decoder(cls, spec):
         decoder_spec = spec.get("decoder", {})
-        if decoder_spec["@type"].endswith("csv"):
+        if decoder_spec.get("@type", "").endswith("csv"):
             kwargs = {k: v for k, v in decoder_spec.items() if k != "@type"}
             return lambda b: pd.read_csv(BytesIO(b), **kwargs)
         else:
@@ -428,6 +428,7 @@ class Factory:
             datasets=cls.extract_datasets(spec),
             id=spec.get("@id", None),
             prerelease=spec.get("prerelease", False),
+            decoder_func=cls.extract_decoder(spec),
         )
 
     @classmethod
