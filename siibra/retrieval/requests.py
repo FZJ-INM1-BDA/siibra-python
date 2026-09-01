@@ -84,6 +84,13 @@ def _get_suffix(filename: str) -> Optional[str]:
     return suffixes[-1]
 
 
+def _load_trx(filename):
+    # Lazy import keeps trx-python optional if desired.
+    from trx.trx_file_memmap import load
+
+    return load(filename)
+
+
 @dataclass(frozen=True)
 class Decoder:
     """
@@ -376,6 +383,10 @@ DECODERS = {
         h5py.File,
         input_type="FILE",
         kwargs={"mode": "r"},
+    ),
+    ".trx": Decoder(
+        _load_trx,
+        input_type="FILE",
     ),
 }
 
