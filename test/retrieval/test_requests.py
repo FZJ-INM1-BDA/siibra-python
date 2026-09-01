@@ -1,4 +1,4 @@
-from siibra.retrieval.requests import EbrainsRequest, HttpRequest, CACHE
+from siibra.retrieval.requests import EbrainsRequest, HttpRequest, CACHE, _get_suffix
 
 import pytest
 import json
@@ -24,7 +24,10 @@ def test_httprequests(url, func, msg, refresh, post, kwargs):
 
     with patch.object(CACHE, "build_filename", return_value=return_filename) as mo:
         req = HttpRequest(url, func, msg, refresh, post, **kwargs)
-        mo.assert_called_once_with(url + json.dumps(kwargs))
+        mo.assert_called_once_with(
+            url + json.dumps(kwargs),
+            suffix=_get_suffix(url),
+        )
         assert req.cachefile == return_filename
 
 

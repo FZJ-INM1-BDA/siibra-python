@@ -56,5 +56,6 @@ setup(
         "filelock",
         "ebrains-drive >= 0.6.0",
         "h5py",
+        "trx-python",
     ],
 )
