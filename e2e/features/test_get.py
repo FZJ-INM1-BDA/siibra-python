@@ -11,7 +11,7 @@ import numpy as np
 
 # We get all registered subclasses of Feature
 @pytest.mark.parametrize(
-    "Cls", [Cls for Cls in siibra.features.Feature._SUBCLASSES[siibra.features.Feature]]
+    "Cls", [siibra.features.Feature._CATEGORIZED[category] for category in siibra.features.Feature._CATEGORIZED]
 )
 def test_get_instances(Cls: siibra.features.Feature):
     instances = Cls._get_instances()

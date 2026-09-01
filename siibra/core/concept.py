@@ -181,8 +181,10 @@ class AtlasConcept:
             # visit the configuration to provide a cleanup function
             # in case the user changes the configuration during runtime.
             Configuration.register_cleanup(cls.clear_registry)
-            assert cls._configuration_folder in conf.folders
-            objects = conf.build_objects(cls._configuration_folder)
+            objects = conf.build_objects(
+                cls._configuration_folder,
+                expected_class=cls,
+            )
             logger.debug(f"Built {len(objects)} preconfigured {cls.__name__} objects.")
             assert len(objects) > 0
             assert all([hasattr(o, 'key') for o in objects])

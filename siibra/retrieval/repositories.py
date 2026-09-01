@@ -19,7 +19,7 @@ from urllib.parse import quote
 import pathlib
 import os
 from zipfile import ZipFile
-from typing import List
+from typing import List, Iterator, Tuple
 import re
 
 from ebrains_drive import BucketApiClient
@@ -89,7 +89,7 @@ class RepositoryConnector(ABC):
 
     def get_loaders(
         self, folder="", suffix=None, progress=None, recursive=False, decode_func=None
-    ):
+    ) -> Iterator[Tuple[str, HttpRequest]]:
         """
         Returns an iterator with lazy loaders for the files in a given folder.
         In each iteration, a tuple (filename,file content) is returned.

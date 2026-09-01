@@ -135,7 +135,7 @@ class InstanceTable(Generic[T], Iterable):
             return f"Empty {self.__class__.__name__}"
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} of {self[0].__class__}>"
+        return self.__str__()
 
     def __iter__(self) -> Iterator[T]:
         """Iterate over all objects in the registry"""
