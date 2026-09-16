@@ -43,7 +43,8 @@ class Configuration:
             server_or_owner,
             project_or_repo,
             reftag="master",
-            skip_branchtest=True
+            skip_branchtest=True,
+            archive_mode=True,
         )
         for conn, server_or_owner, project_or_repo in CONFIG_REPOS
     ]

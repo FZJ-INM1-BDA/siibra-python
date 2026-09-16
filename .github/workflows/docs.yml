@@ -2,7 +2,8 @@ name: "[Docs] Build docs and upload artifacts"
 
 on:
   push:
-    branches: [ 'main', 'doc_*', 'v1', 'maint_decoders']
+    branches: ["main", "doc_*", "v1", "maint_*"]
+
   release:
     types: ["published"]
 
