@@ -16,10 +16,10 @@
 
 :bdg-info:`Research workflow`
 
-Extrating Regionwise Signals From Activity Recording
+Extracting Regionwise Signals From Activity Recording
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-siibra integrates nilearn to allow seemles extration of signals given recordings
+siibra integrates nilearn to allow seemles extraction of signals given recordings
 such as fMRI, PET, and others. This notebook downloads two fMRI images from
 AOMIC-PIOP2 dataset (https://openneuro.org/datasets/ds002790/versions/2.0.0)
 and compares the extraction results for different tasks.
@@ -177,7 +177,7 @@ restingstate_signals[union_sorted].boxplot(
     figsize=(10, 10)
 )
 plt.legend()
-plt.title(f"Comparsion of top {len(union_sorted)} regions for {subject}")
+plt.title(f"Comparison of top {len(union_sorted)} regions for {subject}")
 plt.tight_layout()
 
 
@@ -264,7 +264,7 @@ def create_config(subject, task):
         },
         "time": {"start": 0, "stop": 10, "num": 160},
     }
-    # discard unavailble data
+    # discard unavailable data
     for url in conf["providers"]["gii-timeseries"].values():
         req = requests.get(url, stream=True)
         if not req.ok:
@@ -300,7 +300,7 @@ for task in tasks:
                 fmri_vol,
                 strategy="mean",  # mean signal value per region per timepoint
                 surface_variant=fs_variant,
-            ).mean()  # std over time per region
+            ).std()  # std over time per region
             for fmri_vol in fmri_vols
             if task in fmri_vol.name
         ),
@@ -332,13 +332,15 @@ for i, task in enumerate(tasks):
         figsize=(12, 10)
     )
 plt.legend()
-plt.title("Comparsion of top regions for between tasks across subjects")
+plt.title("Comparison of top regions for between tasks across subjects")
 plt.tight_layout()
 plt.show()
 
 
 # %%
 fs_variant = "pial"
+vmin = min([regional_signal_averages[task].min().min() for task in tasks])
+vmax = max([regional_signal_averages[task].max().max() for task in tasks])
 for task in tasks:
     surf_im = julichbrain_fs5.colorize(
         regional_signal_averages[task].mean(axis=1),
@@ -349,4 +351,6 @@ for task in tasks:
         hemi="both",
         cmap="magma",
         title=task,
+        vmin=vmin,
+        vmax=vmax,
     )
