@@ -16,11 +16,9 @@
 from os import path
 import json
 from typing import List, Dict, Callable
-from io import BytesIO
 from functools import wraps
 
 import numpy as np
-import pandas as pd
 
 from ..commons import logger, Species
 from ..features import anchor, connectivity
@@ -35,6 +33,7 @@ from ..features.tabular import (
 from ..features.image import image, sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointcloud, boundingbox
+from ..retrieval.requests import find_suitable_decoder
 from ..retrieval import datasets, repositories
 from ..volumes import volume, sparsemap, parcellationmap
 from ..volumes.providers.provider import VolumeProvider
@@ -114,15 +113,6 @@ class Factory:
             ):  # only use provided name if the volume has no specific name
                 vspec["name"] = names[i]
         return list(map(cls.build_volume, volume_specs))
-
-    @classmethod
-    def extract_decoder(cls, spec):
-        decoder_spec = spec.get("decoder", {})
-        if decoder_spec.get("@type", "").endswith("csv"):
-            kwargs = {k: v for k, v in decoder_spec.items() if k != "@type"}
-            return lambda b: pd.read_csv(BytesIO(b), **kwargs)
-        else:
-            return None
 
     @classmethod
     def extract_anchor(cls, spec):
@@ -397,7 +387,7 @@ class Factory:
     def build_generic_tabular(cls, spec):
         return tabular.Tabular(
             file=spec["file"],
-            decoder=cls.extract_decoder(spec) if "decoder" in spec else None,
+            decoder=find_suitable_decoder(spec["file"], spec.get("decoder")),
             description=spec.get("description"),
             modality=spec.get("modality"),
             anchor=cls.extract_anchor(spec),
@@ -428,7 +418,7 @@ class Factory:
             datasets=cls.extract_datasets(spec),
             id=spec.get("@id", None),
             prerelease=spec.get("prerelease", False),
-            decoder_func=cls.extract_decoder(spec),
+            decoder_func=find_suitable_decoder(spec["file"], spec.get("decoder", None)),
         )
 
     @classmethod
@@ -524,7 +514,6 @@ class Factory:
                 f"No method for building connectivity matrix of type {modality}."
             )
 
-        decoder_func = cls.extract_decoder(spec)
         repo_connector = (
             cls.extract_connector(spec) if spec.get("repository", None) else None
         )
@@ -535,7 +524,6 @@ class Factory:
             "modality": modality,
             "regions": spec["regions"],
             "connector": repo_connector,
-            "decode_func": decoder_func,
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
@@ -554,6 +542,7 @@ class Factory:
                     "subject": fkey if files_indexed_by == "subject" else "average",
                     "feature": fkey if files_indexed_by == "feature" else None,
                     "connector": repo_connector or base_url + filename,
+                    "decode_func": find_suitable_decoder(filename, spec.get("decoder", None)),
                     "id": spec.get("@id", None),
                 }
             )
@@ -575,7 +564,6 @@ class Factory:
             "modality": modality,
             "regions": spec["regions"],
             "connector": cls.extract_connector(spec),
-            "decode_func": cls.extract_decoder(spec),
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
@@ -587,9 +575,12 @@ class Factory:
             kwargs["paradigm"] = paradigm
         timeseries_by_file = []
         for fkey, filename in files.items():
-            kwargs.update(
-                {"filename": filename, "subject": fkey, "id": spec.get("@id", None)}
-            )
+            kwargs.update({
+                "filename": filename,
+                "subject": fkey,
+                "id": spec.get("@id", None),
+                "decode_func": find_suitable_decoder(filename, spec.get("decoder", None)),
+            })
             timeseries_by_file.append(timeseries_cls(**kwargs))
         return timeseries_by_file
 
