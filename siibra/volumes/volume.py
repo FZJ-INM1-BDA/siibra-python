@@ -190,7 +190,7 @@ class Volume(structure.BrainStructure):
         }
 
     @lru_cache(2)
-    def get_boundingbox(self, clip: bool = False, background: float = 0.0, **fetch_kwargs) -> "boundingbox.BoundingBox":
+    def get_boundingbox(self, clip: bool = True, background: float = 0.0, **fetch_kwargs) -> "boundingbox.BoundingBox":
         """
         Obtain the bounding box in physical coordinates of this volume.
 
