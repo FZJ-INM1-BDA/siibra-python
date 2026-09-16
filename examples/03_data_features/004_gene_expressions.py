@@ -46,24 +46,27 @@ from nilearn import plotting
 # %%
 # We select a brain region and query for expression levels of GABARAPL2.
 region = siibra.get_region("julich 2.9", "V1")
-features = siibra.features.get(
-    region, siibra.features.molecular.GeneExpressions,
-    gene=siibra.vocabularies.GENE_NAMES.GABARAPL2
-)
-print(features[0])
-# Take a peek at how the data looks
-features[0].data.head()
 
-# %%
-# Since gene expressions are spatial features,
-# let's check the reference space of the results.
-space = features[0].anchor.space
-print(space)
+try:
+    features = siibra.features.get(
+        region, siibra.features.molecular.GeneExpressions,
+        gene=siibra.vocabularies.GENE_NAMES.GABARAPL2
+    )
+    print(features[0])
+    # Take a peek at how the data looks
+    print(features[0].data.head())
 
-# %%
-# Plot the locations of the probes that were found, together with the region
-# mask of V1.
-all_coords = [p.coordinate for p in features[0].anchor.location]
-mask = region.get_regional_mask(space)
-display = plotting.plot_roi(mask.fetch())
-display.add_markers(all_coords, marker_size=5)
+    # Since gene expressions are spatial features,
+    # let's check the reference space of the results.
+    space = features[0].anchor.space
+    print(space)
+
+    # Plot the locations of the probes that were found, together with the region
+    # mask of V1.
+    all_coords = [p.coordinate for p in features[0].anchor.location]
+    mask = region.get_regional_mask(space)
+    display = plotting.plot_roi(mask.fetch())
+    display.add_markers(all_coords, marker_size=5)
+
+except Exception as e:
+    print(e)  # Allen API is down, see https://github.com/FZJ-INM1-BDA/siibra-python/issues/636
