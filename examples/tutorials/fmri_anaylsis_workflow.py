@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Extrating Regionwise Signals From Activity Recording
+Extracting Regionwise Signals From Activity Recording
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-siibra integrates nilearn to allow seemles extration of signals given recordings
+siibra integrates nilearn to allow seemles extraction of signals given recordings
 such as fMRI, PET, and others. This notebook downloads two fMRI images from
 AOMIC-PIOP2 dataset (https://openneuro.org/datasets/ds002790/versions/2.0.0)
 and compares the extraction results for different tasks.
@@ -194,7 +194,7 @@ restingstate_signals[union_sorted].boxplot(
     figsize=(10, 10)
 )
 plt.legend()
-plt.title(f"Comparsion of top {len(union_sorted)} regions for {subject}")
+plt.title(f"Comparison of top {len(union_sorted)} regions for {subject}")
 plt.tight_layout()
 
 
@@ -281,7 +281,7 @@ def create_config(subject, task):
         },
         "time": {"start": 0, "stop": 10, "num": 160},
     }
-    # discard unavailble data
+    # discard unavailable data
     for url in conf["providers"]["gii-timeseries"].values():
         req = requests.get(url, stream=True)
         if not req.ok:
@@ -349,7 +349,7 @@ for i, task in enumerate(tasks):
         figsize=(12, 10)
     )
 plt.legend()
-plt.title("Comparsion of top regions for between tasks across subjects")
+plt.title("Comparison of top regions for between tasks across subjects")
 plt.tight_layout()
 plt.show()
 
