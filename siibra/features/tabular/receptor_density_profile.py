@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable
+
 from . import cortical_profile
 from .. import anchor as _anchor
 from ... import vocabularies
@@ -43,6 +45,7 @@ class ReceptorDensityProfile(
         datasets: list = [],
         id: str = None,
         prerelease: bool = False,
+        decoder_func: Callable = None,
     ):
         """Generate a receptor density profile from a URL to a .tsv file
         formatted according to the structure used by Palomero-Gallagher et al.
@@ -58,7 +61,7 @@ class ReceptorDensityProfile(
         )
         self.receptor = receptor
         self._data_cached = None
-        self._loader = requests.HttpRequest(tsvfile)
+        self._loader = requests.HttpRequest(tsvfile, func=decoder_func)
         self._unit_cached = None
 
     @property
