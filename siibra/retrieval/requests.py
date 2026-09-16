@@ -22,12 +22,12 @@ import shutil
 from pathlib import Path
 import gzip
 import urllib.parse
-from typing import List, Callable, TYPE_CHECKING, Literal, Optional
+from typing import List, Callable, TYPE_CHECKING, Literal, Optional, Union
 from enum import Enum
 from functools import wraps
 from time import sleep
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as replace_dataclass_fields
 
 from filelock import FileLock as Lock
 import numpy as np
@@ -249,8 +249,12 @@ class Decoder:
                 "Cannot decode bytes with a FILE decoder."
             )
 
-        if gzipped and self.gzip == "decompress":
-            data = gzip.decompress(data)
+        if gzipped:
+            if self.gzip == "decompress":
+                data = gzip.decompress(data)
+            elif self.gzip == "native":
+                from io import BytesIO
+                return self.func(BytesIO(data), **self.kwargs)
 
         return self.func(data, **self.kwargs)
 
@@ -303,14 +307,18 @@ class Decoder:
 
 
 # Backwards-compatible entry point.
-def find_suitable_decoder(filename: str) -> Optional[Decoder]:
+def find_suitable_decoder(filename: str, decoder_spec: dict = None) -> Optional[Decoder]:
     """
     Infer a decoder from a filename or URL.
 
     This function is retained for backwards compatibility. New code may use
     ``Decoder.from_filename()`` directly.
     """
-    return Decoder.from_filename(filename)
+    base = Decoder.from_filename(filename)
+    if not decoder_spec:
+        return base
+    decoder_kwargs = {k: v for k, v in decoder_spec.items() if k != "@type"}
+    return replace_dataclass_fields(base, kwargs=decoder_kwargs)
 
 
 DECODERS = {
@@ -396,7 +404,7 @@ class HttpRequest:
     def __init__(
         self,
         url: str,
-        func: Callable = None,
+        func: Union[Decoder, Callable] = None,
         msg_if_not_cached: str = None,
         refresh=False,
         post=False,
