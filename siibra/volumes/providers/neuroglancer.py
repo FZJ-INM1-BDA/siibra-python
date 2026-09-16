@@ -31,7 +31,6 @@ from ...retrieval import requests, cache
 from ...locations import boundingbox as _boundingbox
 from ...commons import (
     logger,
-    MapType,
     merge_meshes,
     SIIBRA_MAX_FETCH_SIZE_BYTES,
     SIIBRA_NG_VOL_USE_CACHE,
@@ -307,23 +306,6 @@ class NeuroglancerVolume:
             accessor = HttpAccessor(self.url)
             self._io = get_IO_for_existing_dataset(accessor)
         return self._io
-
-    @property
-    def map_type(self):
-        if self._info is None:
-            self._bootstrap()
-        return (
-            MapType.LABELLED
-            if self._info.get("type") == "segmentation"
-            else MapType.STATISTICAL
-        )
-
-    @map_type.setter
-    def map_type(self, val):
-        if val is not None:
-            logger.debug(
-                "NeuroglancerVolume can determine its own maptype from self._info.get('type')"
-            )
 
     def _bootstrap(self):
         self._info = requests.HttpRequest(f"{self.url}/info", func=lambda b: json.loads(b.decode())).get()
@@ -661,9 +643,9 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
         self.volume = volume
         self._init_url = resource
         if isinstance(resource, str):
-            self._meshes = {None: self._fragmentinfo(resource)}
+            self._meshes = {None: resource}
         elif isinstance(resource, dict):
-            self._meshes = {n: self._fragmentinfo(u) for n, u in resource.items()}
+            self._meshes = resource
         else:
             raise ValueError(f"Resource specification not understood for {self.__class__.__name__}: {resource}")
 
@@ -683,10 +665,11 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
         # extract available fragment urls with their names for the given mesh index
         result = {}
 
-        for name, spec in self._meshes.items():
-            mesh_key = spec.get('info', {}).get('mesh')
-            meshurl = f"{spec['url']}/{mesh_key}/{str(meshindex)}:0"
-            transform = spec.get('transform_nm')
+        for name, url in self._meshes.items():
+            fragmentinfo = self._fragmentinfo(url=url)
+            mesh_key = fragmentinfo.get('info', {}).get('mesh')
+            meshurl = f"{fragmentinfo['url']}/{mesh_key}/{str(meshindex)}:0"
+            transform = fragmentinfo.get('transform_nm')
             try:
                 meshinfo = requests.HttpRequest(url=meshurl, func=requests.DECODERS['.json']).data
             except requests.SiibraHttpRequestError:
@@ -701,14 +684,14 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
                     raise RuntimeError(
                         f"{self.__class__.__name__} was configured with multiple mesh fragments "
                         f"({', '.join(self._meshes.keys())}), but unexpectedly even more fragmentations "
-                        f"were found at {spec['url']}."
+                        f"were found at {fragmentinfo['url']}."
                     )
-                result[name] = (f"{spec['url']}/{mesh_key}/{fragment_names[0]}", transform)
+                result[name] = (f"{fragmentinfo['url']}/{mesh_key}/{fragment_names[0]}", transform)
             else:
                 # only one mesh was configures, so we might still
                 # see multiple fragments under the mesh url
                 for fragment_name in fragment_names:
-                    result[fragment_name] = (f"{spec['url']}/{mesh_key}/{fragment_name}", transform)
+                    result[fragment_name] = (f"{fragmentinfo['url']}/{mesh_key}/{fragment_name}", transform)
 
         return result
 
