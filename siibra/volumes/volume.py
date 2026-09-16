@@ -777,8 +777,7 @@ class TimeSeriesVolume(Volume):
     def fetch(self, format: str = None, timepoint: Union[int, float, None] = None, **kwargs):
         if timepoint is None:
             return super().fetch(format, **kwargs)
-        self.get_timepoint(timepoint=timepoint)
-        return super().fetch(format, **kwargs)
+        return self.get_timepoint(timepoint=timepoint).fetch(format, **kwargs)
 
 
 class ReducedVolume(Volume):
