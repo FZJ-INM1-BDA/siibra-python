@@ -148,5 +148,8 @@ print(features[0].last_match_description)
 #    gene expression features. This is a known issue tracked here:
 #    https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.
 #
-features = siibra.features.get(v1, siibra.features.molecular.GeneExpressions, gene="TAC1")
-print(features[0].last_match_description)
+try:
+    features = siibra.features.get(v1, siibra.features.molecular.GeneExpressions, gene="TAC1")
+    print(features[0].last_match_description)
+except Exception as e:
+    print(e)  # Allen API is down, see https://github.com/FZJ-INM1-BDA/siibra-python/issues/636
