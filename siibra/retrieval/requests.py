@@ -577,6 +577,8 @@ class ZipfileRequest(HttpRequest):
             func=func or find_suitable_decoder(filename)
         )
         self.filename = filename
+        if os.path.isfile(url):
+            self.cachefile = url
 
     def get(self):
         self._retrieve()
