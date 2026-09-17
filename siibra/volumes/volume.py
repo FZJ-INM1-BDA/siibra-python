@@ -216,7 +216,8 @@ class Volume(structure.BrainStructure):
         if self._boundingbox is not None and len(fetch_kwargs) == 0:
             return self._boundingbox
 
-        if clip:  # clipping requires fetching the image
+        if clip and self.provides_image:
+            # clipping requires fetching the image. # TODO: consider meshes
             img = self.fetch(**fetch_kwargs)
             assert isinstance(img, Nifti1Image)
             return boundingbox.from_array(
