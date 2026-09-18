@@ -14,11 +14,13 @@
 # limitations under the License.
 """A specific mesh or 3D array."""
 
-from typing import List, Dict, Union, Set, TYPE_CHECKING
+from typing import Iterable, List, Dict, Union, Set, TYPE_CHECKING
 from dataclasses import dataclass
 from time import sleep
 import json
 from functools import lru_cache
+from hashlib import md5
+from pathlib import Path
 
 import numpy as np
 from nibabel import Nifti1Image
@@ -110,16 +112,21 @@ class Volume(structure.BrainStructure):
         "neuroglancer/precomputed"
     ]
 
+    _MESH_DATA_FORMATS = [
+        "gii-label",
+        "gii-timeseries",
+        "freesurfer-annot",
+        "zip/freesurfer-annot",
+    ]  # these formats require template's surface
+
     MESH_FORMATS = [
         "neuroglancer/precompmesh",
         "neuroglancer/precompmesh/surface",
         "gii-mesh",
-        "gii-label",
-        "freesurfer-annot",
-        "zip/freesurfer-annot",
-    ]
+    ] + _MESH_DATA_FORMATS
 
     SUPPORTED_FORMATS = IMAGE_FORMATS + MESH_FORMATS
+    _TIME_SERIES_FORMATS = {"nii", "gii-timeseries"}
 
     _FORMAT_LOOKUP = {
         "image": IMAGE_FORMATS,
@@ -209,10 +216,8 @@ class Volume(structure.BrainStructure):
         if self._boundingbox is not None and len(fetch_kwargs) == 0:
             return self._boundingbox
 
-        if not self.provides_image:
-            raise NotImplementedError("Bounding box calculation of meshes is not implemented yet.")
-
-        if clip:  # clipping requires fetching the image
+        if clip and self.provides_image:
+            # clipping requires fetching the image. # TODO: consider meshes
             img = self.fetch(**fetch_kwargs)
             assert isinstance(img, Nifti1Image)
             return boundingbox.from_array(
@@ -230,18 +235,25 @@ class Volume(structure.BrainStructure):
             )
         providers = [self._providers[fmt]] if fmt else self._providers.values()
         for provider in providers:
-            try:
-                assert clip is False
-                bbox = provider.get_boundingbox(
-                    background=background, **fetch_kwargs
-                )
-                if bbox.space is None:  # provider do not know the space!
-                    bbox._space_cached = self.space
-                    bbox.minpoint._space_cached = self.space
-                    bbox.maxpoint._space_cached = self.space
-            except NotImplementedError:
-                continue
+            if provider.srctype in self._MESH_DATA_FORMATS:
+                template = self.space.get_template(variant=fetch_kwargs.pop("variant", None))
+                bbox = template.get_boundingbox()
+            else:
+                try:
+                    bbox = provider.get_boundingbox(
+                        background=background, **fetch_kwargs
+                    )
+                except NotImplementedError:
+                    continue
+
+            # provider do not know the space!
+            if bbox.space is None:
+                bbox._space_cached = self.space
+                bbox.minpoint._space_cached = self.space
+                bbox.maxpoint._space_cached = self.space
+
             return bbox
+
         raise RuntimeError(f"No bounding box specified by any volume provider of {str(self)}")
 
     @property
@@ -425,7 +437,8 @@ class Volume(structure.BrainStructure):
                     data=pointwise_min,
                     affine=v1.affine,
                     space=self.space,
-                    name=f"Intersection between {self} and {other} computed as their pointwise minimum"
+                    name=f"Intersection between {self} and {other} computed as their pointwise minimum",
+                    cache=False,
                 )
             else:
                 return None
@@ -506,11 +519,12 @@ class Volume(structure.BrainStructure):
             fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
             for try_count in range(6):
                 try:
-                    if fmt in ["gii-label", "freesurfer-annot", "zip/freesurfer-annot"]:
-                        tpl = self.space.get_template(variant=kwargs.get('variant'))
+                    if fmt in self._MESH_DATA_FORMATS:
+                        # here, template mesh needs to be fetched from its space
+                        tpl = self.space.get_template(variant=kwargs.get("variant"))
                         mesh = tpl.fetch(**kwargs)
-                        labels = self._providers[fmt].fetch(**fwd_args)
-                        result = dict(**mesh, **labels)
+                        surface_data = self._providers[fmt].fetch(**fwd_args)
+                        result = dict(**mesh, **surface_data)
                     else:
                         result = self._providers[fmt].fetch(**fwd_args)
                 except requests.SiibraHttpRequestError as e:
@@ -617,12 +631,33 @@ class Volume(structure.BrainStructure):
                 "Finding peaks is so far only implemented for image-type volumes, "
                 f"not {self.__class__.__name__}."
             )
+        if isinstance(self, TimeSeriesVolume):
+            pts, timelabels = [], []
+            for v_t in siibra_tqdm(self, unit="time point"):
+                for p in v_t.find_peaks(mindist=mindist, sigma_mm=sigma_mm, **kwargs):
+                    pts.append(p)
+                    timelabels.append(v_t.timepoint)   # not v_t.time
+            return pointcloud.from_points(pts, newlabels=timelabels)
+
         img = self.fetch(**kwargs)
         array = np.asanyarray(img.dataobj)
         voxels = skimage_feature.peak_local_max(array, min_distance=mindist)
-        points = pointcloud.PointCloud(voxels, space=None, labels=list(range(len(voxels)))).transform(img.affine, space=self.space)
+        points = pointcloud.PointCloud(
+            voxels,
+            space=None,
+            labels=list(range(len(voxels)))
+        ).transform(img.affine, space=self.space)
         points.sigma_mm = [sigma_mm for _ in points]
         return points
+
+    def _as_surfaceimage(self, variant: str = None):
+        from nilearn.surface import SurfaceImage
+
+        assert "gii-timeseries" in self.formats, "Only possible for timeseries giftis."
+        provider = self._providers["gii-timeseries"]
+        assert isinstance(provider, _providers.GiftiTimeSeries)
+
+        return SurfaceImage(self.space._as_polymesh(variant=variant), provider.as_polydata())
 
 
 class FilteredVolume(Volume):
@@ -633,6 +668,7 @@ class FilteredVolume(Volume):
         label: int = None,
         fragment: str = None,
         threshold: float = None,
+        timepoint: Union[int, float] = None,
     ):
         """
         A prescribed Volume to fetch specified label and fragment.
@@ -647,6 +683,8 @@ class FilteredVolume(Volume):
             If a volume is fragmented, get a specified one.
         threshold : float, default None
             Provide a float value to threshold the image.
+        time: int = None,
+            If parent volume is a timeseries Nifti, filter a time index without fetching the full image.
         """
         name = parent_volume.name
         if label:
@@ -655,6 +693,8 @@ class FilteredVolume(Volume):
             name += f" - fragment: {fragment}"
         if threshold:
             name += f" - threshold: {threshold}"
+        if timepoint:
+            name += f" - time point: {timepoint}"
         Volume.__init__(
             self,
             space_spec=parent_volume._space_spec,
@@ -664,6 +704,8 @@ class FilteredVolume(Volume):
         self.fragment = fragment
         self.label = label
         self.threshold = threshold
+        self.timepoint = timepoint
+        self._parent = parent_volume
 
     def fetch(
         self,
@@ -680,7 +722,21 @@ class FilteredVolume(Volume):
             kwargs["label"] = self.label
 
         result = super().fetch(format=format, **kwargs)
-
+        if self.timepoint is not None:
+            assert isinstance(self._parent, TimeSeriesVolume)
+            timeindex = self._parent._timeindex(self.timepoint)
+            if isinstance(result, Nifti1Image):
+                result = result.slicer[:, :, :, timeindex]
+            elif isinstance(result, dict) and "timeseries" in result:
+                # keep the mesh, expose the selected frame like a gii-label fetch
+                result = {
+                    **{k: v for k, v in result.items() if k != "timeseries"},
+                    "labels": result["timeseries"][timeindex],
+                }
+            else:
+                raise NotImplementedError(
+                    f"Cannot select a time point from a {type(result).__name__} fetch result."
+                )
         if self.threshold is not None:
             assert self.label is None
             if not isinstance(result, Nifti1Image):
@@ -708,6 +764,50 @@ class FilteredVolume(Volume):
             background=background,
             **fetch_kwargs
         )
+
+
+class TimeSeriesVolume(Volume):
+    def __init__(self, time: np.ndarray = None, **kwargs):
+        Volume.__init__(self, **kwargs)
+        t = None if time is None else np.asanyarray(time)
+        self._time_cached = None if (t is None or t.size == 0) else t
+
+    @property
+    def time(self) -> np.ndarray:
+        """Time axis; inferred from the data if it was not specified."""
+        if self._time_cached is None:
+            self._time_cached = np.arange(self._length())
+        return self._time_cached
+
+    def _length(self) -> int:
+        data = Volume.fetch(self)
+        if isinstance(data, Nifti1Image):
+            if len(data.shape) != 4:
+                raise RuntimeError(f"{self} is not a 4D image: shape {data.shape}.")
+            return data.shape[3]
+        return len(data["timeseries"])
+
+    def _timeindex(self, timepoint) -> int:
+        matches = np.flatnonzero(self.time == timepoint)
+        if len(matches) != 1:
+            raise ValueError(
+                f"{len(matches)} time points match {timepoint} in {self}."
+            )
+        return int(matches[0])
+
+    def __iter__(self) -> Iterable[FilteredVolume]:
+        yield from (
+            FilteredVolume(parent_volume=self, timepoint=t)
+            for t in self.time
+        )
+
+    def get_timepoint(self, timepoint: Union[int, float, None]) -> FilteredVolume:
+        return FilteredVolume(parent_volume=self, timepoint=timepoint)
+
+    def fetch(self, format: str = None, timepoint: Union[int, float, None] = None, **kwargs):
+        if timepoint is None:
+            return super().fetch(format, **kwargs)
+        return self.get_timepoint(timepoint=timepoint).fetch(format, **kwargs)
 
 
 class ReducedVolume(Volume):
@@ -821,23 +921,164 @@ class Subvolume(Volume):
         )
 
 
-def from_file(filename: str, space: str, name: str) -> Volume:
-    """Builds a nifti volume from a filename."""
+def _determine_provider(format: str, is_timeseries: bool = False):
+    if format not in Volume.SUPPORTED_FORMATS:
+        raise ValueError(f"Unsupported format {format!r}. Expected one of: '{Volume.SUPPORTED_FORMATS}'.")
+    if is_timeseries and format not in Volume._TIME_SERIES_FORMATS:
+        raise ValueError(f"{format} does not support time indexing.")
+
+    for cls in _providers.provider.VolumeProvider._SUBCLASSES:
+        if cls.srctype == format:
+            return cls
+
+    raise ValueError(f"No provider registered for format {format!r}.")
+
+
+def _from_mapping(
+    mapping: Dict[str, str],
+    space: str,
+    *,
+    format: str,
+    time: np.ndarray = None,
+    name: str = None,
+) -> Union[Volume, TimeSeriesVolume]:
+    provider_cls = _determine_provider(format, time is not None)
+
     spaceobj = get_registry("Space").get(space)
-    return Volume(
+    kwargs = dict(
         space_spec={"@id": spaceobj.id},
-        providers=[_providers.NiftiProvider(filename)],
-        name=filename if name is None else name,
+        providers=[provider_cls(mapping)],
+        name=name or md5(str(mapping).encode("utf-8")).hexdigest(),
     )
 
+    if time is None:
+        return Volume(**kwargs)
 
-def from_nifti(nifti: Nifti1Image, space: str, name: str) -> Volume:
-    """Builds a nifti volume from a Nifti image."""
-    spaceobj = get_registry("Space").get(space)
-    return Volume(
-        space_spec={"@id": spaceobj.id},
-        providers=[_providers.NiftiProvider((np.asanyarray(nifti.dataobj), nifti.affine))],
-        name=name
+    return TimeSeriesVolume(time=time, **kwargs)
+
+
+def from_url(
+    urls: Union[str, Dict[str, str]],
+    space: str,
+    name: str = None,
+    *,
+    format: str = "nii",
+    time: np.ndarray = None,
+):
+    """Build a volume from files served from online (https) sources.
+
+    Parameters
+    ----------
+    urls: str or dict[str, str]
+        URL to the online image data, or a mapping from fragment names to URLs.
+        A single URL is internally treated as an unfragmented image.
+    space: str
+        Reference space of the volume.
+    format: str, default: "nii"
+        Examples include ``"nii"``, ``"gii-timeseries"``, ``"gii-label"``, and
+        ``"gii-mesh"``. See Volume.SUPPORTED_FORMATS.
+    time: numpy.ndarray, optional
+        Time axis. If given, a `TimeSeriesVolume` is returned.
+
+    Returns
+    -------
+    Volume
+        `TimeSeriesVolume` if `time` values are provided, otherwise a `Volume`
+    """
+    if isinstance(urls, str):
+        urls = {None: urls}
+    for url in urls.values():
+        assert url.startswith("https://"), ValueError(f"Expected an https URL, got: {url!r}")
+
+    return _from_mapping(urls, space=space, format=format, time=time, name=name)
+
+
+def from_file(
+    files: Union[str, Path, Dict[str, Union[str, Path]]],
+    space: str,
+    name: str = None,
+    *,
+    format: str = "nii",
+    time: np.ndarray = None,
+):
+    """Build a volume from local files.
+
+    Parameters
+    ----------
+    files: str, pathlib.Path, or dict[str, str | pathlib.Path]
+        Local image file, or a mapping from fragment names to local image files.
+        A single file is internally treated as an unfragmented image.
+    space: str
+        Reference space of the volume.
+    format: str, default: "nii"
+        Examples include ``"nii"``, ``"gii-timeseries"``, ``"gii-label"``, and
+        ``"gii-mesh"``. See Volume.SUPPORTED_FORMATS.
+    time: numpy.ndarray, optional
+        Time axis. If given, a `TimeSeriesVolume` is returned.
+
+    Returns
+    -------
+    Volume
+        `TimeSeriesVolume` if `time` values are provided, otherwise a `Volume`
+    """
+    if isinstance(files, (str, Path)):
+        files = {None: files if isinstance(files, str) else files.as_posix()}
+
+    return _from_mapping(files, space=space, format=format, time=time, name=name)
+
+
+def from_nifti(
+    nifti: Nifti1Image,
+    space: str,
+    name: str,
+    time: np.ndarray = None,
+):
+    """Build a siibra volume from a NIfTI image.
+
+    The image is written to the local siibra cache and returned as a
+    file-backed volume. This avoids storing the image array directly in the
+    provider and can reduce memory pressure for large or proxy-backed NIfTI
+    images.
+
+    Parameters
+    ----------
+    nifti : nibabel.Nifti1Image
+        NIfTI image to wrap as a siibra volume.
+    space : str
+        Reference space of the volume.
+    name : str
+        Name assigned to the resulting volume. Must be non-empty.
+    time : numpy.ndarray, optional
+        Time axis for 4D or time-resolved data. If given, a
+        :class:`TimeSeriesVolume` is returned.
+
+    Returns
+    -------
+    Volume or TimeSeriesVolume
+        File-backed siibra volume using a cached NIfTI image.
+
+    Raises
+    ------
+    ValueError
+        If ``name`` is empty.
+    """
+    from ..retrieval import CACHE
+
+    if len(name) == 0:
+        raise ValueError("Please provide a non-empty string for `name`.")
+
+    filename = CACHE.build_filename(
+        f"{name}-{space}-{nifti.shape}-{nifti.affine.tolist()}",
+        ".nii",  # uncompressed, better for memory mapping than .nii.gz
+    )
+    if not Path(filename).is_file():
+        nifti.to_filename(filename)
+
+    return from_file(
+        filename,
+        space=space,
+        format="nii",
+        time=time,
     )
 
 
@@ -845,17 +1086,62 @@ def from_array(
     data: np.ndarray,
     affine: np.ndarray,
     space: Union[str, Dict[str, str]],
-    name: str
-) -> Volume:
-    """Builds a siibra volume from an array and an affine matrix."""
-    if len(name) == 0:
-        raise ValueError("Please provide a non-empty string for `name`")
-    spacespec = next(iter(space.values())) if isinstance(space, dict) else space
-    spaceobj = get_registry("Space").get(spacespec)
-    return Volume(
-        space_spec={"@id": spaceobj.id},
-        providers=[_providers.NiftiProvider((data, affine))],
+    name: str = None,
+    time: np.ndarray = None,
+    *,
+    cache: bool = True,
+):
+    """Build a siibra volume from an array and affine matrix.
+
+    The array is converted to a NIfTI image, written to the local siibra cache,
+    and returned as a file-backed volume. If ``name`` is not provided, a stable
+    name is generated from the array values, affine matrix, space
+    specification, and optional time axis.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        Voxel data of the volume.
+    affine : numpy.ndarray
+        4x4 affine matrix mapping voxel coordinates to world coordinates.
+    space : str or dict[str, str]
+        Reference space of the volume. If a mapping is provided, the first
+        value is used as the space specification.
+    name : str, optional
+        Name assigned to the resulting volume. If omitted, a deterministic name
+        is generated from ``data``, ``affine``, ``space``, and ``time``.
+    time : numpy.ndarray, optional
+        Time axis for 4D or time-resolved data. If given, a
+        :class:`TimeSeriesVolume` is returned.
+    cache : bool
+        Cache it on disk
+
+    Returns
+    -------
+    Volume or TimeSeriesVolume
+        File-backed siibra volume using a cached NIfTI image.
+    """
+    if not cache and time is None:
+        spacespec = next(iter(space.values())) if isinstance(space, dict) else space
+        return Volume(
+            space_spec={"@id": get_registry("Space").get(spacespec).id},
+            providers=[_providers.NiftiProvider((data, affine))],
+            name=name,
+        )
+
+    if name is None:
+        arr = np.ascontiguousarray(data)
+        h = md5(arr.view(np.uint8))
+        h.update(str(arr.shape).encode("utf-8"))
+        h.update(str(arr.dtype).encode("utf-8"))
+        h.update(str(None if time is None else np.asanyarray(time).tolist()).encode("utf-8"))
+        name = h.hexdigest()
+
+    return from_nifti(
+        nifti=Nifti1Image(data, affine),
+        space=space,
         name=name,
+        time=time,
     )
 
 
@@ -863,62 +1149,115 @@ def from_pointcloud(
     points: pointcloud.PointCloud,
     label: int = None,
     target: Volume = None,
-    normalize=True,
-    **kwargs
+    normalize: bool = True,
+    *,
+    clip_out_of_bounds: bool = False,
+    **kwargs,
 ) -> Volume:
-    """
-    Get the kernel density estimate as a volume from the points using their
-    average uncertainty on target volume.
+    """Build a kernel-density volume from a point cloud.
+
+    The point coordinates are transformed into the voxel space of a target
+    volume. A voxel-count image is created, smoothed with a Gaussian kernel
+    using the average point uncertainty as bandwidth, optionally normalized,
+    and returned as a cached file-backed siibra volume.
 
     Parameters
     ----------
-    points: pointcloud.PointCloud
-    label: int, default: None
-        If None, finds the KDE for all points. Otherwise, selects the points
-        labelled with this integer value.
-    target: Volume, default: None
-        If None, the template of the space points are defined on will be used.
-    normalize: bool, default: True
+    points : pointcloud.PointCloud
+        Point cloud used to generate the kernel-density estimate.
+    label : int, optional
+        If provided, only points with this label are used. If omitted, all
+        points are used.
+    target : Volume, optional
+        Target volume defining the output grid and affine. If omitted, the
+        template of ``points.space`` is used.
+    normalize : bool, default: True
+        If True, divide the smoothed density image by its sum.
+    clip_out_of_bounds : bool, default: False
+        If False, raise an error when transformed points fall outside the
+        target volume. If True, discard out-of-bounds points.
+    **kwargs
+        Additional keyword arguments passed to ``target.fetch``.
+
+    Returns
+    -------
+    Volume
+        File-backed siibra volume containing the point-cloud KDE.
 
     Raises
     ------
-    RuntimeError
-        If no points with labels found
+    ValueError
+        If ``label`` is provided but no points with that label are found.
+    ValueError
+        If transformed points are outside the target volume and
+        ``clip_out_of_bounds`` is False.
     """
     if target is None:
         target = points.space.get_template()
+
     targetimg = target.fetch(**kwargs)
+    assert isinstance(targetimg, Nifti1Image)
+    shape = targetimg.shape
+
     voxels = points.transform(np.linalg.inv(targetimg.affine), space=None)
 
     if (label is None) or (points.labels is None):
-        selection = [True for _ in points]
+        selection = np.ones(len(points), dtype=bool)
     else:
-        assert label in points.labels, f"No points with the label {label} in the set: {set(points.labels)}"
+        if label not in points.labels:
+            raise ValueError(
+                f"No points with the label {label} in the set: {set(points.labels)}"
+            )
         selection = points.labels == label
 
-    voxelcount_img = np.zeros_like(targetimg.get_fdata())
+    coords = voxels.coordinates[selection].astype(np.intp, copy=False)
+
+    in_bounds = np.all((coords >= 0) & (coords < np.asarray(shape)), axis=1)
+    if not np.all(in_bounds):
+        if clip_out_of_bounds:
+            coords = coords[in_bounds]
+        else:
+            n_bad = np.count_nonzero(~in_bounds)
+            raise ValueError(
+                f"{n_bad} transformed point(s) lie outside the target volume. "
+                "Use clip_out_of_bounds=True to discard them."
+            )
+
+    voxelcount_img = np.zeros(shape, dtype=np.float32)
+
     unique_coords, counts = np.unique(
-        np.array(voxels.as_list(), dtype='int')[selection, :],
+        coords,
         axis=0,
-        return_counts=True
+        return_counts=True,
     )
     voxelcount_img[tuple(unique_coords.T)] = counts
 
-    # TODO: consider how to handle pointclouds with varied sigma_mm
-    sigmas = np.array(points.sigma_mm)[selection]
-    bandwidth = np.mean(sigmas)
-    if len(np.unique(sigmas)) > 1:
-        logger.warning(f"KDE of pointcloud uses average bandwidth {bandwidth} instead of the points' individual sigmas.")
+    sigmas_mm = np.asarray(points.sigma_mm)[selection]
+    bandwidth_mm = np.mean(sigmas_mm)
 
-    filtered_arr = filters.gaussian(voxelcount_img, bandwidth)
+    if len(np.unique(sigmas_mm)) > 1:
+        logger.warning(
+            f"KDE of pointcloud uses average bandwidth {bandwidth_mm} mm "
+            "instead of the points' individual sigmas."
+        )
+
+    voxel_sizes = np.sqrt((targetimg.affine[:3, :3] ** 2).sum(axis=0))
+    sigma_vox = bandwidth_mm / voxel_sizes
+
+    filtered_arr = filters.gaussian(
+        voxelcount_img,
+        sigma=sigma_vox,
+        preserve_range=True,
+    ).astype(np.float32, copy=False)
+
     if normalize:
-        filtered_arr /= filtered_arr.sum()
+        filtered_arr /= filtered_arr.sum(dtype=np.float64)
 
     return from_array(
         data=filtered_arr,
         affine=targetimg.affine,
         space=target.space,
-        name=f'KDE map of {points}{f"labelled {label}" if label else ""}'
+        name=f'KDE map of {points}{f" labelled {label}" if label is not None else ""}',
     )
 
 

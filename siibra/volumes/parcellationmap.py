@@ -16,12 +16,12 @@
 
 from collections import defaultdict
 from dataclasses import dataclass, asdict
-from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
+from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, Literal
+from functools import lru_cache
 
 import numpy as np
 import pandas as pd
 from scipy.ndimage import distance_transform_edt
-from nilearn import image
 
 from . import volume as _volume
 from .providers import provider
@@ -47,6 +47,7 @@ from ..locations import location, point, pointcloud
 
 if TYPE_CHECKING:
     from ..core.region import Region
+    from nilearn.maskers import NiftiLabelsMasker, SurfaceLabelsMasker
 
 
 @dataclass
@@ -56,6 +57,7 @@ class MapAssignment:
     volume: int
     fragment: str
     map_value: np.ndarray
+    time: Union[int, float, None]
 
 
 @dataclass
@@ -498,6 +500,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def __iter__(self):
         return self.fetch_iter()
 
+    @lru_cache(2)
     def compress(self, **kwargs):
         """
         Converts this map into a labelled 3D parcellation map, obtained by
@@ -572,7 +575,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             parcellation_spec=self._parcellation_spec,
             indices=region_indices,
             volumes=[_volume.from_array(
-                result_arr, result_affine, self._space_spec, name=self.name + " compressed"
+                result_arr, result_affine, self.space.id, name=self.name + " compressed"
             )]
         )
 
@@ -641,9 +644,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         -------
         Volume
         """
+        from nilearn.image import resample_to_img
+
         source_template = self.space.get_template().fetch()
         map_image = self.fetch(**fetch_kwargs)
-        img = image.resample_to_img(source_template, map_image, interpolation='continuous')
+        img = resample_to_img(source_template, map_image, interpolation='continuous')
         return _volume.from_array(
             data=img.dataobj,
             affine=img.affine,
@@ -653,10 +658,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def colorize(
         self,
-        values: dict,
-        background_value: Union[int, float] = 0,
-        **kwargs
-    ) -> _volume.Volume:
+        values: Union[dict, "pd.Series", "pd.DataFrame"],
+        background_label: Union[int, float] = 0,
+        **masker_kwargs
+    ):
         """Colorize the map with the provided regional values.
 
         Parameters
@@ -668,42 +673,27 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         ------
         Nifti1Image
         """
-        from hashlib import md5
-        from nibabel import Nifti1Image
-
-        values_dtype = np.min_scalar_type(next(iter(values.values())))
-        result = None
-        for volidx, vol in enumerate(self.fetch_iter(**kwargs)):
-            if isinstance(vol, dict):
-                raise NotImplementedError("Map colorization not yet implemented for meshes.")
-            img_arr = np.asanyarray(vol.dataobj, dtype=values_dtype)
-            maxarr = np.zeros_like(img_arr)
-            for r, value in values.items():
-                index = self.get_index(r)
-                if index.volume != volidx:
+        if isinstance(values, dict):
+            resolved = {}
+            for spec, value in values.items():
+                matched = set(self.find_indices(spec).values())   # {MapIndex: regionname}
+                if not matched:
+                    logger.warning(f"'{spec}' is not mapped in {self} - skipped in colorization.")
                     continue
-                if result is None:
-                    result = np.zeros_like(img_arr, dtype=values_dtype) + background_value
-                    affine = vol.affine
-                    result_header = vol.header
-                    result_header.set_data_dtype(values_dtype)
-                if index.label is None:
-                    updates = img_arr > maxarr
-                    result[updates] = value
-                    maxarr[updates] = img_arr[updates]
-                else:
-                    result[img_arr == index.label] = value
+                for regionname in matched:
+                    resolved[regionname] = value
+            if not resolved:
+                raise ValueError(f"None of the {len(values)} provided keys are mapped in {self}.")
+            values = pd.Series({r: resolved.get(r, background_label) for r in self.regions})
 
-        result_img = Nifti1Image(
-            result,
-            affine=affine,
-            header=result_header,
-        )
-        return _volume.from_nifti(
-            nifti=result_img,
-            space=self.space,
-            name=f"Custom colorization of {self} - {md5(str(values).encode('utf-8')).hexdigest()}"
-        )
+        masker_kwargs.setdefault("background_label", background_label)
+        masker = self.as_nilearn_masker(**masker_kwargs)
+        masker.fit()
+
+        # ensure the order of columns follow the bids table used for masker
+        values = values[masker.lut["name"]]
+
+        return masker.inverse_transform(values)
 
     def get_colormap(self, region_specs: Iterable = None, *, fill_uncolored: bool = False):
         """
@@ -901,12 +891,20 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if isinstance(item, pointcloud.PointCloud):
             return self._assign_points(item, lower_threshold)
         if isinstance(item, _volume.Volume):
-            return self._assign_volume(
-                queryvolume=item,
-                lower_threshold=lower_threshold,
-                minsize_voxel=minsize_voxel,
-                **kwargs
-            )
+            if isinstance(item, _volume.TimeSeriesVolume):
+                return self._assign_timeseries_volume(
+                    queryvolume=item,
+                    lower_threshold=lower_threshold,
+                    minsize_voxel=minsize_voxel,
+                    **kwargs
+                )
+            else:
+                return self._assign_volume(
+                    queryvolume=item,
+                    lower_threshold=lower_threshold,
+                    minsize_voxel=minsize_voxel,
+                    **kwargs
+                )
 
         raise RuntimeError(
             f"Items of type {item.__class__.__name__} cannot be used for region assignment."
@@ -965,6 +963,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # format assignments as pandas dataframe
         columns = [
             "input structure",
+            "time",
             "centroid",
             "volume",
             "fragment",
@@ -978,7 +977,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             "input containedness"
         ]
         if len(assignments) == 0:
-            return pd.DataFrame(columns=columns)
+            return pd.DataFrame(columns=columns).dropna(axis='columns', how='all')
         # determine the unique set of observed indices in order to do region lookups
         # only once for each map index occurring in the point list
         labelled = self.is_labelled  # avoid calling this in a loop
@@ -1005,6 +1004,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         for a in assignments:
             item_to_append = {
                 "input structure": a.input_structure,
+                "time": a.time,
                 "centroid": a.centroid,
                 "volume": a.volume,
                 "fragment": a.fragment,
@@ -1092,7 +1092,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 centroid=tuple(position),
                                 volume=vol,
                                 fragment=frag,
-                                map_value=value
+                                map_value=value,
+                                time=None,
                             )
                         )
                 return assignments
@@ -1119,7 +1120,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 centroid=tuple(pt),
                                 volume=vol,
                                 fragment=frag,
-                                map_value=value
+                                map_value=value,
+                                time=None,
                             )
                         )
             else:
@@ -1138,7 +1140,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     data=kernel,
                     affine=np.dot(self.affine, shift),
                     space=self.space,
-                    name=f"Gaussian kernel of {pt}"
+                    name=f"Gaussian kernel of {pt}",
+                    cache=False,
                 )
                 for entry in self._assign(
                     item=gaussian_kernel,
@@ -1155,7 +1158,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         queryvolume: "_volume.Volume",
         lower_threshold: float,
         split_components: bool = True,
-        **kwargs
+        time: int = None,
+        **kwargs,
     ) -> List[AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
@@ -1222,11 +1226,260 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 volume=index.volume,
                                 fragment=index.fragment,
                                 map_value=index.label,
+                                time=time,
                                 **asdict(scores)
                             )
                         )
 
         return assignments
+
+    def _assign_timeseries_volume(
+        self,
+        queryvolume: "_volume.TimeSeriesVolume",
+        lower_threshold: float,
+        split_components: bool = True,
+        **kwargs
+    ) -> List[AssignImageResult]:
+        assignments = []
+        for v_t in siibra_tqdm(queryvolume, unit='time point'):
+            assignments_t = self._assign_volume(
+                v_t,
+                lower_threshold=lower_threshold,
+                split_components=split_components,
+                time=v_t.timepoint,
+                **kwargs
+            )
+            assignments.extend(assignments_t)
+        return assignments
+
+    def to_BIDS_lookup_table(self, *, filepath: str = None) -> pd.DataFrame:
+        """
+        Generate a BIDS-compatible lookup table for the labelled map.
+
+        The lookup table associates voxel labels with region names and optional
+        RGB colors derived from the corresponding parcellation regions.
+
+        If the map consists of multiple fragments, the fragments are first
+        compressed into a single labelled image and relabelled to ensure BIDS
+        compatibility.
+
+        Parameters
+        ----------
+        filepath : str, optional
+            Path to a ``.tsv`` file where the lookup table should be written.
+            If provided, the table is saved in tab-separated format.
+
+        Returns
+        -------
+        pandas.DataFrame
+            A lookup table with the following columns:
+            - ``index``: Integer label value in the image.
+            - ``name``: Name of the corresponding brain region.
+            - ``color``: Hexadecimal RGB color code associated with the region,
+               or ``None`` if no color is defined.
+
+        Raises
+        ------
+        Exception
+            If the map contains more than one volume.
+
+        AssertionError
+            If ``filepath`` does not end with ``.tsv``.
+
+        Notes
+        -----
+        BIDS lookup tables require a single labelled volume. Maps distributed
+        across multiple fragments are therefore compressed and relabelled before
+        generating the table.
+        """
+        needs_merge = len(self.volumes) > 1 or bool(self.fragments)
+        if needs_merge and "gii-label" not in self.formats:
+            logger.info(f"{self} has {len(self.volumes)} volume(s)/{len(self.fragments)} fragment(s); "
+                        "siibra will compress and reindex it for BIDS compatibility.")
+            mp = self.compress()
+        elif len(self.volumes) > 1:
+            raise Exception("Cannot build a BIDS lookup table for multi-volume surface maps.")
+        else:
+            mp = self
+
+        def to_record(regionname: str, index: MapIndex) -> List[Dict]:
+            rgb = mp.parcellation.get_region(regionname).rgb
+            color = "#{:02x}{:02x}{:02x}".format(*rgb) if rgb else None
+            return {
+                "index": index.label,
+                "name": regionname,
+                "color": color,
+            }
+        table = pd.DataFrame(
+            [
+                to_record(r, indices[0])
+                for r, indices in mp._indices.items()
+            ]
+        )
+        if mp.formats == {"gii-label"}:
+            extra_labels = set(mp.fetch()["labels"]) - set(table["index"])
+            for xl in extra_labels:
+                table.loc[len(table)] = {"name": f"{xl} (unnamed)", "index": xl, "color": None}
+        if filepath:
+            assert filepath[-4:] == ".tsv", "BIDS lookup tables are in .tsv format but the path provided is not."
+            table.to_csv(filepath, sep='\t', index=False)
+        return table
+
+    def _as_surfaceimage(self, variant: str = None):
+        from nilearn.surface import SurfaceImage, PolyData
+
+        assert "gii-label" in self.formats
+        assert len(self.volumes) == 1
+
+        giilabel_filemap = {}
+        for frag in self.fragments:
+            loader = self.volumes[0]._providers["gii-label"]._loaders[frag]
+            loader._retrieve()
+            giilabel_filemap[frag.replace(' hemisphere', "")] = loader.cachefile
+        return SurfaceImage(mesh=self.space._as_polymesh(variant=variant), data=PolyData(**giilabel_filemap))
+
+    @lru_cache(2)
+    def as_nilearn_masker(
+        self,
+        strategy: Literal[
+            "mean",
+            "median",
+            "sum",
+            "minimum",
+            "maximum",
+            "standard_deviation",
+            "variance",
+        ] = "mean",
+        surface_variant: str = None,
+        **masker_kwargs,
+    ) -> Union["NiftiLabelsMasker", "SurfaceLabelsMasker"]:
+        from nilearn import maskers
+        try:
+            from ..retrieval.cache import jobmemory_path
+            masker_kwargs.setdefault("memory", jobmemory_path)
+        except ImportError:
+            ...
+
+        needs_merge = len(self.volumes) > 1 or bool(self.fragments)
+        mp = self.compress() if self.provides_image and needs_merge else self
+
+        assert "lut" not in masker_kwargs, ValueError("siibra handles `lut` parameter based on the map.")
+        masker_kwargs.setdefault("verbose", 1)
+        masker_kwargs.setdefault("strategy", strategy)
+        masker_kwargs["lut"] = mp.to_BIDS_lookup_table()
+
+        if self.provides_image:
+            masker = maskers.NiftiLabelsMasker(mp.fetch(), **masker_kwargs)
+        else:
+            masker = maskers.SurfaceLabelsMasker(mp._as_surfaceimage(variant=surface_variant), **masker_kwargs)
+
+        return masker
+
+    def extract_signals_with_nilearn(
+        self,
+        volume: _volume.Volume,
+        strategy: Literal[
+            "mean",
+            "median",
+            "sum",
+            "minimum",
+            "maximum",
+            "standard_deviation",
+            "variance",
+        ] = "mean",
+        confounds: np.ndarray = None,
+        sample_mask: np.ndarray = None,
+        surface_variant: str = None,
+        **masker_kwargs,
+    ) -> pd.DataFrame:
+        """
+        Extract region-wise signals from a labelled 3D/4D volume using `nilearn`.
+
+        The atlas labels defined in the current map are used to summarize the
+        input volume with :class:`nilearn.maskers.NiftiLMasker`. If the map
+        contains fragments, they are first compressed into a single labelled map.
+
+        Parameters
+        ----------
+        volume: Volume
+            Input 3D or 4D volume from which signals should be extracted.
+            Typically an fMRI image. The object must implement ``fetch()`` and
+            return a Niimg-like object compatible with Nilearn.
+
+        strategy: str
+
+        confounds: array-like, optional
+            Confounds to pass to `nilearn.maskers.BaseMasker.transform`.
+            See nilearn.maskers.BaseMasker.transform`.
+
+        sample_mask: array-like, optional
+            Mask of samples to include when extracting signals.
+            See nilearn.maskers.BaseMasker.transform`.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Extracted signals indexed by the 4th dimension of the input volume,
+            and region names for columns.
+
+        Notes
+        -----
+        Region labels are obtained from the BIDS lookup table generated by `to_BIDS_lookup_table`.
+        """
+        masker = self.as_nilearn_masker(
+            strategy=strategy if self.is_labelled else None,
+            surface_variant=surface_variant,
+            **masker_kwargs
+        )
+        try:
+            masker.set_output(transform="pandas")
+            convert_to_dataframe = False
+        except NotImplementedError:
+            convert_to_dataframe = True
+
+        if "gii-timeseries" in volume.formats:
+            signals = masker.fit_transform(
+                volume._as_surfaceimage(variant=surface_variant),
+                confounds=confounds,
+                sample_mask=sample_mask
+            )
+        else:
+            signals = masker.fit_transform(
+                volume.fetch(),
+                confounds=confounds,
+                sample_mask=sample_mask
+            )
+
+        if self.is_labelled:
+            # nilearn masker kwarg, `keep_missing_labels` is not working. This is a workaround
+            missing_regions_mask = np.asanyarray(
+                [lb not in masker.labels_ for lb in masker.lut['index']],
+                dtype=bool
+            )
+            if convert_to_dataframe:
+                signals = pd.DataFrame(
+                    signals,
+                    columns=masker.lut[~missing_regions_mask]["name"]
+                )
+            if any(missing_regions_mask):
+                missing_regions = masker.lut[missing_regions_mask]["name"]
+                logger.info(f"Regions that were removed after resampling are filled with zeros:\n{missing_regions}")
+                signals[missing_regions.tolist()] = 0
+                signals = signals[masker.lut["name"]]
+        else:
+            regions = list(self._indices.keys())
+            if convert_to_dataframe:
+                signals = pd.DataFrame(
+                    signals,
+                    columns=regions
+                )
+            else:
+                signals.rename(
+                    columns=lambda c: regions[eval(c.replace("niftimapsmasker", ""))],
+                    inplace=True
+                )
+
+        return signals
 
 
 def from_volume(

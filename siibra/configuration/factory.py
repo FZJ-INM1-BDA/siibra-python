@@ -496,6 +496,10 @@ class Factory:
             return volume_of_interest.DTIVolumeOfInterest(modality=modality, **kwargs)
         # elif modality == "segmentation":
         #     return volume_of_interest.SegmentedVolumeOfInterest(**kwargs)
+        elif "fMRI" in modality:
+            return volume_of_interest.FMRIVolumeOfInterest(
+                modality=modality, time=spec.get("time"), **kwargs
+            )
         elif "MRI" in modality:
             return volume_of_interest.MRIVolumeOfInterest(modality=modality, **kwargs)
         elif modality == "LSFM":
