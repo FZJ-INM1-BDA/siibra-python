@@ -126,7 +126,7 @@ class Volume(structure.BrainStructure):
     ] + _MESH_DATA_FORMATS
 
     SUPPORTED_FORMATS = IMAGE_FORMATS + MESH_FORMATS
-    _TIME_SERIES_FORMATS = {"nii", "zip/nii", "gii-timeseries"}
+    _TIME_SERIES_FORMATS = {"nii", "gii-timeseries"}
 
     _FORMAT_LOOKUP = {
         "image": IMAGE_FORMATS,
