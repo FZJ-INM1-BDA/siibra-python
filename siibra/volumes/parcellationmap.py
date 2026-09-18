@@ -674,9 +674,17 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Nifti1Image
         """
         if isinstance(values, dict):
-            values = pd.Series(
-                {r: values.get(r, background_label) for r in self.regions}
-            )
+            resolved = {}
+            for spec, value in values.items():
+                matched = set(self.find_indices(spec).values())   # {MapIndex: regionname}
+                if not matched:
+                    logger.warning(f"'{spec}' is not mapped in {self} - skipped in colorization.")
+                    continue
+                for regionname in matched:
+                    resolved[regionname] = value
+            if not resolved:
+                raise ValueError(f"None of the {len(values)} provided keys are mapped in {self}.")
+            values = pd.Series({r: resolved.get(r, background_label) for r in self.regions})
 
         masker_kwargs.setdefault("background_label", background_label)
         masker = self.as_nilearn_masker(**masker_kwargs)
