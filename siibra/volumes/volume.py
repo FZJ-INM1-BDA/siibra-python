@@ -940,6 +940,7 @@ def _from_mapping(
     *,
     format: str,
     time: np.ndarray = None,
+    name: str = None,
 ) -> Union[Volume, TimeSeriesVolume]:
     provider_cls = _determine_provider(format, time is not None)
 
@@ -947,7 +948,7 @@ def _from_mapping(
     kwargs = dict(
         space_spec={"@id": spaceobj.id},
         providers=[provider_cls(mapping)],
-        name=md5(str(mapping).encode("utf-8")).hexdigest(),
+        name=name or md5(str(mapping).encode("utf-8")).hexdigest(),
     )
 
     if time is None:
@@ -959,6 +960,7 @@ def _from_mapping(
 def from_url(
     urls: Union[str, Dict[str, str]],
     space: str,
+    name: str = None,
     *,
     format: str = "nii",
     time: np.ndarray = None,
@@ -988,12 +990,13 @@ def from_url(
     for url in urls.values():
         assert url.startswith("https://"), ValueError(f"Expected an https URL, got: {url!r}")
 
-    return _from_mapping(urls, space=space, format=format, time=time)
+    return _from_mapping(urls, space=space, format=format, time=time, name=name)
 
 
 def from_file(
     files: Union[str, Path, Dict[str, Union[str, Path]]],
     space: str,
+    name: str = None,
     *,
     format: str = "nii",
     time: np.ndarray = None,
@@ -1021,7 +1024,7 @@ def from_file(
     if isinstance(files, (str, Path)):
         files = {None: files if isinstance(files, str) else files.as_posix()}
 
-    return _from_mapping(files, space=space, format=format, time=time)
+    return _from_mapping(files, space=space, format=format, time=time, name=name)
 
 
 def from_nifti(
