@@ -631,11 +631,11 @@ class Volume(structure.BrainStructure):
                 f"not {self.__class__.__name__}."
             )
         if isinstance(self, TimeSeriesVolume):
-            pts, timelabels = zip(*[
-                (p, v_t.time)
-                for v_t in siibra_tqdm(self, unit="slice")
-                for p in v_t.find_peaks(mindist=mindist, sigma_mm=sigma_mm, **kwargs)
-            ])
+            pts, timelabels = [], []
+            for v_t in siibra_tqdm(self, unit="time point"):
+                for p in v_t.find_peaks(mindist=mindist, sigma_mm=sigma_mm, **kwargs):
+                    pts.append(p)
+                    timelabels.append(v_t.timepoint)   # not v_t.time
             return pointcloud.from_points(pts, newlabels=timelabels)
 
         img = self.fetch(**kwargs)
