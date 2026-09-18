@@ -1291,11 +1291,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         across multiple fragments are therefore compressed and relabelled before
         generating the table.
         """
-        if len(self.volumes) > 1:
-            raise Exception("Cannot extract maps with several volumes into BIDS compatible lookup table.")
-        if self.fragments and "gii-label" not in self.formats:
-            logger.info(f"{self} is distributed as {len(self.fragments)}. siibra will compress the fragments and reindex to make it BIDS compatible.")
+        needs_merge = len(self.volumes) > 1 or bool(self.fragments)
+        if needs_merge and "gii-label" not in self.formats:
+            logger.info(f"{self} has {len(self.volumes)} volume(s)/{len(self.fragments)} fragment(s); "
+                        "siibra will compress and reindex it for BIDS compatibility.")
             mp = self.compress()
+        elif len(self.volumes) > 1:
+            raise Exception("Cannot build a BIDS lookup table for multi-volume surface maps.")
         else:
             mp = self
 
@@ -1313,8 +1315,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 for r, indices in mp._indices.items()
             ]
         )
-        if self.formats == {"gii-label"}:
-            extra_labels = set(self.fetch()["labels"]) - set(table["index"])
+        if mp.formats == {"gii-label"}:
+            extra_labels = set(mp.fetch()["labels"]) - set(table["index"])
             for xl in extra_labels:
                 table.loc[len(table)] = {"name": f"{xl} (unnamed)", "index": xl, "color": None}
         if filepath:
@@ -1357,7 +1359,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         except ImportError:
             ...
 
-        mp = self.compress() if self.provides_image and self.fragments else self
+        needs_merge = len(self.volumes) > 1 or bool(self.fragments)
+        mp = self.compress() if self.provides_image and needs_merge else self
 
         assert "lut" not in masker_kwargs, ValueError("siibra handles `lut` parameter based on the map.")
         masker_kwargs.setdefault("verbose", 1)
