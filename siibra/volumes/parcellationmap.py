@@ -1321,7 +1321,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 table.loc[len(table)] = {"name": f"{xl} (unnamed)", "index": xl, "color": None}
         if filepath:
             assert filepath[-4:] == ".tsv", "BIDS lookup tables are in .tsv format but the path provided is not."
-            table.to_csv(filepath, sep='\t')
+            table.to_csv(filepath, sep='\t', index=False)
         return table
 
     def _as_surfaceimage(self, variant: str = None):
