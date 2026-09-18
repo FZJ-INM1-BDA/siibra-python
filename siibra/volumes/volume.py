@@ -726,8 +726,16 @@ class FilteredVolume(Volume):
             timeindex = self._parent._timeindex(self.timepoint)
             if isinstance(result, Nifti1Image):
                 result = result.slicer[:, :, :, timeindex]
+            elif isinstance(result, dict) and "timeseries" in result:
+                # keep the mesh, expose the selected frame like a gii-label fetch
+                result = {
+                    **{k: v for k, v in result.items() if k != "timeseries"},
+                    "labels": result["timeseries"][timeindex],
+                }
             else:
-                raise NotImplementedError
+                raise NotImplementedError(
+                    f"Cannot select a time point from a {type(result).__name__} fetch result."
+                )
         if self.threshold is not None:
             assert self.label is None
             if not isinstance(result, Nifti1Image):
