@@ -1085,11 +1085,11 @@ def from_array(
         File-backed siibra volume using a cached NIfTI image.
     """
     if name is None:
-        h = md5(str(np.ascontiguousarray(data)))
-        h.update(str(data.shape).encode("utf-8"))
-        h.update(str(data.dtype).encode("utf-8"))
-        h.update(str(time).encode("utf-8"))
-        h.update(data.view(np.uint8))
+        arr = np.ascontiguousarray(data)
+        h = md5(arr.view(np.uint8))
+        h.update(str(arr.shape).encode("utf-8"))
+        h.update(str(arr.dtype).encode("utf-8"))
+        h.update(str(None if time is None else np.asanyarray(time).tolist()).encode("utf-8"))
         name = h.hexdigest()
 
     return from_nifti(
