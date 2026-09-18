@@ -1140,7 +1140,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     data=kernel,
                     affine=np.dot(self.affine, shift),
                     space=self.space,
-                    name=f"Gaussian kernel of {pt}"
+                    name=f"Gaussian kernel of {pt}",
+                    cache=False,
                 )
                 for entry in self._assign(
                     item=gaussian_kernel,

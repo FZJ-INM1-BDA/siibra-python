@@ -437,7 +437,8 @@ class Volume(structure.BrainStructure):
                     data=pointwise_min,
                     affine=v1.affine,
                     space=self.space,
-                    name=f"Intersection between {self} and {other} computed as their pointwise minimum"
+                    name=f"Intersection between {self} and {other} computed as their pointwise minimum",
+                    cache=False,
                 )
             else:
                 return None
@@ -1067,7 +1068,8 @@ def from_nifti(
         f"{name}-{space}-{nifti.shape}-{nifti.affine.tolist()}",
         ".nii",  # uncompressed, better for memory mapping than .nii.gz
     )
-    nifti.to_filename(filename)
+    if not Path(filename).is_file():
+        nifti.to_filename(filename)
 
     return from_file(
         filename,
@@ -1083,6 +1085,8 @@ def from_array(
     space: Union[str, Dict[str, str]],
     name: str = None,
     time: np.ndarray = None,
+    *,
+    cache: bool = True,
 ):
     """Build a siibra volume from an array and affine matrix.
 
@@ -1106,12 +1110,22 @@ def from_array(
     time : numpy.ndarray, optional
         Time axis for 4D or time-resolved data. If given, a
         :class:`TimeSeriesVolume` is returned.
+    cache : bool
+        Cache it on disk
 
     Returns
     -------
     Volume or TimeSeriesVolume
         File-backed siibra volume using a cached NIfTI image.
     """
+    if not cache and time is None:
+        spacespec = next(iter(space.values())) if isinstance(space, dict) else space
+        return Volume(
+            space_spec={"@id": get_registry("Space").get(spacespec).id},
+            providers=[_providers.NiftiProvider((data, affine))],
+            name=name,
+        )
+
     if name is None:
         arr = np.ascontiguousarray(data)
         h = md5(arr.view(np.uint8))
