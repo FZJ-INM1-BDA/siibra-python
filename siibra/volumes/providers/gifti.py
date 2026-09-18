@@ -111,7 +111,7 @@ class GiftiMesh(_provider.VolumeProvider, srctype="gii-mesh"):
             - 'faces': an Mx3 array of face definitions using row indices of the vertex array
             - 'name': Name of the of the mesh variant
         """
-        return (self.fetch(v) for v in self.variants)
+        return (self.fetch(fragment=f) for f in self._loaders)
 
 
 class GiftiSurfaceLabeling(_provider.VolumeProvider, srctype="gii-label"):
