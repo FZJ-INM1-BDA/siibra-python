@@ -723,7 +723,7 @@ class FilteredVolume(Volume):
         result = super().fetch(format=format, **kwargs)
         if self.timepoint is not None:
             assert isinstance(self._parent, TimeSeriesVolume)
-            timeindex = self._parent.time.tolist().index(self.timepoint)
+            timeindex = self._parent._timeindex(self.timepoint)
             if isinstance(result, Nifti1Image):
                 result = result.slicer[:, :, :, timeindex]
             else:
@@ -758,13 +758,33 @@ class FilteredVolume(Volume):
 
 
 class TimeSeriesVolume(Volume):
-    def __init__(
-        self,
-        time: np.ndarray,
-        **kwargs,
-    ):
+    def __init__(self, time: np.ndarray = None, **kwargs):
         Volume.__init__(self, **kwargs)
-        self.time = time
+        t = None if time is None else np.asanyarray(time)
+        self._time_cached = None if (t is None or t.size == 0) else t
+
+    @property
+    def time(self) -> np.ndarray:
+        """Time axis; inferred from the data if it was not specified."""
+        if self._time_cached is None:
+            self._time_cached = np.arange(self._length())
+        return self._time_cached
+
+    def _length(self) -> int:
+        data = Volume.fetch(self)
+        if isinstance(data, Nifti1Image):
+            if len(data.shape) != 4:
+                raise RuntimeError(f"{self} is not a 4D image: shape {data.shape}.")
+            return data.shape[3]
+        return len(data["timeseries"])
+
+    def _timeindex(self, timepoint) -> int:
+        matches = np.flatnonzero(self.time == timepoint)
+        if len(matches) != 1:
+            raise ValueError(
+                f"{len(matches)} time points match {timepoint} in {self}."
+            )
+        return int(matches[0])
 
     def __iter__(self) -> Iterable[FilteredVolume]:
         yield from (
