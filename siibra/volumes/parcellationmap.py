@@ -17,7 +17,6 @@
 from collections import defaultdict
 from dataclasses import dataclass, asdict
 from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, Literal
-from functools import lru_cache
 
 import numpy as np
 import pandas as pd
@@ -162,6 +161,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         duplicates = {x for x in all_indices if x in seen or seen.add(x)}
         self._nonunique_indices = duplicates
         self._affine_cached = None
+        self._compressed_cached: Dict[tuple, "Map"] = {}
 
     @property
     def key(self):
@@ -500,12 +500,15 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def __iter__(self):
         return self.fetch_iter()
 
-    @lru_cache(2)
-    def compress(self, **kwargs):
+    def compress(self, **kwargs) -> "Map":
         """
         Converts this map into a labelled 3D parcellation map, obtained by
         taking the voxelwise maximum across the mapped volumes and fragments,
         and re-labelling regions sequentially.
+
+        Results are cached per instance, keyed by the fetch arguments, since
+        compression is expensive and is triggered internally by
+        `to_BIDS_lookup_table()` and `as_nilearn_masker()`.
 
         Parameters
         ----------
@@ -515,6 +518,14 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         -------
         parcellationmap.Map
         """
+        key = tuple(sorted(kwargs.items()))
+        try:
+            compressed = self._compressed_cached.get(key)
+            if compressed is not None:
+                return compressed
+        except TypeError:  # an unhashable fetch argument, e.g. target_affine
+            logger.debug(f"Cannot cache compression of {self} for {kwargs}.")
+
         if len(self.volumes) == 1 and not self.fragments:
             raise RuntimeError("The map cannot be merged since there are no multiple volumes or fragments.")
 
@@ -568,7 +579,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     voxelwise_max[update_voxels] = img_data[update_voxels]
                     next_labelindex += 1
 
-        return Map(
+        self._compressed_cached[key] = Map(
             identifier=f"{create_key(self.name)}_compressed",
             name=f"{self.name} compressed",
             space_spec=self._space_spec,
@@ -578,6 +589,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 result_arr, result_affine, self.space.id, name=self.name + " compressed"
             )]
         )
+        return self._compressed_cached[key]
 
     def compute_centroids(self, split_components: bool = True, **fetch_kwargs) -> Dict[str, pointcloud.PointCloud]:
         """
