@@ -19,6 +19,7 @@ from typing import NamedTuple
 import numpy as np
 
 from . import image
+from ...volumes import volume as _volume
 
 
 class CellBodyStainedVolumeOfInterest(
@@ -95,6 +96,7 @@ class MorphometryVolumeOfInterest(
 
 class FMRIVolumeOfInterest(
     image.Image,
+    _volume.TimeSeriesVolume,
     configuration_folder="features/images/vois/fmri",
     category="functional"
 ):
