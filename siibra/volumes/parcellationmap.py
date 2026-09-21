@@ -1338,7 +1338,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             giilabel_filemap[frag.replace(' hemisphere', "")] = loader.cachefile
         return SurfaceImage(mesh=self.space._as_polymesh(variant=variant), data=PolyData(**giilabel_filemap))
 
-    @lru_cache(2)
     def as_nilearn_masker(
         self,
         strategy: Literal[
