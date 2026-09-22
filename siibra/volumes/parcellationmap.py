@@ -458,12 +458,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     @property
     def fragments(self):
-        return {
+        return sorted({
             index.fragment
             for indices in self._indices.values()
             for index in indices
             if index.fragment is not None
-        }
+        })
 
     @property
     def provides_mesh(self):
