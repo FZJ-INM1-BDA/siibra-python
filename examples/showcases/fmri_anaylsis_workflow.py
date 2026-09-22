@@ -14,7 +14,7 @@
 # limitations under the License.
 """
 
-:bdg-info:`Research workflow`
+:bdg-danger:`Advanced`
 
 Extracting Regionwise Signals From Activity Recording
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
