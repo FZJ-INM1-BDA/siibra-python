@@ -15,6 +15,7 @@
 
 """
 .. _atlases:
+:bdg-success:`Basic`
 
 Selecting a preconfigured atlas from an instance table
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

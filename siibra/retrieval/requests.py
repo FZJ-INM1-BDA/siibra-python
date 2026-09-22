@@ -50,6 +50,7 @@ if TYPE_CHECKING:
     from .repositories import GitlabConnector
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
+_SESSION = requests.Session()
 
 
 def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
@@ -205,23 +206,32 @@ class HttpRequest:
 
         # not yet in cache, perform http request.
         if self.msg_if_not_cached is not None:
-            logger.debug(self.msg_if_not_cached)
+            logger.info(self.msg_if_not_cached)
 
         headers = self.kwargs.get("headers", {})
         other_kwargs = {
             key: self.kwargs[key] for key in self.kwargs if key != "headers"
         }
 
-        http_method = requests.post if self.post else requests.get
-        r = http_method(
-            self.url,
-            headers={
-                **USER_AGENT_HEADER,
-                **headers,
-            },
-            **other_kwargs,
-            stream=True,
-        )
+        http_method = _SESSION.post if self.post else _SESSION.get
+        try:
+            r = http_method(
+                self.url,
+                headers={
+                    **USER_AGENT_HEADER,
+                    **headers,
+                },
+                **other_kwargs,
+                stream=True,
+            )
+        except requests.exceptions.ConnectionError as e:
+            if not self.post and "RemoteDisconnected" in str(e):
+                logger.debug(f"Stale connection for {self.url}, retrying...")
+                adapter = _SESSION.get_adapter(url=self.url)
+                adapter.close()
+                r = http_method(self.url, headers={**USER_AGENT_HEADER, **headers}, **other_kwargs, stream=True)
+            else:
+                raise e
 
         if not r.ok:
             raise SiibraHttpRequestError(status_code=r.status_code, url=self.url)

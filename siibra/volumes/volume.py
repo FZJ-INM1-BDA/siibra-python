@@ -126,7 +126,7 @@ class Volume(structure.BrainStructure):
     ] + _MESH_DATA_FORMATS
 
     SUPPORTED_FORMATS = IMAGE_FORMATS + MESH_FORMATS
-    _TIME_SERIES_FORMATS = {"nii", "zip/nii", "gii-timeseries"}
+    _TIME_SERIES_FORMATS = {"nii", "gii-timeseries"}
 
     _FORMAT_LOOKUP = {
         "image": IMAGE_FORMATS,
@@ -190,7 +190,7 @@ class Volume(structure.BrainStructure):
         }
 
     @lru_cache(2)
-    def get_boundingbox(self, clip: bool = False, background: float = 0.0, **fetch_kwargs) -> "boundingbox.BoundingBox":
+    def get_boundingbox(self, clip: bool = True, background: float = 0.0, **fetch_kwargs) -> "boundingbox.BoundingBox":
         """
         Obtain the bounding box in physical coordinates of this volume.
 
@@ -216,7 +216,8 @@ class Volume(structure.BrainStructure):
         if self._boundingbox is not None and len(fetch_kwargs) == 0:
             return self._boundingbox
 
-        if clip:  # clipping requires fetching the image
+        if clip and self.provides_image:
+            # clipping requires fetching the image. # TODO: consider meshes
             img = self.fetch(**fetch_kwargs)
             assert isinstance(img, Nifti1Image)
             return boundingbox.from_array(
@@ -436,7 +437,8 @@ class Volume(structure.BrainStructure):
                     data=pointwise_min,
                     affine=v1.affine,
                     space=self.space,
-                    name=f"Intersection between {self} and {other} computed as their pointwise minimum"
+                    name=f"Intersection between {self} and {other} computed as their pointwise minimum",
+                    cache=False,
                 )
             else:
                 return None
@@ -630,11 +632,11 @@ class Volume(structure.BrainStructure):
                 f"not {self.__class__.__name__}."
             )
         if isinstance(self, TimeSeriesVolume):
-            pts, timelabels = zip(*[
-                (p, v_t.time)
-                for v_t in siibra_tqdm(self, unit="slice")
-                for p in v_t.find_peaks(mindist=mindist, sigma_mm=sigma_mm, **kwargs)
-            ])
+            pts, timelabels = [], []
+            for v_t in siibra_tqdm(self, unit="time point"):
+                for p in v_t.find_peaks(mindist=mindist, sigma_mm=sigma_mm, **kwargs):
+                    pts.append(p)
+                    timelabels.append(v_t.timepoint)   # not v_t.time
             return pointcloud.from_points(pts, newlabels=timelabels)
 
         img = self.fetch(**kwargs)
@@ -722,11 +724,19 @@ class FilteredVolume(Volume):
         result = super().fetch(format=format, **kwargs)
         if self.timepoint is not None:
             assert isinstance(self._parent, TimeSeriesVolume)
-            timeindex = self._parent.time.tolist().index(self.timepoint)
+            timeindex = self._parent._timeindex(self.timepoint)
             if isinstance(result, Nifti1Image):
                 result = result.slicer[:, :, :, timeindex]
+            elif isinstance(result, dict) and "timeseries" in result:
+                # keep the mesh, expose the selected frame like a gii-label fetch
+                result = {
+                    **{k: v for k, v in result.items() if k != "timeseries"},
+                    "labels": result["timeseries"][timeindex],
+                }
             else:
-                raise NotImplementedError
+                raise NotImplementedError(
+                    f"Cannot select a time point from a {type(result).__name__} fetch result."
+                )
         if self.threshold is not None:
             assert self.label is None
             if not isinstance(result, Nifti1Image):
@@ -757,13 +767,33 @@ class FilteredVolume(Volume):
 
 
 class TimeSeriesVolume(Volume):
-    def __init__(
-        self,
-        time: np.ndarray,
-        **kwargs,
-    ):
+    def __init__(self, time: np.ndarray = None, **kwargs):
         Volume.__init__(self, **kwargs)
-        self.time = time
+        t = None if time is None else np.asanyarray(time)
+        self._time_cached = None if (t is None or t.size == 0) else t
+
+    @property
+    def time(self) -> np.ndarray:
+        """Time axis; inferred from the data if it was not specified."""
+        if self._time_cached is None:
+            self._time_cached = np.arange(self._length())
+        return self._time_cached
+
+    def _length(self) -> int:
+        data = Volume.fetch(self)
+        if isinstance(data, Nifti1Image):
+            if len(data.shape) != 4:
+                raise RuntimeError(f"{self} is not a 4D image: shape {data.shape}.")
+            return data.shape[3]
+        return len(data["timeseries"])
+
+    def _timeindex(self, timepoint) -> int:
+        matches = np.flatnonzero(self.time == timepoint)
+        if len(matches) != 1:
+            raise ValueError(
+                f"{len(matches)} time points match {timepoint} in {self}."
+            )
+        return int(matches[0])
 
     def __iter__(self) -> Iterable[FilteredVolume]:
         yield from (
@@ -777,8 +807,7 @@ class TimeSeriesVolume(Volume):
     def fetch(self, format: str = None, timepoint: Union[int, float, None] = None, **kwargs):
         if timepoint is None:
             return super().fetch(format, **kwargs)
-        self.get_timepoint(timepoint=timepoint)
-        return super().fetch(format, **kwargs)
+        return self.get_timepoint(timepoint=timepoint).fetch(format, **kwargs)
 
 
 class ReducedVolume(Volume):
@@ -911,6 +940,7 @@ def _from_mapping(
     *,
     format: str,
     time: np.ndarray = None,
+    name: str = None,
 ) -> Union[Volume, TimeSeriesVolume]:
     provider_cls = _determine_provider(format, time is not None)
 
@@ -918,7 +948,7 @@ def _from_mapping(
     kwargs = dict(
         space_spec={"@id": spaceobj.id},
         providers=[provider_cls(mapping)],
-        name=md5(str(mapping).encode("utf-8")).hexdigest(),
+        name=name or md5(str(mapping).encode("utf-8")).hexdigest(),
     )
 
     if time is None:
@@ -930,6 +960,7 @@ def _from_mapping(
 def from_url(
     urls: Union[str, Dict[str, str]],
     space: str,
+    name: str = None,
     *,
     format: str = "nii",
     time: np.ndarray = None,
@@ -959,12 +990,13 @@ def from_url(
     for url in urls.values():
         assert url.startswith("https://"), ValueError(f"Expected an https URL, got: {url!r}")
 
-    return _from_mapping(urls, space=space, format=format, time=time)
+    return _from_mapping(urls, space=space, format=format, time=time, name=name)
 
 
 def from_file(
     files: Union[str, Path, Dict[str, Union[str, Path]]],
     space: str,
+    name: str = None,
     *,
     format: str = "nii",
     time: np.ndarray = None,
@@ -992,7 +1024,7 @@ def from_file(
     if isinstance(files, (str, Path)):
         files = {None: files if isinstance(files, str) else files.as_posix()}
 
-    return _from_mapping(files, space=space, format=format, time=time)
+    return _from_mapping(files, space=space, format=format, time=time, name=name)
 
 
 def from_nifti(
@@ -1039,7 +1071,8 @@ def from_nifti(
         f"{name}-{space}-{nifti.shape}-{nifti.affine.tolist()}",
         ".nii",  # uncompressed, better for memory mapping than .nii.gz
     )
-    nifti.to_filename(filename)
+    if not Path(filename).is_file():
+        nifti.to_filename(filename)
 
     return from_file(
         filename,
@@ -1055,6 +1088,8 @@ def from_array(
     space: Union[str, Dict[str, str]],
     name: str = None,
     time: np.ndarray = None,
+    *,
+    cache: bool = True,
 ):
     """Build a siibra volume from an array and affine matrix.
 
@@ -1078,18 +1113,28 @@ def from_array(
     time : numpy.ndarray, optional
         Time axis for 4D or time-resolved data. If given, a
         :class:`TimeSeriesVolume` is returned.
+    cache : bool
+        Cache it on disk
 
     Returns
     -------
     Volume or TimeSeriesVolume
         File-backed siibra volume using a cached NIfTI image.
     """
+    if not cache and time is None:
+        spacespec = next(iter(space.values())) if isinstance(space, dict) else space
+        return Volume(
+            space_spec={"@id": get_registry("Space").get(spacespec).id},
+            providers=[_providers.NiftiProvider((data, affine))],
+            name=name,
+        )
+
     if name is None:
-        h = md5(str(np.ascontiguousarray(data)))
-        h.update(str(data.shape).encode("utf-8"))
-        h.update(str(data.dtype).encode("utf-8"))
-        h.update(str(time).encode("utf-8"))
-        h.update(data.view(np.uint8))
+        arr = np.ascontiguousarray(data)
+        h = md5(arr.view(np.uint8))
+        h.update(str(arr.shape).encode("utf-8"))
+        h.update(str(arr.dtype).encode("utf-8"))
+        h.update(str(None if time is None else np.asanyarray(time).tolist()).encode("utf-8"))
         name = h.hexdigest()
 
     return from_nifti(

@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _000_matchings
+:bdg-success:`Basic`
+
 Understanding links between data features and anatomical locations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
@@ -139,11 +142,14 @@ print(features[0].last_match_description)
 # For example, the gene expressions retrieved from the Allen atlas are linked by the coordinate
 # of their tissue probes in MNI space. If a coordinate is inside the selected brain regions, it is an exact match.
 #
-# .. warning::
-#     The service "web API of the Allen Brain Atlas for the human microarray expression"
-#     is not available at the moment, therefore siibra is not able to fetch
-#     gene expression features. This is a known issue which we are investigating:
-#     https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.
+# .. attention::
+#    The service "web API of the Allen Brain Atlas for the human microarray expression"
+#    is not available at the moment, therefore siibra is not able to fetch
+#    gene expression features. This is a known issue tracked here:
+#    https://github.com/FZJ-INM1-BDA/siibra-python/issues/636.
 #
-features = siibra.features.get(v1, siibra.features.molecular.GeneExpressions, gene="TAC1")
-print(features[0].last_match_description)
+try:
+    features = siibra.features.get(v1, siibra.features.molecular.GeneExpressions, gene="TAC1")
+    print(features[0].last_match_description)
+except Exception as e:
+    print(e)  # Allen API is down, see https://github.com/FZJ-INM1-BDA/siibra-python/issues/636

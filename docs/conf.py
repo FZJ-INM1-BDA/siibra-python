@@ -28,22 +28,10 @@ print("Path:", sys.path)
 pio.renderers.default = "sphinx_gallery"
 
 
-def is_allen_api_microarray_service_available():
-    import requests
-
-    # see https://community.brain-map.org/t/human-brain-atlas-api/2876
-    microarray_test_url = "http://api.brain-map.org/api/v2/data/query.json?criteria=service::human_microarray_expression[probes$eq1023146,1023147][donors$eq15496][structures$eq9148]"
-    try:
-        response = requests.get(microarray_test_url).json()
-    except requests.RequestException:
-        return False
-    return response["success"]
-
-
 # -- Project information -----------------------------------------------------
 
 project = "siibra-python"
-copyright = "2020-2025, Forschungszentrum Juelich GmbH"
+copyright = "2018-2026, Forschungszentrum Juelich GmbH"
 author = "Big Data Analytics Group, Institute of Neuroscience and Medicine, Forschungszentrum Juelich GmbH"
 language = "en"
 
@@ -116,7 +104,6 @@ napoleon_use_ivar = True
 
 # Mappings
 intersphinx_mapping = {
-    "glossary": ("../concepts.html", None),
     "matplotlib": ("https://matplotlib.org/", None),
     "nilearn": ("https://nilearn.github.io/stable/index.html", None),
     "nibabel": ("https://nipy.org/nibabel/", None),
@@ -155,7 +142,6 @@ sphinx_gallery_conf = {
         "../examples/04_locations",
         "../examples/05_anatomical_assignment",
         "../examples/tutorials",
-        "../examples/showcases",
     ],
     "gallery_dirs": [
         "examples/01_atlases_and_parcellations",
@@ -164,7 +150,6 @@ sphinx_gallery_conf = {
         "examples/04_locations",
         "examples/05_anatomical_assignment",
         "examples/tutorials",
-        "examples/showcases",
     ],
     "filename_pattern": r"^.*.py",  # which files to execute and include their outputs
     "capture_repr": ("_repr_html_", "__repr__"),
@@ -174,16 +159,6 @@ sphinx_gallery_conf = {
     "show_memory": True,
     "run_stale_examples": run_stale_examples,
 }
-
-if not is_allen_api_microarray_service_available():
-    sphinx_gallery_conf.update(
-        {
-            "expected_failing_examples": [
-                "../examples/03_data_features/000_matchings.py",
-                "../examples/03_data_features/004_gene_expressions.py",
-            ]
-        }
-    )
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = "sphinx_book_theme"
@@ -203,15 +178,15 @@ html_theme_options = {
     "prev_next_buttons_location": "bottom",
     "style_external_links": False,
     "vcs_pageview_mode": "",
-    "style_nav_header_background": "white",
     "collapse_navigation": True,
     "sticky_navigation": True,
     "navigation_depth": 3,
     "includehidden": True,
     "titles_only": False,
-    "extra_footer": "<div>This software code is funded from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 945539 (Human Brain Project SGA3).</div>",
+    "extra_footer": "<div>This project receives funding from the European Union’s Horizon Europe Programme (EBRAINS 2.0 Project, grant agreement 101147319), and recieved funding from the European Union’s Horizon 2020 Research and Innovation Programme (HBP SGA3, grant agreement 945539), and EBRAIN-Health (101058516).</div>",
     "repository_url": "https://github.com/FZJ-INM1-BDA/siibra-python",
     "use_repository_button": True,
     "use_download_button": False,
     "use_fullscreen_button": False,
+    "show_toc_level": 3,
 }

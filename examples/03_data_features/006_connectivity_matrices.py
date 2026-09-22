@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _006_connectivity_matrices
+:bdg-secondary:`Intermediate`
+
 Connectivity matrices
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -79,6 +82,7 @@ view = plotting.plot_connectome(
     node_coords=node_coords,
     edge_threshold="80%",
     node_size=10,
+    colorbar=False,
 )
 view.title(
     f"{cf.modality} of subject {cf.indices[0]} in {cf[0].cohort} cohort "

@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _2025-paper-fig6
+:bdg-info:`Research workflow`
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Case study: Anatomical evaluation of subcortical maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -94,7 +97,7 @@ def load_resampled_mask(uri, ref):
         with open("temp.nii.gz", "wb") as f:
             f.write(response.content)
         nim = nib.load("temp.nii.gz")
-    return resample_to_img(nim, ref, interpolation="nearest")
+    return resample_to_img(nim, ref, interpolation="nearest", force_resample=True)
 
 
 # %%
@@ -214,6 +217,7 @@ cluster_scores.round(2)
 
 # %%
 # Bar plot of Distal dice scores versus Julich-Brain correlations
+plt.figure(layout="constrained")
 cluster_scores.plot(
     kind="bar",
     y=["Julich-Brain Correlation (VIM)", "Dice score (study)"],
@@ -230,7 +234,6 @@ plt.legend(
     loc="center left",
     bbox_to_anchor=(0.15, -1.0),
 )
-plt.tight_layout()
 
 # %%
 # 2. Investigate in histology data
@@ -328,6 +331,7 @@ plotting.plot_glass_brain(clustermap.fetch())
 df = assignments[clustername, hemcode].query("correlation > 0.1")[["correlation"]]
 df.index = [re.sub(r"\s*\(.*?\)", "", r.name) for r in df.index]
 df.plot(kind="bar", figsize=(2.5, 2), grid=True, title=f"{clustername} {hem}")
+plt.tight_layout()
 
 # %%
 # -------------------------------
@@ -404,6 +408,7 @@ view = plotting.plot_img(
     bg_img=tpl,
     cmap="gray",
     title=f"Section {section.name[1:5]}",
+    colorbar=False,
 )
 for color, cont in contours.values():
     if cont is not None:
@@ -412,7 +417,7 @@ for color, cont in contours.values():
 # %%
 # Detailed patch view
 # -------------------
-plt.figure(figsize=(7, 5))
+plt.figure(figsize=(10, 5))
 plt.imshow(patch.get_fdata().squeeze(), cmap="gray")
 for name, (color, cont) in contours.items():
     if cont is not None:
@@ -452,3 +457,5 @@ canvas = geometry.Polygon([[0, 0], [0, w], [w, w], [w, 0], [0, 0]])
 X, Y = intersection(polygon, canvas).exterior.xy
 plt.plot(X, Y, color="g", lw=6)
 plt.axis("off")
+
+# sphinx_gallery_thumbnail_number = -1

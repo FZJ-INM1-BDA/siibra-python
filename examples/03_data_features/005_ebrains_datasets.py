@@ -15,6 +15,7 @@
 
 """
 .. _ebrains_datasets:
+:bdg-secondary:`Intermediate`
 
 EBRAINS regional datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~ 

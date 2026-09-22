@@ -1,4 +1,4 @@
-# Copyright 2018-2023
+# Copyright 2018-2026
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _000_employing_locations_of_interest
+:bdg-success:`Basic`
+
 Utilizing locations of interest
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

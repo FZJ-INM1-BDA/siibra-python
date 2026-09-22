@@ -16,7 +16,6 @@
 
 from os import path, makedirs
 from typing import Dict, List, TYPE_CHECKING
-from functools import lru_cache
 
 import numpy as np
 import nibabel
@@ -468,7 +467,6 @@ class SparseMap(parcellationmap.Map):
 
         return assignments
 
-    @lru_cache(2)
     def as_nilearn_masker(self, **makser_kwargs) -> "NiftiMapsMasker":
         from nilearn import maskers
 

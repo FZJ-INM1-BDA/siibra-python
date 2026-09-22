@@ -42,8 +42,9 @@ class Configuration:
         conn(
             server_or_owner,
             project_or_repo,
-            reftag="feat_timeseries_volume",
-            skip_branchtest=True
+            reftag="siibra-{}".format(__version__),
+            skip_branchtest=True,
+            archive_mode=True,
         )
         for conn, server_or_owner, project_or_repo in CONFIG_REPOS
     ]

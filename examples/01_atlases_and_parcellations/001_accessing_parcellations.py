@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _001_accessing_parcellations
+:bdg-success:`Basic`
+
 Selecting preconfigured parcellations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

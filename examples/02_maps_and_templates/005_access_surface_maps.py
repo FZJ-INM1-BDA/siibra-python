@@ -14,6 +14,9 @@
 # limitations under the License.
 
 """
+.. _005_access_surface_maps
+:bdg-secondary:`Intermediate`
+
 Access parcellation maps in surface space
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -71,4 +74,3 @@ plotting.view_surf(
     surf_map=mesh['labels'],
     cmap=julich_brain_cmap, symmetric_cmap=False, colorbar=False
 )
-# %%

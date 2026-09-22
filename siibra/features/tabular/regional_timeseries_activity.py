@@ -231,7 +231,16 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         indices = [self.regions.index(r) for r in regions]
         table = self.data.iloc[:, indices]
         table.columns = [str(r) for r in table.columns]
-        return table.mean().plot(kind="bar", *args, backend=backend, **kwargs)
+        regional_averages = tabular.Tabular(
+            description=self.description,
+            modality=f"{self.modality} {self.cohort}",
+            anchor=_anchor.AnatomicalAnchor(
+                species=list(self.anchor.species)[0],
+                region=self.anchor.parcellations[0]
+            ),
+            data=pd.DataFrame(table.mean())
+        )
+        return regional_averages.plot(kind="bar", *args, backend=backend, **kwargs)
 
     def plot_carpet(
         self, regions: List[Union[str, "_region.Region"]] = None, *args,
@@ -262,11 +271,13 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
             "xlabel": self.data.index.to_numpy(dtype='timedelta64[ms]')}
         )
         from plotly.express import imshow
-        return imshow(
+        fig = imshow(
             *args,
             table.T,
             **kwargs
         )
+        fig.update_layout(xaxis_title=f"time ({self.timestep[1]})")
+        return fig
 
 
 class RegionalBOLD(

@@ -295,7 +295,7 @@ class BigBrain1MicronPatchQuery(
             query_vol = from_array(arr, img.affine, space=concept.space, name="filtered volume")
         else:
             query_vol = concept
-        bb_bbox = query_vol.get_boundingbox().warp('bigbrain')
+        bb_bbox = query_vol.get_boundingbox(clip=True).warp('bigbrain')
 
         # find 1 micron BigBrain sections intersecting the thresholded volume
         sections: List[CellbodyStainedSection] = [

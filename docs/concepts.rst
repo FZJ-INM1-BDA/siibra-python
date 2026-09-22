@@ -1,6 +1,6 @@
-..  _glossary:
-Glossary
-==============================
+..  _concepts:
+Main Concepts
+=============
 
 A typical brain atlas consists of 
 
