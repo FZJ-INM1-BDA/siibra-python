@@ -15,6 +15,7 @@
 """Handles reading and preparing gii files."""
 
 from typing import Union, Dict
+import os
 
 import numpy as np
 
@@ -22,6 +23,14 @@ from . import provider as _provider
 from ...retrieval import requests
 from ...commons import logger, merge_meshes
 from ...locations import boundingbox as _boundingbox
+
+
+def get_loader(src: str) -> requests.HttpRequest:
+    if os.path.isfile(src):
+        return requests.FileLoader(src)
+    req = requests.HttpRequest(src)
+    req.cachefile += ".gii"  # so the cached file's suffix identifies the format
+    return req
 
 
 class GiftiMesh(_provider.VolumeProvider, srctype="gii-mesh"):
@@ -34,13 +43,11 @@ class GiftiMesh(_provider.VolumeProvider, srctype="gii-mesh"):
         self.volume = volume
         # TODO duplicated code to NgMesh
         if isinstance(url, str):  # single mesh
-            self._loaders = {None: requests.HttpRequest(url)}
+            self._loaders = {None: get_loader(url)}
         elif isinstance(url, dict):   # named mesh fragments
-            self._loaders = {lbl: requests.HttpRequest(u) for lbl, u in url.items()}
+            self._loaders = {lbl: get_loader(u) for lbl, u in url.items()}
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
-        for req in self._loaders.values():
-            req.cachefile += ".gii"
 
     @property
     def _url(self) -> Union[str, Dict[str, str]]:
@@ -122,13 +129,13 @@ class GiftiSurfaceLabeling(_provider.VolumeProvider, srctype="gii-label"):
     def __init__(self, url: Union[str, dict]):
         self._init_url = url
         if isinstance(url, str):  # single mesh labelling
-            self._loaders = {None: requests.HttpRequest(url)}
-        elif isinstance(url, dict):   # labelling for multiple mesh fragments
-            self._loaders = {lbl: requests.HttpRequest(u) for lbl, u in url.items()}
+            self._loaders = {None: get_loader(url)}
+        elif isinstance(url, dict):  # labelling for multiple mesh fragments
+            self._loaders = {lbl: get_loader(u) for lbl, u in url.items()}
         else:
-            raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
-        for req in self._loaders.values():
-            req.cachefile += ".gii"
+            raise NotImplementedError(
+                f"Urls for {self.__class__.__name__} are expected to be of type str or dict."
+            )
 
     def fetch(self, fragment: str = None, label: int = None, **kwargs):
         """Returns a 1D numpy array of label indices."""
@@ -165,11 +172,9 @@ class GiftiTimeSeries(_provider.VolumeProvider, srctype="gii-timeseries"):
     def __init__(self, url: dict):
         self._init_url = url
         if isinstance(url, dict):   # labelling for multiple mesh fragments
-            self._loaders = {frag: requests.HttpRequest(u) for frag, u in url.items()}
+            self._loaders = {frag: get_loader(u) for frag, u in url.items()}
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
-        for req in self._loaders.values():
-            req.cachefile += ".gii"
 
     @property
     def fragments(self):
