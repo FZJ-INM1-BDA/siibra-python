@@ -518,6 +518,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         -------
         parcellationmap.Map
         """
+        if not self.is_labelled:
+            raise ValueError(f"Compression is not possible for {self.maptype} maps.")
+
         key = tuple(sorted(kwargs.items()))
         try:
             compressed = self._compressed_cached.get(key)
@@ -685,6 +688,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         ------
         Nifti1Image
         """
+        if not self.is_labelled:
+            raise NotImplementedError("Since statistical maps can overlap, this is not yet implemented.")
+
         if isinstance(values, dict):
             resolved = {}
             for spec, value in values.items():
@@ -1193,7 +1199,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if kwargs:
             logger.info(f"The keywords {[k for k in kwargs]} are not passed on during volume assignment.")
 
-        assert queryvolume.space == self.space, ValueError("Assigned volume must be in the same space as the map.")
+        if queryvolume.space != self.space:
+            raise ValueError("Assigned volume must be in the same space as the map.")
 
         if split_components:
             iter_components = lambda arr: connected_components(arr)
@@ -1304,6 +1311,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         across multiple fragments are therefore compressed and relabelled before
         generating the table.
         """
+        if not self.is_labelled:
+            raise NotImplementedError("Currently, there is not LUT standard defined by BIDS for statistical maps.")
+
         needs_merge = len(self.volumes) > 1 or bool(self.fragments)
         if needs_merge and "gii-label" not in self.formats:
             logger.info(f"{self} has {len(self.volumes)} volume(s)/{len(self.fragments)} fragment(s); "
@@ -1340,8 +1350,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def _as_surfaceimage(self, variant: str = None):
         from nilearn.surface import SurfaceImage, PolyData
 
-        assert "gii-label" in self.formats
-        assert len(self.volumes) == 1
+        if "gii-label" in self.formats:
+            raise ValueError("`SurfaceImage` representation is only possible for 'gii-label' maps.")
+        if len(self.volumes) > 1:
+            raise ValueError("`SurfaceImage` representation is only possible for maps with single and hemisphere fragemented maps.")
 
         giilabel_filemap = {}
         for frag in self.fragments:
@@ -1371,10 +1383,18 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         except ImportError:
             ...
 
+        if not self.is_labelled:
+            raise NotImplementedError(
+                f"Nilearn maskers for {self.maptype} maps are provided by SparseMap, "
+                "which projects the data onto the maps instead of summarizing labelled "
+                "regions. Convert this map with `to_sparse()` first."
+            )
+
         needs_merge = len(self.volumes) > 1 or bool(self.fragments)
         mp = self.compress() if self.provides_image and needs_merge else self
 
-        assert "lut" not in masker_kwargs, ValueError("siibra handles `lut` parameter based on the map.")
+        if "lut" in masker_kwargs:
+            raise ValueError("siibra handles `lut` parameter based on the map.")
         masker_kwargs.setdefault("verbose", 1)
         masker_kwargs.setdefault("strategy", strategy)
         masker_kwargs["lut"] = mp.to_BIDS_lookup_table()
@@ -1454,10 +1474,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             **masker_kwargs
         )
 
-        if "gii-timeseries" in volume.formats:
+        if self.provides_image and volume.provides_image:
+            source = volume.fetch()
+        elif self.provides_mesh and volume.provides_mesh:
             source = volume._as_surfaceimage(variant=surface_variant)
         else:
-            source = volume.fetch()
+            raise ValueError(
+                f"Cannot extract signals from {volume} with {self}: the map provides "
+                f"{'image' if self.provides_image else 'mesh'} data while the input provides "
+                f"{'image' if volume.provides_image else 'mesh'} data."
+            )
 
         # np.asarray normalizes plain and pandas output alike. (set_output(transform="pandas")
         # raises NotImplementedError before nilearn 0.13, and the column names it

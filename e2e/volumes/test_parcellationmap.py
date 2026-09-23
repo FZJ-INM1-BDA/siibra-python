@@ -1,15 +1,13 @@
 import pytest
 import siibra
 
-from siibra import MapType
 from siibra.volumes import Map
 from siibra.volumes.volume import Subvolume
 
 import numpy as np
 
 maps_to_compress = [
-    siibra.get_map("2.9", "mni152"),  # contains fragments
-    siibra.get_map("difumo 64", "mni152", MapType.STATISTICAL),  # contains subvolumes
+    siibra.get_map("julich 2.9", "mni152"),  # contains fragments
 ]
 
 

@@ -467,19 +467,23 @@ class SparseMap(parcellationmap.Map):
 
         return assignments
 
-    def as_nilearn_masker(self, **makser_kwargs) -> "NiftiMapsMasker":
+    def as_nilearn_masker(self, **masker_kwargs) -> "NiftiMapsMasker":
         from nilearn import maskers
 
-        assert makser_kwargs.pop("surface_variant", None) is None
-        strategy = makser_kwargs.pop("strategy", None)
-        assert strategy is None, "`strategy` is not available for extracting signals from probability maps."
+        if not self.provides_image:
+            raise NotImplementedError("Surface representation of statistical maps is not yet implemented.")
+        if masker_kwargs.pop("surface_variant", None) is not None:
+            raise ValueError("Statistical maps have no surface representation, so `surface_variant` does not apply.")
+        strategy = masker_kwargs.pop("strategy", None)
+        if strategy is not None:
+            raise ValueError("`strategy` is not available for extracting signals from statistical maps.")
 
         maps_stacked = self._stack_maps()
 
-        makser_kwargs.setdefault("resampling_target", "data")
-        makser_kwargs.setdefault("verbose", 1)
+        masker_kwargs.setdefault("resampling_target", "data")
+        masker_kwargs.setdefault("verbose", 1)
 
-        masker = maskers.NiftiMapsMasker(maps_stacked, **makser_kwargs)
+        masker = maskers.NiftiMapsMasker(maps_stacked, **masker_kwargs)
         return masker
 
     def _stack_maps(self):

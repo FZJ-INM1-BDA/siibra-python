@@ -988,7 +988,8 @@ def from_url(
     if isinstance(urls, str):
         urls = {None: urls}
     for url in urls.values():
-        assert url.startswith("https://"), ValueError(f"Expected an https URL, got: {url!r}")
+        if not url.startswith("https://"):
+            raise ValueError(f"Expected an https URL, got: {url!r}")
 
     return _from_mapping(urls, space=space, format=format, time=time, name=name)
 
