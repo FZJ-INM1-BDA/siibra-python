@@ -7,17 +7,18 @@ from siibra.volumes.volume import Subvolume
 import numpy as np
 
 maps_to_compress = [
-    siibra.get_map("julich 2.9", "mni152"),  # contains fragments
+    siibra.get_map("julich 2.9", "mni152"),  # contains volumes in fragments
+    siibra.get_map("julich 2.9", "bigbrain"),  # contains volumes as masks
+    siibra.get_map("julich 2.9", "fsaverage"),  # contains meshes in fragments
 ]
 
 
 @pytest.mark.parametrize("siibramap", maps_to_compress)
 def test_compress(siibramap: Map):
-    assert any(
-        [
-            any(isinstance(vol, Subvolume) for vol in siibramap.volumes),
-            len(siibramap.fragments) > 0,
-        ]
+    assert (
+        len(siibramap.fragments) > 0
+        or any(isinstance(vol, Subvolume) for vol in siibramap.volumes)
+        or (len(siibramap.volumes) > 1 and siibramap.is_labelled)
     )
     compressed_map = siibramap.compress()
     assert all(
@@ -26,6 +27,8 @@ def test_compress(siibramap: Map):
             len(compressed_map.fragments) == 0,
         ]
     )
+    assert len(compressed_map.regions) == len(siibramap.regions)
+    assert compressed_map.labels == set(range(1, len(compressed_map.regions) + 1))
 
 
 maps_have_volumes = [
