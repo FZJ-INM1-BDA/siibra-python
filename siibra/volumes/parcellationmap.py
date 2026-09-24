@@ -321,6 +321,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         return {d.label for v in self._indices.values() for d in v}
 
     @property
+    def has_unique_labels(self) -> bool:
+        """
+        True if every mapped region carries a distinct label across all volumes and
+        fragments. Surface and fragmented volumetric maps are commonly labelled per
+        hemisphere, so the same label may denote two different regions.
+        """
+        labels = [ix.label for ixs in self._indices.values() for ix in ixs]
+        return None not in labels and len(labels) == len(set(labels))
+
+    @property
     def maptype(self) -> MapType:
         if all(isinstance(_, int) for _ in self.labels):
             return MapType.LABELLED
@@ -546,8 +556,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         if not self.is_labelled:
             raise ValueError(f"Compression is not possible for {self.maptype} maps.")
-        if len(self.volumes) == 1 and not self.fragments:
-            raise RuntimeError("The map cannot be merged since there are no multiple volumes or fragments.")
+        if len(self.volumes) == 1 and (not self.fragments or self.has_unique_labels):
+            raise RuntimeError(
+                "The map cannot be compressed: it is already a single, uniquely labelled volume."
+            )
 
         key = tuple(sorted(kwargs.items()))
         try:
@@ -1485,8 +1497,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if not self.is_labelled:
             raise NotImplementedError("Currently, there is not LUT standard defined by BIDS for statistical maps.")
 
-        if len(self.volumes) > 1 or self.fragments:
-            logger.warning(
+        if len(self.volumes) > 1 or not self.has_unique_labels:
+            logger.info(
                 f"{self} has {len(self.volumes)} volume(s)/{len(self.fragments)} fragment(s); "
                 "siibra will compress and reindex it for BIDS compatibility."
             )
@@ -1657,13 +1669,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         if self.provides_image and volume.provides_image:
             source = volume.fetch()
-        elif self.provides_mesh and volume.provides_mesh:
+        elif "gii-label" in self.formats and "gii-timeseries" in volume.formats:
             source = volume._as_surfaceimage(variant=surface_variant)
         else:
             raise ValueError(
-                f"Cannot extract signals from {volume} with {self}: the map provides "
-                f"{'image' if self.provides_image else 'mesh'} data while the input provides "
-                f"{'image' if volume.provides_image else 'mesh'} data."
+                f"Cannot extract signals from {volume} with {self}: no common representation. "
+                f"The map provides {sorted(self.formats)}, the input provides {sorted(volume.formats)}."
             )
 
         # np.asarray normalizes plain and pandas output alike. (set_output(transform="pandas")
