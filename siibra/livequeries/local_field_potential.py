@@ -137,8 +137,8 @@ class RegionalLFPQuery(
             (row.pathology, row.pharmacology, row.signal_quality)
             for row in df.itertuples()
         }
-        for whs_label in set(df["whs_label"]):
-            for pat, phar, sq in available_tuples:
+        for whs_label in sorted(set(df["whs_label"])):
+            for pat, phar, sq in sorted(available_tuples, key=str):
                 mask = (
                     (df["whs_label"] == whs_label)
                     & (df["pathology"] == pat)
