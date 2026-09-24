@@ -1680,9 +1680,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # np.asarray normalizes plain and pandas output alike. (set_output(transform="pandas")
         # raises NotImplementedError before nilearn 0.13, and the column names it
         # produces are the ones we assign below anyway.)
-        signals = np.asarray(
+        signals = np.atleast_2d(np.asarray(
             masker.fit_transform(source, confounds=confounds, sample_mask=sample_mask)
-        )
+        ))
 
         if self.is_labelled:
             # region_names_ maps output column index -> region name. It is available on
