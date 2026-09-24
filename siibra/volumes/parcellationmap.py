@@ -535,6 +535,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         neither building nor using it holds the full volume in RAM. Results are also
         cached per instance, keyed by the fetch arguments.
 
+        Note
+        ----
+        Labels that no region claims are dropped to background. Surface maps
+        sometimes carry such labels for technical reasons (e.g. a brainstem label
+        so the map loads in freesurfer) and they have no name to report.
+
         Parameters
         ----------
         **kwargs

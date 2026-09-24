@@ -21,14 +21,22 @@ def test_compress(siibramap: Map):
         or (len(siibramap.volumes) > 1 and siibramap.is_labelled)
     )
     compressed_map = siibramap.compress()
-    assert all(
-        [
-            not any(isinstance(vol, Subvolume) for vol in compressed_map.volumes),
-            len(compressed_map.fragments) == 0,
-        ]
-    )
-    assert len(compressed_map.regions) == len(siibramap.regions)
-    assert compressed_map.labels == set(range(1, len(compressed_map.regions) + 1))
+
+    # one volume, no subvolumes, whatever the source looked like
+    assert len(compressed_map.volumes) == 1
+    assert not any(isinstance(vol, Subvolume) for vol in compressed_map.volumes)
+
+    # surface maps keep their fragments: a vertex belongs to exactly one hemisphere,
+    # so there is nothing to merge and the labels alone carry the distinction
+    if siibramap.provides_image:
+        assert len(compressed_map.fragments) == 0
+    else:
+        assert compressed_map.fragments == siibramap.fragments
+
+    # every region survives, and labels are unique and sequential from 1
+    assert set(compressed_map.regions) == set(siibramap.regions)
+    n_mapped = sum(len(indices) for indices in siibramap._indices.values())
+    assert compressed_map.labels == set(range(1, n_mapped + 1))
 
 
 maps_have_volumes = [
