@@ -94,7 +94,7 @@ class RepositoryConnector(ABC):
         Returns an iterator with lazy loaders for the files in a given folder.
         In each iteration, a tuple (filename,file content) is returned.
         """
-        fnames: List[str] = self.search_files(folder, suffix, recursive)
+        fnames: List[str] = sorted(self.search_files(folder, suffix, recursive))
         result = [
             (fname, self.get_loader(fname, decode_func=decode_func)) for fname in fnames
         ]
