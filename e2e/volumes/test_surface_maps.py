@@ -50,4 +50,5 @@ def test_labels_without_a_region_are_dropped(siibramap):
     observed = set()
     for fragment in compressed.fragments:
         observed |= set(np.unique(prov.fetch(fragment=fragment)["labels"]))
-    assert observed - {0} == compressed.labels
+    unnamed = (observed - {0}) - compressed.labels
+    assert not unnamed, f"{len(unnamed)} label(s) with no region survived compression: {sorted(unnamed)}"

@@ -738,8 +738,18 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         The label arrays are one per-vertex value per fragment, well under a megabyte
         even for the densest fsaverage mesh, so they are held in memory rather than
         memory-mapped, and written as GIFTI label files.
+
+        Results are cached per fragment as GIFTI label files; a cache hit skips the
+        relabelling and therefore also its warnings about unnamed labels and empty
+        regions.
         """
         from nibabel import gifti
+        from os import replace
+
+        if len(self.volumes) > 1:
+            raise NotImplementedError(
+                f"{self} provides {len(self.volumes)} surface volumes; compression expects one."
+            )
 
         prov = self.volumes[0]._providers["gii-label"]
         filemap, region_indices = {}, defaultdict(list)
@@ -758,17 +768,29 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 # GIFTI data arrays support uint8, int32 and float32 only
                 relabelled = np.zeros_like(data, dtype="int32")
                 observed = set(np.unique(data)) - {0}
-                for index, _, newlabel in entries:
-                    relabelled[data == index.label] = newlabel
+                unmapped = []
+                for index, regionname, newlabel in entries:
+                    selection = data == index.label
+                    if not selection.any():
+                        unmapped.append(regionname)
+                    relabelled[selection] = newlabel
                     observed.discard(index.label)
+
                 if observed:
                     logger.warning(
                         f"Labels {sorted(observed)} are observed in fragment '{fragment}' of "
                         f"{self}, but no region is defined for them."
                     )
+                if unmapped:
+                    logger.warning(
+                        f"{len(unmapped)} region(s) have no vertices in fragment "
+                        f"'{fragment}' of {self}:\n{unmapped}"
+                    )
+                tempfile = CACHE.build_filename(f"{signature}-{fragment}-temp", suffix=".label.gii")
                 gifti.GiftiImage(darrays=[
                     gifti.GiftiDataArray(relabelled, intent="NIFTI_INTENT_LABEL")
-                ]).to_filename(filename)
+                ]).to_filename(tempfile)
+                replace(tempfile, filename)
 
             for index, regionname, newlabel in entries:
                 region_indices[regionname].append(
