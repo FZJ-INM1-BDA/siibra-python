@@ -786,7 +786,7 @@ class CompoundFeature(Feature):
         Feature.__init__(
             self,
             modality=modality,
-            description="\n".join({f.description for f in elements}),
+            description="\n".join(dict.fromkeys((f.description for f in elements))),
             anchor=self._feature_type._merge_anchors([f.anchor for f in elements]),
             datasets=list(dict.fromkeys([ds for f in elements for ds in f.datasets])),
             prerelease=all(f._prerelease for f in elements),
