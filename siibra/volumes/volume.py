@@ -653,7 +653,9 @@ class Volume(structure.BrainStructure):
     def _as_surfaceimage(self, variant: str = None):
         from nilearn.surface import SurfaceImage
 
-        assert "gii-timeseries" in self.formats, "Only possible for timeseries giftis."
+        if "gii-timeseries" not in self.formats:
+            raise ValueError("Only possible for timeseries giftis.")
+
         provider = self._providers["gii-timeseries"]
         assert isinstance(provider, _providers.GiftiTimeSeries)
 
