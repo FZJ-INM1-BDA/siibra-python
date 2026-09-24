@@ -170,7 +170,7 @@ class AnatomicalAnchor:
 
             skip_location_assignment = False
             if (
-                self._regionspec is not None
+                len(self.regions) > 0
                 and self.location is not None
                 and isinstance(concept, Region)
             ):
