@@ -35,6 +35,7 @@ import pandas as pd
 import json
 import pathlib
 import requests
+# sphinx_gallery_thumbnail_number = -2
 
 # %%
 # .. note::
