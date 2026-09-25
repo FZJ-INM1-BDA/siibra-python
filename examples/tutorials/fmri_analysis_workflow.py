@@ -158,13 +158,14 @@ restingstate_signals_stats
 # The bar height represents the mean extracted signal, and the error bars show
 # the standard deviation across time. These plots provide a simple summary of
 # which regions have the strongest average signal in each recording.
+fig, axs = plt.subplots(1, 2, figsize=(12, 5))
 restingstate_signals_stats.iloc[:10, :].plot(
-    title="resting state", kind="barh", y="mean", xerr="std"
+    ax=axs[0], title="resting state", kind="barh", y="mean", xerr="std"
 )
 workingmemory_signals_stats.iloc[:10, :].plot(
-    title="working memory", kind="barh", y="mean", xerr="std"
+    ax=axs[1], title="working memory", kind="barh", y="mean", xerr="std"
 )
-
+fig.tight_layout()
 # %%
 # To compare the two recordings, we take the union of the top-ranked regions
 # from the working-memory and resting-state summaries. We then create boxplots
@@ -177,24 +178,19 @@ union = workingmemory_signals_stats.index[:20].union(
 union_sorted = (
     workingmemory_signals_stats.loc[union, :].sort_values("mean", ascending=False).index
 )
+
+fig, ax = plt.subplots(figsize=(10, 10))
 workingmemory_signals[union_sorted].boxplot(
-    rot=90,
-    color="b",
-    label="working memory",
+    ax=ax, rot=90, color="b", label="working memory",
     flierprops={"marker": ".", "markeredgecolor": "b", "markersize": 3},
-    figsize=(10, 10)
 )
 restingstate_signals[union_sorted].boxplot(
-    rot=90,
-    color="r",
-    label="resting state",
+    ax=ax, rot=90, color="r", label="resting state",
     flierprops={"marker": ".", "markeredgecolor": "r", "markersize": 3},
-    figsize=(10, 10)
 )
-plt.legend()
-plt.title(f"Comparison of top {len(union_sorted)} regions for {subject}")
-plt.tight_layout()
-
+ax.legend()
+ax.set_title(f"Comparison of top {len(union_sorted)} regions for {subject}")
+fig.tight_layout()
 
 # %%
 # Instead of extracting the mean signal from each region, we can also use a
@@ -336,20 +332,17 @@ top_regions_sorted = (
     .sort_values("mean", ascending=False)
     .index
 )
+fig, ax = plt.subplots(figsize=(12, 10))
 colors = ["r", "g", "b"]
 for i, task in enumerate(tasks):
     regional_signal_averages[task].drop(columns="mean", inplace=True)
     regional_signal_averages[task].loc[top_regions_sorted, :].T.boxplot(
-        rot=90,
-        label=task,
+        ax=ax, rot=90, label=task, color=colors[i],
         flierprops={"marker": ".", "markersize": 1},
-        color=colors[i],
-        figsize=(12, 10)
     )
-plt.legend()
-plt.title("Comparison of top regions for between tasks across subjects")
-plt.tight_layout()
-plt.show()
+ax.legend()
+ax.set_title("Comparison of top regions between tasks across subjects")
+fig.tight_layout()
 
 
 # %%
