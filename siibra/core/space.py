@@ -127,3 +127,17 @@ class Space(concept.AtlasConcept, configuration_folder="spaces"):
     @property
     def provides_image(self):
         return any(v.provides_image for v in self.volumes)
+
+    def _as_polymesh(self, variant: str = None):
+        from nilearn.surface import PolyMesh
+
+        tmplt = self.get_template(variant=variant)
+        assert "gii-mesh" in tmplt.formats
+
+        giimesh_filemap = {}
+        for frag in tmplt.fragments["mesh"]:
+            loader = tmplt._providers["gii-mesh"]._loaders[frag]
+            loader._retrieve()
+            giimesh_filemap[frag.replace(' hemisphere', "")] = loader.cachefile
+
+        return PolyMesh(**giimesh_filemap)

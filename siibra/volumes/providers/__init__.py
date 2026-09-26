@@ -16,5 +16,5 @@
 
 from .neuroglancer import NeuroglancerProvider, NeuroglancerMesh
 from .nifti import NiftiProvider
-from .gifti import GiftiSurfaceLabeling, GiftiMesh
+from .gifti import GiftiSurfaceLabeling, GiftiMesh, GiftiTimeSeries
 from .freesurfer import ZippedFreesurferAnnot, FreesurferAnnot

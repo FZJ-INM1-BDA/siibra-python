@@ -1,33 +1,42 @@
 import pytest
 import siibra
 
-from siibra import MapType
 from siibra.volumes import Map
 from siibra.volumes.volume import Subvolume
 
 import numpy as np
 
 maps_to_compress = [
-    siibra.get_map("2.9", "mni152"),  # contains fragments
-    siibra.get_map("difumo 64", "mni152", MapType.STATISTICAL),  # contains subvolumes
+    siibra.get_map("julich 2.9", "mni152"),  # contains volumes in fragments
+    siibra.get_map("julich 2.9", "bigbrain"),  # contains volumes as masks
+    siibra.get_map("julich 2.9", "fsaverage"),  # contains meshes in fragments
 ]
 
 
 @pytest.mark.parametrize("siibramap", maps_to_compress)
 def test_compress(siibramap: Map):
-    assert any(
-        [
-            any(isinstance(vol, Subvolume) for vol in siibramap.volumes),
-            len(siibramap.fragments) > 0,
-        ]
+    assert (
+        len(siibramap.fragments) > 0
+        or any(isinstance(vol, Subvolume) for vol in siibramap.volumes)
+        or (len(siibramap.volumes) > 1 and siibramap.is_labelled)
     )
     compressed_map = siibramap.compress()
-    assert all(
-        [
-            not any(isinstance(vol, Subvolume) for vol in compressed_map.volumes),
-            len(compressed_map.fragments) == 0,
-        ]
-    )
+
+    # one volume, no subvolumes, whatever the source looked like
+    assert len(compressed_map.volumes) == 1
+    assert not any(isinstance(vol, Subvolume) for vol in compressed_map.volumes)
+
+    # surface maps keep their fragments: a vertex belongs to exactly one hemisphere,
+    # so there is nothing to merge and the labels alone carry the distinction
+    if siibramap.provides_image:
+        assert len(compressed_map.fragments) == 0
+    else:
+        assert compressed_map.fragments == siibramap.fragments
+
+    # every region survives, and labels are unique and sequential from 1
+    assert set(compressed_map.regions) == set(siibramap.regions)
+    n_mapped = sum(len(indices) for indices in siibramap._indices.values())
+    assert compressed_map.labels == set(range(1, n_mapped + 1))
 
 
 maps_have_volumes = [

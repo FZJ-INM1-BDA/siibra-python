@@ -15,9 +15,10 @@
 """Represents lists of probabilistic brain region maps."""
 
 from os import path, makedirs
-from typing import Dict, List
+from typing import Dict, List, TYPE_CHECKING
 
 import numpy as np
+import nibabel
 
 from . import parcellationmap, volume as _volume
 from .providers import provider
@@ -25,6 +26,10 @@ from ..commons import MapIndex, logger, connected_components, siibra_tqdm, resam
 from ..locations import boundingbox
 from ..retrieval.cache import CACHE
 from ..retrieval.requests import HttpRequest, FileLoader
+
+
+if TYPE_CHECKING:
+    from nilearn.maskers import NiftiMapsMasker
 
 
 class SparseIndex:
@@ -335,7 +340,8 @@ class SparseMap(parcellationmap.Map):
         queryvolume: "_volume.Volume",
         minsize_voxel: int,
         lower_threshold: float,
-        split_components: bool = True
+        split_components: bool = True,
+        time: int = None,
     ) -> List[parcellationmap.AssignImageResult]:
         """
         Assign an image volume to this sparse map.
@@ -384,10 +390,10 @@ class SparseMap(parcellationmap.Map):
                 continue
 
             spind = self.sparse_index
-
+            timeindexstr = f"-t={time}" if time else ""
             for volume in siibra_tqdm(
                 range(len(self)),
-                desc=f"Assigning structure #{mode} to {len(self)} sparse maps",
+                desc=f"Assigning structure #{mode}{timeindexstr} to {len(self)} sparse maps",
                 total=len(self),
                 unit=" map"
             ):
@@ -444,6 +450,7 @@ class SparseMap(parcellationmap.Map):
 
                 assignments.append(
                     parcellationmap.AssignImageResult(
+                        time=time,
                         input_structure=mode,
                         centroid=tuple(position.round(2)),
                         volume=volume,
@@ -459,3 +466,80 @@ class SparseMap(parcellationmap.Map):
                 )
 
         return assignments
+
+    def as_nilearn_masker(self, **masker_kwargs) -> "NiftiMapsMasker":
+        from nilearn import maskers
+
+        if not self.provides_image:
+            raise NotImplementedError("Surface representation of statistical maps is not yet implemented.")
+        if masker_kwargs.pop("surface_variant", None) is not None:
+            raise ValueError("Statistical maps have no surface representation, so `surface_variant` does not apply.")
+        strategy = masker_kwargs.pop("strategy", None)
+        if strategy is not None:
+            raise ValueError("`strategy` is not available for extracting signals from statistical maps.")
+
+        maps_stacked = self._stack_maps()
+
+        masker_kwargs.setdefault("resampling_target", "data")
+        masker_kwargs.setdefault("verbose", 1)
+
+        masker = maskers.NiftiMapsMasker(maps_stacked, **masker_kwargs)
+        return masker
+
+    def _stack_maps(self):
+        """
+        Stack all map volumes into a single memory-mapped 4D image.
+
+        This method constructs a 4D array with one volume per map and stores
+        it as a NumPy memory-mapped array on disk to reduce peak RAM usage
+        during stacking. The resulting array is wrapped as a Niimg-like
+        object compatible with Nilearn's :class:`~nilearn.maskers.NiftiMapsMasker`.
+
+        Notes
+        -----
+        - All input maps must have identical spatial dimensions and affine
+        transformations.
+        - The stacked array is stored in a cache-backed ``.npy`` file and
+        accessed through NumPy memmapping, allowing incremental writes
+        without allocating the full 4D array in memory.
+        - Although this reduces memory usage during construction of the
+        stacked maps, downstream processing in Nilearn (e.g. resampling)
+        may still require substantial memory depending on the target data.
+
+        Returns
+        -------
+        nibabel.Nifti1Image
+            A 4D image where the last dimension indexes the stacked maps.
+        """
+        from ..retrieval.cache import CACHE
+
+        first = self.volumes[0].fetch()
+        affine = first.affine
+        shape3d = first.shape[:3]
+        dtype = np.asanyarray(first.dataobj).dtype
+        shape4d = shape3d + (len(self.volumes),)
+
+        array_cache_file = CACHE.build_filename(
+            f"{self.parcellation}-{self.space}-{self.maptype}-{len(self.volumes)}-stacked",
+            suffix=".npy",
+        )
+
+        data = np.lib.format.open_memmap(
+            array_cache_file,
+            mode="w+",
+            dtype=dtype,
+            shape=shape4d,
+        )
+
+        for i, img3d in enumerate(self.fetch_iter()):
+            if img3d.shape[:3] != shape3d:
+                raise ValueError("All maps must have the same shape.")
+
+            if not np.allclose(img3d.affine, affine):
+                raise ValueError("All maps must have the same affine.")
+
+            data[..., i] = np.asanyarray(img3d.dataobj)
+
+        data.flush()
+
+        return nibabel.Nifti1Image(data, affine)
