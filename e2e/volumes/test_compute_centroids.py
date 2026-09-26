@@ -8,7 +8,7 @@ import siibra
 from siibra.volumes import Map
 from siibra.exceptions import NoneCoordinateSuppliedError
 
-TEST_ALL_MAPS = eval(os.getenv("TEST_ALL_MAPS", "False"))
+TEST_ALL_MAPS = eval(os.getenv("TEST_ALL_MAPS", "True"))
 
 preconfiugres_maps = list(siibra.maps)
 BLACKLIST = {
