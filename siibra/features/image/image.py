@@ -56,7 +56,6 @@ class ImageAnchor(_anchor.AnatomicalAnchor):
 class Image(
     feature.Feature,
     _volume.Volume,
-    configuration_folder="features/images",
     category="generic"
 ):
 
