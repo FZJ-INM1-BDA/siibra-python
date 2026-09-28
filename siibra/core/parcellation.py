@@ -16,12 +16,7 @@
 
 from functools import lru_cache
 import re
-from typing import Union, List, TYPE_CHECKING
-try:
-    from typing import Literal
-except ImportError:
-    # support python 3.7
-    from typing_extensions import Literal
+from typing import Union, List, TYPE_CHECKING, Literal
 
 from . import region
 from ..commons import logger, MapType, Species

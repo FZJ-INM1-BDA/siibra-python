@@ -9,12 +9,12 @@ jobs:
   test_tutorials:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # 7.0.0
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: 3.9
 
       - name: Install dependencies
         run: |
@@ -26,7 +26,7 @@ jobs:
           pip install pytest nbmake
 
       - name: checkout siibra-tutorials
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # 7.0.0
         with:
           repository: FZJ-INM1-BDA/siibra-tutorials
           path:  siibra-tutorials-${{ github.run_id }}-${{ github.run_number }}

@@ -11,14 +11,14 @@ concurrency:
 
 jobs:
   coverage:
-    runs-on: ubuntu-22.04  # use ubuntu-latest when python 3.7 is dropped
+    runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.7
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # 7.0.0
+    - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.7
+        python-version: 3.9
 
     - name: Install dependencies
       run: |

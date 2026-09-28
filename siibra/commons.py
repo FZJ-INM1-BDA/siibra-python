@@ -22,12 +22,18 @@ from dataclasses import dataclass
 from hashlib import md5
 from uuid import UUID
 import math
-from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict, Generator, Tuple
-try:
-    from typing import TypedDict
-except ImportError:
-    # support python 3.7
-    from typing_extensions import TypedDict
+from typing import (
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    TypeVar,
+    Union,
+    Dict,
+    Generator,
+    Tuple,
+    TypedDict,
+)
 
 from tqdm import tqdm
 import numpy as np
@@ -55,7 +61,7 @@ SIIBRA_USE_CONFIGURATION = os.getenv("SIIBRA_USE_CONFIGURATION")
 SIIBRA_USE_LOCAL_SNAPSPOT = os.getenv("SIIBRA_USE_LOCAL_SNAPSPOT")
 SKIP_CACHEINIT_MAINTENANCE = os.getenv("SKIP_CACHEINIT_MAINTENANCE")
 SIIBRA_MAX_FETCH_SIZE_BYTES = float(os.getenv("SIIBRA_MAX_FETCH_SIZE_BYTES", 0.2 * 1024 ** 3))
-SIIBRA_NG_VOL_USE_CACHE = eval(os.getenv("SIIBRA_NG_VOL_USE_CACHE", "False"))
+SIIBRA_NG_VOL_USE_CACHE = os.getenv("SIIBRA_NG_VOL_USE_CACHE", "false").strip().lower() in ("1", "true", "yes", "on")
 
 with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
     __version__ = fp.read().strip()

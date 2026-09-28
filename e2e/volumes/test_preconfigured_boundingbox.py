@@ -8,7 +8,7 @@ import siibra
 from siibra.features.image.image import Image
 from siibra.volumes.volume import Volume
 
-TEST_ALL_PRECONF_BBOXES = eval(os.getenv("TEST_ALL_PRECONF_BBOXES", "False"))
+TEST_ALL_PRECONF_BBOXES = os.getenv("TEST_ALL_PRECONF_BBOXES", "False").strip().lower() in ("1", "true", "yes", "on")
 RANDOM_SEED = os.getenv("RANDOM_SEED", None if TEST_ALL_PRECONF_BBOXES else int(time()))
 RANDOM_TEST_COUNT = os.getenv(
     "RANDOM_TEST_COUNT", None if TEST_ALL_PRECONF_BBOXES else 20

@@ -14,11 +14,7 @@
 # limitations under the License.
 
 from zipfile import ZipFile
-from typing import Callable, Union, List, Tuple, Iterator
-try:
-    from typing import Literal
-except ImportError:  # support python 3.7
-    from typing_extensions import Literal
+from typing import Callable, Union, List, Tuple, Iterator, Literal
 
 import numpy as np
 import pandas as pd

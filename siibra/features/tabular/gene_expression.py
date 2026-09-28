@@ -14,11 +14,7 @@
 # limitations under the License.
 
 from textwrap import wrap
-from typing import List
-try:
-    from typing import TypedDict
-except ImportError:
-    from typing_extensions import TypedDict
+from typing import List, TypedDict
 
 import pandas as pd
 

@@ -41,7 +41,7 @@ setup(
         "Operating System :: OS Independent",
         "Intended Audience :: Developers",
     ],
-    python_requires=">=3.7",
+    python_requires=">=3.9",
     install_requires=[
         "anytree",
         "nibabel",
@@ -50,7 +50,6 @@ setup(
         "requests",
         "neuroglancer-scripts",
         "nilearn",
-        'typing-extensions; python_version < "3.8"',
         "filelock",
         "ebrains-drive >= 0.6.0",
         "h5py",

@@ -17,12 +17,7 @@
 import re
 from abc import ABC, abstractmethod
 from hashlib import md5
-from typing import Union, List
-try:
-    from typing import TypedDict
-except ImportError:
-    # support python 3.7
-    from typing_extensions import TypedDict
+from typing import Union, List, TypedDict
 
 from .requests import MultiSourcedRequest, GitlabProxy, GitlabProxyEnum
 
