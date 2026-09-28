@@ -14,7 +14,12 @@
 # limitations under the License.
 """Multimodal data features as volumes."""
 
+from typing import NamedTuple
+
+import numpy as np
+
 from . import image
+from ...volumes import volume as _volume
 
 
 class CellBodyStainedVolumeOfInterest(
@@ -87,3 +92,26 @@ class MorphometryVolumeOfInterest(
 ):
     def __init__(self, modality, **kwargs):
         image.Image.__init__(self, **kwargs, modality=modality)
+
+
+class FMRIVolumeOfInterest(
+    image.Image,
+    _volume.TimeSeriesVolume,
+    configuration_folder="features/images/vois/fmri",
+    category="functional"
+):
+    class TimeIndexGenerator(NamedTuple):
+        start: float
+        stop: float
+        num: int
+
+    def __init__(self, modality: str, time=None, **kwargs):
+        if isinstance(time, self.TimeIndexGenerator):
+            timeindex = np.linspace(time.start, time.stop, time.num)
+        elif isinstance(time, dict):
+            timeindex = np.linspace(time["start"], time["stop"], time["num"])
+        elif time is None:
+            timeindex = []                      # inferred from the data (see #9)
+        else:
+            timeindex = np.asanyarray(time)
+        image.Image.__init__(self, **kwargs, time=timeindex, modality=modality)

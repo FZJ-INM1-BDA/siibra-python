@@ -16,12 +16,10 @@
 
 from collections import defaultdict
 from dataclasses import dataclass, asdict
-from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
-
+from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, Literal, NamedTuple
 import numpy as np
 import pandas as pd
 from scipy.ndimage import distance_transform_edt
-from nilearn import image
 
 from . import volume as _volume
 from .providers import provider
@@ -47,6 +45,13 @@ from ..locations import location, point, pointcloud
 
 if TYPE_CHECKING:
     from ..core.region import Region
+    from nilearn.maskers import NiftiLabelsMasker, SurfaceLabelsMasker
+
+import json
+from itertools import groupby
+from os import path, rename
+
+from ..retrieval.cache import CACHE
 
 
 @dataclass
@@ -56,11 +61,18 @@ class MapAssignment:
     volume: int
     fragment: str
     map_value: np.ndarray
+    time: Union[int, float, None]
 
 
 @dataclass
 class AssignImageResult(CompareMapsResult, MapAssignment):
     pass
+
+
+class _CompressedMapSpec(NamedTuple):
+    """What a compression produces, before `compress()` wraps it as a Map."""
+    volumes: List[_volume.Volume]
+    indices: Dict[str, List[Dict]]
 
 
 class Map(concept.AtlasConcept, configuration_folder="maps"):
@@ -160,6 +172,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         duplicates = {x for x in all_indices if x in seen or seen.add(x)}
         self._nonunique_indices = duplicates
         self._affine_cached = None
+        self._compressed_cached: Dict[tuple, "Map"] = {}
 
     @property
     def key(self):
@@ -306,6 +319,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         not defined for one or more regions.
         """
         return {d.label for v in self._indices.values() for d in v}
+
+    @property
+    def has_unique_labels(self) -> bool:
+        """
+        True if every mapped region carries a distinct label across all volumes and
+        fragments. Surface and fragmented volumetric maps are commonly labelled per
+        hemisphere, so the same label may denote two different regions.
+        """
+        labels = [ix.label for ixs in self._indices.values() for ix in ixs]
+        return None not in labels and len(labels) == len(set(labels))
 
     @property
     def maptype(self) -> MapType:
@@ -456,12 +479,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     @property
     def fragments(self):
-        return {
+        return sorted({
             index.fragment
             for indices in self._indices.values()
             for index in indices
             if index.fragment is not None
-        }
+        })
 
     @property
     def provides_mesh(self):
@@ -498,82 +521,288 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def __iter__(self):
         return self.fetch_iter()
 
-    def compress(self, **kwargs):
+    def compress(self, **kwargs) -> "Map":
         """
-        Converts this map into a labelled 3D parcellation map, obtained by
-        taking the voxelwise maximum across the mapped volumes and fragments,
-        and re-labelling regions sequentially.
+        Convert this map into an equivalent map whose labels are unique across the
+        whole image or surface, re-labelling regions sequentially from 1.
+
+        Volumetric maps are merged into a single labelled volume on the grid of the
+        space template. Surface maps keep their fragments, since a vertex belongs to
+        exactly one of them, and are relabelled so that a label identifies one region
+        rather than one region per hemisphere.
+
+        The compressed image is built and kept as a memory-mapped array on disk, so
+        neither building nor using it holds the full volume in RAM. Results are also
+        cached per instance, keyed by the fetch arguments.
+
+        Note
+        ----
+        Labels that no region claims are dropped to background. Surface maps
+        sometimes carry such labels for technical reasons (e.g. a brainstem label
+        so the map loads in freesurfer) and they have no name to report.
 
         Parameters
         ----------
-        **kwargs: Takes the fetch arguments of its space's template.
+        **kwargs
+            Fetch arguments applied both to the space template, which defines the
+            output grid, and to the mapped volumes, so that sources are read at the
+            same resolution and resampling is usually unnecessary. `variant` is
+            passed to the template only.
 
         Returns
         -------
         parcellationmap.Map
+
+        Raises
+        ------
+        ValueError
+            If this map is not labelled.
+        RuntimeError
+            If there is nothing to merge.
         """
-        if len(self.volumes) == 1 and not self.fragments:
-            raise RuntimeError("The map cannot be merged since there are no multiple volumes or fragments.")
+        if not self.is_labelled:
+            raise ValueError(f"Compression is not possible for {self.maptype} maps.")
+        if len(self.volumes) == 1 and (not self.fragments or self.has_unique_labels):
+            raise RuntimeError(
+                "The map cannot be compressed: it is already a single, uniquely labelled volume."
+            )
 
-        # initialize empty volume according to the template
-        template_img = self.space.get_template().fetch(**kwargs)
-        result_arr = np.zeros_like(np.asanyarray(template_img.dataobj))
-        result_affine = template_img.affine
-        voxelwise_max = np.zeros_like(result_arr)
-        interpolation = 'nearest' if self.is_labelled else 'linear'
-        next_labelindex = 1
-        region_indices = defaultdict(list)
+        key = tuple(sorted(kwargs.items()))
+        try:
+            hash(key)
+        except TypeError:  # an unhashable fetch argument, e.g. target_affine
+            logger.debug(f"Cannot cache compression of {self} for {kwargs}.")
+            key = None
+        if key is not None and key in self._compressed_cached:
+            return self._compressed_cached[key]
 
-        for volidx in siibra_tqdm(
-            range(len(self.volumes)), total=len(self.volumes), unit='maps',
-            desc=f"Compressing {len(self.volumes)} {self.maptype.name.lower()} volumes into single-volume parcellation",
-            disable=(len(self.volumes) == 1)
-        ):
-            for frag in siibra_tqdm(
-                self.fragments, total=len(self.fragments), unit='maps',
-                desc=f"Compressing {len(self.fragments)} {self.maptype.name.lower()} fragments into single-fragment parcellation",
-                disable=(len(self.fragments) == 1 or self.fragments is None)
-            ):
-                mapindex = MapIndex(volume=volidx, fragment=frag)
-                img = self.fetch(index=mapindex)
-                if np.allclose(img.affine, result_affine):
-                    img_data = np.asanyarray(img.dataobj)
-                else:
-                    logger.debug(f"Compression requires to resample volume {volidx} ({interpolation})")
-                    img_data = np.asanyarray(
-                        resample_img_to_img(img, template_img).dataobj
-                    )
+        entries = sorted(
+            (index.volume, index.fragment or "", index.label, regionname)
+            for regionname, indices in self._indices.items()
+            for index in indices
+        )
+        relabelling_plan = [
+            (MapIndex(volume=vol, fragment=frag or None, label=label), regionname, newlabel)
+            for newlabel, (vol, frag, label, regionname) in enumerate(entries, start=1)
+        ]
+        # everything that shapes the result, so a changed configuration or changed
+        # fetch arguments never reuse a stale artifact
+        signature = json.dumps(
+            {
+                "map": self.id,
+                "space": self.space.id,
+                "kwargs": {k: str(v) for k, v in sorted(kwargs.items())},
+                "indices": [
+                    [index.volume, index.fragment, index.label, regionname]
+                    for index, regionname, _ in relabelling_plan
+                ],
+            },
+            sort_keys=True,  # ensure_ascii=True by default: CACHE encodes as ascii
+        )
 
-                if self.is_labelled:
-                    labels = set(np.unique(img_data)) - {0}
-                else:
-                    labels = {None}
+        if self.provides_image:
+            spec = self._compress_image_map(relabelling_plan, signature, **kwargs)
+        elif self.provides_mesh:
+            if kwargs:
+                logger.info(f"Fetch arguments {list(kwargs)} are ignored when compressing a surface map.")
+            spec = self._compress_surface_map(relabelling_plan, signature)
+        else:
+            raise NotImplementedError(f"{self} provides neither image nor mesh data to compress.")
 
-                for label in labels:
-                    with QUIET:
-                        mapindex.__setattr__("label", int(label))
-                        region = self.get_region(index=mapindex)
-                    if region is None:
-                        logger.warning(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
-                        continue
-                    region_indices[region.name].append({"volume": 0, "label": next_labelindex})
-                    if label is None:
-                        update_voxels = (img_data > voxelwise_max)
-                    else:
-                        update_voxels = (img_data == label)
-                    result_arr[update_voxels] = next_labelindex
-                    voxelwise_max[update_voxels] = img_data[update_voxels]
-                    next_labelindex += 1
-
-        return Map(
+        compressed = Map(
             identifier=f"{create_key(self.name)}_compressed",
             name=f"{self.name} compressed",
             space_spec=self._space_spec,
             parcellation_spec=self._parcellation_spec,
-            indices=region_indices,
+            indices=spec.indices,
+            volumes=spec.volumes,
+        )
+        if key is not None:
+            self._compressed_cached[key] = compressed
+        return compressed
+
+    def _compress_image_map(
+        self, plan: List[Tuple[MapIndex, str, int]], signature: str, **kwargs
+    ) -> "_CompressedMapSpec":
+        """
+        Merge the volumes and fragments of a volumetric map into a single labelled
+        volume on the template grid. See `compress()`.
+
+        Source volumes are streamed one at a time into a memory-mapped output array,
+        so peak memory is one source volume rather than the whole map. Where regions
+        overlap, the later entry of the relabelling plan wins; the number of
+        contested voxels is reported.
+        """
+        cachefile = CACHE.build_filename(signature, suffix=".npy")
+        metafile = f"{cachefile}.json"
+
+        if path.isfile(cachefile) and path.isfile(metafile):
+            try:
+                with open(metafile) as f:
+                    meta = json.load(f)
+                data = np.lib.format.open_memmap(cachefile, mode="r")
+                logger.debug(f"Reusing the compressed {self} from {cachefile}")
+                return _CompressedMapSpec(
+                    volumes=[_volume.from_array(
+                        data, np.array(meta["affine"]), self.space.id,
+                        name=self.name + " compressed", cache=False,
+                    )],
+                    indices=meta["indices"],
+                )
+            except (ValueError, OSError, KeyError):
+                logger.debug(f"Discarding unreadable compression cache {cachefile}")
+
+        # only the grid of the template is needed - never load its data, which for
+        # large templates (e.g. BigBrain) dominates both time and memory
+        variant = kwargs.pop("variant", None)
+        template_img = self.space.get_template(variant=variant).fetch(**kwargs)
+        shape, affine = tuple(template_img.shape[:3]), template_img.affine
+        dtype = np.min_scalar_type(len(plan))  # sized by region count, not by the template
+        nbytes = int(np.prod(shape)) * np.dtype(dtype).itemsize
+        gib = nbytes / 1024**3
+        logger.info(
+            f"Compressing {self} into a {gib:.2f} GiB labelled volume "
+            f"(shape {shape}, {np.dtype(dtype).name}) from {len(self.volumes)} volume(s)."
+        )
+
+        units = [(unit, list(entries)) for unit, entries in groupby(
+            plan, key=lambda entry: (entry[0].volume, entry[0].fragment)
+        )]
+
+        tempfile = f"{cachefile}_temp"
+        result = np.lib.format.open_memmap(tempfile, mode="w+", dtype=dtype, shape=shape)
+        region_indices = defaultdict(list)
+        contested, unmapped = 0, []
+        try:
+            with provider.SubvolumeProvider.UseCaching():
+                for (volume, fragment), entries in siibra_tqdm(
+                    units, total=len(units), unit=" maps",
+                    desc=f"Compressing {len(self.volumes)} volume(s) and "
+                         f"{len(self.fragments) or 1} fragment(s) of {self.name}",
+                    disable=len(units) == 1,
+                ):
+                    img = self.fetch(index=MapIndex(volume=volume, fragment=fragment), **kwargs)
+                    if tuple(img.shape[:3]) == shape and np.allclose(img.affine, affine):
+                        img_data = np.asanyarray(img.dataobj)
+                    else:
+                        logger.debug(f"Compression requires resampling volume {volume} (nearest)")
+                        img_data = np.asanyarray(resample_img_to_img(img, template_img).dataobj)
+
+                    observed = set(np.unique(img_data)) - {0}
+                    for index, regionname, newlabel in entries:
+                        update_voxels = img_data == index.label
+                        if not update_voxels.any():
+                            unmapped.append(regionname)
+                        contested += int(np.count_nonzero(result[update_voxels]))
+                        result[update_voxels] = newlabel
+                        region_indices[regionname].append({"volume": 0, "label": newlabel})
+                        observed.discard(index.label)
+                    if observed:
+                        logger.warning(
+                            f"Labels {sorted(observed)} are observed in volume {volume} "
+                            f"(fragment {fragment}) of {self}, but no region is defined for them."
+                        )
+                    del img_data
+            result.flush()
+        finally:
+            del result  # close the memmap before renaming, required on Windows
+
+        rename(tempfile, cachefile)
+        with open(metafile, "w") as f:
+            json.dump({"affine": affine.tolist(), "indices": region_indices}, f)
+
+        if contested:
+            logger.info(
+                f"{contested} voxel(s) are mapped by more than one region in {self}; "
+                "the last entry of the relabelling order was kept for each."
+            )
+        if unmapped:
+            logger.warning(f"{len(unmapped)} region(s) have no voxels after compression:\n{unmapped}")
+
+        return _CompressedMapSpec(
             volumes=[_volume.from_array(
-                result_arr, result_affine, self._space_spec, name=self.name + " compressed"
-            )]
+                np.lib.format.open_memmap(cachefile, mode="r"), affine, self.space.id,
+                name=self.name + " compressed", cache=False,
+            )],
+            indices=region_indices,
+        )
+
+    def _compress_surface_map(
+        self, plan: List[Tuple[MapIndex, str, int]], signature: str
+    ) -> "_CompressedMapSpec":
+        """
+        Relabel the fragments of a surface map so that every region has a globally
+        unique label. Fragments are preserved, since a vertex belongs to exactly one
+        of them. See `compress()`.
+
+        The label arrays are one per-vertex value per fragment, well under a megabyte
+        even for the densest fsaverage mesh, so they are held in memory rather than
+        memory-mapped, and written as GIFTI label files.
+
+        Results are cached per fragment as GIFTI label files; a cache hit skips the
+        relabelling and therefore also its warnings about unnamed labels and empty
+        regions.
+        """
+        from nibabel import gifti
+        from os import replace
+
+        if len(self.volumes) > 1:
+            raise NotImplementedError(
+                f"{self} provides {len(self.volumes)} surface volumes; compression expects one."
+            )
+
+        prov = self.volumes[0]._providers["gii-label"]
+        filemap, region_indices = {}, defaultdict(list)
+
+        units = [(unit, list(entries)) for unit, entries in groupby(
+            plan, key=lambda entry: (entry[0].volume, entry[0].fragment)
+        )]
+        for (_, fragment), entries in siibra_tqdm(
+            units, total=len(units), unit=" fragments",
+            desc=f"Relabelling {len(units)} surface fragment(s) of {self.name}",
+        ):
+            filename = CACHE.build_filename(f"{signature}-{fragment}", suffix=".label.gii")
+            if not path.isfile(filename):
+                # read from the provider: Volume.fetch() would also pull the template mesh
+                data = prov.fetch(fragment=fragment)["labels"]
+                # GIFTI data arrays support uint8, int32 and float32 only
+                relabelled = np.zeros_like(data, dtype="int32")
+                observed = set(np.unique(data)) - {0}
+                unmapped = []
+                for index, regionname, newlabel in entries:
+                    selection = data == index.label
+                    if not selection.any():
+                        unmapped.append(regionname)
+                    relabelled[selection] = newlabel
+                    observed.discard(index.label)
+
+                if observed:
+                    logger.warning(
+                        f"Labels {sorted(observed)} are observed in fragment '{fragment}' of "
+                        f"{self}, but no region is defined for them."
+                    )
+                if unmapped:
+                    logger.warning(
+                        f"{len(unmapped)} region(s) have no vertices in fragment "
+                        f"'{fragment}' of {self}:\n{unmapped}"
+                    )
+                tempfile = CACHE.build_filename(f"{signature}-{fragment}-temp", suffix=".label.gii")
+                gifti.GiftiImage(darrays=[
+                    gifti.GiftiDataArray(relabelled, intent="NIFTI_INTENT_LABEL")
+                ]).to_filename(tempfile)
+                replace(tempfile, filename)
+
+            for index, regionname, newlabel in entries:
+                region_indices[regionname].append(
+                    {"volume": 0, "fragment": fragment, "label": newlabel}
+                )
+            filemap[fragment] = filename
+
+        return _CompressedMapSpec(
+            volumes=[_volume.from_file(
+                filemap, space=self.space.id, name=self.name + " compressed", format="gii-label",
+            )],
+            indices=region_indices,
         )
 
     def compute_centroids(self, split_components: bool = True, **fetch_kwargs) -> Dict[str, pointcloud.PointCloud]:
@@ -641,9 +870,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         -------
         Volume
         """
+        from nilearn.image import resample_to_img
+
         source_template = self.space.get_template().fetch()
         map_image = self.fetch(**fetch_kwargs)
-        img = image.resample_to_img(source_template, map_image, interpolation='continuous')
+        img = resample_to_img(source_template, map_image, interpolation='continuous')
         return _volume.from_array(
             data=img.dataobj,
             affine=img.affine,
@@ -653,10 +884,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def colorize(
         self,
-        values: dict,
-        background_value: Union[int, float] = 0,
-        **kwargs
-    ) -> _volume.Volume:
+        values: Union[dict, "pd.Series", "pd.DataFrame"],
+        background_label: Union[int, float] = 0,
+        **masker_kwargs
+    ):
         """Colorize the map with the provided regional values.
 
         Parameters
@@ -668,42 +899,30 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         ------
         Nifti1Image
         """
-        from hashlib import md5
-        from nibabel import Nifti1Image
+        if not self.is_labelled:
+            raise NotImplementedError("Since statistical maps can overlap, this is not yet implemented.")
 
-        values_dtype = np.min_scalar_type(next(iter(values.values())))
-        result = None
-        for volidx, vol in enumerate(self.fetch_iter(**kwargs)):
-            if isinstance(vol, dict):
-                raise NotImplementedError("Map colorization not yet implemented for meshes.")
-            img_arr = np.asanyarray(vol.dataobj, dtype=values_dtype)
-            maxarr = np.zeros_like(img_arr)
-            for r, value in values.items():
-                index = self.get_index(r)
-                if index.volume != volidx:
+        if isinstance(values, dict):
+            resolved = {}
+            for spec, value in values.items():
+                matched = set(self.find_indices(spec).values())   # {MapIndex: regionname}
+                if not matched:
+                    logger.warning(f"'{spec}' is not mapped in {self} - skipped in colorization.")
                     continue
-                if result is None:
-                    result = np.zeros_like(img_arr, dtype=values_dtype) + background_value
-                    affine = vol.affine
-                    result_header = vol.header
-                    result_header.set_data_dtype(values_dtype)
-                if index.label is None:
-                    updates = img_arr > maxarr
-                    result[updates] = value
-                    maxarr[updates] = img_arr[updates]
-                else:
-                    result[img_arr == index.label] = value
+                for regionname in matched:
+                    resolved[regionname] = value
+            if not resolved:
+                raise ValueError(f"None of the {len(values)} provided keys are mapped in {self}.")
+            values = pd.Series({r: resolved.get(r, background_label) for r in self.regions})
 
-        result_img = Nifti1Image(
-            result,
-            affine=affine,
-            header=result_header,
-        )
-        return _volume.from_nifti(
-            nifti=result_img,
-            space=self.space,
-            name=f"Custom colorization of {self} - {md5(str(values).encode('utf-8')).hexdigest()}"
-        )
+        masker_kwargs.setdefault("background_label", background_label)
+        masker = self.as_nilearn_masker(**masker_kwargs)
+        masker.fit()
+
+        # ensure the order of columns follow the bids table used for masker
+        values = values[masker.lut["name"]]
+
+        return masker.inverse_transform(values)
 
     def get_colormap(self, region_specs: Iterable = None, *, fill_uncolored: bool = False):
         """
@@ -901,12 +1120,20 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if isinstance(item, pointcloud.PointCloud):
             return self._assign_points(item, lower_threshold)
         if isinstance(item, _volume.Volume):
-            return self._assign_volume(
-                queryvolume=item,
-                lower_threshold=lower_threshold,
-                minsize_voxel=minsize_voxel,
-                **kwargs
-            )
+            if isinstance(item, _volume.TimeSeriesVolume):
+                return self._assign_timeseries_volume(
+                    queryvolume=item,
+                    lower_threshold=lower_threshold,
+                    minsize_voxel=minsize_voxel,
+                    **kwargs
+                )
+            else:
+                return self._assign_volume(
+                    queryvolume=item,
+                    lower_threshold=lower_threshold,
+                    minsize_voxel=minsize_voxel,
+                    **kwargs
+                )
 
         raise RuntimeError(
             f"Items of type {item.__class__.__name__} cannot be used for region assignment."
@@ -965,6 +1192,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # format assignments as pandas dataframe
         columns = [
             "input structure",
+            "time",
             "centroid",
             "volume",
             "fragment",
@@ -978,7 +1206,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             "input containedness"
         ]
         if len(assignments) == 0:
-            return pd.DataFrame(columns=columns)
+            return pd.DataFrame(columns=columns).dropna(axis='columns', how='all')
         # determine the unique set of observed indices in order to do region lookups
         # only once for each map index occurring in the point list
         labelled = self.is_labelled  # avoid calling this in a loop
@@ -1005,6 +1233,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         for a in assignments:
             item_to_append = {
                 "input structure": a.input_structure,
+                "time": a.time,
                 "centroid": a.centroid,
                 "volume": a.volume,
                 "fragment": a.fragment,
@@ -1092,7 +1321,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 centroid=tuple(position),
                                 volume=vol,
                                 fragment=frag,
-                                map_value=value
+                                map_value=value,
+                                time=None,
                             )
                         )
                 return assignments
@@ -1119,7 +1349,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 centroid=tuple(pt),
                                 volume=vol,
                                 fragment=frag,
-                                map_value=value
+                                map_value=value,
+                                time=None,
                             )
                         )
             else:
@@ -1138,7 +1369,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     data=kernel,
                     affine=np.dot(self.affine, shift),
                     space=self.space,
-                    name=f"Gaussian kernel of {pt}"
+                    name=f"Gaussian kernel of {pt}",
+                    cache=False,
                 )
                 for entry in self._assign(
                     item=gaussian_kernel,
@@ -1155,7 +1387,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         queryvolume: "_volume.Volume",
         lower_threshold: float,
         split_components: bool = True,
-        **kwargs
+        time: int = None,
+        **kwargs,
     ) -> List[AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
@@ -1177,7 +1410,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if kwargs:
             logger.info(f"The keywords {[k for k in kwargs]} are not passed on during volume assignment.")
 
-        assert queryvolume.space == self.space, ValueError("Assigned volume must be in the same space as the map.")
+        if queryvolume.space != self.space:
+            raise ValueError("Assigned volume must be in the same space as the map.")
 
         if split_components:
             iter_components = lambda arr: connected_components(arr)
@@ -1222,11 +1456,300 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 volume=index.volume,
                                 fragment=index.fragment,
                                 map_value=index.label,
+                                time=time,
                                 **asdict(scores)
                             )
                         )
 
         return assignments
+
+    def _assign_timeseries_volume(
+        self,
+        queryvolume: "_volume.TimeSeriesVolume",
+        lower_threshold: float,
+        split_components: bool = True,
+        **kwargs
+    ) -> List[AssignImageResult]:
+        assignments = []
+        for v_t in siibra_tqdm(queryvolume, unit='time point'):
+            assignments_t = self._assign_volume(
+                v_t,
+                lower_threshold=lower_threshold,
+                split_components=split_components,
+                time=v_t.timepoint,
+                **kwargs
+            )
+            assignments.extend(assignments_t)
+        return assignments
+
+    def to_BIDS_lookup_table(self) -> pd.DataFrame:
+        """
+        Generate a BIDS-compatible lookup table for the labelled map.
+
+        The lookup table associates voxel labels with region names and optional
+        RGB colors derived from the corresponding parcellation regions.
+
+        If the map consists of multiple fragments, the fragments are first
+        compressed into a single labelled image and relabelled to ensure BIDS
+        compatibility.
+
+        Parameters
+        ----------
+        filepath : str, optional
+            Path to a ``.tsv`` file where the lookup table should be written.
+            If provided, the table is saved in tab-separated format.
+
+        Returns
+        -------
+        pandas.DataFrame
+            A lookup table with the following columns:
+            - ``index``: Integer label value in the image.
+            - ``name``: Name of the corresponding brain region.
+            - ``color``: Hexadecimal RGB color code associated with the region,
+               or ``None`` if no color is defined.
+
+        Raises
+        ------
+        Exception
+            If the map contains more than one volume.
+
+        AssertionError
+            If ``filepath`` does not end with ``.tsv``.
+
+        Notes
+        -----
+        BIDS lookup tables require a single labelled volume. Maps distributed
+        across multiple fragments are therefore compressed and relabelled before
+        generating the table.
+        """
+        if not self.is_labelled:
+            raise NotImplementedError("Currently, there is not LUT standard defined by BIDS for statistical maps.")
+
+        if len(self.volumes) > 1 or not self.has_unique_labels:
+            logger.info(
+                f"{self} has {len(self.volumes)} volume(s)/{len(self.fragments)} fragment(s); "
+                "siibra will compress and reindex it for BIDS compatibility."
+            )
+            mp = self.compress()
+        else:
+            mp = self
+
+        def to_record(regionname: str, index: MapIndex) -> List[Dict]:
+            rgb = mp.parcellation.get_region(regionname).rgb
+            color = "#{:02x}{:02x}{:02x}".format(*rgb) if rgb else None
+            return {
+                "index": index.label,
+                "name": regionname,
+                "color": color,
+            }
+        table = pd.DataFrame(
+            [
+                to_record(r, indices[0])
+                for r, indices in mp._indices.items()
+            ]
+        )
+        if "gii-label" in mp.formats:
+            # read from the provider: mp.fetch() would also pull the template mesh
+            prov = mp.volumes[0]._providers["gii-label"]
+            observed = set()
+            for fragment in (mp.fragments or [None]):
+                observed |= set(np.unique(prov.fetch(fragment=fragment)["labels"]))
+            for xl in sorted(observed - set(table["index"]) - {0}):   # 0 is background
+                table.loc[len(table)] = {"name": f"{xl} (unnamed)", "index": xl, "color": None}
+
+        if not table["index"].is_unique:
+            duplicated = sorted(table.loc[table["index"].duplicated(), "index"])
+            raise RuntimeError(
+                f"Labels {duplicated} are assigned to more than one region in {mp}. "
+                "A BIDS lookup table requires unique indices."
+            )
+
+        return table
+
+    def _as_surfaceimage(self, variant: str = None):
+        from nilearn.surface import SurfaceImage, PolyData
+
+        if "gii-label" not in self.formats:
+            raise ValueError("`SurfaceImage` representation is only possible for 'gii-label' maps.")
+        if len(self.volumes) > 1:
+            raise ValueError("`SurfaceImage` representation is only possible for maps with single and hemisphere fragemented maps.")
+
+        giilabel_filemap = {}
+        for frag in self.fragments:
+            loader = self.volumes[0]._providers["gii-label"]._loaders[frag]
+            loader._retrieve()
+            giilabel_filemap[frag.replace(' hemisphere', "")] = loader.cachefile
+        return SurfaceImage(mesh=self.space._as_polymesh(variant=variant), data=PolyData(**giilabel_filemap))
+
+    def as_nilearn_masker(
+        self,
+        strategy: Literal[
+            "mean",
+            "median",
+            "sum",
+            "minimum",
+            "maximum",
+            "standard_deviation",
+            "variance",
+        ] = "mean",
+        surface_variant: str = None,
+        **masker_kwargs,
+    ) -> Union["NiftiLabelsMasker", "SurfaceLabelsMasker"]:
+        from nilearn import maskers
+        try:
+            from ..retrieval.cache import jobmemory_path
+            masker_kwargs.setdefault("memory", jobmemory_path)
+        except ImportError:
+            ...
+
+        if not self.is_labelled:
+            raise NotImplementedError(
+                f"Nilearn maskers for {self.maptype} maps are provided by SparseMap, "
+                "which projects the data onto the maps instead of summarizing labelled "
+                "regions. Convert this map with `to_sparse()` first."
+            )
+
+        mp = self.compress() if (len(self.volumes) > 1 or self.fragments) else self
+
+        if "lut" in masker_kwargs:
+            raise ValueError("siibra handles `lut` parameter based on the map.")
+        masker_kwargs.setdefault("verbose", 1)
+        masker_kwargs.setdefault("strategy", strategy)
+        masker_kwargs["lut"] = mp.to_BIDS_lookup_table()
+
+        if self.provides_image:
+            masker = maskers.NiftiLabelsMasker(mp.fetch(), **masker_kwargs)
+        else:
+            masker = maskers.SurfaceLabelsMasker(
+                mp._as_surfaceimage(variant=surface_variant),
+                **masker_kwargs,
+            )
+
+        return masker
+
+    def extract_signals_with_nilearn(
+        self,
+        volume: _volume.Volume,
+        strategy: Literal[
+            "mean",
+            "median",
+            "sum",
+            "minimum",
+            "maximum",
+            "standard_deviation",
+            "variance",
+        ] = "mean",
+        confounds: np.ndarray = None,
+        sample_mask: np.ndarray = None,
+        surface_variant: str = None,
+        **masker_kwargs,
+    ) -> pd.DataFrame:
+        """
+        Extract region-wise signals from a 3D/4D volume using `nilearn`.
+
+        The regions defined in this map are used to summarize the input volume
+        with :class:`nilearn.maskers.NiftiLabelsMasker` (labelled volumetric maps),
+        :class:`nilearn.maskers.SurfaceLabelsMasker` (labelled surface maps), or
+        :class:`nilearn.maskers.NiftiMapsMasker` (statistical maps). Maps with
+        several volumes or fragments are compressed into a single labelled map first.
+
+        Parameters
+        ----------
+        volume: Volume
+            Input 3D or 4D volume from which signals should be extracted, typically
+            an fMRI image. Both NIfTI and timeseries GIFTI sources are supported.
+        strategy: str, default: "mean"
+            How voxels or vertices are summarized within each region. Only applies
+            to labelled maps; it is ignored for statistical maps, since
+            `NiftiMapsMasker` projects the data onto the (overlapping, continuous)
+            maps by least squares instead of summarizing discrete regions.
+        confounds: array-like, optional
+            Confounds to regress out during extraction.
+            See `nilearn.maskers.BaseMasker.transform`.
+        sample_mask: array-like, optional
+            Mask of samples to include when extracting signals.
+            See `nilearn.maskers.BaseMasker.transform`.
+        surface_variant: str, optional
+            Template surface variant to use for surface maps, e.g. "inflated".
+        **masker_kwargs
+            Passed on to the nilearn masker constructor.
+
+        Returns
+        -------
+        pandas.DataFrame
+            One column per region mapped in this map, one row per sample. The index
+            is the time axis of `volume` when it has one and no `sample_mask` was
+            given, otherwise a range index.
+
+        Notes
+        -----
+        Region names are taken from the BIDS lookup table generated by
+        `to_BIDS_lookup_table()`. Regions that disappear when the map is resampled
+        onto the input volume are reported and filled with zeros; nilearn's
+        `keep_masked_labels` does not prevent them from being dropped, and it is
+        deprecated since nilearn 0.14.
+        """
+        masker = self.as_nilearn_masker(
+            strategy=strategy if self.is_labelled else None,
+            surface_variant=surface_variant,
+            **masker_kwargs
+        )
+
+        if self.provides_image and volume.provides_image:
+            source = volume.fetch()
+        elif "gii-label" in self.formats and "gii-timeseries" in volume.formats:
+            source = volume._as_surfaceimage(variant=surface_variant)
+        else:
+            raise ValueError(
+                f"Cannot extract signals from {volume} with {self}: no common representation. "
+                f"The map provides {sorted(self.formats)}, the input provides {sorted(volume.formats)}."
+            )
+
+        # np.asarray normalizes plain and pandas output alike. (set_output(transform="pandas")
+        # raises NotImplementedError before nilearn 0.13, and the column names it
+        # produces are the ones we assign below anyway.)
+        signals = np.atleast_2d(np.asarray(
+            masker.fit_transform(source, confounds=confounds, sample_mask=sample_mask)
+        ))
+
+        if self.is_labelled:
+            # region_names_ maps output column index -> region name. It is available on
+            # both Nifti and Surface labels maskers since nilearn 0.10.4.
+            # (masker.labels_ cannot be used here: it includes the background label.
+            # get_feature_names_out() is equivalent but only exists from nilearn 0.13.)
+            extracted = [name for _, name in sorted(masker.region_names_.items())]
+            all_regions = masker.lut["name"].tolist()
+        else:
+            # NiftiMapsMasker names its columns positionally, so column i corresponds
+            # to volume i of the array stacked by _stack_maps().
+            extracted = all_regions = [
+                regionname for regionname, indices
+                in sorted(self._indices.items(), key=lambda kv: kv[1][0].volume)
+            ]
+
+        if signals.shape[1] != len(extracted):
+            raise RuntimeError(
+                f"nilearn returned {signals.shape[1]} signals but {len(extracted)} "
+                f"regions were expected for {self}."
+            )
+        result = pd.DataFrame(signals, columns=extracted)
+
+        missing = [r for r in all_regions if r not in set(extracted)]
+        if missing:
+            logger.info(
+                f"{len(missing)} region(s) were removed when resampling {self} to the "
+                f"input volume and are filled with zeros:\n{missing}"
+            )
+            result[missing] = 0
+        result = result[all_regions]
+        result.columns.name = "region"
+
+        # sample_mask drops samples, so the time axis would no longer align
+        time = getattr(volume, "time", None)
+        if time is not None and sample_mask is None and len(time) == len(result):
+            result.index = pd.Index(time, name="time")
+
+        return result
 
 
 def from_volume(

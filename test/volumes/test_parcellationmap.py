@@ -22,7 +22,13 @@ class DummyParc():
 
 
 class DummyCls:
-    _providers = {}
+    """Stand-in for a Volume (and for other objects the tests only pass around)."""
+
+    def __init__(self, formats=(), provides_image=False, provides_mesh=False):
+        self._providers = {}
+        self.formats = set(formats)
+        self.provides_image = provides_image
+        self.provides_mesh = provides_mesh
 
     def fetch(self):
         raise NotImplementedError
@@ -371,3 +377,79 @@ class TestMap(unittest.TestCase):
                 self.assertIs(return_val, list(return_find_indicies.keys())[0])
 
             mock.assert_called_once_with(region)
+
+
+class TestMapGuards(unittest.TestCase):
+    """
+    Operations that are defined only for certain types of map must fail loudly.
+
+    These conditions are easy to invert when converting an assert into a raise,
+    which silently turns the valid case into the error case.
+    """
+
+    @staticmethod
+    def statistical_map():
+        return TestMap.get_instance(
+            indices={"foo": [{"volume": 0}], "bar": [{"volume": 1}]},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True) for _ in range(2)],
+        )
+
+    @staticmethod
+    def labelled_map(formats={"nii"}, provides_image=True, provides_mesh=False, indices=None, n_volumes=1):
+        return TestMap.get_instance(
+            indices=indices or {"foo": [{"volume": 0, "label": 1}]},
+            volumes=[
+                DummyCls(formats=formats, provides_image=provides_image, provides_mesh=provides_mesh)
+                for _ in range(n_volumes)
+            ],
+        )
+
+    def test_compress_rejects_statistical_maps(self):
+        with self.assertRaises(ValueError):
+            self.statistical_map().compress()
+
+    def test_compress_rejects_maps_with_nothing_to_merge(self):
+        with self.assertRaises(RuntimeError):
+            self.labelled_map().compress()
+
+    def test_bids_lookup_table_rejects_statistical_maps(self):
+        with self.assertRaises(NotImplementedError):
+            self.statistical_map().to_BIDS_lookup_table()
+
+    def test_nilearn_masker_rejects_statistical_maps(self):
+        with self.assertRaises(NotImplementedError):
+            self.statistical_map().as_nilearn_masker()
+
+    def test_colorize_rejects_statistical_maps(self):
+        with self.assertRaises(NotImplementedError):
+            self.statistical_map().colorize({"foo": 1.0})
+
+    def test_nilearn_masker_rejects_a_user_supplied_lut(self):
+        with self.assertRaises(ValueError):
+            self.labelled_map().as_nilearn_masker(lut="something")
+
+    def test_surfaceimage_requires_a_gii_label_map(self):
+        with self.assertRaises(ValueError):
+            self.labelled_map(formats={"nii"})._as_surfaceimage()
+
+    def test_surfaceimage_requires_a_single_volume(self):
+        mp = self.labelled_map(
+            formats={"gii-label"}, provides_image=False, provides_mesh=True,
+            indices={"foo": [{"volume": 0, "label": 1}], "bar": [{"volume": 1, "label": 1}]},
+            n_volumes=2,
+        )
+        with self.assertRaises(ValueError):
+            mp._as_surfaceimage()
+
+
+class TestMapFragments(unittest.TestCase):
+    def test_fragments_are_sorted(self):
+        """Relabelling and column order depend on a stable fragment order."""
+        mp = TestMap.get_instance(
+            indices={
+                "foo": [{"volume": 0, "label": 1, "fragment": "right hemisphere"}],
+                "bar": [{"volume": 0, "label": 1, "fragment": "left hemisphere"}],
+            },
+            volumes=[DummyCls(formats={"gii-label"}, provides_mesh=True)],
+        )
+        self.assertEqual(mp.fragments, ["left hemisphere", "right hemisphere"])

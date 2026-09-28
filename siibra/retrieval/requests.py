@@ -214,15 +214,24 @@ class HttpRequest:
         }
 
         http_method = _SESSION.post if self.post else _SESSION.get
-        r = http_method(
-            self.url,
-            headers={
-                **USER_AGENT_HEADER,
-                **headers,
-            },
-            **other_kwargs,
-            stream=True,
-        )
+        try:
+            r = http_method(
+                self.url,
+                headers={
+                    **USER_AGENT_HEADER,
+                    **headers,
+                },
+                **other_kwargs,
+                stream=True,
+            )
+        except requests.exceptions.ConnectionError as e:
+            if not self.post and "RemoteDisconnected" in str(e):
+                logger.debug(f"Stale connection for {self.url}, retrying...")
+                adapter = _SESSION.get_adapter(url=self.url)
+                adapter.close()
+                r = http_method(self.url, headers={**USER_AGENT_HEADER, **headers}, **other_kwargs, stream=True)
+            else:
+                raise e
 
         if not r.ok:
             raise SiibraHttpRequestError(status_code=r.status_code, url=self.url)
