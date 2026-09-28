@@ -42,7 +42,7 @@ jobs:
     uses: ./.github/workflows/_lint.yaml
     with:
       os: ubuntu-latest
-      python-version: "3.9"
+      python-version: &py-min "3.9"
 
   check-importable:
     needs: "use-custom-cfg"
@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.11", "3.10", "3.9"]
+        python-version: &py-versions ["3.13", "3.12", "3.11", "3.10", "3.9"]
 
   unit-tests-full:
     if: ${{ github.event_name == 'pull_request' }}
@@ -67,15 +67,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.11", "3.10", "3.9"]
-
+        python-version: *py-versions
   unit-tests-fast:
     if: ${{ github.event.pull_request == null }}
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_unittest.yaml
     with:
       os: ubuntu-latest
-      python-version: "3.9"
+      python-version: *py-min
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
 
   e2e-tests-full:
@@ -88,7 +87,7 @@ jobs:
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       matrix:
-        python-version: ["3.12", "3.11", "3.10", "3.9"]
+        python-version: *py-versions
 
   e2e-tests-fast:
     if: ${{ github.event.pull_request == null }}
@@ -96,6 +95,7 @@ jobs:
     uses: ./.github/workflows/_e2e.yaml
     with:
       os: ubuntu-latest
+      python-version: *py-min
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
 
   test-examples:

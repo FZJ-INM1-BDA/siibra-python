@@ -9,7 +9,6 @@ on:
       python-version:
         required: true
         type: string
-        default: "3.9"
       use-cfg:
         required: false
         type: string
