@@ -404,16 +404,19 @@ class RegionalConnectivity(Feature, Compoundable):
         Iterator[Tuple[_region.Region, Tuple[int, int, int]]]
             Color values are in RGB 255.
         """
-        from plotly.express.colors import sample_colorscale
+        from plotly.colors import sample_colorscale
         profile = self.get_profile(region, min_connectivity, max_rows, direction)
-        normalized = profile.data / profile.data.max()
-        colorscale = sample_colorscale(
-            colorgradient,
-            normalized.values.reshape(len(profile.data))
+        # Anchor the scale at 0 so non-negative data maps exactly as before;
+        # only extend below 0 when there are negative values.
+        low = min(profile.data.min(), 0.0)
+        span = profile.data.max() - low
+        normalized = (profile.data - low) / span if span > 0 else profile.data * 0.0
+        colors = sample_colorscale(
+            colorgradient, normalized.tolist(), colortype="tuple"
         )
         return zip(
             profile.data.index.values,
-            [eval(c.removeprefix('rgb')) for c in colorscale]
+            [tuple(round(ch * 255) for ch in rgb) for rgb in colors],
         )
 
     def __len__(self):
