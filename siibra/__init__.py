@@ -198,7 +198,7 @@ def get_space(space: str):
     return _space.Space.get_instance(space)
 
 
-def set_feasible_download_size(maxsize_gbyte):
+def set_feasible_download_size(maxsize_gbyte: float):
     """
     Set the maximum download size considered feasible.
 
@@ -207,8 +207,8 @@ def set_feasible_download_size(maxsize_gbyte):
 
     Parameters
     ----------
-    maxsize_gbyte : float
-        Maximum feasible download size in gibibytes (GiB).
+    maxsize_gbyte: float
+        Maximum feasible download size in gigabytes (GB).
 
     Returns
     -------
@@ -216,22 +216,20 @@ def set_feasible_download_size(maxsize_gbyte):
         This function modifies the global download-size threshold
         in place.
     """
-    from .volumes import volume
-
-    volume.gbyte_feasible = maxsize_gbyte
-    logger.info(f"Set feasible download size to {maxsize_gbyte} GiB.")
+    raise NotImplementedError(-"Please use 'SIIBRA_MAX_FETCH_SIZE_BYTES' enviroment variable. (Only impacts neuroglancer/precomputed images.)")
 
 
-def set_cache_size(maxsize_gbyte: int):
+def set_cache_size(maxsize_gbyte: float):
     """
     siibra runs maintenance on its local cache to keep it under a predetermined
-    size of 2 gigabytes. This method changes the cache size.
+    size of 2 GiB. This method changes the cache size.
 
     Parameters
     ----------
-    maxsize_gbyte : int
+    maxsize_gbyte: float
     """
-    assert maxsize_gbyte >= 0
+    if maxsize_gbyte <= 0:
+        raise ValueError(f"'maxsize_gbyte' must be positive.")
     cache.SIZE_GIB = maxsize_gbyte
     logger.info(f"Set cache size to {maxsize_gbyte} GiB.")
 
@@ -257,6 +255,7 @@ def __dir__():
         "atlases",
         "spaces",
         "parcellations",
+        "maps",
         "features",
         "use_configuration",
         "extend_configuration",
