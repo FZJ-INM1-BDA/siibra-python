@@ -41,6 +41,8 @@ logger.info(f"Version: {__version__}\nPlease file issues at https://github.com/F
 # forward access to some functions
 find_regions = _parcellation.find_regions
 from_json = factory.Factory.from_json
+use_configuration = configuration.Configuration.use_configuration
+extend_configuration = configuration.Configuration.extend_configuration
 
 
 def __getattr__(attr: str):
@@ -53,10 +55,6 @@ def __getattr__(attr: str):
         return _parcellation.Parcellation.registry()
     elif attr == 'maps':
         return _parcellationmap.Map.registry()
-    elif attr == 'use_configuration':
-        return configuration.Configuration.use_configuration
-    elif attr == 'extend_configuration':
-        return configuration.Configuration.extend_configuration
     else:
         raise AttributeError(f"No such attribute: {__name__}.{attr}")
 
