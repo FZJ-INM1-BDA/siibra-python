@@ -216,7 +216,7 @@ def set_feasible_download_size(maxsize_gbyte: float):
         This function modifies the global download-size threshold
         in place.
     """
-    raise NotImplementedError(-"Please use 'SIIBRA_MAX_FETCH_SIZE_BYTES' enviroment variable. (Only impacts neuroglancer/precomputed images.)")
+    raise NotImplementedError(-"Please use 'SIIBRA_MAX_FETCH_SIZE_BYTES' environment variable. (Only impacts neuroglancer/precomputed images.)")
 
 
 def set_cache_size(maxsize_gbyte: float):
@@ -229,7 +229,7 @@ def set_cache_size(maxsize_gbyte: float):
     maxsize_gbyte: float
     """
     if maxsize_gbyte <= 0:
-        raise ValueError(f"'maxsize_gbyte' must be positive.")
+        raise ValueError("'maxsize_gbyte' must be positive.")
     cache.SIZE_GIB = maxsize_gbyte
     logger.info(f"Set cache size to {maxsize_gbyte} GiB.")
 
