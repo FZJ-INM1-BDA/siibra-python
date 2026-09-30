@@ -36,6 +36,9 @@ from ..commons import (
 from ..exceptions import WarmupRegException
 
 
+JOBLIB_FOLDERNAME = "joblib"
+
+
 def assert_folder(folder):
     # make sure the folder exists and is writable, then return it.
     # If it cannot be written, create and return
@@ -62,6 +65,7 @@ class Cache:
     _instance = None
     folder = user_cache_dir(".".join(__name__.split(".")[:-1]), "")
     SIZE_GIB = SIIBRA_CACHE_SIZE_GIB  # maintenance will delete old files to stay below this limit
+    _EXCLUDED_FROM_MAINTENANCE = frozenset({JOBLIB_FOLDERNAME})
 
     def __init__(self):
         raise RuntimeError(
@@ -92,40 +96,44 @@ class Cache:
         self.folder = assert_folder(self.folder)
 
     def run_maintenance(self):
-        """ Shrinks the cache by deleting oldest files first until the total size
-        is below cache size (Cache.SIZE) given in GiB."""
-        # build sorted list of cache files and their os attributes
-        files = [os.path.join(self.folder, fname) for fname in os.listdir(self.folder)]
-        sfiles = sorted([(fn, os.stat(fn)) for fn in files], key=lambda t: t[1].st_atime)
+        """
+        Shrinks the cache by deleting oldest files first until the total size
+        is below cache size (Cache.SIZE_GIB) given in GiB.
+
+        Use `SIIBRA_CACHE_SIZE_GIB` environment variable before import, or
+        `siibra.set_cache_size()` to change the cache size.
+        """
+        # os.scandir: DirEntry.stat() is cached per entry, and on Windows it
+        # comes with the directory listing, avoiding one system call per file.
+        with os.scandir(self.folder) as it:
+            entries = [e for e in it if e.name not in self._EXCLUDED_FROM_MAINTENANCE]
+        sentries = sorted(entries, key=lambda e: e.stat().st_atime)
 
         # determine the first n files that need to be deleted to reach the accepted cache size
-        size_gib = sum(t[1].st_size for t in sfiles) / 1024**3
-        targetsize = size_gib
+        targetsize = sum(e.stat().st_size for e in sentries) / 1024**3
         index = 0
-        for index, (fn, st) in enumerate(sfiles):
+        for index, entry in enumerate(sentries):
             if targetsize <= self.SIZE_GIB:
                 break
-            targetsize -= st.st_size / 1024**3
+            targetsize -= entry.stat().st_size / 1024**3
 
         if index > 0:
-            logger.debug(f"Removing the {index + 1} oldest files to keep cache size below {targetsize:.2f} GiB.")
-            for fn, st in sfiles[:index + 1]:
-                if os.path.isdir(fn):
+            logger.debug(f"Removing the {index + 1} oldest files to keep cache size below {self.SIZE_GIB:.2f} GiB.")
+            for entry in sentries[:index + 1]:
+                if entry.is_dir(follow_symlinks=False):
                     import shutil
-                    size = sum(os.path.getsize(f) for f in os.listdir(fn) if os.path.isfile(f))
-                    shutil.rmtree(fn)
+                    shutil.rmtree(entry.path)
                 else:
-                    size = st.st_size
-                    os.remove(fn)
-                size_gib -= size / 1024**3
+                    os.remove(entry.path)
 
     @property
     def size(self):
-        """ Return size of the cache in GiB. """
-        return sum(os.path.getsize(fn) for fn in self) / 1024**3
+        """Return size of the cache in GiB."""
+        with os.scandir(self.folder) as it:
+            return sum(e.stat().st_size for e in it) / 1024**3
 
     def __iter__(self):
-        """ Iterate all element names in the cache directory. """
+        """Iterate all element names in the cache directory."""
         return (os.path.join(self.folder, f) for f in os.listdir(self.folder))
 
     def build_filename(self, str_rep: str, suffix=None) -> str:
@@ -231,7 +239,7 @@ class Warmup:
 
 try:
     from joblib import Memory
-    jobmemory_path = Path(CACHE.folder) / "joblib"
+    jobmemory_path = Path(CACHE.folder) / JOBLIB_FOLDERNAME
     jobmemory_path.mkdir(parents=True, exist_ok=True)
     jobmemory = Memory(jobmemory_path, verbose=0)
     cache_user_fn = jobmemory.cache
