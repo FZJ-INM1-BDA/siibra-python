@@ -39,8 +39,6 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from nibabel import Nifti1Image
-from nilearn.image import resample_to_img
-from skimage.filters import gaussian
 
 
 logging.addLevelName(21, "INFO_WO_PROGRESS_BARS")
@@ -541,8 +539,7 @@ def resample_img_to_img(
     -------
     Nifti1Image
     """
-    from nilearn._version import version as nilearn_version
-    from packaging.version import Version
+    from nilearn.image import resample_to_img
 
     interpolation = "nearest" if np.array_equal(np.unique(source_img.dataobj), [0, 1]) else "linear"
     kwargs = dict(
@@ -551,9 +548,6 @@ def resample_img_to_img(
         interpolation=interpolation,
         force_resample=True,  # False is intended for testing. see nilearn docs
     )
-    if Version(nilearn_version) >= Version("0.11.0"):
-        # because nilearn>=0.11.0 don't support "copy_header" and python <= 3.8
-        kwargs["copy_header"] = True  # use new default in nilearn >= 0.11.0
 
     resampled_img = resample_to_img(**kwargs)
     return resampled_img
@@ -615,6 +609,8 @@ def create_gaussian_kernel(sigma=1, sigma_point=3):
     """
     Compute a 3D Gaussian kernel of the given bandwidth.
     """
+    from skimage.filters import gaussian
+
     r = int(sigma_point * sigma)
     k_size = 2 * r + 1
     impulse = np.zeros((k_size, k_size, k_size))
