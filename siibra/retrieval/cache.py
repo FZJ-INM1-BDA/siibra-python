@@ -26,7 +26,13 @@ from pathlib import Path
 
 from filelock import FileLock as Lock
 
-from ..commons import logger, SIIBRA_CACHEDIR, SKIP_CACHEINIT_MAINTENANCE, siibra_tqdm
+from ..commons import (
+    logger,
+    SIIBRA_CACHEDIR,
+    SIIBRA_CACHE_SIZE_GIB,
+    SKIP_CACHEINIT_MAINTENANCE,
+    siibra_tqdm,
+)
 from ..exceptions import WarmupRegException
 
 
@@ -55,7 +61,7 @@ class Cache:
 
     _instance = None
     folder = user_cache_dir(".".join(__name__.split(".")[:-1]), "")
-    SIZE_GIB = 2  # maintenance will delete old files to stay below this limit
+    SIZE_GIB = SIIBRA_CACHE_SIZE_GIB  # maintenance will delete old files to stay below this limit
 
     def __init__(self):
         raise RuntimeError(
