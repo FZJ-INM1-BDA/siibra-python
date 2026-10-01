@@ -19,7 +19,6 @@ from dataclasses import dataclass, asdict
 from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, Literal, NamedTuple
 import numpy as np
 import pandas as pd
-from scipy.ndimage import distance_transform_edt
 
 from . import volume as _volume
 from .providers import provider
@@ -1029,6 +1028,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             Sample points in physical coordinates corresponding to this
             parcellationmap
         """
+        from scipy.ndimage import distance_transform_edt
+
         index = self.get_index(regionspec)
         mask = self.fetch(index=index)
         arr = np.asanyarray(mask.dataobj)

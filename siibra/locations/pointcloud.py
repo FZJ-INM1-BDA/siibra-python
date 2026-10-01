@@ -19,12 +19,6 @@ import numbers
 import json
 
 import numpy as np
-try:
-    from sklearn.cluster import HDBSCAN
-    _HAS_HDBSCAN = True
-except ImportError:
-    import sklearn
-    _HAS_HDBSCAN = False
 
 from . import location, point, boundingbox as _boundingbox
 from ..retrieval.requests import HttpRequest
@@ -314,6 +308,13 @@ class PointCloud(location.Location):
         RuntimeError
             If a sklearn version without HDBSCAN is installed.
         """
+        try:
+            from sklearn.cluster import HDBSCAN
+            _HAS_HDBSCAN = True
+        except ImportError:
+            import sklearn
+            _HAS_HDBSCAN = False
+
         if not _HAS_HDBSCAN:
             raise RuntimeError(
                 f"HDBSCAN is not available with your version {sklearn.__version__} "

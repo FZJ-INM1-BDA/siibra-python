@@ -234,10 +234,6 @@ def set_cache_size(maxsize_gbyte: float):
     logger.info(f"Set cache size to {maxsize_gbyte} GiB.")
 
 
-if "SIIBRA_CACHE_SIZE_GIB" in _os.environ:
-    set_cache_size(float(_os.environ.get("SIIBRA_CACHE_SIZE_GIB")))
-
-
 def warm_cache(level=WarmupLevel.INSTANCE):
     """
     Preload preconfigured siibra concepts.

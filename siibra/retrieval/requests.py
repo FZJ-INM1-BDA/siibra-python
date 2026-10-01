@@ -30,7 +30,6 @@ import sys
 from filelock import FileLock as Lock
 import numpy as np
 import pandas as pd
-from skimage import io as skimage_io
 from nibabel import Nifti1Image, GiftiImage, streamlines, freesurfer
 import h5py
 
@@ -80,6 +79,11 @@ def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
     return result
 
 
+def _decode_png(b: bytes):
+    from skimage import io as skimage_io
+    return skimage_io.imread(BytesIO(b))
+
+
 DECODERS = {
     ".nii": lambda b: Nifti1Image.from_bytes(b),
     ".gii": lambda b: GiftiImage.from_bytes(b),
@@ -89,7 +93,7 @@ DECODERS = {
     ".tsv": lambda b: pd.read_csv(BytesIO(b), delimiter="\t").dropna(axis=0, how="all"),
     ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
     ".zip": lambda b: ZipFile(BytesIO(b)),
-    ".png": lambda b: skimage_io.imread(BytesIO(b)),
+    ".png": _decode_png,
     ".npy": lambda b: np.load(BytesIO(b)),
     ".annot": lambda b: read_as_bytesio(freesurfer.read_annot, '.annot', BytesIO(b)),
     ".h5": lambda b: h5py.File(BytesIO(b)),
