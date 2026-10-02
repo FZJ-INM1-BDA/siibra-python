@@ -15,7 +15,7 @@
 
 from os import path
 import json
-from typing import List, Dict, Callable
+from typing import List, Dict, Callable, Optional
 from io import BytesIO
 from functools import wraps
 
@@ -35,7 +35,7 @@ from ..features.tabular import (
 from ..features.image import image, sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointcloud, boundingbox
-from ..retrieval import datasets, repositories
+from ..retrieval import datasets, repositories, bids
 from ..volumes import volume, sparsemap, parcellationmap
 from ..volumes.providers.provider import VolumeProvider
 
@@ -54,6 +54,52 @@ def build_type(type_str: str):
         return inner
 
     return outer
+
+
+def extract_bids_info(
+    repository: repositories.RepositoryConnector,
+    suffix: str,
+    extension: Optional[str] = None,
+    folder: str = "",
+) -> Dict[str, bids.BIDSFileInfo]:
+    """
+    Find all files with a given BIDS suffix in a BIDS repository, with their parsed BIDS info.
+
+    Parameters
+    ----------
+    repository : RepositoryConnector
+        Repository holding the BIDS dataset.
+    suffix : str
+        BIDS suffix to look for, e.g. ``"bold"``, ``"T1w"`` or ``"dseg"``.
+    extension : str, optional
+        Restrict to one extension, e.g. ``".nii.gz"``. By default all
+        extensions are included except JSON sidecars.
+    folder : str, default ""
+        Folder to search in, relative to the repository root. Searched recursively.
+
+    Returns
+    -------
+    dict of str to BIDSFileInfo
+        Maps each matching file's path (relative to the repository root)
+        to its BIDS info, sorted by path.
+    """
+    # The repository can only filter on the end of the filename, so pre-filter
+    # there when the extension is known and check the BIDS suffix exactly below.
+    name_ending = f"{suffix}{extension}" if extension else None
+    paths = repository.search_files(folder=folder, suffix=name_ending, recursive=True)
+
+    files: Dict[str, bids.BIDSFileInfo] = {}
+    for p in sorted(paths):
+        info = bids.parse_bids_filename(p)
+        if info.suffix != suffix:
+            continue
+        if extension is None:
+            if info.extension == bids.SIDECAR_EXTENSION:
+                continue
+        elif info.extension != extension:
+            continue
+        files[p] = info
+    return files
 
 
 class Factory:
