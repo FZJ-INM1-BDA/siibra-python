@@ -38,20 +38,27 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Operating System :: OS Independent",
         "Intended Audience :: Developers",
     ],
     python_requires=">=3.9",
+    # Lower bounds only: this is a library, so exact pins would clash with other
+    # packages in users' environments. Bounds exclude versions with known
+    # vulnerabilities where possible. The fixed requests/filelock releases need
+    # Python >= 3.10, so Python 3.9 gets the best versions available to it.
     install_requires=[
-        "anytree",
-        "nibabel",
-        "appdirs",
-        "scikit-image",
-        "requests",
-        "neuroglancer-scripts",
-        "nilearn",
-        "filelock",
+        "anytree >= 2.12.1",
+        "nibabel >= 5.3.2",
+        "appdirs >= 1.4.4",
+        "scikit-image >= 0.24.0",
+        'requests >= 2.33.0; python_version >= "3.10"',
+        'requests >= 2.32.4; python_version < "3.10"',
+        "neuroglancer-scripts >= 1.2.0",
+        "nilearn >= 0.12",
+        'filelock >= 3.20.3; python_version >= "3.10"',
+        'filelock >= 3.16.1; python_version < "3.10"',
         "ebrains-drive >= 0.6.0",
-        "h5py",
+        "h5py >= 3.11",
     ],
 )
