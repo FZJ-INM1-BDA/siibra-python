@@ -215,7 +215,7 @@ Adding data to siibra-toolsuite
 
 2. Create feature jsons and create a PR to siibra-configurations.
 3. After merging the PR, create new tag on siibra-configurations.
-4. Bump siibra-python version to match the new tag.
+4. Bump siibra-python version to match the new tag (see :ref:`releasing`).
 
 Anatomical Anchor
 -----------------
@@ -223,3 +223,63 @@ Each feature instance requires an anatomical anchor. This could be a parcellatio
 (as in ``RegionalConnecticity``), a region, a region and a location, or a location.
 Using the anatomical anchor siibra can determine the semantic and spatial
 relationship between different ``AtlasConcepts``.
+
+
+.. _releasing:
+
+V. Releasing a new version
+==========================
+
+Versions follow the scheme described in the README: ``X.Y.Z`` for releases, and
+``X.Y.Z-alpha.T`` and ``X.Y.Z-beta.T`` for development prereleases. siibra loads
+its configuration from the siibra-configurations tag ``siibra-<version>``, so
+that tag must exist before the matching siibra-python version can be released.
+
+Releases are prepared locally with ``scripts/release.py``, so no CI job needs write
+access to the repository:
+
+1. Tag `siibra-configurations <https://github.com/FZJ-INM1-BDA/siibra-configurations>`_
+   with ``siibra-<version>``.
+2. From a clean checkout, run ``python scripts/release.py prepare [BUMP]``. ``BUMP``
+   is ``alpha`` or ``beta`` (next prerelease of that kind), ``final`` (prerelease to
+   release), ``patch``, ``minor``, ``major``, or an explicit version. Without it, the
+   next prerelease of the same kind is used, or ``patch`` after a release. The script
+   updates ``siibra/VERSION``, ``CITATION.cff``, ``codemeta.json`` and the
+   requirements list in ``README.rst``, runs flake8, the tests and the metadata
+   check, and commits the result. On ``main``, which must match ``origin/main``, it
+   commits on a new branch ``release/v<version>``; on any other branch it commits
+   there. If any step fails, the repository is left as it was.
+3. Review the commit, push the branch with the ``git push`` command the script
+   prints, and open a pull request into ``main``. Merge it after review.
+4. Check out and pull ``main``, then run ``python scripts/release.py tag``. It refuses
+   to run on any other branch or when ``main`` differs from ``origin/main``. It
+   checks the metadata again and creates the tag ``v<version>`` locally. Pushing the
+   tag (``git push origin v<version>``) starts the release workflow, which validates
+   the metadata, runs the unit tests and builds the package, but does not publish
+   anything.
+
+``python scripts/release.py check`` runs the metadata checks at any time. Besides
+the version, dates and download URL, it verifies that the requirements listed in
+``README.rst`` match ``install_requires`` in ``setup.py``, which is the single
+source of truth for runtime dependencies. After changing dependencies, run
+``python scripts/release.py sync`` to update the README.
+
+Runtime dependencies have lower bounds only, chosen to exclude versions with known
+vulnerabilities; exact pins would conflict with other packages in users'
+environments. GitHub Actions are pinned to commit SHAs. Dependabot keeps actions and
+build tooling up to date and opens security updates for vulnerable dependencies.
+
+.. mermaid::
+
+   flowchart TD
+      cfg["Tag siibra-configurations<br/>siibra-X.Y.Z"] --> prepare
+      prepare["release.py prepare [BUMP]"] --> ok{"Config tag, flake8,<br/>tests and metadata OK?"}
+      ok -- no --> abort["Repository unchanged"]
+      ok -- yes --> pr["Push branch,<br/>PR into main"]
+      pr --> merge["Review and merge"]
+      merge --> tag["release.py tag<br/>creates tag vX.Y.Z"]
+      tag --> push["git push origin vX.Y.Z"]
+      push --> checks["Release workflow:<br/>validate, test, build"]
+      checks --> release["Publish GitHub release vX.Y.Z"]
+      release --> zenodo["Zenodo archive"]
+      release --> publish["Release workflow again:<br/>validate, test, build,<br/>upload to PyPI"]

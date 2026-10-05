@@ -1,0 +1,2 @@
+# Tools for building the release artifacts (kept up to date by Dependabot).
+build==1.6.1
