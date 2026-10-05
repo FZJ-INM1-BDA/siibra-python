@@ -66,15 +66,7 @@ The library requires a couple of open source packages, namely:
    - filelock >= 3.16.1
    - ebrains-drive >= 0.6.0
 
-You can also install a docker image with all dependencies included:
 
-.. code-block:: bash
-
-  docker run -dit \
-        -p 10000:8888 \
-        --rm \
-        --name siibra \
-        docker-registry.ebrains.eu/siibra/siibra-python:latest
 
 Documentation & Help
 ====================
