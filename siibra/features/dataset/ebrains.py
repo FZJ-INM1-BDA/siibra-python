@@ -92,9 +92,10 @@ class GeometryDataFeature(
 
 class LSFMPointCloud(GeometryDataFeature, category="cellular"):
 
-    def __init__(self, dataset_version_id, anchor, id: str, **kwargs):
+    def __init__(self, dataset_version_id, anchor, id: str, name: str, **kwargs):
         super().__init__(dataset_version_id, anchor)
         self._id = id
+        self._name = name
 
     @property
     def id(self):
@@ -103,3 +104,8 @@ class LSFMPointCloud(GeometryDataFeature, category="cellular"):
     @property
     def modality(self):
         return "Light Sheet Fluorescence Microscopy"
+    
+    @property
+    def name(self):
+        return self._name
+
