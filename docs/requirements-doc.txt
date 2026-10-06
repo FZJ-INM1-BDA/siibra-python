@@ -11,7 +11,7 @@ IPython
 m2r2
 sphinx-gallery
 plotly
-matplotlib >= 3.4.0
+matplotlib >= 3.10.9
 sphinx-book-theme
 sphinx_autopackagesummary
 sphinxcontrib.jquery
