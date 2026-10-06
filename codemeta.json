@@ -3,8 +3,8 @@
   "@type": "SoftwareSourceCode",
   "name": "siibra-python",
   "description": "siibra is a Python client to a brain atlas framework that integrates brain\nparcellations and reference spaces at different spatial scales, and connects\nthem with a broad range of multimodal regional data features. It aims to\nfacilitate programmatic and reproducible incorporation of brain parcellations\nand brain region features from different sources into neuroscience workflows.\n",
-  "version": "v1.0.1-alpha.23",
-  "datePublished": "2026-10-02T00:00:00.000Z",
+  "version": "v1.0.1-alpha.24",
+  "datePublished": "2026-10-06T00:00:00.000Z",
   "license": "https://spdx.org/licenses/Apache-2.0",
   "codeRepository": "https://github.com/FZJ-INM1-BDA/siibra-python",
   "identifier": "https://doi.org/10.5281/zenodo.7885728",
@@ -63,8 +63,8 @@
       }
     }
   ],
-  "dateModified": "2026-10-02",
-  "downloadUrl": "https://github.com/FZJ-INM1-BDA/siibra-python/archive/refs/tags/v1.0.1-alpha.23.zip",
+  "dateModified": "2026-10-06",
+  "downloadUrl": "https://github.com/FZJ-INM1-BDA/siibra-python/archive/refs/tags/v1.0.1-alpha.24.zip",
   "relatedLink": [
     "https://siibra-python.readthedocs.io/en/latest/"
   ],
