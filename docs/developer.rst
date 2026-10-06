@@ -260,7 +260,7 @@ access to the repository:
 
 ``python scripts/release.py check`` runs the metadata checks at any time. Besides
 the version, dates and download URL, it verifies that the requirements listed in
-``README.rst`` match ``install_requires`` in ``setup.py``, which is the single
+``README.rst`` match ``install_requires`` in ``pyproject.toml``, which is the single
 source of truth for runtime dependencies. After changing dependencies, run
 ``python scripts/release.py sync`` to update the README.
 

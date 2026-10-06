@@ -55,7 +55,7 @@ Mac OS in a recent Python 3 environment. We run continuous integration tests for
 versions 3.9 - 3.13 on recent Ubuntu images. 
 
 The library requires Python 3.9 or newer and a couple of open source packages,
-as declared in ``setup.py``:
+as declared in ``pyproject.toml``:
 
 .. requirements-start
 

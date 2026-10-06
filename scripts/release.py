@@ -12,12 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Release helper for siibra-python. Requires the packaging library.
+"""Release helper for siibra-python. Requires packaging (and tomli on Python < 3.11).
 
     python scripts/release.py check [--tag vX.Y.Z]  verify release metadata (also run in CI)
     python scripts/release.py prepare [BUMP]        commit the version bump
     python scripts/release.py tag                   after the release PR is merged: tag main
-    python scripts/release.py sync                  rewrite README requirements from setup.py
+    python scripts/release.py sync                  rewrite README requirements from pyproject
 
 prepare works from the current branch: on main it creates release/v<version> for the
 bump, on any other branch it commits there. tag only runs on main, in sync with the
@@ -36,7 +36,6 @@ BUMP is one of (default: the next prerelease of the same kind, or patch):
 from __future__ import annotations
 
 import argparse
-import ast
 import datetime as dt
 import json
 import os
@@ -47,14 +46,21 @@ from pathlib import Path
 
 try:
     from packaging.version import InvalidVersion, Version
-except ImportError:
-    sys.exit("scripts/release.py needs the 'packaging' library: pip install packaging")
+
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        import tomli as tomllib
+except ImportError as err:
+    sys.exit(
+        f"scripts/release.py needs the '{err.name}' library: pip install {err.name}"
+    )
 
 ROOT = Path(__file__).resolve().parent.parent
 VERSION_FILE = ROOT / "siibra" / "VERSION"
 CITATION_FILE = ROOT / "CITATION.cff"
 CODEMETA_FILE = ROOT / "codemeta.json"
-SETUP_FILE = ROOT / "setup.py"
+PYPROJECT_FILE = ROOT / "pyproject.toml"
 README_FILE = ROOT / "README.rst"
 REPO_URL = "https://github.com/FZJ-INM1-BDA/siibra-python"
 CONFIG_REPO_URL = "https://github.com/FZJ-INM1-BDA/siibra-configurations"
@@ -179,17 +185,10 @@ README_REQS_RE = re.compile(
 
 
 def readme_with_requirements() -> str:
-    """README.rst text with the requirements block regenerated from setup.py."""
-    reqs = next(
-        (
-            ast.literal_eval(node.value)
-            for node in ast.walk(ast.parse(read(SETUP_FILE)))
-            if isinstance(node, ast.keyword) and node.arg == "install_requires"
-        ),
-        None,
-    )
+    """README.rst text with the requirements block regenerated from pyproject.toml."""
+    reqs = tomllib.loads(read(PYPROJECT_FILE)).get("project", {}).get("dependencies")
     if reqs is None:
-        raise ReleaseError("setup.py: install_requires not found")
+        raise ReleaseError("pyproject.toml: [project] dependencies not found")
     readme = read(README_FILE)
     if not README_REQS_RE.search(readme):
         raise ReleaseError(
@@ -202,7 +201,7 @@ def readme_with_requirements() -> str:
 
 
 def sync_readme() -> bool:
-    """Rewrite the README requirements from setup.py; return True if anything changed."""
+    """Rewrite the README requirements from pyproject.toml; return True if changed."""
     new = readme_with_requirements()
     if new == read(README_FILE):
         return False
@@ -244,7 +243,7 @@ def check_for_problems(tag: str | None = None) -> list:
     ]
     if readme_with_requirements() != read(README_FILE):
         found.append(
-            "README.rst requirements differ from setup.py; "
+            "README.rst requirements differ from pyproject.toml; "
             "run 'python scripts/release.py sync'"
         )
     if not config_tag_exists(version):

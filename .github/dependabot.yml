@@ -24,9 +24,9 @@ updates:
     cooldown:
       default-days: 7
 
-  # Runtime dependencies (setup.py) and test requirements. setup.py only has
-  # lower bounds, so version updates leave it alone; security updates will
-  # raise a bound when a vulnerability is published.
+  # Runtime dependencies (pyproject.toml) and test requirements. pyproject.toml
+  # only has lower bounds, so version updates leave it alone; security updates
+  # will raise a bound when a vulnerability is published.
   - package-ecosystem: pip
     directory: /
     schedule:
