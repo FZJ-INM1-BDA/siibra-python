@@ -20,7 +20,6 @@ from .. import feature
 
 from ...retrieval import datasets
 
-
 DOI_TMPL = """
 doi
 ---
@@ -29,11 +28,7 @@ doi
 
 
 class EbrainsDataFeature(feature.Feature, category="other"):
-    def __init__(
-        self,
-        dataset_version_id: str,
-        anchor: _anchor.AnatomicalAnchor
-    ):
+    def __init__(self, dataset_version_id: str, anchor: _anchor.AnatomicalAnchor):
         feature.Feature.__init__(
             self,
             modality=None,  # lazy implementation below
@@ -88,3 +83,23 @@ class EbrainsDataFeature(feature.Feature, category="other"):
     def _export(self, fh: ZipFile):
         super()._export(fh)
         fh.writestr("doi.md", DOI_TMPL.format(doi=self.url))
+
+
+class GeometryDataFeature(
+    EbrainsDataFeature, configuration_folder="features/geometry", category="other"
+): ...
+
+
+class LSFMPointCloud(GeometryDataFeature, category="cellular"):
+
+    def __init__(self, dataset_version_id, anchor, id: str, **kwargs):
+        super().__init__(dataset_version_id, anchor)
+        self._id = id
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def modality(self):
+        return "Light Sheet Fluorescence Microscopy"

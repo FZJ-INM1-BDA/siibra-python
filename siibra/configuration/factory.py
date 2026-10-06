@@ -488,6 +488,16 @@ class Factory:
             raise ValueError(f"No method for building image section feature type {modality}.")
 
     @classmethod
+    @build_type("siibra/feature/geom/v0.1")
+    def build_geom_feat(cls, spec: dict):
+        from siibra.features.dataset.ebrains import LSFMPointCloud
+        copied_spec = {**spec}
+        copied_spec['id'] = copied_spec.pop("@id")
+        copied_spec.pop("@type", None)
+        return LSFMPointCloud(**copied_spec)
+
+
+    @classmethod
     @build_type("siibra/feature/connectivitymatrix/v0.2")
     def build_connectivity_matrix(cls, spec):
         modality = spec["modality"]
