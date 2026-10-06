@@ -343,7 +343,7 @@ def prepare(spec: str | None) -> None:
             run(*cmd)
         check(tag)
         git("add", "siibra/VERSION", "CITATION.cff", "codemeta.json", "README.rst")
-        git("commit", "-m", f"Release {tag}")
+        git("commit", "-m", f"version bump {tag}")
     except BaseException:  # also Ctrl+C: leave the repository as it was
         print("\nAborting: discarding the changes.", file=sys.stderr)
         if on_main:
