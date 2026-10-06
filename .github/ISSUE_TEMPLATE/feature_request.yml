@@ -1,13 +1,12 @@
 name: "Feature request"
 description: Suggest an idea or improvement for siibra-python.
 labels: ["user feedback"]
-assignees: []
 
 body:
 
   - type: markdown
     attributes:
-    value: Thanks for suggesting an improvement to siibra-python.
+      value: Thanks for suggesting an improvement to siibra-python.
 
   - type: checkboxes
     id: checks
@@ -27,7 +26,7 @@ body:
         Describe the problem you are trying to solve. Include the relevant
         workflow, atlas, parcellation, space, region, feature, or data type
         where applicable.
-        placeholder: >
+      placeholder: >
         I am trying to ..., but currently ...
     validations:
       required: true
