@@ -1035,13 +1035,17 @@ def from_nifti(
     space: str,
     name: str,
     time: np.ndarray = None,
-):
+) -> Union[Volume, TimeSeriesVolume]:
     """Build a siibra volume from a NIfTI image.
 
     The image is written to the local siibra cache and returned as a
     file-backed volume. This avoids storing the image array directly in the
     provider and can reduce memory pressure for large or proxy-backed NIfTI
     images.
+
+    NIfTI files store the affine in single precision. The returned volume
+    therefore uses the full-precision affine of ``nifti`` instead of the one
+    read from the cached file.
 
     Parameters
     ----------
@@ -1066,6 +1070,7 @@ def from_nifti(
         If ``name`` is empty.
     """
     from ..retrieval import CACHE
+    from nibabel import Nifti1Image, load as load_nifti
 
     if len(name) == 0:
         raise ValueError("Please provide a non-empty string for `name`.")
@@ -1077,12 +1082,20 @@ def from_nifti(
     if not Path(filename).is_file():
         nifti.to_filename(filename)
 
-    return from_file(
-        filename,
-        space=space,
-        format="nii",
-        time=time,
+    # Keep the data file-backed, but restore the full-precision affine,
+    # since the NIfTI header stores it as float32.
+    cached = load_nifti(filename)
+    img = Nifti1Image(cached.dataobj, nifti.affine, header=cached.header)
+
+    spaceobj = get_registry("Space").get(space)
+    kwargs = dict(
+        space_spec={"@id": spaceobj.id},
+        providers=[_providers.NiftiProvider(img)],
+        name=name,
     )
+    if time is None:
+        return Volume(**kwargs)
+    return TimeSeriesVolume(time=time, **kwargs)
 
 
 def from_array(
@@ -1097,9 +1110,10 @@ def from_array(
     """Build a siibra volume from an array and affine matrix.
 
     The array is converted to a NIfTI image, written to the local siibra cache,
-    and returned as a file-backed volume. If ``name`` is not provided, a stable
-    name is generated from the array values, affine matrix, space
-    specification, and optional time axis.
+    and returned as a file-backed volume. The volume keeps the full-precision
+    ``affine``, although NIfTI files store it in single precision. If ``name``
+    is not provided, a stable name is generated from the array values, affine
+    matrix, space specification, and optional time axis.
 
     Parameters
     ----------

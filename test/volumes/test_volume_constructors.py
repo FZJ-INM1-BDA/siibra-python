@@ -1,0 +1,77 @@
+"""Unit tests for the cached volume constructors `from_nifti` and `from_array`.
+
+The space registry and the siibra cache are patched, so no network access is
+needed and nothing is written to the user's cache.
+"""
+
+from hashlib import md5
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+
+import numpy as np
+import pytest
+from nibabel import Nifti1Image
+from nibabel.arrayproxy import is_proxy
+
+from siibra.retrieval import CACHE
+from siibra.volumes import volume as volume_module
+from siibra.volumes.volume import TimeSeriesVolume, from_array, from_nifti
+
+# 1.0905000000000087 is not representable in float32, NIfTI headers store 1.090499997138977
+AFFINE = np.array([
+    [0.02, 0.0, 0.0, -70.68],
+    [0.0, 0.02, 0.0, 1.0905000000000087],
+    [0.0, 0.0, 0.02, -58.79],
+    [0.0, 0.0, 0.0, 1.0],
+])
+DATA = np.arange(24, dtype="float32").reshape(4, 1, 6)
+
+
+@pytest.fixture
+def cachedir(tmp_path):
+    """Redirect the siibra cache to tmp_path and resolve any space without network."""
+    def build_filename(str_rep, suffix=None):
+        return (tmp_path / (md5(str_rep.encode("utf-8")).hexdigest() + (suffix or ""))).as_posix()
+
+    registry = Mock()
+    registry.get.return_value = SimpleNamespace(id="test-space-id")
+    with patch.object(volume_module, "get_registry", return_value=registry):
+        with patch.object(CACHE, "build_filename", side_effect=build_filename):
+            yield tmp_path
+
+
+def build(constructor: str, data: np.ndarray = DATA, **kwargs):
+    if constructor == "from_array":
+        return from_array(data, AFFINE, space="test", name="vol", **kwargs)
+    return from_nifti(Nifti1Image(data, AFFINE), space="test", name="vol", **kwargs)
+
+
+@pytest.mark.parametrize("constructor", ["from_array", "from_nifti"])
+def test_affine_keeps_full_precision(cachedir, constructor):
+    """Regression: the affine must not be rounded to float32 by the cache file."""
+    img = build(constructor).fetch()
+    assert np.array_equal(img.affine, AFFINE)
+    assert np.array_equal(np.asanyarray(img.dataobj), DATA)
+
+
+@pytest.mark.parametrize("constructor", ["from_array", "from_nifti"])
+def test_affine_keeps_full_precision_when_cache_file_exists(cachedir, constructor):
+    """The affine is restored also when the cache file was written by an earlier call."""
+    build(constructor)
+    assert len(list(cachedir.glob("*.nii"))) == 1
+    assert np.array_equal(build(constructor).fetch().affine, AFFINE)
+
+
+@pytest.mark.parametrize("constructor", ["from_array", "from_nifti"])
+def test_data_stays_file_backed(cachedir, constructor):
+    """The fetched image reads its data from the cache file, not from an in-memory array."""
+    img = build(constructor).fetch()
+    assert is_proxy(img.dataobj)
+
+
+def test_timeseries_affine_keeps_full_precision(cachedir):
+    data = np.stack([DATA + t for t in range(3)], axis=-1)
+    vol = build("from_array", data=data, time=[0.0, 0.5, 1.0])
+    assert isinstance(vol, TimeSeriesVolume)
+    assert np.array_equal(vol.fetch().affine, AFFINE)
+    assert np.array_equal(np.asanyarray(vol.fetch(timepoint=0.5).dataobj), DATA + 1)
