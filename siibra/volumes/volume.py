@@ -14,7 +14,7 @@
 # limitations under the License.
 """A specific mesh or 3D array."""
 
-from typing import Iterable, List, Dict, Union, Set, TYPE_CHECKING
+from typing import Iterable, List, Dict, Union, Set, TYPE_CHECKING, Optional
 from dataclasses import dataclass
 from time import sleep
 import json
@@ -923,6 +923,97 @@ class Subvolume(Volume):
         )
 
 
+def _compute_md5_from_data(data: np.ndarray, time: Optional[np.ndarray] = None) -> str:
+    """
+    Compute an md5 digest of voxel data, its shape and dtype, and an optional time axis.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        Voxel data.
+    time : numpy.ndarray, optional
+        Time axis of time-resolved data.
+
+    Returns
+    -------
+    str
+        Hexadecimal md5 digest.
+    """
+    arr = np.ascontiguousarray(data)
+    h = md5(arr.view(np.uint8))
+    h.update(str(arr.shape).encode("utf-8"))
+    h.update(str(arr.dtype).encode("utf-8"))
+    h.update(str(None if time is None else np.asanyarray(time).tolist()).encode("utf-8"))
+    return h.hexdigest()
+
+
+def _to_cached_nifti_volume(
+    nifti: Nifti1Image,
+    space: Union[str, Dict[str, str], "_space.Space"],
+    name: str,
+    digest: str,
+    time: Optional[np.ndarray] = None,
+) -> Union[Volume, TimeSeriesVolume]:
+    """
+    Write a NIfTI image to the siibra cache and wrap it as a file-backed volume.
+
+    The cache file is identified by name, space, affine, and the digest of the
+    image data, so images with equal names but different data do not share a
+    file. NIfTI files store the affine in single precision, so the volume uses
+    the full-precision affine of ``nifti`` instead of the one read from the file.
+
+    Parameters
+    ----------
+    nifti : nibabel.Nifti1Image
+        NIfTI image to wrap.
+    space : str, dict[str, str], or Space
+        Reference space of the volume.
+    name : str
+        Name assigned to the resulting volume. Must be non-empty.
+    digest : str
+        Digest of the image data, see `_data_digest`.
+    time : numpy.ndarray, optional
+        Time axis. If given, a :class:`TimeSeriesVolume` is returned.
+
+    Returns
+    -------
+    Volume or TimeSeriesVolume
+        File-backed siibra volume using a cached NIfTI image.
+
+    Raises
+    ------
+    ValueError
+        If ``name`` is empty.
+    """
+    from ..retrieval import CACHE
+    from nibabel import load as load_nifti
+
+    if len(name) == 0:
+        raise ValueError("Please provide a non-empty string for `name`.")
+
+    filename = CACHE.build_filename(
+        f"{name}-{space}-{nifti.affine.tolist()}-{digest}",
+        ".nii",  # uncompressed, better for memory mapping than .nii.gz
+    )
+    if not Path(filename).is_file():
+        nifti.to_filename(filename)
+
+    # Keep the data file-backed, but restore the full-precision affine,
+    # since the NIfTI header stores it as float32.
+    cached = load_nifti(filename)
+    img = Nifti1Image(cached.dataobj, nifti.affine, header=cached.header)
+
+    spaceobj = get_registry("Space").get(space)
+    kwargs = dict(
+        space_spec={"@id": spaceobj.id},
+        providers=[_providers.NiftiProvider(img)],
+        name=name,
+    )
+    if time is None:
+        return Volume(**kwargs)
+    return TimeSeriesVolume(time=time, **kwargs)
+
+
 def _determine_provider(format: str, is_timeseries: bool = False):
     if format not in Volume.SUPPORTED_FORMATS:
         raise ValueError(f"Unsupported format {format!r}. Expected one of: '{Volume.SUPPORTED_FORMATS}'.")
@@ -1041,7 +1132,8 @@ def from_nifti(
     The image is written to the local siibra cache and returned as a
     file-backed volume. This avoids storing the image array directly in the
     provider and can reduce memory pressure for large or proxy-backed NIfTI
-    images.
+    images. The cache file is identified by the name, space, affine, and image
+    data, so the image data is read once to compute its digest.
 
     NIfTI files store the affine in single precision. The returned volume
     therefore uses the full-precision affine of ``nifti`` instead of the one
@@ -1069,33 +1161,8 @@ def from_nifti(
     ValueError
         If ``name`` is empty.
     """
-    from ..retrieval import CACHE
-    from nibabel import Nifti1Image, load as load_nifti
-
-    if len(name) == 0:
-        raise ValueError("Please provide a non-empty string for `name`.")
-
-    filename = CACHE.build_filename(
-        f"{name}-{space}-{nifti.shape}-{nifti.affine.tolist()}",
-        ".nii",  # uncompressed, better for memory mapping than .nii.gz
-    )
-    if not Path(filename).is_file():
-        nifti.to_filename(filename)
-
-    # Keep the data file-backed, but restore the full-precision affine,
-    # since the NIfTI header stores it as float32.
-    cached = load_nifti(filename)
-    img = Nifti1Image(cached.dataobj, nifti.affine, header=cached.header)
-
-    spaceobj = get_registry("Space").get(space)
-    kwargs = dict(
-        space_spec={"@id": spaceobj.id},
-        providers=[_providers.NiftiProvider(img)],
-        name=name,
-    )
-    if time is None:
-        return Volume(**kwargs)
-    return TimeSeriesVolume(time=time, **kwargs)
+    digest = _compute_md5_from_data(np.asanyarray(nifti.dataobj), time)
+    return _to_cached_nifti_volume(nifti, space=space, name=name, digest=digest, time=time)
 
 
 def from_array(
@@ -1106,7 +1173,7 @@ def from_array(
     time: np.ndarray = None,
     *,
     cache: bool = True,
-):
+) -> Union[Volume, TimeSeriesVolume]:
     """Build a siibra volume from an array and affine matrix.
 
     The array is converted to a NIfTI image, written to the local siibra cache,
@@ -1146,18 +1213,12 @@ def from_array(
             name=name,
         )
 
-    if name is None:
-        arr = np.ascontiguousarray(data)
-        h = md5(arr.view(np.uint8))
-        h.update(str(arr.shape).encode("utf-8"))
-        h.update(str(arr.dtype).encode("utf-8"))
-        h.update(str(None if time is None else np.asanyarray(time).tolist()).encode("utf-8"))
-        name = h.hexdigest()
-
-    return from_nifti(
-        nifti=Nifti1Image(data, affine),
+    digest = _compute_md5_from_data(data, time)
+    return _to_cached_nifti_volume(
+        Nifti1Image(data, affine),
         space=space,
-        name=name,
+        name=digest if name is None else name,
+        digest=digest,
         time=time,
     )
 
