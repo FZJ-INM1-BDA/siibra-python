@@ -76,8 +76,9 @@ plt.imshow(patch.fetch().get_fdata().squeeze(), cmap='gray')
 # we first plot the position of the chosen brain section in MNI space.
 view = plotting.plot_glass_brain(region_map.fetch(), cmap='viridis', threshold=0.0)
 roi_mni = patch.get_boundingbox().warp('mni152')
-_, key, pos = min(zip(roi_mni.shape, view.axes.keys(), roi_mni.center))
-view.axes[key].ax.axvline(pos, color='red', linestyle='--', linewidth=2)
+flat_dim = min(range(3), key=lambda dim: roi_mni.shape[dim])
+view_key = {0: "y", 1: "x"}[flat_dim]
+view.axes[view_key].ax.axvline(roi_mni.center[flat_dim], color='red', linestyle='--', linewidth=2)
 
 # %%
 # Next we plot the section itself and identify the larger region of
