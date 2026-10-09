@@ -1179,8 +1179,8 @@ def from_array(
     The array is converted to a NIfTI image, written to the local siibra cache,
     and returned as a file-backed volume. The volume keeps the full-precision
     ``affine``, although NIfTI files store it in single precision. If ``name``
-    is not provided, a stable name is generated from the array values, affine
-    matrix, space specification, and optional time axis.
+    is not provided, a stable name is generated from the array values, shape,
+    dtype, and optional time axis.
 
     Parameters
     ----------
@@ -1193,7 +1193,7 @@ def from_array(
         value is used as the space specification.
     name : str, optional
         Name assigned to the resulting volume. If omitted, a deterministic name
-        is generated from ``data``, ``affine``, ``space``, and ``time``.
+        is generated from ``data`` and ``time``.
     time : numpy.ndarray, optional
         Time axis for 4D or time-resolved data. If given, a
         :class:`TimeSeriesVolume` is returned.

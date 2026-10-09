@@ -93,3 +93,17 @@ def test_generated_name_is_stable(cachedir):
     for part in (str(DATA.shape), str(DATA.dtype), str(None)):
         expected.update(part.encode("utf-8"))
     assert from_array(DATA, AFFINE, space="test").name == expected.hexdigest()
+
+
+@pytest.mark.parametrize("constructor", ["from_array", "from_nifti"])
+def test_name_is_kept(cachedir, constructor):
+    """Regression: the given name must not be replaced by a hash of the cache file path."""
+    assert build(constructor).name == "vol"
+
+
+def test_generated_name_ignores_affine_and_space(cachedir):
+    a = from_array(DATA, AFFINE, space="test")
+    b = from_array(DATA, np.eye(4), space="other")
+    c = from_array(DATA + 1, AFFINE, space="test")
+    assert a.name == b.name
+    assert a.name != c.name
