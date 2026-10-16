@@ -27,6 +27,7 @@ from nibabel import Nifti1Image
 from skimage import feature as skimage_feature, filters
 
 from . import providers as _providers
+from .mesh import from_mesh_dict
 from ..commons import (
     resample_img_to_img,
     siibra_tqdm,
@@ -524,7 +525,7 @@ class Volume(structure.BrainStructure):
                         tpl = self.space.get_template(variant=kwargs.get("variant"))
                         mesh = tpl.fetch(**kwargs)
                         surface_data = self._providers[fmt].fetch(**fwd_args)
-                        result = dict(**mesh, **surface_data)
+                        result = from_mesh_dict(dict(**mesh, **surface_data))
                     else:
                         result = self._providers[fmt].fetch(**fwd_args)
                 except requests.SiibraHttpRequestError as e:
