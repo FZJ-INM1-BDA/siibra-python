@@ -1,0 +1,38 @@
+# Dependabot opens update PRs itself, so no workflow needs write access.
+# Enable "Dependabot alerts" and "Dependabot security updates" in the repository
+# settings as well, to get immediate PRs when a dependency has a known vulnerability.
+version: 2
+updates:
+  # SHA-pinned actions in workflows and the composite action
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/workflows/setup-custom-cfg
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7  # skip releases younger than a week (supply-chain safety margin)
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # Build tooling pinned in .github/requirements-build.txt
+  - package-ecosystem: pip
+    directory: /.github
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+
+  # Runtime dependencies (pyproject.toml) and test requirements. pyproject.toml
+  # only has lower bounds, so version updates leave it alone; security updates
+  # will raise a bound when a vulnerability is published.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      python-dependencies:
+        patterns: ["*"]

@@ -1,3 +1,0 @@
-spack:
-  specs:
-    - siibra %gcc@10.3.0

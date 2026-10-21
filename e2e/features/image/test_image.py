@@ -20,7 +20,7 @@ def test_feature_has_datasets(feature: Image):
 
 
 def test_images_datasets_names():
-    expected_ds_count = 14
+    expected_ds_count = 13
     start = time.time()
     all_ds_names = {ds.name for f in all_image_features for ds in f.datasets}
     end = time.time()
@@ -35,7 +35,7 @@ query_and_results = [
     (siibra.spaces["bigbrain"], "CellbodyStainedSection", 145),
     (siibra.spaces["bigbrain"], "volume", 12),
     (siibra.spaces["bigbrain"], "CellBodyStainedVolumeOfInterest", 2),
-    (siibra.spaces["mni152"], "volume", 8),
+    (siibra.spaces["mni152"], "volume", 4),
     (siibra.spaces["colin27"], "volume", 0),
     (siibra.get_region('julich 3.1', 'hoc1 left'), "CellbodyStainedSection", 45),
     (siibra.get_region('julich 2.9', 'hoc1 left'), "CellbodyStainedSection", 41)

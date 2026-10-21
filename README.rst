@@ -52,29 +52,27 @@ In order to work with the latest version from github, use:
 
 ``siibra-python`` should be installable on recent versions of Windows, Linux and
 Mac OS in a recent Python 3 environment. We run continuous integration tests for
-versions 3.8 - 3.12 on recent Ubuntu images. 
+versions 3.9 - 3.13 on recent Ubuntu images. 
 
-The library requires a couple of open source packages, namely:
+The library requires Python 3.9 or newer and a couple of open source packages,
+as declared in ``pyproject.toml``:
 
-   - anytree >= 2.12.1
-   - nibabel >= 5.3.2
-   - appdirs >= 1.4.4
-   - scikit-image >= 0.25.0
-   - requests >= 2.32.3
-   - neuroglancer-scripts >= 1.2.0
-   - nilearn >= 0.11.0
-   - filelock >= 3.16.1
-   - ebrains-drive >= 0.6.0
+.. requirements-start
 
-You can also install a docker image with all dependencies included:
+- anytree >= 2.12.1
+- nibabel >= 5.3.2
+- appdirs >= 1.4.4
+- scikit-image >= 0.24.0
+- requests >= 2.33.0; python_version >= "3.10"
+- requests >= 2.32.4; python_version < "3.10"
+- neuroglancer-scripts >= 1.2.0
+- nilearn >= 0.12
+- filelock >= 3.20.3; python_version >= "3.10"
+- filelock >= 3.16.1; python_version < "3.10"
+- ebrains-drive >= 0.6.0
+- h5py >= 3.11
 
-.. code-block:: bash
-
-  docker run -dit \
-        -p 10000:8888 \
-        --rm \
-        --name siibra \
-        docker-registry.ebrains.eu/siibra/siibra-python:latest
+.. requirements-end
 
 Documentation & Help
 ====================

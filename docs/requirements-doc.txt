@@ -1,7 +1,6 @@
 setuptools >= 67.7.2
 sphinx
 rtds_action
--r ../requirements.txt
 memory-profiler
 ipykernel
 nbsphinx
@@ -12,7 +11,7 @@ IPython
 m2r2
 sphinx-gallery
 plotly
-matplotlib >= 3.4.0
+matplotlib >= 3.10.9
 sphinx-book-theme
 sphinx_autopackagesummary
 sphinxcontrib.jquery

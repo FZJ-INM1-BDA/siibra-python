@@ -41,6 +41,8 @@ logger.info(f"Version: {__version__}\nPlease file issues at https://github.com/F
 # forward access to some functions
 find_regions = _parcellation.find_regions
 from_json = factory.Factory.from_json
+use_configuration = configuration.Configuration.use_configuration
+extend_configuration = configuration.Configuration.extend_configuration
 
 
 def __getattr__(attr: str):
@@ -53,10 +55,6 @@ def __getattr__(attr: str):
         return _parcellation.Parcellation.registry()
     elif attr == 'maps':
         return _parcellationmap.Map.registry()
-    elif attr == 'use_configuration':
-        return configuration.Configuration.use_configuration
-    elif attr == 'extend_configuration':
-        return configuration.Configuration.extend_configuration
     else:
         raise AttributeError(f"No such attribute: {__name__}.{attr}")
 
@@ -200,7 +198,7 @@ def get_space(space: str):
     return _space.Space.get_instance(space)
 
 
-def set_feasible_download_size(maxsize_gbyte):
+def set_feasible_download_size(maxsize_gbyte: float):
     """
     Set the maximum download size considered feasible.
 
@@ -209,8 +207,8 @@ def set_feasible_download_size(maxsize_gbyte):
 
     Parameters
     ----------
-    maxsize_gbyte : float
-        Maximum feasible download size in gibibytes (GiB).
+    maxsize_gbyte: float
+        Maximum feasible download size in gigabytes (GB).
 
     Returns
     -------
@@ -218,28 +216,22 @@ def set_feasible_download_size(maxsize_gbyte):
         This function modifies the global download-size threshold
         in place.
     """
-    from .volumes import volume
-
-    volume.gbyte_feasible = maxsize_gbyte
-    logger.info(f"Set feasible download size to {maxsize_gbyte} GiB.")
+    raise NotImplementedError(-"Please use 'SIIBRA_MAX_FETCH_SIZE_BYTES' environment variable. (Only impacts neuroglancer/precomputed images.)")
 
 
-def set_cache_size(maxsize_gbyte: int):
+def set_cache_size(maxsize_gbyte: float):
     """
     siibra runs maintenance on its local cache to keep it under a predetermined
-    size of 2 gigabytes. This method changes the cache size.
+    size of 2 GiB. This method changes the cache size.
 
     Parameters
     ----------
-    maxsize_gbyte : int
+    maxsize_gbyte: float
     """
-    assert maxsize_gbyte >= 0
+    if maxsize_gbyte <= 0:
+        raise ValueError("'maxsize_gbyte' must be positive.")
     cache.SIZE_GIB = maxsize_gbyte
     logger.info(f"Set cache size to {maxsize_gbyte} GiB.")
-
-
-if "SIIBRA_CACHE_SIZE_GIB" in _os.environ:
-    set_cache_size(float(_os.environ.get("SIIBRA_CACHE_SIZE_GIB")))
 
 
 def warm_cache(level=WarmupLevel.INSTANCE):
@@ -259,6 +251,7 @@ def __dir__():
         "atlases",
         "spaces",
         "parcellations",
+        "maps",
         "features",
         "use_configuration",
         "extend_configuration",

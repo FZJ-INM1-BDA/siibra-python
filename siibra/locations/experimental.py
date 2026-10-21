@@ -17,7 +17,6 @@ from typing import List
 from math import atan2
 
 import numpy as np
-from nilearn import image
 
 from . import point, pointcloud, boundingbox
 from ..volumes import volume
@@ -61,7 +60,10 @@ class AxisAlignedPatch(pointcloud.PointCloud):
         define in the y plane. A future implementation should accept arbitrary
         oriented patches.accept arbitrary oriented patches.
         """
-        assert image_volume.space == self.space
+        if image_volume.space != self.space:
+            raise ValueError(f"{image_volume} and {self} are in different reference spaces.")
+
+        from nilearn import image
 
         # Extend the 2D patch into a 3D structure
         # this is only valid if the patch plane lies within the image canvas.

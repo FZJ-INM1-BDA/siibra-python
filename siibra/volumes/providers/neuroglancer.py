@@ -24,7 +24,6 @@ from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset, Pre
 from neuroglancer_scripts.accessor import DataAccessError
 from neuroglancer_scripts.http_accessor import HttpAccessor
 from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
-from nilearn.image.resampling import BoundingBoxError
 
 from . import provider as _provider
 from ...retrieval import requests, cache
@@ -213,6 +212,8 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
         voi: _boundingbox.BoundingBox = None,
         max_bytes: float = SIIBRA_MAX_FETCH_SIZE_BYTES,
     ) -> nib.Nifti1Image:
+        from nilearn.image.resampling import BoundingBoxError
+
         with QUIET:
             if voi is not None:
                 bbox = voi
