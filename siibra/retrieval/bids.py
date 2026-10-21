@@ -17,14 +17,31 @@ Lightweight, dependency-free helpers for BIDS-style filenames and sidecar metada
 
 Filenames are parsed generically (key-value pairs + suffix + extension), so
 non-core entities such as TemplateFlow's ``tpl-`` or ``atlas-`` are supported.
-Sidecar lookup follows the BIDS inheritance principle on a RepositoryConnector
-holding a BIDS-structured dataset.
+Sidecar metadata is resolved with the BIDS inheritance principle on a
+RepositoryConnector holding a BIDS-structured dataset.
+
+Differences from BIDS
+---------------------
+- Entity keys are not checked against the BIDS schema, so any key is accepted.
+  Index values (``run``, ``echo``, ...) are not checked to be integers.
+- With ``strict=False`` (the default), names that break the filename rules are
+  still parsed, and every deviation is logged at debug level. Parts that cannot
+  be read as an entity, empty keys or values, and repeated entities are
+  skipped; entities with characters outside the label format (such as the
+  hyphens in ``desc-julich-brain``) are kept, since several datasets siibra
+  integrates use such names. ``strict=True`` rejects all of these.
+- A suffix is required to match sidecars, as in BIDS. Files without one are
+  parsed (``suffix`` is None), but sidecar lookup raises ValueError for them.
+- The datatype is only taken from a parent folder named like a BIDS datatype.
+- Only JSON sidecars are resolved; other inheritable files (``.tsv``,
+  ``.bvec``, ...) are not.
 """
 
 import re
 from pathlib import PurePath, PurePosixPath
 from typing import (
     TYPE_CHECKING,
+    Any,
     Dict,
     List,
     NamedTuple,
@@ -62,7 +79,10 @@ BIDS_DATATYPES = frozenset(
 DATASET_DESCRIPTION = "dataset_description.json"
 SIDECAR_EXTENSION = ".json"
 
+# Entity keys and suffixes are alphanumeric. Entity values follow the BIDS
+# label format, which also allows "+".
 _ALNUM = re.compile(r"[A-Za-z0-9]+")
+_LABEL = re.compile(r"[A-Za-z0-9+]+")
 
 
 class BIDSFileInfo(NamedTuple):
@@ -90,9 +110,9 @@ def parse_bids_filename(filename: PathLike, strict: bool = False) -> BIDSFileInf
         A file path or bare filename. Only the last path component is parsed
         for entities; the parent directory name is used to infer the datatype.
     strict : bool, default False
-        If True, raise ValueError on malformed parts, non-alphanumeric
-        keys/values, duplicate entities, or a missing suffix. If False,
-        such parts are skipped (first occurrence wins for duplicates).
+        If True, raise ValueError for any name that breaks the BIDS filename
+        rules. If False, parse what can be parsed and log each deviation at
+        debug level (see the module docstring for what is skipped or kept).
 
     Returns
     -------
@@ -100,6 +120,7 @@ def parse_bids_filename(filename: PathLike, strict: bool = False) -> BIDSFileInf
         ``entities`` keeps the order of appearance; all values are strings
         (e.g. ``run-01`` stays ``"01"``). ``extension`` includes the leading
         dot and everything after the first dot (``.nii.gz``, ``.dtseries.nii``).
+        ``suffix`` is None if the last part is not a suffix.
     """
     path = PurePath(filename)
     stem, dot, rest = path.name.partition(".")
@@ -111,29 +132,31 @@ def parse_bids_filename(filename: PathLike, strict: bool = False) -> BIDSFileInf
 
     for i, part in enumerate(parts):
         key, sep, value = part.partition("-")
+        is_last = i == len(parts) - 1
 
         if not sep:
-            if i == len(parts) - 1 and part:
+            if is_last and part:
+                if not _ALNUM.fullmatch(part):
+                    _malformed(f"Non-alphanumeric suffix {part!r} in {path.name!r}", strict)
                 suffix = part
             else:
-                _malformed(
-                    f"Unexpected non key-value part {part!r} in {path.name!r}", strict
-                )
+                _malformed(f"Unexpected non key-value part {part!r} in {path.name!r}", strict)
             continue
 
         if not key or not value:
             _malformed(f"Empty key or value in {part!r} of {path.name!r}", strict)
             continue
-        if strict and not (_ALNUM.fullmatch(key) and _ALNUM.fullmatch(value)):
-            raise ValueError(f"Non-alphanumeric entity {part!r} in {path.name!r}")
         if key in entities:
             _malformed(f"Duplicate entity {key!r} in {path.name!r}", strict)
             continue
+        if not (_ALNUM.fullmatch(key) and _LABEL.fullmatch(value)):
+            # kept when not strict: see the module docstring
+            _malformed(f"Entity {part!r} in {path.name!r} has characters outside the BIDS format", strict)
 
         entities[key] = value
 
-    if strict and suffix is None:
-        raise ValueError(f"No suffix found in {path.name!r}")
+    if suffix is None:
+        _malformed(f"No suffix found in {path.name!r}", strict)
 
     parent = path.parent.name
     datatype = parent if parent in BIDS_DATATYPES else None
@@ -163,16 +186,17 @@ def _applicable_sidecars(
     return applicable
 
 
-def find_bids_sidecar(
+def find_bids_sidecars(
     filename: str, repository: "RepositoryConnector"
-) -> Optional[str]:
+) -> List[str]:
     """
-    Find the JSON sidecar that applies most specifically to a file in a BIDS repository.
+    Find the JSON sidecars that apply to a file in a BIDS repository.
 
     Following the BIDS inheritance principle, a JSON file applies if it lives in
-    the file's folder or any parent folder, has the same suffix, and its entities
-    are a subset (with equal values) of the file's entities. The closest folder
-    wins; within a folder, the candidate with the most entities wins.
+    the file's folder or any parent folder up to the dataset root, has the same
+    suffix, and its entities are a subset (with equal values) of the file's
+    entities. BIDS allows at most one applicable sidecar per folder; if there
+    are several, a warning is logged and the one with the most entities is used.
 
     Parameters
     ----------
@@ -183,16 +207,22 @@ def find_bids_sidecar(
 
     Returns
     -------
-    str or None
-        Path of the sidecar relative to the repository root, or None if no
-        applicable sidecar exists up to the dataset or repository root.
+    list of str
+        Paths of the applicable sidecars relative to the repository root,
+        ordered from the dataset root down to the file's folder, so later
+        ones override earlier ones. Empty if none applies.
+
+    Raises
+    ------
+    ValueError
+        If the filename has no suffix, since BIDS matches sidecars by suffix.
     """
     info = parse_bids_filename(filename)
     if info.suffix is None:
-        logger.debug(f"No suffix in {filename!r}; cannot match a sidecar.")
-        return None
+        raise ValueError(f"Cannot look up sidecars for {filename!r}: it has no BIDS suffix.")
 
     own_path = PurePosixPath(filename.strip("/"))
+    found_per_level: List[str] = []
 
     for folder in own_path.parents:
         # the root comes out of .parents as ".", which has no parts and so becomes ""
@@ -209,10 +239,41 @@ def find_bids_sidecar(
                     f"{sorted(p for _, p in candidates)}. BIDS allows at most one per level; "
                     f"using the one with the most entities."
                 )
-            _, path = max(candidates)
-            return path
+            found_per_level.append(max(candidates)[1])
 
         if DATASET_DESCRIPTION in names:
             break
 
-    return None
+    return found_per_level[::-1]
+
+
+def load_bids_metadata(
+    filename: str, repository: "RepositoryConnector"
+) -> Dict[str, Any]:
+    """
+    Metadata of a file in a BIDS repository, merged from its JSON sidecars.
+
+    Following the BIDS inheritance principle, key-values are read from the
+    dataset root downwards, and a key in a lower-level sidecar overrides the
+    same key from a higher level. Values are not merged below the top level
+    (a nested object is replaced, not combined).
+
+    Parameters
+    ----------
+    filename : str
+        Path of the data file, relative to the repository root.
+    repository : RepositoryConnector
+        Repository holding the BIDS dataset.
+
+    Returns
+    -------
+    dict
+        The merged metadata; empty if no sidecar applies.
+    """
+    metadata: Dict[str, Any] = {}
+    for path in find_bids_sidecars(filename, repository):
+        content = repository.get(path)
+        if not isinstance(content, dict):
+            raise ValueError(f"Sidecar {path!r} does not contain a JSON object.")
+        metadata.update(content)
+    return metadata
