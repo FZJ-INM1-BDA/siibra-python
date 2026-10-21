@@ -42,7 +42,7 @@ class Configuration:
         conn(
             server_or_owner,
             project_or_repo,
-            reftag="master",
+            reftag="siibra-{}".format(__version__),
             skip_branchtest=True,
             archive_mode=True,
         )
