@@ -674,11 +674,12 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
     def tree2str(self):
         """Render region-tree as a string"""
+        enc = "utf-8"
         return "\n".join(
             "%s%s" % (pre, node.name)
             for pre, _, node
             in anytree.RenderTree(self, style=anytree.render.ContRoundStyle)
-        )
+        ).encode(enc, errors="replace").decode(enc)
 
     def render_tree(self):
         """Prints the tree representation of the region"""
