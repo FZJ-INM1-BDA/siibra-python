@@ -27,6 +27,7 @@ from ebrains_drive import BucketApiClient
 from .cache import CACHE, cache_user_fn
 from .requests import (
     HttpRequest,
+    ZipfileRequest,
     EbrainsRequest,
     SiibraHttpRequestError,
     find_suitable_decoder,
@@ -82,10 +83,8 @@ class RepositoryConnector(ABC):
         url = self._build_url(folder, filename)
         if url is None:
             raise RuntimeError(f"Cannot build url for ({folder}, {filename})")
-        if decode_func is None:
-            return HttpRequest(url, lambda b: self._decode_response(b, filename))
-        else:
-            return HttpRequest(url, decode_func)
+        decoder = decode_func if decode_func is not None else find_suitable_decoder(filename)
+        return HttpRequest(url, decoder)
 
     def get_loaders(
         self, folder="", suffix=None, progress=None, recursive=False, decode_func=None
@@ -429,33 +428,12 @@ class ZipfileConnector(RepositoryConnector):
         os.remove(self.zipfile)
         self._zipfile_cached = None
 
-    class ZipFileLoader:
-        """
-        Loads a file from the zip archive, but mimics the behaviour
-        of cached http requests used in other connectors.
-        """
-        def __init__(self, zipfile, filename, decode_func):
-            self.zipfile = zipfile
-            self.filename = filename
-            self.func = decode_func
-            self.cachefile = CACHE.build_filename(zipfile + filename)
-
-        @property
-        def cached(self):
-            return os.path.isfile(self.cachefile)
-
-        @property
-        def data(self):
-            container = ZipFile(self.zipfile)
-            return self.func(container.open(self.filename).read())
-
     def get_loader(self, filename, folder="", decode_func=None):
         """Get a lazy loader for a file, for loading data
         only once loader.data is accessed."""
-        if decode_func is None:
-            return self.ZipFileLoader(self.zipfile, filename, lambda b: self._decode_response(b, filename))
-        else:
-            return self.ZipFileLoader(self.zipfile, filename, decode_func)
+        member = self._build_url(folder, filename)
+        decoder = decode_func if decode_func is not None else find_suitable_decoder(filename)
+        return ZipfileRequest(self.zipfile, member, func=decoder)
 
     def __str__(self):
         return f"{self.__class__.__name__}: {self.zipfile}"
