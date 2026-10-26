@@ -163,12 +163,14 @@ class BigBrainProfileQuery(
                 values=loader._profiles[i],
                 boundaries=loader._boundary_depths[i],
             )
-            prof.anchor._assignments[concept] = _anchor.AnatomicalAssignment(
-                query_structure=concept,
-                assigned_structure=concept,
-                qualification=_anchor.Qualification.CONTAINED,
-                explanation=f"Surface vertex of BigBrain cortical profile was filtered using {concept}",
-            )
+            prof.anchor._assignments[concept] = [
+                _anchor.AnatomicalAssignment(
+                    query_structure=concept,
+                    assigned_structure=concept,
+                    qualification=_anchor.Qualification.CONTAINED,
+                    explanation=f"Surface vertex of BigBrain cortical profile was filtered using {concept}",
+                )
+            ]
             prof.datasets = [WagstylProfileLoader.DATASET]
             features.append(prof)
 
@@ -239,12 +241,14 @@ class LayerwiseBigBrainIntensityQuery(
                 matched_profiles[layer_labels == layer].std() for layer in range(1, 7)
             ],
         )
-        result.anchor._assignments[concept] = _anchor.AnatomicalAssignment(
-            query_structure=concept,
-            assigned_structure=concept,
-            qualification=_anchor.Qualification.CONTAINED,
-            explanation=f"Surface vertices of BigBrain cortical profiles were filtered using {concept}",
-        )
+        result.anchor._assignments[concept] = [
+            _anchor.AnatomicalAssignment(
+                query_structure=concept,
+                assigned_structure=concept,
+                qualification=_anchor.Qualification.CONTAINED,
+                explanation=f"Surface vertices of BigBrain cortical profiles were filtered using {concept}",
+            )
+        ]
         result.datasets = [WagstylProfileLoader.DATASET]
 
         return [result]
@@ -374,11 +378,13 @@ class BigBrain1MicronPatchQuery(
                     anchor = _anchor.AnatomicalAnchor(
                         location=patch, species="Homo sapiens"
                     )
-                    anchor._assignments[concept] = _anchor.AnatomicalAssignment(
-                        query_structure=query_vol,
-                        assigned_structure=s.anchor.volume,
-                        qualification=_anchor.Qualification.CONTAINED
-                    )
+                    anchor._assignments[concept] = _[
+                        anchor.AnatomicalAssignment(
+                            query_structure=query_vol,
+                            assigned_structure=s.anchor.volume,
+                            qualification=_anchor.Qualification.CONTAINED
+                        )
+                    ]
                     features.append(
                         BigBrain1MicronPatch(
                             patch=patch,
