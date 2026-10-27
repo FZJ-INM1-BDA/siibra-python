@@ -474,7 +474,7 @@ class FileLoader(HttpRequest):
 
     def _retrieve(self, **kwargs):
         if kwargs:
-            logger.warning(f"Keywords {list(kwargs.keys())} are supplied but cant't be used for a local file.")
+            logger.warning(f"Keywords {list(kwargs.keys())} are supplied but can't be used for a local file.")
 
 
 class ZipfileRequest(HttpRequest):
