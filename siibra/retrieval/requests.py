@@ -113,7 +113,7 @@ def _get_suffix(filename: str) -> Optional[str]:
     return _scan_query(parsed.query)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Decoder:
     """
     Decode cached resources using either their filesystem path or raw bytes.
@@ -142,6 +142,14 @@ class Decoder:
                 f"Unknown decoder input type {self.input_type!r}. "
                 "Expected 'FILE' or 'BYTES'."
             )
+
+    def __repr__(self) -> str:
+        func_name = getattr(self.func, "__qualname__", None) or getattr(self.func, "__name__", repr(self.func))
+        module = getattr(self.func, "__module__", None)
+        if module:
+            func_name = f"{module}.{func_name}"
+        kwargs_str = f", kwargs={self.kwargs!r}" if self.kwargs else ""
+        return f"Decoder(func={func_name}, input_type={self.input_type!r}{kwargs_str})"
 
     @classmethod
     def from_filename(cls, filename: str) -> Optional["Decoder"]:
