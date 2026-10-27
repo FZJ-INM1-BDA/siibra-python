@@ -46,6 +46,13 @@ from ..commons import (
     SIIBRA_USE_LOCAL_SNAPSPOT,
 )
 
+try:
+    from trx.trx_file_memmap import load as _load_trx
+    _HAS_TRX = True
+except ImportError:
+    _HAS_TRX = False
+    logger.info("trx-python is not available. Requires python>=3.11.")
+
 if TYPE_CHECKING:
     from .repositories import GitlabConnector
 
@@ -60,6 +67,11 @@ def _get_suffix(filename: str) -> Optional[str]:
     Compound gzip suffixes are preserved, e.g. ``.nii.gz`` or ``.csv.gz``.
     For non-gzipped files, only the final suffix is returned.
 
+    When the URL path itself has no suffix (e.g. the filename is embedded in
+    a query parameter such as ``?prefix=path/to/file.trx``), query parameter
+    values are scanned recursively. This handles nested URLs where the actual
+    filename appears in an inner query string.
+
     Parameters
     ----------
     filename : str
@@ -69,18 +81,36 @@ def _get_suffix(filename: str) -> Optional[str]:
     -------
     str or None
         File suffix suitable for ``CACHE.build_filename()``, or ``None`` if
-        the filename has no suffix.
+        no suffix can be determined.
     """
-    path = urllib.parse.urlsplit(filename).path
-    suffixes = Path(path).suffixes
+    def _extract(path: str) -> Optional[str]:
+        suffixes = Path(path).suffixes
+        if not suffixes:
+            return None
+        if suffixes[-1] == ".gz" and len(suffixes) > 1:
+            return "".join(suffixes[-2:])
+        return suffixes[-1]
 
-    if not suffixes:
+    def _scan_query(query: str) -> Optional[str]:
+        for values in urllib.parse.parse_qs(query).values():
+            for v in values:
+                leaf = v.rstrip("/").rsplit("/", 1)[-1].split("?")[0]
+                candidate = _extract(leaf)
+                if candidate:
+                    return candidate
+                inner_query = urllib.parse.urlsplit(v).query
+                if inner_query:
+                    candidate = _scan_query(inner_query)
+                    if candidate:
+                        return candidate
         return None
 
-    if suffixes[-1] == ".gz" and len(suffixes) > 1:
-        return "".join(suffixes[-2:])
+    parsed = urllib.parse.urlsplit(filename)
+    result = _extract(parsed.path)
+    if result:
+        return result
 
-    return suffixes[-1]
+    return _scan_query(parsed.query)
 
 
 @dataclass(frozen=True)
@@ -134,20 +164,14 @@ class Decoder:
         Decoder or None
             Matching decoder, or ``None`` if no decoder can be inferred.
         """
-        path = urllib.parse.urlsplit(filename).path
-        decoder_path = path[:-3] if path.endswith(".gz") else path
+        suffix = _get_suffix(filename)
+        if suffix is None:
+            return None
 
-        matches = [
-            decoder
-            for suffix, decoder in DECODERS.items()
-            if decoder_path.endswith(suffix)
-        ]
+        lookup = suffix[:-3] if suffix.endswith(".gz") else suffix
 
-        if len(matches) == 1:
-            return matches[0]
-
-        if len(matches) == 0 and path.endswith(".gz"):
-            return cls(lambda data: data)
+        if lookup in DECODERS:
+            return DECODERS[lookup]
 
         return None
 
@@ -244,6 +268,9 @@ DECODERS = {
         kwargs={"mode": "r"},
     ),
 }
+
+if _HAS_TRX:
+    DECODERS[".trx"] = Decoder(_load_trx, input_type="FILE")
 
 
 class SiibraHttpRequestError(Exception):
@@ -432,12 +459,14 @@ class FileLoader(HttpRequest):
             refresh=False,
             func=func,
         )
+        p = Path(filepath)
+        if not p.is_file() and not (p.is_dir() and p.suffix == ".trx"):
+            raise ValueError(f"'{p}' is not a valid input, `FileLoader` takes a file or a '.trx'")
         self.cachefile = filepath
 
     def _retrieve(self, **kwargs):
         if kwargs:
-            logger.info(f"Keywords {list(kwargs.keys())} are supplied but won't be used.")
-        assert os.path.isfile(self.cachefile)
+            logger.warning(f"Keywords {list(kwargs.keys())} are supplied but cant't be used for a local file.")
 
 
 class ZipfileRequest(HttpRequest):
