@@ -71,6 +71,7 @@ as declared in ``pyproject.toml``:
 - filelock >= 3.16.1; python_version < "3.10"
 - ebrains-drive >= 0.6.0
 - h5py >= 3.11
+- trx-python >= 0.4; python_version >= "3.11"
 
 .. requirements-end
 
