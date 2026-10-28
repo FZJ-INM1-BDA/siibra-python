@@ -36,13 +36,12 @@ class Configuration:
 
     CONFIG_REPOS = [
         (GithubConnector, "FZJ-INM1-BDA", "siibra-configurations"),
-        (GitlabConnector, "https://gitlab.ebrains.eu", 892)
     ]
     CONFIG_CONNECTORS: List[RepositoryConnector] = [
         conn(
             server_or_owner,
             project_or_repo,
-            reftag="siibra-{}".format(__version__),
+            reftag="feat/jba32",
             skip_branchtest=True,
             archive_mode=True,
         )
