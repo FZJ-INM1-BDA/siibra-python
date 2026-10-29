@@ -444,11 +444,14 @@ class HttpRequest:
         except Exception as e:
             # if network error results in bad cache, it may get raised here
             # e.g. BadZipFile("File is not a zip file")
-            # if that happens, remove cachefile and
-            try:
-                os.unlink(self.cachefile)
-            except Exception:
-                pass
+            # if that happens, remove cachefile so the next call downloads it
+            # again - but only if siibra wrote it: FileLoader points cachefile
+            # at the user's own local file.
+            if CACHE.contains(self.cachefile):
+                try:
+                    os.unlink(self.cachefile)
+                except Exception:
+                    pass
             raise e
 
     @property

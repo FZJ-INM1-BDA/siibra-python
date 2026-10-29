@@ -131,3 +131,36 @@ def test_zipfile_member_extracted_once(tmp_path, monkeypatch):
         results = list(ex.map(get, range(n)))
     assert results == ["member content"] * n
     assert len(copies) == 1, "the member should be extracted only once"
+
+
+def _failing_decoder():
+    from siibra.retrieval.requests import Decoder
+
+    def broken(path):
+        raise ValueError("cannot decode")
+    return Decoder(broken, input_type="FILE")
+
+
+def test_fileloader_decode_error_keeps_local_file(tmp_path, monkeypatch):
+    from siibra.retrieval.requests import FileLoader
+
+    monkeypatch.setattr(CACHE, "folder", str(tmp_path / "cache"))
+    user_file = tmp_path / "my_scan.tif"
+    user_file.write_bytes(b"not really a tiff")
+    with pytest.raises(ValueError):
+        FileLoader(str(user_file), func=_failing_decoder()).data
+    assert user_file.read_bytes() == b"not really a tiff"
+
+
+def test_corrupt_download_is_removed(tmp_path, monkeypatch):
+    # e.g. a truncated download: remove it, so the next call downloads again
+    monkeypatch.setattr(CACHE, "folder", str(tmp_path))
+    with requests_mock.Mocker() as m:
+        m.get(URL, text="truncated")
+        req = HttpRequest(URL, func=_failing_decoder())
+        with pytest.raises(ValueError):
+            req.get()
+        assert not os.path.exists(req.cachefile)
+        with pytest.raises(ValueError):
+            HttpRequest(URL, func=_failing_decoder()).get()
+        assert m.call_count == 2, "the next call should download again"

@@ -276,3 +276,34 @@ def test_fill_folder(tmp_path):
     CACHE.fill(target, create)
     assert os.path.isfile(os.path.join(target, "sub", "f.json"))
     assert sorted(os.listdir(tmp_path)) == ["folder", "folder.lock"]
+
+
+# --- Cache.contains -------------------------------------------------------------
+
+@pytest.fixture
+def cache_folder(tmp_path, monkeypatch):
+    folder = tmp_path / "cache"
+    folder.mkdir()
+    monkeypatch.setattr(CACHE, "folder", str(folder))
+    return folder
+
+
+def test_contains(cache_folder, tmp_path):
+    assert CACHE.contains(str(cache_folder / "abc123.json"))
+    assert CACHE.contains(str(cache_folder / "sub" / "file"))
+    assert not CACHE.contains(str(tmp_path / "my_scan.tif"))
+    # a sibling folder that merely shares the prefix
+    assert not CACHE.contains(str(tmp_path / "cache2" / "file"))
+    # ".." leading out of the cache
+    assert not CACHE.contains(str(cache_folder / ".." / "my_scan.tif"))
+
+
+def test_contains_symlink_out_of_cache(cache_folder, tmp_path):
+    user_file = tmp_path / "my_scan.tif"
+    user_file.write_text("data")
+    link = cache_folder / "link.tif"
+    try:
+        os.symlink(user_file, link)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks not supported here")
+    assert not CACHE.contains(str(link))
