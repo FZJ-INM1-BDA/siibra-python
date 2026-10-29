@@ -18,6 +18,7 @@ from typing import Union, Dict, Tuple
 
 import numpy as np
 import nibabel as nib
+import tifffile
 
 from . import provider as _provider
 from ...commons import logger, resample_img_to_img
@@ -264,3 +265,105 @@ class ZipContainedNiftiProvider(NiftiProvider, srctype="zip/nii"):
 
         # required for self._url property
         self._init_url = src
+
+
+class Tif2DNiftiProvider(NiftiProvider, srctype="tif/2d"):
+
+    def __init__(self, src: Dict[str, Union[str, list]]):
+        """
+        Construct a single-slice NIfTI volume from a 2D tif image.
+
+        The image is placed as a (x, y, 1) voxel array, i.e. image columns
+        run along the first and image rows along the second voxel axis. The
+        orientation of the slice in physical space, including oblique
+        planes, is entirely defined by the affine.
+
+        Parameters
+        ----------
+        src : dict
+            Requires the keys
+            - "url": url or local path of a single-channel 2D tif image
+            - "transform": 4x4 affine mapping voxel to physical coordinates
+        """
+        _provider.VolumeProvider.__init__(self)
+
+        url = src["url"]
+        affine = np.asarray(src["transform"], dtype=float)
+        if affine.shape != (4, 4):
+            raise ValueError(
+                f"Expected a 4x4 affine for {url}, got shape {affine.shape}."
+            )
+
+        req = self._make_request(url, requests.DECODERS[".tif"])
+        self._img_loaders = {None: lambda req=req: self._to_nifti(req.get())}
+        self._affine = affine
+        self._shape = None
+
+        # required for self._url property
+        self._init_url = url
+
+    @staticmethod
+    def _make_request(url: str, decoder: requests.Decoder) -> requests.HttpRequest:
+        if os.path.isfile(url):
+            return requests.FileLoader(url, func=decoder)
+        return requests.HttpRequest(url, func=decoder)
+
+    def _check_shape(self, shape: Tuple[int, ...]):
+        if len(shape) == 3 and shape[-1] in (3, 4):
+            raise ValueError(
+                f"{self._init_url} is an RGB(A) image with shape {shape}; "
+                "only single-channel tif images are supported."
+            )
+        if len(shape) != 2:
+            raise ValueError(
+                f"{self._init_url} is not a 2D image, got shape {shape}."
+            )
+
+    def _to_nifti(self, arr: np.ndarray) -> nib.Nifti1Image:
+        self._check_shape(arr.shape)
+        # tifffile returns (rows, cols), i.e. (y, x), whereas the first
+        # voxel axis of a NIfTI runs along x.
+        data = np.swapaxes(arr, 0, 1)[..., np.newaxis]
+        return nib.Nifti1Image(data, self._affine)
+
+    @property
+    def _tif_shape(self) -> Tuple[int, int]:
+        """(rows, cols) of the tif image, read from its header only."""
+        if self._shape is None:
+            def read_shape(filename: str) -> Tuple[int, ...]:
+                with tifffile.TiffFile(filename) as tif:
+                    return tuple(tif.series[0].shape)
+
+            # same url, hence same cache file as the pixel request, so the
+            # image is downloaded at most once
+            shape = self._make_request(
+                self._init_url, requests.Decoder(read_shape, input_type="FILE")
+            ).get()
+            self._check_shape(shape)
+            self._shape = shape
+        return self._shape
+
+    @property
+    def affine(self) -> np.ndarray:
+        return self._affine
+
+    def get_boundingbox(self, **fetch_kwargs) -> "_boundingbox.BoundingBox":
+        """
+        Bounding box of the slice in physical coordinates, computed from the
+        tif header without decoding the pixel data.
+
+        Parameters
+        ----------
+        fetch_kwargs:
+            Not supported
+        """
+        unsupported = [k for k in fetch_kwargs if k not in ("background", "format")]
+        if unsupported:
+            raise NotImplementedError(
+                f"{self.__class__.__name__}.get_boundingbox does not support "
+                f"{', '.join(unsupported)}."
+            )
+        n_rows, n_cols = self._tif_shape
+        return _boundingbox.BoundingBox(
+            (0, 0, 0), (n_cols, n_rows, 1), space=None
+        ).transform(self._affine)

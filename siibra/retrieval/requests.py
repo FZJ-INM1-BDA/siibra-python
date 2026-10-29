@@ -31,6 +31,7 @@ from filelock import FileLock as Lock
 import numpy as np
 import pandas as pd
 from skimage import io as skimage_io
+import tifffile
 from nibabel import load as load_nibabel, streamlines, freesurfer
 import h5py
 
@@ -255,6 +256,14 @@ DECODERS = {
     ),
     ".png": Decoder(
         skimage_io.imread,
+        input_type="FILE",
+    ),
+    ".tif": Decoder(
+        tifffile.imread,
+        input_type="FILE",
+    ),
+    ".tiff": Decoder(
+        tifffile.imread,
         input_type="FILE",
     ),
     ".npy": Decoder(
