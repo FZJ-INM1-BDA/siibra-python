@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
-from multiprocessing import Pool
+import time
+from multiprocessing import Process, Queue
 
 from siibra.retrieval.cache import WarmupLevel, Warmup, WarmupRegException
 
@@ -139,20 +140,34 @@ def test_register_warmup_called_level_high(register_all):
     dummy_data2.assert_called_once()
 
 
+SLEEP_TIME = 1
+
+
+def _sleep_for_x():
+    time.sleep(SLEEP_TIME)
+
+
+def _timed_warmup(queue):
+    # Register in the worker itself: processes started with "forkserver" (the
+    # default on Linux since Python 3.14) or "spawn" (macOS, Windows) do not
+    # inherit warmup functions registered at runtime in the parent process.
+    if not Warmup.is_registered(_sleep_for_x):
+        Warmup.register_warmup_fn(WarmupLevel.TEST)(_sleep_for_x)
+    start = time.time()
+    Warmup.warmup(WarmupLevel.TEST)
+    queue.put(time.time() - start)
+
+
 def test_write_lock():
-    import time
+    # Two explicit processes rather than a pool, so each runs one warmup, and
+    # timing inside them, so process start-up time can't make the test pass.
+    queue = Queue()
+    workers = [Process(target=_timed_warmup, args=(queue,)) for _ in range(2)]
+    for w in workers:
+        w.start()
+    durations = sorted(queue.get(timeout=30) for _ in workers)
+    for w in workers:
+        w.join(timeout=30)
 
-    sleep_time = 1
-
-    @Warmup.register_warmup_fn(WarmupLevel.TEST)
-    def sleep_for_x():
-        time.sleep(sleep_time)
-
-    tstart_s = time.time()
-    with Pool(2) as p:
-        p.map(Warmup.warmup, (WarmupLevel.TEST, WarmupLevel.TEST))
-    tend_s = time.time()
-    expected_baseline = sleep_time * 2
-
-    time_perf = tend_s - tstart_s
-    assert time_perf > expected_baseline, "Expect second call to block"
+    assert durations[0] >= SLEEP_TIME * 0.9, "warmup function did not run"
+    assert durations[1] >= SLEEP_TIME * 1.8, "Expect second call to block"
