@@ -138,7 +138,7 @@ class Cache:
         """Iterate all element names in the cache directory."""
         return (os.path.join(self.folder, f) for f in os.listdir(self.folder))
 
-    def contains(self, path: str) -> bool:
+    def _contains(self, path: str) -> bool:
         """
         Whether `path` lies inside the cache folder, i.e. was written by siibra
         and may be deleted by it. False for the user's own files, e.g. those
@@ -150,7 +150,7 @@ class Cache:
         except ValueError:  # e.g. different drives on Windows
             return False
 
-    def fill(self, target: str, create: Callable[[str], None], *, replace: bool = False) -> str:
+    def _fill(self, target: str, create: Callable[[str], None], *, replace: bool = False) -> str:
         """
         Create the file or folder `target` once, safely across threads and processes.
 

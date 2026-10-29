@@ -201,7 +201,7 @@ def test_fill_creates_once_across_threads(tmp_path):
 
     def fill(_):
         barrier.wait()
-        return CACHE.fill(target, create)
+        return CACHE._fill(target, create)
 
     with ThreadPoolExecutor(8) as ex:
         results = list(ex.map(fill, range(8)))
@@ -213,7 +213,7 @@ def test_fill_creates_once_across_threads(tmp_path):
 
 
 def _fill_in_process(target, counter):
-    CACHE.fill(target, lambda path: _slow_create(path, counter=counter))
+    CACHE._fill(target, lambda path: _slow_create(path, counter=counter))
 
 
 def test_fill_creates_once_across_processes(tmp_path):
@@ -239,7 +239,7 @@ def test_fill_existing_target_takes_no_lock(tmp_path, monkeypatch):
 
     monkeypatch.setattr(cache_module, "Lock", no_lock)
     create = MagicMock()
-    assert CACHE.fill(str(target), create) == str(target)
+    assert CACHE._fill(str(target), create) == str(target)
     create.assert_not_called()
 
 
@@ -252,17 +252,17 @@ def test_fill_failure_leaves_nothing_behind(tmp_path):
         raise RuntimeError("download failed")
 
     with pytest.raises(RuntimeError):
-        CACHE.fill(target, broken)
+        CACHE._fill(target, broken)
     assert sorted(os.listdir(tmp_path)) == ["file.lock"]  # no target, no temp file
     # the lock was released and the next call succeeds
-    CACHE.fill(target, lambda path: _slow_create(path, "retry"))
+    CACHE._fill(target, lambda path: _slow_create(path, "retry"))
     assert open(target).read() == "retry"
 
 
 def test_fill_replace(tmp_path):
     target = tmp_path / "file"
     target.write_text("old")
-    CACHE.fill(str(target), lambda path: _slow_create(path, "new"), replace=True)
+    CACHE._fill(str(target), lambda path: _slow_create(path, "new"), replace=True)
     assert target.read_text() == "new"
 
 
@@ -273,7 +273,7 @@ def test_fill_folder(tmp_path):
         os.makedirs(os.path.join(path, "sub"))
         open(os.path.join(path, "sub", "f.json"), "w").close()
 
-    CACHE.fill(target, create)
+    CACHE._fill(target, create)
     assert os.path.isfile(os.path.join(target, "sub", "f.json"))
     assert sorted(os.listdir(tmp_path)) == ["folder", "folder.lock"]
 
@@ -289,13 +289,13 @@ def cache_folder(tmp_path, monkeypatch):
 
 
 def test_contains(cache_folder, tmp_path):
-    assert CACHE.contains(str(cache_folder / "abc123.json"))
-    assert CACHE.contains(str(cache_folder / "sub" / "file"))
-    assert not CACHE.contains(str(tmp_path / "my_scan.tif"))
+    assert CACHE._contains(str(cache_folder / "abc123.json"))
+    assert CACHE._contains(str(cache_folder / "sub" / "file"))
+    assert not CACHE._contains(str(tmp_path / "my_scan.tif"))
     # a sibling folder that merely shares the prefix
-    assert not CACHE.contains(str(tmp_path / "cache2" / "file"))
+    assert not CACHE._contains(str(tmp_path / "cache2" / "file"))
     # ".." leading out of the cache
-    assert not CACHE.contains(str(cache_folder / ".." / "my_scan.tif"))
+    assert not CACHE._contains(str(cache_folder / ".." / "my_scan.tif"))
 
 
 def test_contains_symlink_out_of_cache(cache_folder, tmp_path):
@@ -306,4 +306,4 @@ def test_contains_symlink_out_of_cache(cache_folder, tmp_path):
         os.symlink(user_file, link)
     except (OSError, NotImplementedError):
         pytest.skip("symlinks not supported here")
-    assert not CACHE.contains(str(link))
+    assert not CACHE._contains(str(link))

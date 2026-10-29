@@ -425,7 +425,7 @@ class HttpRequest:
                     if show_progress:
                         progress_bar.close()
 
-        CACHE.fill(self.cachefile, download, replace=self.refresh)
+        CACHE._fill(self.cachefile, download, replace=self.refresh)
         self.refresh = False
 
     def get(self):
@@ -447,7 +447,7 @@ class HttpRequest:
             # if that happens, remove cachefile so the next call downloads it
             # again - but only if siibra wrote it: FileLoader points cachefile
             # at the user's own local file.
-            if CACHE.contains(self.cachefile):
+            if CACHE._contains(self.cachefile):
                 try:
                     os.unlink(self.cachefile)
                 except Exception:
@@ -539,7 +539,7 @@ class ZipfileRequest(HttpRequest):
                 with zipfile.open(member) as src, open(tmp, "wb") as dst:
                     shutil.copyfileobj(src, dst)
 
-            CACHE.fill(member_cachefile, extract_member)
+            CACHE._fill(member_cachefile, extract_member)
             return self.func(member_cachefile)
 
 

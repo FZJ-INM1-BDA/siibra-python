@@ -67,7 +67,7 @@ def _fetch_archive(tarball_url: str, archive_directory: str):
         finally:
             shutil.rmtree(staging, ignore_errors=True)
 
-    CACHE.fill(archive_directory, extract)
+    CACHE._fill(archive_directory, extract)
 
 
 class RepositoryConnector(ABC):
