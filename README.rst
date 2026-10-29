@@ -52,7 +52,7 @@ In order to work with the latest version from github, use:
 
 ``siibra-python`` should be installable on recent versions of Windows, Linux and
 Mac OS in a recent Python 3 environment. We run continuous integration tests for
-versions 3.9 - 3.13 on recent Ubuntu images. 
+versions 3.9 - 3.14 on recent Ubuntu images.
 
 The library requires Python 3.9 or newer and a couple of open source packages,
 as declared in ``pyproject.toml``:
@@ -69,6 +69,7 @@ as declared in ``pyproject.toml``:
 - nilearn >= 0.12
 - filelock >= 3.20.3; python_version >= "3.10"
 - filelock >= 3.16.1; python_version < "3.10"
+- certifi >= 2026.10.19
 - ebrains-drive >= 0.6.0
 - h5py >= 3.11
 

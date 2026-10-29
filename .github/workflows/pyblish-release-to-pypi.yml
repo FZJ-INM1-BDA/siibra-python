@@ -21,12 +21,16 @@ jobs:
     needs: validate
     strategy:
       matrix:
-        python-version: ["3.9", "3.13"]  # oldest and newest supported
+        python-version: ["3.9", "3.14"]  # oldest and newest supported
+        include:
+          # Python 3.9 is not available on ubuntu-26.04 (ubuntu-latest)
+          - python-version: "3.9"
+            os: ubuntu-24.04
     uses: ./.github/workflows/_unittest.yaml
     permissions:
       contents: read
     with:
-      os: ubuntu-latest
+      os: ${{ matrix.os || 'ubuntu-latest' }}
       python-version: ${{ matrix.python-version }}
 
   build:
@@ -34,6 +38,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      # Passed to publish through job outputs, a channel separate from the
+      # artifact, so changing the files in transit can't change these too.
+      sha256sums: ${{ steps.hashes.outputs.sha256sums }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
@@ -41,18 +49,30 @@ jobs:
     - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: "3.12"
+        check-latest: true
     - name: Build sdist and wheel
       run: |
+        python -m pip install --upgrade pip
+        python --version
+        python -m pip --version
         python -m pip install -r .github/requirements-build.txt
         python -m build
+    - name: Record artifact hashes
+      id: hashes
+      shell: bash
+      run: |
+        sha256sum dist/*
+        {
+          echo 'sha256sums<<EOF'
+          sha256sum dist/*
+          echo 'EOF'
+        } >> "$GITHUB_OUTPUT"
     - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: dist
         path: dist/
         if-no-files-found: error
 
-  # Separate from build so that no project code runs where the PyPI token is
-  # available.
   publish:
     if: github.event_name == 'release'
     needs: build
@@ -67,6 +87,16 @@ jobs:
         name: dist
         path: dist/
 
-    - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+    - name: Verify artifact hashes
+      shell: bash
+      env:
+        EXPECTED: ${{ needs.build.outputs.sha256sums }}
+      run: |
+        sha256sum dist/*
+        diff <(printf '%s\n' "$EXPECTED" | awk '{print $2}' | sort) \
+             <(ls -1 dist/* | sort)
+        printf '%s\n' "$EXPECTED" | sha256sum --check --strict
+
+    - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
       with:
         password: ${{ secrets.PYPI_PUSH }}

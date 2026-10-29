@@ -43,9 +43,10 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: false
+          version: ">=0.13.6"
 
       - name: Create virtual environment
         shell: bash
@@ -54,6 +55,8 @@ jobs:
 
           uv venv "$VIRTUAL_ENV" \
             --python "${{ inputs.python-version }}"
+
+          "$VIRTUAL_ENV/bin/python" --version
 
           echo "$VIRTUAL_ENV/bin" >> "$GITHUB_PATH"
 

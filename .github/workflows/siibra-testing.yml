@@ -2,13 +2,16 @@ name: "[test] unit test"
 
 on:
   push:
-    branches: ["*"]
+    branches: ["**"]
   pull_request:
     branches: ["main"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 env:
   USE_CONFIG_COMMIT_KW: "[ci:usecfg]"
@@ -42,38 +45,43 @@ jobs:
     uses: ./.github/workflows/_lint.yaml
     with:
       os: ubuntu-latest
-      python-version: &py-min "3.9"
+      python-version: "3.11"
 
   check-importable:
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_importable.yaml
     with:
-      os: ubuntu-latest
+      os: ${{ matrix.os || 'ubuntu-latest' }}
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: &py-versions ["3.13", "3.12", "3.11", "3.10", "3.9"]
+        python-version: &py-versions ["3.14", "3.13", "3.12", "3.11", "3.10", "3.9"]
+        include: &py-os-overrides
+          # Python 3.9 is not available on ubuntu-26.04 (ubuntu-latest)
+          - python-version: &py-min "3.9"
+            os: &py-min-os ubuntu-24.04
 
   unit-tests-full:
     if: ${{ github.event_name == 'pull_request' }}
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_unittest.yaml
     with:
-      os: ubuntu-latest
+      os: ${{ matrix.os || 'ubuntu-latest' }}
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       fail-fast: false
       matrix:
         python-version: *py-versions
+        include: *py-os-overrides
   unit-tests-fast:
     if: ${{ github.event.pull_request == null }}
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_unittest.yaml
     with:
-      os: ubuntu-latest
+      os: *py-min-os
       python-version: *py-min
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
 
@@ -82,26 +90,28 @@ jobs:
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_e2e.yaml
     with:
-      os: ubuntu-latest
+      os: ${{ matrix.os || 'ubuntu-latest' }}
       python-version: ${{ matrix.python-version }}
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       matrix:
         python-version: *py-versions
+        include: *py-os-overrides
 
   e2e-tests-fast:
     if: ${{ github.event.pull_request == null }}
     needs: "use-custom-cfg"
     uses: ./.github/workflows/_e2e.yaml
     with:
-      os: ubuntu-latest
+      os: *py-min-os
       python-version: *py-min
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
 
   test-examples:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     needs: 'use-custom-cfg'
     uses: ./.github/workflows/_run_examples.yaml
     with:
       os: self-hosted
-      python-version: "3.11"
+      python-version: ">=3.11.18,<3.12"
       use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}

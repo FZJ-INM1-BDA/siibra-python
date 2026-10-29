@@ -5,6 +5,9 @@ on:
     branches: ["main"]
     tags: ["**"]
 
+permissions:
+  contents: read
+
 env:
   EBRAINS_GITLAB_REPO: ri/tech-hub/apps/siibra/siibra-python-mirror.git
 
