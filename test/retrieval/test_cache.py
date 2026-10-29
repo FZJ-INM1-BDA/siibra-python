@@ -1,9 +1,14 @@
-import pytest
-from unittest.mock import MagicMock
+import os
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Process, Queue
+from unittest.mock import MagicMock
 
-from siibra.retrieval.cache import WarmupLevel, Warmup, WarmupRegException
+import pytest
+
+from siibra.retrieval import cache as cache_module
+from siibra.retrieval.cache import CACHE, WarmupLevel, Warmup, WarmupRegException
 
 dummy_child1 = MagicMock()
 dummy_child2 = MagicMock()
@@ -171,3 +176,103 @@ def test_write_lock():
 
     assert durations[0] >= SLEEP_TIME * 0.9, "warmup function did not run"
     assert durations[1] >= SLEEP_TIME * 1.8, "Expect second call to block"
+
+
+# --- Cache.fill ---------------------------------------------------------------
+
+def _slow_create(path, content="data", counter=None):
+    if counter is not None:
+        with open(counter, "a") as f:
+            f.write("x")
+    time.sleep(0.2)  # widen the race window
+    with open(path, "w") as f:
+        f.write(content)
+
+
+def test_fill_creates_once_across_threads(tmp_path):
+    target = str(tmp_path / "file")
+    calls = []
+
+    def create(path):
+        calls.append(path)
+        _slow_create(path)
+
+    barrier = threading.Barrier(8)
+
+    def fill(_):
+        barrier.wait()
+        return CACHE.fill(target, create)
+
+    with ThreadPoolExecutor(8) as ex:
+        results = list(ex.map(fill, range(8)))
+
+    assert results == [target] * 8
+    assert len(calls) == 1
+    assert open(target).read() == "data"
+    assert sorted(os.listdir(tmp_path)) == ["file", "file.lock"]
+
+
+def _fill_in_process(target, counter):
+    CACHE.fill(target, lambda path: _slow_create(path, counter=counter))
+
+
+def test_fill_creates_once_across_processes(tmp_path):
+    target, counter = str(tmp_path / "file"), str(tmp_path / "counter")
+    workers = [Process(target=_fill_in_process, args=(target, counter)) for _ in range(4)]
+    for w in workers:
+        w.start()
+    for w in workers:
+        w.join(timeout=30)
+    assert all(w.exitcode == 0 for w in workers)
+    assert open(counter).read() == "x", "create should run in one process only"
+    assert open(target).read() == "data"
+
+
+def test_fill_existing_target_takes_no_lock(tmp_path, monkeypatch):
+    # fill() runs on every cached lookup (e.g. per configuration file), so the
+    # common case must stay a plain existence check.
+    target = tmp_path / "file"
+    target.write_text("cached")
+
+    def no_lock(*args, **kwargs):
+        raise AssertionError("an existing target should not take the lock")
+
+    monkeypatch.setattr(cache_module, "Lock", no_lock)
+    create = MagicMock()
+    assert CACHE.fill(str(target), create) == str(target)
+    create.assert_not_called()
+
+
+def test_fill_failure_leaves_nothing_behind(tmp_path):
+    target = str(tmp_path / "file")
+
+    def broken(path):
+        with open(path, "w") as f:
+            f.write("partial")
+        raise RuntimeError("download failed")
+
+    with pytest.raises(RuntimeError):
+        CACHE.fill(target, broken)
+    assert sorted(os.listdir(tmp_path)) == ["file.lock"]  # no target, no temp file
+    # the lock was released and the next call succeeds
+    CACHE.fill(target, lambda path: _slow_create(path, "retry"))
+    assert open(target).read() == "retry"
+
+
+def test_fill_replace(tmp_path):
+    target = tmp_path / "file"
+    target.write_text("old")
+    CACHE.fill(str(target), lambda path: _slow_create(path, "new"), replace=True)
+    assert target.read_text() == "new"
+
+
+def test_fill_folder(tmp_path):
+    target = str(tmp_path / "folder")
+
+    def create(path):
+        os.makedirs(os.path.join(path, "sub"))
+        open(os.path.join(path, "sub", "f.json"), "w").close()
+
+    CACHE.fill(target, create)
+    assert os.path.isfile(os.path.join(target, "sub", "f.json"))
+    assert sorted(os.listdir(tmp_path)) == ["folder", "folder.lock"]

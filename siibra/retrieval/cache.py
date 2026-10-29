@@ -16,6 +16,8 @@
 
 import hashlib
 import os
+import shutil
+import uuid
 from appdirs import user_cache_dir
 import tempfile
 from functools import wraps
@@ -135,6 +137,48 @@ class Cache:
     def __iter__(self):
         """Iterate all element names in the cache directory."""
         return (os.path.join(self.folder, f) for f in os.listdir(self.folder))
+
+    def fill(self, target: str, create: Callable[[str], None], *, replace: bool = False) -> str:
+        """
+        Create the file or folder `target` once, safely across threads and processes.
+
+        `create(tmp)` writes a file or folder at the temporary path `tmp`, which
+        then replaces `target` in one atomic step, so `target` is either absent
+        or complete. If several callers want the same `target`, only the first
+        runs `create`; the others wait for it and then find `target` in place.
+
+        Parameters
+        ----------
+        target: str
+            Path of the file or folder to create, usually from `build_filename()`.
+        create: Callable[[str], None]
+            Writes the file or folder at the path it is given.
+        replace: bool, default: False
+            Run `create` even if `target` exists, and replace it (files only),
+            e.g. to refresh a download.
+
+        Returns
+        -------
+            str: `target`
+        """
+        # Fast path, taken on almost every call: `target` only ever appears
+        # through the atomic replace below, so if it exists, it is complete.
+        if not replace and os.path.exists(target):
+            return target
+        with Lock(f"{target}.lock"):
+            # Another thread or process may have finished while we waited.
+            if not replace and os.path.exists(target):
+                return target
+            tmp = f"{target}.tmp-{uuid.uuid4().hex}"
+            try:
+                create(tmp)
+                os.replace(tmp, target)
+            finally:
+                if os.path.isdir(tmp):
+                    shutil.rmtree(tmp, ignore_errors=True)
+                elif os.path.lexists(tmp):
+                    os.remove(tmp)
+        return target
 
     def build_filename(self, str_rep: str, suffix=None) -> str:
         """
