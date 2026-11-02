@@ -27,7 +27,6 @@ from functools import wraps
 from time import sleep
 from dataclasses import dataclass, field, replace as replace_dataclass_fields
 
-from filelock import FileLock as Lock
 import numpy as np
 import pandas as pd
 from skimage import io as skimage_io
@@ -364,67 +363,70 @@ class HttpRequest:
         Populates the file cache with the data from http if required.
         noop if 1/ data is already cached and 2/ refresh flag not set
         The caller should load the cachefile after _retrieve successfully executes
+
+        Safe to call concurrently: if several threads or processes request the
+        same uncached file, it is downloaded only once.
         """
         if self.cached and not self.refresh:
             return
 
-        # not yet in cache, perform http request.
-        if self.msg_if_not_cached is not None:
-            logger.info(self.msg_if_not_cached)
+        def download(path):
+            # Called by CACHE.fill under the cache lock, only if still needed.
+            if self.msg_if_not_cached is not None:
+                logger.info(self.msg_if_not_cached)
 
-        headers = self.kwargs.get("headers", {})
-        other_kwargs = {
-            key: self.kwargs[key] for key in self.kwargs if key != "headers"
-        }
+            headers = self.kwargs.get("headers", {})
+            other_kwargs = {
+                key: self.kwargs[key] for key in self.kwargs if key != "headers"
+            }
 
-        http_method = _SESSION.post if self.post else _SESSION.get
-        try:
-            r = http_method(
-                self.url,
-                headers={
-                    **USER_AGENT_HEADER,
-                    **headers,
-                },
-                **other_kwargs,
-                stream=True,
-            )
-        except requests.exceptions.ConnectionError as e:
-            if not self.post and "RemoteDisconnected" in str(e):
-                logger.debug(f"Stale connection for {self.url}, retrying...")
-                adapter = _SESSION.get_adapter(url=self.url)
-                adapter.close()
-                r = http_method(self.url, headers={**USER_AGENT_HEADER, **headers}, **other_kwargs, stream=True)
-            else:
-                raise e
+            http_method = _SESSION.post if self.post else _SESSION.get
+            try:
+                r = http_method(
+                    self.url,
+                    headers={
+                        **USER_AGENT_HEADER,
+                        **headers,
+                    },
+                    **other_kwargs,
+                    stream=True,
+                )
+            except requests.exceptions.ConnectionError as e:
+                if not self.post and "RemoteDisconnected" in str(e):
+                    logger.debug(f"Stale connection for {self.url}, retrying...")
+                    adapter = _SESSION.get_adapter(url=self.url)
+                    adapter.close()
+                    r = http_method(self.url, headers={**USER_AGENT_HEADER, **headers}, **other_kwargs, stream=True)
+                else:
+                    raise e
 
-        if not r.ok:
-            raise SiibraHttpRequestError(status_code=r.status_code, url=self.url)
+            with r:  # release the connection, also when raising below
+                if not r.ok:
+                    raise SiibraHttpRequestError(status_code=r.status_code, url=self.url)
 
-        size_bytes = int(r.headers.get("content-length", 0))
-        if size_bytes > min_bytesize_with_no_progress_info:
-            progress_bar = siibra_tqdm(
-                total=size_bytes,
-                unit="iB",
-                unit_scale=True,
-                position=0,
-                leave=True,
-                desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)",
-            )
-        temp_cachefile = f"{self.cachefile}_temp"
-        lock = Lock(f"{temp_cachefile}.lock")
+                size_bytes = int(r.headers.get("content-length", 0))
+                show_progress = size_bytes > min_bytesize_with_no_progress_info
+                if show_progress:
+                    progress_bar = siibra_tqdm(
+                        total=size_bytes,
+                        unit="iB",
+                        unit_scale=True,
+                        position=0,
+                        leave=True,
+                        desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)",
+                    )
+                try:
+                    with open(path, "wb") as f:
+                        for data in r.iter_content(block_size):
+                            if show_progress:
+                                progress_bar.update(len(data))
+                            f.write(data)
+                finally:
+                    if show_progress:
+                        progress_bar.close()
 
-        with lock:
-            with open(temp_cachefile, "wb") as f:
-                for data in r.iter_content(block_size):
-                    if size_bytes > min_bytesize_with_no_progress_info:
-                        progress_bar.update(len(data))
-                    f.write(data)
-            if size_bytes > min_bytesize_with_no_progress_info:
-                progress_bar.close()
-            if self.refresh and os.path.isfile(self.cachefile):
-                os.remove(self.cachefile)
-            self.refresh = False
-            os.rename(temp_cachefile, self.cachefile)
+        CACHE._fill(self.cachefile, download, replace=self.refresh)
+        self.refresh = False
 
     def get(self):
         self._retrieve()
@@ -442,11 +444,14 @@ class HttpRequest:
         except Exception as e:
             # if network error results in bad cache, it may get raised here
             # e.g. BadZipFile("File is not a zip file")
-            # if that happens, remove cachefile and
-            try:
-                os.unlink(self.cachefile)
-            except Exception:
-                pass
+            # if that happens, remove cachefile so the next call downloads it
+            # again - but only if siibra wrote it: FileLoader points cachefile
+            # at the user's own local file.
+            if CACHE._contains(self.cachefile):
+                try:
+                    os.unlink(self.cachefile)
+                except Exception:
+                    pass
             raise e
 
     @property
@@ -530,22 +535,11 @@ class ZipfileRequest(HttpRequest):
                 suffix=_get_suffix(member),
             )
 
-            if not os.path.isfile(member_cachefile):
-                tempfile = f"{member_cachefile}_temp"
+            def extract_member(tmp):
+                with zipfile.open(member) as src, open(tmp, "wb") as dst:
+                    shutil.copyfileobj(src, dst)
 
-                with Lock(f"{member_cachefile}.lock"):
-                    if not os.path.isfile(member_cachefile):
-                        try:
-                            with zipfile.open(member) as src:
-                                with open(tempfile, "wb") as dst:
-                                    shutil.copyfileobj(src, dst)
-
-                            os.replace(tempfile, member_cachefile)
-
-                        finally:
-                            if os.path.isfile(tempfile):
-                                os.remove(tempfile)
-
+            CACHE._fill(member_cachefile, extract_member)
             return self.func(member_cachefile)
 
 

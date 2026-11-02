@@ -18,6 +18,8 @@ from abc import ABC, abstractmethod
 from urllib.parse import quote
 import pathlib
 import os
+import shutil
+import tarfile
 from zipfile import ZipFile
 from typing import List
 import re
@@ -35,6 +37,37 @@ from .requests import (
     FileLoader
 )
 from ..commons import logger, siibra_tqdm
+
+
+def _fetch_archive(tarball_url: str, archive_directory: str):
+    """
+    Download a repository tarball and extract it to `archive_directory`, once.
+    Concurrent callers, e.g. the threads of `siibra.warm_cache()`, wait for the
+    first one and then use its result (see `Cache.fill`).
+    """
+    def extract(tmp):
+        req = HttpRequest(
+            tarball_url,
+            func=lambda b: b,
+            msg_if_not_cached=f"Downloading {tarball_url}",
+        )
+        req._retrieve()
+        staging = f"{tmp}.staging"
+        try:
+            with tarfile.open(name=req.cachefile, mode="r:gz") as tar:
+                if hasattr(tarfile, "data_filter"):
+                    # Reject entries that would end up outside the staging
+                    # folder (absolute paths, "..", links pointing outside).
+                    tar.extractall(staging, filter="data")
+                else:  # Python < 3.12 without the security backport
+                    tar.extractall(staging)
+                foldername = tar.getnames()[0]
+            # The tarball holds one top-level folder, which becomes the archive.
+            os.rename(os.path.join(staging, foldername), tmp)
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
+
+    CACHE._fill(archive_directory, extract)
 
 
 class RepositoryConnector(ABC):
@@ -243,20 +276,7 @@ class GithubConnector(RepositoryConnector):
     def _archive(self):
         assert self.archive_mode, "To archive the repo, `archive_mode` must be True."
         archive_directory = CACHE.build_filename(self.base_url + self.reftag)
-        if not os.path.isdir(archive_directory):
-            import tarfile
-
-            tarball_url = f"{self.base_url}/tarball/{self.reftag}"
-            req = HttpRequest(
-                tarball_url,
-                func=lambda b: b,
-                msg_if_not_cached=f"Downloading {tarball_url}",
-            )
-            req._retrieve()
-            with tarfile.open(name=req.cachefile, mode="r:gz") as tar:
-                tar.extractall(CACHE.folder)
-                foldername = tar.getnames()[0]
-            os.rename(os.path.join(CACHE.folder, foldername), archive_directory)
+        _fetch_archive(f"{self.base_url}/tarball/{self.reftag}", archive_directory)
         if self._archive_conn is None:
             # create LocalFileRepository as an interface to the local files
             self._archive_conn = LocalFileRepository(archive_directory)
@@ -360,20 +380,7 @@ class GitlabConnector(RepositoryConnector):
         assert self.archive_mode, "To archive the repo, `archive_mode` must be True."
         ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
         archive_directory = CACHE.build_filename(self.base_url + ref)
-        if not os.path.isdir(archive_directory):
-            import tarfile
-
-            tarball_url = self.base_url + f"/archive.tar.gz?sha={ref}"
-            req = HttpRequest(
-                tarball_url,
-                func=lambda b: b,
-                msg_if_not_cached=f"Downloading {tarball_url}",
-            )
-            req._retrieve()
-            with tarfile.open(name=req.cachefile, mode="r:gz") as tar:
-                tar.extractall(CACHE.folder)
-                foldername = tar.getnames()[0]
-            os.rename(os.path.join(CACHE.folder, foldername), archive_directory)
+        _fetch_archive(self.base_url + f"/archive.tar.gz?sha={ref}", archive_directory)
         if self._archive_conn is None:
             # create LocalFileRepository as an interface to the local files
             self._archive_conn = LocalFileRepository(archive_directory)

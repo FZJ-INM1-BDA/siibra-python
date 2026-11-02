@@ -1,12 +1,13 @@
-from siibra.retrieval.requests import EbrainsRequest, HttpRequest, CACHE, _get_suffix
+from siibra.retrieval.requests import EbrainsRequest, HttpRequest, CACHE, SiibraHttpRequestError, _get_suffix
+
+import json
+import os
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from time import sleep
+from unittest.mock import patch
 
 import pytest
-import json
-from itertools import product, repeat
-from unittest.mock import PropertyMock, patch, mock_open, MagicMock
-from contextlib import contextmanager
-from concurrent.futures import ThreadPoolExecutor
-from time import sleep
 
 import requests_mock
 
@@ -31,116 +32,135 @@ def test_httprequests(url, func, msg, refresh, post, kwargs):
         assert req.cachefile == return_filename
 
 
-http_test_retrieve_args = [*product([True, False], repeat=2)]
+URL = "http://foo.co/bar"
 
 
-@contextmanager
-def patch_all(post_flag=False, cache_flag=False):
-    url = "http://foo.co/bar"
-    response_text = "foo-bar"
-    return_filename = "foo-bar.txt"
-
-    m_open = mock_open()
-    rename_mock = MagicMock()
-    try:
-        with patch("builtins.open", m_open):
-            with patch("os.rename", rename_mock):
-                with patch.object(
-                    HttpRequest,
-                    "cached",
-                    new_callable=PropertyMock,
-                    return_value=cache_flag,
-                ) as pmock:
-                    with patch.object(
-                        CACHE, "build_filename", return_value=return_filename
-                    ) as build_filename_mock:
-                        req = HttpRequest(url, post=post_flag)
-                        with requests_mock.Mocker() as req_mock:
-                            if post_flag:
-                                req_mock.post(url, text=response_text)
-                            else:
-                                req_mock.get(url, text=response_text)
-
-                            yield req, m_open, rename_mock, pmock, build_filename_mock, response_text
-    finally:
-        pass
+@pytest.fixture
+def cachefile(tmp_path):
+    """Point HttpRequest's cache file into a temporary folder."""
+    path = str(tmp_path / "foo-bar.txt")
+    with patch.object(CACHE, "build_filename", return_value=path):
+        yield path
 
 
-@pytest.mark.parametrize("cache_flag, post_flag", http_test_retrieve_args)
-def test_httprequests_retrieve(cache_flag, post_flag):
-    response_text = "foo-bar"
-    return_filename = "foo-bar.txt"
-
-    m_open = mock_open()
-    rename_mock = MagicMock()
-    with patch_all(post_flag=post_flag, cache_flag=cache_flag) as (
-        req,
-        m_open,
-        rename_mock,
-        pmock,
-        build_filename_mock,
-        response_text,
-    ):
+@pytest.mark.parametrize("post_flag", [True, False])
+def test_httprequests_retrieve(cachefile, post_flag):
+    with requests_mock.Mocker() as m:
+        m.register_uri("POST" if post_flag else "GET", URL, text="foo-bar")
+        req = HttpRequest(URL, post=post_flag)
         req._retrieve()
-        pmock.assert_called_once()
+        assert open(cachefile).read() == "foo-bar"
+        assert m.call_count == 1
 
-        if cache_flag:
-            m_open.assert_not_called()
-            return
-
-        m_open.assert_called_once_with(f"{return_filename}_temp", "wb")
-        handle = m_open()
-        handle.write.assert_called_once_with(response_text.encode("utf-8"))
-        rename_mock.assert_called_once_with(f"{return_filename}_temp", return_filename)
+        HttpRequest(URL, post=post_flag)._retrieve()  # cached: no second request
+        assert m.call_count == 1
 
 
-throttle_filename = "throttle.txt"
-test_filelock_args = [
-    # If first thread locks first, it finishes first
-    ([throttle_filename, None], [None, 0.5], [0, 1]),
-    # If second thread locks first, it finishes first
-    ([None, throttle_filename], [0.5, None], [1, 0]),
-]
-
-
-@pytest.mark.parametrize("filenames,presleeps,expected_indices", test_filelock_args)
-def test_file_lock_(filenames, presleeps, expected_indices):
-    call_order = []
-
-    def exec_retrieve(
-        req: HttpRequest, overwrite_cachefile=None, presleep=None, index=None
-    ):
-        if overwrite_cachefile:
-            req.cachefile = overwrite_cachefile
-        if presleep:
-            sleep(presleep)
+def test_httprequests_retrieve_refresh(cachefile):
+    with open(cachefile, "w") as f:
+        f.write("old")
+    with requests_mock.Mocker() as m:
+        m.get(URL, text="new")
+        req = HttpRequest(URL, refresh=True)
         req._retrieve()
-        call_order.append(index)
-        return index
+        assert open(cachefile).read() == "new"
+        assert req.refresh is False
+        assert m.call_count == 1
 
-    def rename_mock_side_effect(oldname, newname):
-        if newname == throttle_filename:
-            sleep(1)
 
-    with patch_all() as (
-        req,
-        m_open,
-        rename_mock,
-        pmock,
-        build_filename_mock,
-        response_text,
-    ):
-        rename_mock.side_effect = rename_mock_side_effect
+def test_httprequests_concurrent_download_once(cachefile):
+    def slow_response(request, context):
+        sleep(0.2)  # widen the race window
+        return "foo-bar"
 
-        with ThreadPoolExecutor(max_workers=2) as ex:
-            _ = list(
-                ex.map(
-                    exec_retrieve,
-                    repeat(req),
-                    filenames,
-                    presleeps,
-                    [0, 1],
-                )
-            )
-        assert call_order[0] == expected_indices[0]
-        assert call_order[1] == expected_indices[1]
+    n = 8
+    barrier = Barrier(n)
+
+    def retrieve(_):
+        barrier.wait()
+        HttpRequest(URL)._retrieve()
+        return open(cachefile).read()
+
+    with requests_mock.Mocker() as m:
+        m.get(URL, text=slow_response)
+        with ThreadPoolExecutor(n) as ex:
+            results = list(ex.map(retrieve, range(n)))
+        assert m.call_count == 1, "the file should be downloaded only once"
+    assert results == ["foo-bar"] * n
+
+
+def test_httprequests_failed_download_leaves_no_file(cachefile):
+    folder = os.path.dirname(cachefile)
+    with requests_mock.Mocker() as m:
+        m.get(URL, status_code=503)
+        with pytest.raises(SiibraHttpRequestError):
+            HttpRequest(URL)._retrieve()
+    assert not os.path.exists(cachefile)
+    assert [f for f in os.listdir(folder) if ".tmp-" in f] == []
+
+
+def test_zipfile_member_extracted_once(tmp_path, monkeypatch):
+    from zipfile import ZipFile
+    from siibra.retrieval import requests as requests_module
+    from siibra.retrieval.requests import Decoder, ZipfileRequest
+
+    archive = tmp_path / "data.zip"
+    with ZipFile(archive, "w") as z:
+        z.writestr("folder/member.txt", "member content")
+    monkeypatch.setattr(CACHE, "folder", str(tmp_path / "cache"))
+    os.makedirs(CACHE.folder)
+
+    copies = []
+    real_copy = requests_module.shutil.copyfileobj
+
+    def slow_copy(src, dst, *args, **kwargs):
+        copies.append(1)
+        sleep(0.2)  # widen the race window
+        return real_copy(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(requests_module.shutil, "copyfileobj", slow_copy)
+    read_file = Decoder(lambda path: open(path).read(), input_type="FILE")
+    n = 8
+    barrier = Barrier(n)
+
+    def get(_):
+        barrier.wait()
+        return ZipfileRequest(str(archive), "folder/member.txt", func=read_file).get()
+
+    with ThreadPoolExecutor(n) as ex:
+        results = list(ex.map(get, range(n)))
+    assert results == ["member content"] * n
+    assert len(copies) == 1, "the member should be extracted only once"
+
+
+def _failing_decoder():
+    from siibra.retrieval.requests import Decoder
+
+    def broken(path):
+        raise ValueError("cannot decode")
+    return Decoder(broken, input_type="FILE")
+
+
+def test_fileloader_decode_error_keeps_local_file(tmp_path, monkeypatch):
+    from siibra.retrieval.requests import FileLoader
+
+    monkeypatch.setattr(CACHE, "folder", str(tmp_path / "cache"))
+    user_file = tmp_path / "my_scan.tif"
+    user_file.write_bytes(b"not really a tiff")
+    with pytest.raises(ValueError):
+        FileLoader(str(user_file), func=_failing_decoder()).data
+    assert user_file.read_bytes() == b"not really a tiff"
+
+
+def test_corrupt_download_is_removed(tmp_path, monkeypatch):
+    # e.g. a truncated download: remove it, so the next call downloads again
+    monkeypatch.setattr(CACHE, "folder", str(tmp_path))
+    with requests_mock.Mocker() as m:
+        m.get(URL, text="truncated")
+        req = HttpRequest(URL, func=_failing_decoder())
+        with pytest.raises(ValueError):
+            req.get()
+        assert not os.path.exists(req.cachefile)
+        with pytest.raises(ValueError):
+            HttpRequest(URL, func=_failing_decoder()).get()
+        assert m.call_count == 2, "the next call should download again"
