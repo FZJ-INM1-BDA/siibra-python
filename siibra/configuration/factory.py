@@ -496,6 +496,8 @@ class Factory:
         modality = spec.get("modality", "")
         if modality == "cell body staining":
             return sections.CellbodyStainedSection(**kwargs)
+        elif "autoradiography" in modality:
+            return sections.AutoradiographySection(**kwargs)
         else:
             logger.debug(f"No defined feature type for {modality}. Creating a generic image feature.")
             kwargs["modality"] = spec.get("modality")
@@ -547,6 +549,8 @@ class Factory:
             return volume_of_interest.MorphometryVolumeOfInterest(
                 modality="Morphometry", **kwargs
             )
+        elif "autoradiography" in modality.lower():
+            return volume_of_interest.AutoradiographyVolumeOfInterest(modality=modality, **kwargs)
         else:
             logger.debug(f"No defined feature type for {modality}. Creating a generic image feature.")
             kwargs["modality"] = spec.get("modality")
