@@ -79,6 +79,7 @@ class LSFMVolumeOfInterest(
     def __init__(self, modality, **kwargs):
         image.Image.__init__(self, **kwargs, modality=modality)
 
+
 class MorphometryVolumeOfInterest(
     image.Image,
     configuration_folder="features/images/vois/morphometry",
@@ -94,3 +95,12 @@ class MorphometryVolumeOfInterest(
 # ):
 #     def __init__(self, **kwargs):
 #         image.Image.__init__(self, **kwargs, modality="segmentation")
+
+
+class AutoradiographyVolumeOfInterest(
+    image.Image,
+    configuration_folder="features/images/vois/autoradiography",
+    category="molecular"
+):
+    def __init__(self, modality, **kwargs):
+        image.Image.__init__(self, **kwargs, modality=modality)

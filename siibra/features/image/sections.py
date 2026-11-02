@@ -24,3 +24,12 @@ class CellbodyStainedSection(
 ):
     def __init__(self, **kwargs):
         image.Image.__init__(self, **kwargs, modality="cell body staining")
+
+
+class AutoradiographySection(
+    image.Image,
+    configuration_folder="features/images/sections/autoradiography",
+    category="molecular",
+):
+    def __init__(self, **kwargs):
+        image.Image.__init__(self, **kwargs, modality="autoradiography")
