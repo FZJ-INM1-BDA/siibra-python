@@ -115,3 +115,12 @@ class FMRIVolumeOfInterest(
         else:
             timeindex = np.asanyarray(time)
         image.Image.__init__(self, **kwargs, time=timeindex, modality=modality)
+
+
+class AutoradiographyVolumeOfInterest(
+    image.Image,
+    configuration_folder="features/images/vois/autoradiography",
+    category="molecular"
+):
+    def __init__(self, modality, **kwargs):
+        image.Image.__init__(self, **kwargs, modality=modality)

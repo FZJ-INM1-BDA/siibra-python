@@ -105,3 +105,12 @@ class BigBrain1MicronPatch(image.Image, category="cellular"):
     def fetch(self, flip: bool = False, resolution_mm: float = -1, **kwargs):
         p = self._patch.flip() if flip else self._patch
         return p.extract_volume(self._section, resolution_mm=resolution_mm, **kwargs).fetch()
+
+
+class AutoradiographySection(
+    image.Image,
+    configuration_folder="features/images/sections/autoradiography",
+    category="molecular",
+):
+    def __init__(self, **kwargs):
+        image.Image.__init__(self, **kwargs, modality="autoradiography")
