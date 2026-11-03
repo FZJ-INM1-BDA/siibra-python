@@ -218,9 +218,9 @@ class GeneExpressions(
             modality="Gene expression",
             anchor=anchor,
             data=_data_cahced,
-            datasets=datasets
+            datasets=datasets,
+            unit={"*": {"unit": "expression level"}, "zscore": {"unit": "z-score"}},
         )
-        self.unit = "expression level"
         self._genes = list(set(genes))
 
     def plot(self, *args, backend="matplotlib", **kwargs):

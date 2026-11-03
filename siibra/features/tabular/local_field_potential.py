@@ -363,8 +363,7 @@ class RegionalLocalFieldPotential(tabular.Tabular, category="functional"):
     def coordinates(self):
         return self.anchor.location
 
-    @property
-    def data(self):
+    def _load_data(self) -> pd.DataFrame:
         """
         Compute the smoothed median spectra represented by this feature.
 

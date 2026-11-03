@@ -53,7 +53,7 @@ class BigBrainIntensityProfile(
             anchor=anchor,
             depths=depths,
             values=values,
-            unit="staining intensity",
+            unit={"*": {"unit": "staining intensity"}},
             boundary_positions={
                 b: boundaries[b[0]]
                 for b in cortical_profile.CorticalProfile.BOUNDARIES

@@ -59,11 +59,9 @@ class ReceptorDensityFingerprint(
             datasets=datasets,
             id=id,
             prerelease=prerelease,
+            # the unit is the last column of the tsv file
+            unit=lambda: {"*": {"unit": self._loader.data.iloc[:, -1][0]}},
         )
-
-    @property
-    def unit(self) -> str:
-        return self._loader.data.iloc[:, -1][0]
 
     @property
     def receptors(self) -> List[str]:
@@ -82,8 +80,7 @@ class ReceptorDensityFingerprint(
             for t in self.receptors
         ]
 
-    @property
-    def data(self):
+    def _load_data(self) -> pd.DataFrame:
         if self._data_cached is None:
             label_col, mean_col, std_col = list(self._loader.data.columns)[:3]
             self._data_cached = pd.DataFrame(
@@ -157,7 +154,7 @@ class ReceptorDensityFingerprint(
                 plt.plot(angles + [angles[0]], bounds1, "k", lw=0.5, **kwargs)
             ax.set_xticks(angles)
             ax.set_xticklabels([_ for _ in self.data.index])
-            ax.set_ylabel(self.unit)
+            ax.set_ylabel(self.unit_of(datafield))
             ax.set_title(
                 "\n".join(wrap(f"{self.modality} anchored at {self.anchor._regionspec}", wrapwidth))
             )

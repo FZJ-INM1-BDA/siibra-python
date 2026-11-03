@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union, Dict, Tuple, List
+from typing import Union, Dict, Tuple, List, Callable
 
 from textwrap import wrap
 import numpy as np
@@ -54,7 +54,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         anchor: _anchor.AnatomicalAnchor,
         depths: Union[list, np.ndarray] = None,
         values: Union[list, np.ndarray] = None,
-        unit: str = None,
+        unit: Union[Dict[str, "tabular.UnitSpec"], Callable] = None,
         boundary_positions: Dict[Tuple[int, int], float] = None,
         datasets: list = [],
         id: str = None,
@@ -75,8 +75,8 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         values: list, default: None
             List of the actual measurements at each depth position.
             Length must correspond to 'depths'.
-        unit: str, default: None
-            Textual identifier for the unit of measurements.
+        unit: dict or callable, default: None
+            Unit specs as for Tabular, e.g. ``{"*": {"unit": "cells / 0.1mm3"}}``.
         boundary_positions: dict, default: None
             Dictionary of depths at which layer boundaries were identified.
             Keys are tuples of layer numbers, e.g. (1,2), and values are
@@ -87,7 +87,6 @@ class CorticalProfile(tabular.Tabular, Compoundable):
 
         # cached properties will be revealed as property functions,
         # so derived classes may choose to override for lazy loading.
-        self._unit = unit
         self._depths_cached = depths
         self._values_cached = values
         self._boundary_positions = boundary_positions
@@ -101,6 +100,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
             datasets=datasets,
             id=id,
             prerelease=prerelease,
+            unit=unit,
         )
 
     def _check_sanity(self):
@@ -120,13 +120,6 @@ class CorticalProfile(tabular.Tabular, Compoundable):
                 layerpair in self.BOUNDARIES
                 for layerpair in self.boundary_positions.keys()
             ), "Some value in BOUNDARIES are not mapped in boundary_positions"
-
-    @property
-    def unit(self) -> str:
-        """Optionally overridden in derived classes."""
-        if self._unit is None:
-            raise NotImplementedError(f"'unit' not set for {self.__class__.__name__}.")
-        return self._unit
 
     @property
     def boundary_positions(self) -> Dict[Tuple[int, int], float]:
@@ -164,15 +157,15 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         else:
             return None
 
-    @property
-    def data(self):
-        """Return a pandas Series representing the profile."""
+    def _load_data(self) -> pd.DataFrame:
+        """The profile, indexed by cortical depth."""
         self._check_sanity()
         iscompound = len(self._values.shape) > 1 and self._values.shape[1] == 2
+        unit = self._units.spec_of("*").get("unit")
         if iscompound:
-            columns = [f"{self.modality} mean ({self.unit})", "std"]
+            columns = [f"{self.modality} mean ({unit})", "std"]
         else:
-            columns = [f"{self.modality} ({self.unit})"]
+            columns = [f"{self.modality} ({unit})"]
         return pd.DataFrame(self._values, index=self._depths, columns=columns)
 
     @classmethod
@@ -184,7 +177,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         anchor: _anchor.AnatomicalAnchor,
     ):
         assert all(np.array_equal(elements[0]._depths, f._depths) for f in elements)
-        assert len({f.unit for f in elements}) == 1
+        assert all(f._units.resolved() == elements[0]._units.resolved() for f in elements)
         values_stacked = np.stack([f._values for f in elements])
         return CorticalProfile(
             description=description,
@@ -192,7 +185,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
             anchor=anchor,
             depths=np.stack([f._depths for f in elements]).mean(0),
             values=np.stack([values_stacked.mean(0), values_stacked.std(0)]).T,
-            unit=elements[0].unit,
+            unit=elements[0]._units.resolved(),
             boundary_positions=None,
         )
 
@@ -214,13 +207,14 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         layercolor = kwargs.pop("layercolor", "gray")
 
         iscompound = len(self._values.shape) > 1 and self._values.shape[1] == 2
+        unit = self.unit_of(self.data.columns[0])
         ymax = max(
             0,
             sum(self._values.max(axis=0)) if iscompound else self._values.max()
         )
         if backend == "matplotlib":
             kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
-            kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
+            kwargs["ylabel"] = kwargs.get("ylabel", unit)
             kwargs["grid"] = kwargs.get("grid", True)
             axs = self.data.iloc[:, 0].plot(*args, **kwargs, backend=backend)
             axs.set_ylim(kwargs.get("ylim", (0, ymax)))
@@ -252,7 +246,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
             kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             kwargs["labels"] = {
                 "index": kwargs.pop("xlabel", None) or kwargs.pop("index", "Cortical depth"),
-                "value": kwargs.pop("ylabel", None) or kwargs.pop("value", self.unit)
+                "value": kwargs.pop("ylabel", None) or kwargs.pop("value", unit)
             }
             fig = self.data.iloc[:, 0].plot(*args, **kwargs, backend=backend)
             if self.boundaries_mapped:
