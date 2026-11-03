@@ -97,7 +97,6 @@ class Image(
 
         self._anchor_cached = ImageAnchor(self, region=region)
         self._description_cached = None
-        self._name_cached = name
 
     def _to_zip(self, fh: ZipFile):
         super()._to_zip(fh)
@@ -108,10 +107,10 @@ class Image(
 
     @property
     def name(self):
-        if self._name_cached is None:
-            return feature.Feature.name(self)
-        else:
-            return f"{self._name_cached} ({self.modality})"
+        if self._name is None:
+            return feature.Feature.name.fget(self)
+        name = f"{self._name} ({self.modality})"
+        return f"[PRERELEASE] {name}" if self._prerelease else name
 
     @property
     def description(self):
