@@ -659,3 +659,17 @@ class TestMapAssignVolume(unittest.TestCase):
             (int(round(a.intersection_over_union * 64)) for a in assignments), reverse=True
         )
         self.assertEqual(sizes, expected_sizes)
+
+    def test_centroid_is_in_physical_coordinates(self):
+        affine = np.array([
+            [2., 0., 0., 10.],
+            [0., 2., 0., 20.],
+            [0., 0., 2., 30.],
+            [0., 0., 0., 1.],
+        ])
+        self.patch_fetch(affine=affine)
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:2, 0:2, 0:2] = 1  # voxel centroid (0.5, 0.5, 0.5)
+        assignments = self.mp._assign(self.queryvolume(query_arr, affine=affine))
+        self.assertEqual(len(assignments), 1)
+        np.testing.assert_allclose(assignments[0].centroid, (11., 21., 31.))

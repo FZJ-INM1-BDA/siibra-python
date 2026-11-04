@@ -1202,7 +1202,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             - input structure: index of the input coordinate, or label of the
               input image component.
             - time: time point of a time series input.
-            - centroid: centroid of the input coordinate or image component.
+            - centroid: centroid of the input coordinate or image component,
+              in physical coordinates of the map's space.
             - volume, fragment: map index of the region.
             - region: the assigned brain region.
             - map value: for point inputs, the map value at the coordinate.
@@ -1517,7 +1518,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     )
                     if scores.intersection_over_union == 0:
                         continue
-                    component_position = np.array(np.where(voxelmask)).T.mean(0)
+                    # the component is in the voxel space of the regional map
+                    component_position = np.dot(
+                        region_map.affine, np.r_[np.array(np.where(voxelmask)).T.mean(0), 1]
+                    )[:3]
                     assignments.append(
                         AssignImageResult(
                             input_structure=compmode,
