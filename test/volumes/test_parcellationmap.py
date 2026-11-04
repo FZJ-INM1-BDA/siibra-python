@@ -19,6 +19,7 @@ from nibabel import Nifti1Image
 from siibra.volumes.volume import Volume
 from siibra.locations.point import Point
 from siibra.locations.pointcloud import PointCloud
+from siibra.volumes.sparsemap import SparseMap, SparseIndex
 
 
 class DummyParc():
@@ -545,3 +546,72 @@ class TestMapAssignLowerThreshold(unittest.TestCase):
                 patch.object(Map, "_assign_volume", return_value=[]):
             result = mp.assign(MagicMock(spec=item_cls))
         self.assertEqual(len(result), 0)
+
+
+class TestMapAssignScoreColumns(unittest.TestCase):
+    """
+    `Map` and `SparseMap` compute the image scores separately. Both must fill
+    the score columns of `Map.assign` with the same quantities (#717).
+
+    The case is asymmetric so that swapped columns differ: the regional map
+    (64 voxels of 0.5) is a strict subset of the input (128 voxels of 1).
+    """
+
+    SHAPE = (10, 10, 10)
+
+    def setUp(self) -> None:
+        self.space = MagicMock()
+        for cls in (Map, SparseMap):
+            patcher = patch.object(cls, "space", new_callable=PropertyMock, return_value=self.space)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        region_patcher = patch.object(Map, "get_region", return_value="foo")
+        region_patcher.start()
+        self.addCleanup(region_patcher.stop)
+
+        self.region_arr = np.zeros(self.SHAPE, dtype="float32")
+        self.region_arr[0:4, 0:4, 0:4] = 0.5
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:8, 0:4, 0:4] = 1
+        self.queryvolume = MagicMock(spec=Volume)
+        self.queryvolume.space = self.space
+        self.queryvolume.fetch.return_value = Nifti1Image(query_arr, np.eye(4))
+
+    def statistical_map(self) -> Map:
+        mp = TestMap.get_instance(
+            indices={"foo": [{"volume": 0}]},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True)],
+        )
+        fetch_patcher = patch.object(
+            Map, "fetch", return_value=Nifti1Image(self.region_arr, np.eye(4))
+        )
+        fetch_patcher.start()
+        self.addCleanup(fetch_patcher.stop)
+        return mp
+
+    def sparse_map(self) -> SparseMap:
+        mp = SparseMap(
+            identifier=str(uuid4()),
+            name="sparse-map-name",
+            space_spec={},
+            parcellation_spec={},
+            indices={"foo": [{"volume": 0}]},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True)],
+        )
+        spind = SparseIndex()
+        spind.add_img(self.region_arr, np.eye(4))
+        mp._sparse_index_cached = spind
+        return mp
+
+    @parameterized.expand([("statistical_map", ), ("sparse_map", )])
+    def test_score_columns(self, factory):
+        df = getattr(self, factory)().assign(self.queryvolume)
+        self.assertEqual(len(df), 1)
+        row = df.iloc[0]
+        self.assertAlmostEqual(row["intersection over union"], 64 / 128)
+        self.assertAlmostEqual(row["map containedness"], 1.0)
+        self.assertAlmostEqual(row["input containedness"], 64 / 128)
+        # map values (0.5) averaged over the input: 64 * 0.5 / 128
+        self.assertAlmostEqual(row["map weighted mean"], 0.25)
+        # input values (1) averaged over the regional map
+        self.assertAlmostEqual(row["input weighted mean"], 1.0)

@@ -65,7 +65,13 @@ class MapAssignment:
 
 @dataclass
 class AssignImageResult(CompareMapsResult, MapAssignment):
-    pass
+    """
+    Scores of an input image component against a regional map.
+
+    The scores inherited from `CompareMapsResult` use the convention
+    first = regional map, second = input. `Map.assign` relies on it to name
+    the columns, e.g. `intersection_over_first` -> "map containedness".
+    """
 
 
 class _CompressedMapSpec(NamedTuple):
@@ -1188,22 +1194,35 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Returns
         -------
         pandas.DataFrame
-            A table of associated regions and their scores per component found
-            in the input image, or per coordinate provided. The scores are:
+            One row per input element (coordinate or image component) and
+            brain region it is assigned to. Columns that are empty in all rows
+            are dropped.
 
-                - Value: Maximum value of the voxels in the map covered by an
-                input coordinate or input image signal component.
-                - Pearson correlation coefficient between the brain region map
-                and an input image signal component (NaN for exact coordinates)
-                - Contains: Percentage of the brain region map contained in an
-                input image signal component, measured from their binarized
-                masks as the ratio between the volume of their intersection
-                and the volume of the brain region (NaN for exact coordinates)
-                - Contained: Percentage of an input image signal component
-                contained in the brain region map, measured from their binary
-                masks as the ratio between the volume of their intersection and
-                the volume of the input image signal component (NaN for exact
-                coordinates)
+            - input structure: index of the input coordinate, or label of the
+              input image component.
+            - time: time point of a time series input.
+            - centroid: centroid of the input coordinate or image component.
+            - volume, fragment: map index of the region.
+            - region: the assigned brain region.
+            - map value: for point inputs, the map value at the coordinate.
+              For image inputs, the label of the region (labelled maps) or the
+              maximum value of the regional map (sparse maps).
+            - correlation: Pearson correlation coefficient between the
+              regional map and the input.
+            - intersection over union: of the nonzero voxels of the regional
+              map and the input.
+            - map containedness: fraction of the nonzero voxels of the
+              regional map that lie within the input.
+            - input containedness: fraction of the nonzero voxels of the input
+              that lie within the regional map.
+            - map weighted mean: mean of the regional map values, weighted by
+              the input values.
+            - input weighted mean: mean of the input values, weighted by the
+              regional map values.
+
+            The scores from "correlation" onwards are computed for image
+            inputs only. Coordinates with an uncertainty of 3 voxels or more
+            are assigned as images of a Gaussian kernel and receive them too.
         """
 
         assignments = self._assign(item, minsize_voxel, lower_threshold, **kwargs)
@@ -1482,11 +1501,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     resample_img_to_img(queryimg, region_map).dataobj
                 )
                 for compmode, voxelmask in iter_components(queryimgarr_res):
+                    # first = regional map, second = input (see AssignImageResult).
+                    # After resampling, both have the same affine.
                     scores = compare_arrays(
-                        voxelmask,
-                        region_map.affine,  # after resampling, both should have the same affine
-                        region_map_arr,
-                        region_map.affine
+                        arr1=region_map_arr,
+                        affine1=region_map.affine,
+                        arr2=voxelmask,
+                        affine2=region_map.affine,
                     )
                     if scores.intersection_over_union == 0:
                         continue
