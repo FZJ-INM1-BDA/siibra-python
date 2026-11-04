@@ -88,7 +88,7 @@ def test_point_assignment_to_labelled():
     # uncertain point
     point_uncertain = siibra.Point((25.5, -26.0, 72.0), space='mni152', sigma_mm=3.)
     assignments_uncertain = mp.assign(point_uncertain).sort_values(by=['input containedness'], ascending=False)
-    assignments_uncertain['region'][0].matches("Area 4a (PreCG) right")
+    assert assignments_uncertain['region'].iloc[0].matches("Area 4a (PreCG) right")
 
 
 maps_w_fragments = (
