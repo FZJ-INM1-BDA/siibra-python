@@ -1180,7 +1180,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             parcellation map. Resampling will use linear interpolation for float
             image types, otherwise nearest neighbor.
         minsize_voxel: int, default: 1
-            Minimum voxel size of image components to be taken into account.
+            Minimum number of voxels of an input image component to be taken
+            into account. Smaller components are skipped.
         lower_threshold: float, default: 0
             Lower threshold on the values of statistical maps. For point
             inputs, only map values above the threshold are assigned. For image
@@ -1433,6 +1434,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         self,
         queryvolume: "_volume.Volume",
         lower_threshold: float,
+        minsize_voxel: int = 1,
         split_components: bool = True,
         time: Optional[int] = None,
         **kwargs,
@@ -1448,6 +1450,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             Lower threshold on the values of statistical maps. Map values below
             the threshold are set to zero before the comparison. Ignored for
             labelled maps.
+        minsize_voxel: int, default: 1
+            Minimum number of voxels of an input image component to be taken
+            into account. Smaller components are skipped.
         split_components: bool, default: True
             Whether to split the query volume into disjoint components.
         time: int, optional
@@ -1462,7 +1467,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             non-empty intersection.
         """
         # TODO: split_components is not known to `assign`
-        # TODO: `minsize_voxel` is not used here. Consider the implementation of `assign` again.
         if kwargs:
             logger.info(f"The keywords {[k for k in kwargs]} are not passed on during volume assignment.")
 
@@ -1501,6 +1505,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     resample_img_to_img(queryimg, region_map).dataobj
                 )
                 for compmode, voxelmask in iter_components(queryimgarr_res):
+                    if np.count_nonzero(voxelmask) < minsize_voxel:
+                        continue
                     # first = regional map, second = input (see AssignImageResult).
                     # After resampling, both have the same affine.
                     scores = compare_arrays(

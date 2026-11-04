@@ -615,3 +615,47 @@ class TestMapAssignScoreColumns(unittest.TestCase):
         self.assertAlmostEqual(row["map weighted mean"], 0.25)
         # input values (1) averaged over the regional map
         self.assertAlmostEqual(row["input weighted mean"], 1.0)
+
+
+class TestMapAssignVolume(unittest.TestCase):
+    """Behaviour of `Map._assign_volume` beyond thresholds and score columns."""
+
+    SHAPE = (10, 10, 10)
+
+    def setUp(self) -> None:
+        self.space = MagicMock()
+        patcher = patch.object(Map, "space", new_callable=PropertyMock, return_value=self.space)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        self.region_arr = np.zeros(self.SHAPE, dtype="float32")
+        self.region_arr[0:4, 0:4, 0:4] = 0.5
+        self.mp = TestMap.get_instance(
+            indices={"foo": [{"volume": 0}]},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True)],
+        )
+
+    def patch_fetch(self, affine: np.ndarray = np.eye(4)) -> None:
+        image = Nifti1Image(self.region_arr, affine)
+        patcher = patch.object(Map, "fetch", return_value=image)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def queryvolume(self, query_arr: np.ndarray, affine: np.ndarray = np.eye(4)) -> MagicMock:
+        queryvolume = MagicMock(spec=Volume)
+        queryvolume.space = self.space
+        queryvolume.fetch.return_value = Nifti1Image(query_arr, affine)
+        return queryvolume
+
+    @parameterized.expand([(1, [8, 1]), (2, [8]), (9, [])])
+    def test_minsize_voxel_skips_small_components(self, minsize_voxel, expected_sizes):
+        self.patch_fetch()
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:2, 0:2, 0:2] = 1  # component of 8 voxels
+        query_arr[3, 0, 3] = 1  # component of 1 voxel
+        assignments = self.mp._assign(self.queryvolume(query_arr), minsize_voxel=minsize_voxel)
+        # both components lie within the 64-voxel regional map: size = IoU * 64
+        sizes = sorted(
+            (int(round(a.intersection_over_union * 64)) for a in assignments), reverse=True
+        )
+        self.assertEqual(sizes, expected_sizes)
