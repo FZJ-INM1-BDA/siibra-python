@@ -19,8 +19,8 @@ import re
 from typing import Union, List, TYPE_CHECKING, Literal
 
 from . import region
+from .concept import get_registry
 from ..commons import logger, MapType, Species
-from ..volumes import parcellationmap
 from ..exceptions import MapNotFound
 
 
@@ -181,9 +181,12 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             maptype = MapType[maptype.upper()]
         assert isinstance(maptype, MapType), "Possible values of `maptype` are `MapType`s, 'labelled', 'statistical'."
 
+        space_matches = get_registry("Space").find(space)
         candidates = [
-            m for m in parcellationmap.Map.registry()
-            if m.space.matches(space)
+            m
+            for m in get_registry("Map")
+            for sp in space_matches
+            if m.space.matches(sp)
             and m.maptype == maptype
             and m.parcellation.matches(self)
         ]
