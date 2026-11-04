@@ -1482,7 +1482,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             for regionindices in self._indices.values()
             for index in regionindices
         ]
-        with QUIET and provider.SubvolumeProvider.UseCaching():
+        with QUIET, provider.SubvolumeProvider.UseCaching():
             for index in siibra_tqdm(
                 all_indices,
                 desc=f"Assigning {queryvolume} to {self}",
