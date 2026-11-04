@@ -1210,7 +1210,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
               For image inputs, the label of the region (labelled maps) or the
               maximum value of the regional map (sparse maps).
             - correlation: Pearson correlation coefficient between the
-              regional map and the input.
+              regional map and the input. Statistical maps only: the regional
+              maps of labelled maps are binary masks.
             - intersection over union: of the nonzero voxels of the regional
               map and the input.
             - map containedness: fraction of the nonzero voxels of the
@@ -1481,7 +1482,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         queryimg = queryvolume.fetch()
         assignments = []
-        apply_threshold = lower_threshold != 0 and not self.is_labelled
+        labelled = self.is_labelled
+        apply_threshold = lower_threshold != 0 and not labelled
         all_indices = [
             index
             for regionindices in self._indices.values()
@@ -1518,6 +1520,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     )
                     if scores.intersection_over_union == 0:
                         continue
+                    if labelled:
+                        # a correlation with a binary region mask only restates the overlap
+                        scores.correlation = None
                     # the component is in the voxel space of the regional map
                     component_position = np.dot(
                         region_map.affine, np.r_[np.array(np.where(voxelmask)).T.mean(0), 1]

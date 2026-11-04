@@ -673,3 +673,21 @@ class TestMapAssignVolume(unittest.TestCase):
         assignments = self.mp._assign(self.queryvolume(query_arr, affine=affine))
         self.assertEqual(len(assignments), 1)
         np.testing.assert_allclose(assignments[0].centroid, (11., 21., 31.))
+
+    @parameterized.expand([("labelled", True), ("statistical", False)])
+    def test_correlation_only_for_statistical_maps(self, _, labelled):
+        index_spec = {"volume": 0, "label": 1} if labelled else {"volume": 0}
+        mp = TestMap.get_instance(
+            indices={"foo": [index_spec]},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True)],
+        )
+        if labelled:
+            self.region_arr = (self.region_arr > 0).astype("uint8")
+        self.patch_fetch()
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:6, 0:2, 0:2] = 1
+        with patch.object(Map, "get_region", return_value="foo"):
+            df = mp.assign(self.queryvolume(query_arr))
+        self.assertEqual(len(df), 1)
+        self.assertIn("intersection over union", df.columns)
+        self.assertEqual("correlation" in df.columns, not labelled)
