@@ -16,7 +16,7 @@
 
 from collections import defaultdict
 from dataclasses import dataclass, asdict
-from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, Literal, NamedTuple
+from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, Literal, NamedTuple, Optional
 import numpy as np
 import pandas as pd
 
@@ -1105,13 +1105,25 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def _assign(
         self,
         item: location.Location,
-        minsize_voxel=1,
-        lower_threshold=0.0,
+        minsize_voxel: int = 1,
+        lower_threshold: float = 0.0,
         **kwargs
     ) -> List[Union[MapAssignment, AssignImageResult]]:
         """
         For internal use only. Returns a dataclass, which provides better static type checking.
+
+        Raises
+        ------
+        ValueError
+            If `lower_threshold` is non-zero and this map is labelled.
+        RuntimeError
+            If `item` is of a type that cannot be assigned.
         """
+        if lower_threshold != 0 and self.is_labelled:
+            raise ValueError(
+                "'lower_threshold' applies to values of statistical maps and is "
+                f"not supported for labelled maps (got {lower_threshold})."
+            )
 
         if isinstance(item, point.Point):
             return self._assign_points(
@@ -1143,8 +1155,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def assign(
         self,
         item: location.Location,
-        minsize_voxel=1,
-        lower_threshold=0.0,
+        minsize_voxel: int = 1,
+        lower_threshold: float = 0.0,
         **kwargs
     ) -> "pd.DataFrame":
         """Assign an input Location to brain regions.
@@ -1164,8 +1176,14 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
-            Lower threshold on values in the statistical map. Values smaller
-            than this threshold will be excluded from the assignment computation.
+            Lower threshold on the values of statistical maps. For point
+            inputs, only map values above the threshold are assigned. For image
+            inputs, map values below the threshold are set to zero before the
+            comparison. Must be 0 for labelled maps.
+        **kwargs
+            split_components: bool, default: True
+                For image inputs: whether to split the input into connected
+                components and assign each separately.
 
         Returns
         -------
@@ -1285,13 +1303,22 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def _assign_points(self, points: pointcloud.PointCloud, lower_threshold: float) -> List[MapAssignment]:
         """
-        assign a PointCloud to this parcellation map.
+        Assign a PointCloud to this parcellation map.
 
         Parameters
-        -----------
-        lower_threshold: float, default: 0
-            Lower threshold on values in the statistical map. Values smaller than
-            this threshold will be excluded from the assignment computation.
+        ----------
+        points: PointCloud
+            The points to be assigned. Points with an uncertainty of 3 voxels
+            or more are assigned as images of a Gaussian kernel.
+        lower_threshold: float
+            Lower threshold on map values. Only map values above the threshold
+            are assigned. For labelled maps, this is 0, which excludes the
+            background.
+
+        Returns
+        -------
+        List[MapAssignment]
+            One entry per point and map with a value above the threshold.
         """
         assignments = []
 
@@ -1388,23 +1415,32 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         queryvolume: "_volume.Volume",
         lower_threshold: float,
         split_components: bool = True,
-        time: int = None,
+        time: Optional[int] = None,
         **kwargs,
     ) -> List[AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
 
         Parameters
-        -----------
+        ----------
         queryvolume: Volume
-            the volume to be compared with maps
-        minsize_voxel: int, default: 1
-            Minimum voxel size of image components to be taken into account.
-        lower_threshold: float, default: 0
-            Lower threshold on values in the statistical map. Values smaller than
-            this threshold will be excluded from the assignment computation.
+            The volume to be compared with the regional maps.
+        lower_threshold: float
+            Lower threshold on the values of statistical maps. Map values below
+            the threshold are set to zero before the comparison. Ignored for
+            labelled maps.
         split_components: bool, default: True
             Whether to split the query volume into disjoint components.
+        time: int, optional
+            Time point of the query volume, if it is part of a time series.
+        **kwargs
+            Not used. Their names are logged.
+
+        Returns
+        -------
+        List[AssignImageResult]
+            One entry per pair of input component and regional map with a
+            non-empty intersection.
         """
         # TODO: split_components is not known to `assign`
         # TODO: `minsize_voxel` is not used here. Consider the implementation of `assign` again.
@@ -1421,6 +1457,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         queryimg = queryvolume.fetch()
         assignments = []
+        apply_threshold = lower_threshold != 0 and not self.is_labelled
         all_indices = [
             index
             for regionindices in self._indices.values()
@@ -1436,6 +1473,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             ):
                 region_map = self.fetch(index=index)
                 region_map_arr = np.asanyarray(region_map.dataobj)
+                if apply_threshold:
+                    # not in place: the array may belong to a cached image
+                    region_map_arr = np.where(region_map_arr < lower_threshold, 0, region_map_arr)
                 # the shape and affine are checked by `nilearn.image.resample_to_img()`
                 # and returns the original data if resampling is not necessary.
                 queryimgarr_res = np.asanyarray(
@@ -1448,19 +1488,20 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         region_map_arr,
                         region_map.affine
                     )
+                    if scores.intersection_over_union == 0:
+                        continue
                     component_position = np.array(np.where(voxelmask)).T.mean(0)
-                    if scores.intersection_over_union > lower_threshold:
-                        assignments.append(
-                            AssignImageResult(
-                                input_structure=compmode,
-                                centroid=tuple(component_position.round(2)),
-                                volume=index.volume,
-                                fragment=index.fragment,
-                                map_value=index.label,
-                                time=time,
-                                **asdict(scores)
-                            )
+                    assignments.append(
+                        AssignImageResult(
+                            input_structure=compmode,
+                            centroid=tuple(component_position.round(2)),
+                            volume=index.volume,
+                            fragment=index.fragment,
+                            map_value=index.label,
+                            time=time,
+                            **asdict(scores)
                         )
+                    )
 
         return assignments
 

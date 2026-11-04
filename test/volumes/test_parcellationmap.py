@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, PropertyMock
 from siibra.volumes.parcellationmap import (
     Map, space, parcellation, MapType, MapIndex
 )
@@ -14,6 +14,11 @@ from parameterized import parameterized
 import random
 from itertools import product
 import inspect
+import numpy as np
+from nibabel import Nifti1Image
+from siibra.volumes.volume import Volume
+from siibra.locations.point import Point
+from siibra.locations.pointcloud import PointCloud
 
 
 class DummyParc():
@@ -453,3 +458,90 @@ class TestMapFragments(unittest.TestCase):
             volumes=[DummyCls(formats={"gii-label"}, provides_mesh=True)],
         )
         self.assertEqual(mp.fragments, ["left hemisphere", "right hemisphere"])
+
+
+class TestMapAssignLowerThreshold(unittest.TestCase):
+    """`lower_threshold` acts on map values (statistical maps) and is rejected for labelled maps (#717)."""
+
+    SHAPE = (10, 10, 10)
+
+    def setUp(self) -> None:
+        self.space = MagicMock()
+        space_patcher = patch.object(Map, "space", new_callable=PropertyMock, return_value=self.space)
+        space_patcher.start()
+        self.addCleanup(space_patcher.stop)
+
+        # regional map of "foo": a block of 0.8 next to a block of 0.2, 64 voxels each
+        self.foo_arr = np.zeros(self.SHAPE, dtype="float32")
+        self.foo_arr[0:4, 0:4, 0:4] = 0.8
+        self.foo_arr[4:8, 0:4, 0:4] = 0.2
+        # regional map of "bar": disjoint from the input
+        self.bar_arr = np.zeros(self.SHAPE, dtype="float32")
+        self.bar_arr[9, 9, 9] = 0.9
+
+        # input: one connected component of 256 voxels containing both blocks of "foo"
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:8, 0:8, 0:4] = 1
+        self.queryvolume = MagicMock(spec=Volume)
+        self.queryvolume.space = self.space
+        self.queryvolume.fetch.return_value = Nifti1Image(query_arr, np.eye(4))
+
+    def statistical_map(self) -> Map:
+        mp = TestMap.get_instance(
+            indices={"foo": [{"volume": 0}], "bar": [{"volume": 1}]},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True) for _ in range(2)],
+        )
+        images = {
+            0: Nifti1Image(self.foo_arr, np.eye(4)),
+            1: Nifti1Image(self.bar_arr, np.eye(4)),
+        }
+        fetch_patcher = patch.object(
+            Map, "fetch", side_effect=lambda *args, index=None, **kwargs: images[index.volume]
+        )
+        fetch_patcher.start()
+        self.addCleanup(fetch_patcher.stop)
+        return mp
+
+    def test_threshold_applies_to_map_values(self):
+        mp = self.statistical_map()
+        unthresholded = mp._assign(self.queryvolume, lower_threshold=0.0)
+        thresholded = mp._assign(self.queryvolume, lower_threshold=0.5)
+        self.assertEqual(len(unthresholded), 1)
+        self.assertEqual(len(thresholded), 1)
+        # only the 0.8 block remains: intersection 64, union 256.
+        # A threshold on the score would have dropped this result (0.25 < 0.5).
+        self.assertAlmostEqual(unthresholded[0].intersection_over_union, 128 / 256)
+        self.assertAlmostEqual(thresholded[0].intersection_over_union, 64 / 256)
+
+    def test_threshold_removing_all_overlap_yields_no_result(self):
+        mp = self.statistical_map()
+        self.assertEqual(mp._assign(self.queryvolume, lower_threshold=0.85), [])
+
+    def test_regions_without_overlap_are_excluded(self):
+        mp = self.statistical_map()
+        assignments = mp._assign(self.queryvolume)
+        self.assertEqual([a.volume for a in assignments], [0])
+
+    def test_map_array_is_not_modified(self):
+        mp = self.statistical_map()
+        original = self.foo_arr.copy()
+        mp._assign(self.queryvolume, lower_threshold=0.5)
+        np.testing.assert_array_equal(self.foo_arr, original)
+
+    @parameterized.expand(product((Point, PointCloud, Volume), (0.5, -1.0)))
+    def test_labelled_map_rejects_nonzero_threshold(self, item_cls, threshold):
+        mp = TestMapGuards.labelled_map()
+        with patch.object(Map, "_assign_points") as mock_points, \
+                patch.object(Map, "_assign_volume") as mock_volume:
+            with self.assertRaises(ValueError):
+                mp.assign(MagicMock(spec=item_cls), lower_threshold=threshold)
+        mock_points.assert_not_called()
+        mock_volume.assert_not_called()
+
+    @parameterized.expand([(PointCloud, ), (Volume, )])
+    def test_labelled_map_accepts_default_threshold(self, item_cls):
+        mp = TestMapGuards.labelled_map()
+        with patch.object(Map, "_assign_points", return_value=[]), \
+                patch.object(Map, "_assign_volume", return_value=[]):
+            result = mp.assign(MagicMock(spec=item_cls))
+        self.assertEqual(len(result), 0)
