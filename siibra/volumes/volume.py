@@ -21,6 +21,7 @@ import json
 from functools import lru_cache
 from hashlib import md5
 from pathlib import Path
+import weakref
 
 import numpy as np
 from nibabel import Nifti1Image
@@ -137,7 +138,7 @@ class Volume(structure.BrainStructure):
         "nii": ["nii", "zip/nii"]
     }
 
-    _FETCH_CACHE = {}  # we keep a cache of the most recently fetched volumes
+    _FETCH_CACHE = {}  # most recently fetched volumes: fetch hash -> (weak reference to the volume, result)
     _FETCH_CACHE_MAX_ENTRIES = 3
 
     def __init__(
@@ -514,7 +515,7 @@ class Volume(structure.BrainStructure):
         for fmt in possible_formats:
             fetch_hash = hash((hash(self), hash(fmt), hash(kwargs_serialized)))
             # cached
-            if fetch_hash in self._FETCH_CACHE:
+            if self._fetch_cache_hit(fetch_hash):
                 break
             # Repeat in case of too many requests only
             fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
@@ -542,7 +543,7 @@ class Volume(structure.BrainStructure):
                     break
             # update the cache if fetch is successful
             if result is not None:
-                self._FETCH_CACHE[fetch_hash] = result
+                self._FETCH_CACHE[fetch_hash] = (weakref.ref(self), result)
                 while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
                     # remove oldest entry
                     self._FETCH_CACHE.pop(next(iter(self._FETCH_CACHE)))
@@ -552,7 +553,29 @@ class Volume(structure.BrainStructure):
             logger.error(f"Could not fetch any formats from {possible_formats}.")
             return None
 
-        return self._FETCH_CACHE[fetch_hash]
+        return self._FETCH_CACHE[fetch_hash][1]
+
+    def _fetch_cache_hit(self, fetch_hash: int) -> bool:
+        """
+        Whether the fetch cache holds a result for `fetch_hash` fetched by this volume.
+
+        The hash of a volume is based on its repr, which can contain memory
+        addresses of its providers. After a volume is garbage collected, a new
+        volume can therefore have the same hash. Checking the identity of the
+        volume that fetched the result prevents returning it for the new one.
+
+        Parameters
+        ----------
+        fetch_hash: int
+            Cache key, combining the hashes of the volume, the format and the
+            fetch keyword arguments.
+
+        Returns
+        -------
+        bool
+        """
+        entry = self._FETCH_CACHE.get(fetch_hash)
+        return entry is not None and entry[0]() is self
 
     def fetch_connected_components(self, **fetch_kwargs):
         """
