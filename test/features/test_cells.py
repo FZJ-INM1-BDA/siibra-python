@@ -1,7 +1,6 @@
 import unittest
 import siibra
 
-
 atlas = siibra.atlases["human"]
 region = siibra.get_region("julich 2.9", "hoc1 left")
 
@@ -19,7 +18,9 @@ class TestCorticalCellDistribution(unittest.TestCase):
         )
         assert len(features) > 0
         feature = features[0]
-        assert feature.data["density"].mean() == 78.86556888985415
+        # A tolerance, not ==: the last bits of a float mean depend on the
+        # summation order, which differs between numpy/pandas versions.
+        self.assertAlmostEqual(feature.data["density"].mean(), 78.86556888985415, places=9)
         assert feature.data.shape == (60, 9)
 
     def test_check_layer_density_with_valid_range(self):
