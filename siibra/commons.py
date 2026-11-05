@@ -533,8 +533,10 @@ def resample_img_to_img(
     ----------
     source_img : Nifti1Image
     target_img : Nifti1Image
-    interpolation : str, Default: "nearest" if the source image is a mask otherwise "linear".
-        Can be 'continuous', 'linear', or 'nearest'. Indicates the resample method.
+    interpolation : str, optional
+        Resampling method: 'continuous', 'linear', or 'nearest'. If empty
+        (default), 'nearest' is used if the source image is a binary mask,
+        otherwise 'linear'.
 
     Returns
     -------
@@ -542,7 +544,8 @@ def resample_img_to_img(
     """
     from nilearn.image import resample_to_img
 
-    interpolation = "nearest" if np.array_equal(np.unique(source_img.dataobj), [0, 1]) else "linear"
+    if not interpolation:
+        interpolation = "nearest" if np.array_equal(np.unique(source_img.dataobj), [0, 1]) else "linear"
     kwargs = dict(
         source_img=source_img,
         target_img=target_img,

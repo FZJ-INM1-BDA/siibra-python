@@ -1,6 +1,9 @@
+import gc
 import unittest
 from unittest.mock import patch
+import numpy as np
 from siibra.volumes.volume import Volume
+from siibra.volumes.providers.nifti import NiftiProvider
 from siibra.core import space
 from siibra.volumes.providers.provider import VolumeProvider
 from parameterized import parameterized
@@ -106,3 +109,39 @@ class TestVolume(unittest.TestCase):
 
 # if __name__ == "__main__":
 #     unittest.main()
+
+
+class TestVolumeFetchCache(unittest.TestCase):
+    """The fetch cache must not return the result of another volume with the same hash."""
+
+    @staticmethod
+    def in_memory_volume(shape) -> Volume:
+        data = np.ones(shape, dtype="float32")
+        return Volume(space_spec={}, providers=[NiftiProvider((data, np.eye(4)))])
+
+    def setUp(self) -> None:
+        cache_patcher = patch.object(Volume, "_FETCH_CACHE", {})
+        cache_patcher.start()
+        self.addCleanup(cache_patcher.stop)
+        # emulate a volume created at the memory address of a garbage-collected one
+        hash_patcher = patch.object(Volume, "__hash__", lambda self: 0)
+        hash_patcher.start()
+        self.addCleanup(hash_patcher.stop)
+
+    def test_result_of_collected_volume_is_not_returned(self):
+        first = self.in_memory_volume((2, 3, 4, 5))
+        self.assertEqual(first.fetch().shape, (2, 3, 4, 5))
+        del first
+        gc.collect()
+        second = self.in_memory_volume((2, 3, 4))
+        self.assertEqual(second.fetch().shape, (2, 3, 4))
+
+    def test_result_of_other_live_volume_is_not_returned(self):
+        first = self.in_memory_volume((2, 3, 4, 5))
+        second = self.in_memory_volume((2, 3, 4))
+        self.assertEqual(first.fetch().shape, (2, 3, 4, 5))
+        self.assertEqual(second.fetch().shape, (2, 3, 4))
+
+    def test_repeated_fetch_is_cached(self):
+        volume = self.in_memory_volume((2, 3, 4))
+        self.assertIs(volume.fetch(), volume.fetch())
