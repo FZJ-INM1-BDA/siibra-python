@@ -1183,9 +1183,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             Input image components with at most this many voxels are skipped.
             The default skips single-voxel components; 0 keeps all components.
         lower_threshold: float, default: 0
-            Lower threshold on the values of statistical maps. For point
-            inputs, only map values above the threshold are assigned. For image
-            inputs, map values below the threshold are set to zero before the
+            Lower threshold on the values of statistical maps. Only map values
+            above the threshold are taken into account: point inputs are
+            assigned to maps whose value at the point exceeds it, and for image
+            inputs, map values at or below it are set to zero before the
             comparison. Must be 0 for labelled maps.
         **kwargs
             split_components: bool, default: True
@@ -1449,9 +1450,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         queryvolume: Volume
             The volume to be compared with the regional maps.
         lower_threshold: float
-            Lower threshold on the values of statistical maps. Map values below
-            the threshold are set to zero before the comparison. Ignored for
-            labelled maps.
+            Lower threshold on the values of statistical maps. Map values at or
+            below the threshold are set to zero before the comparison. Ignored
+            for labelled maps.
         minsize_voxel: int, default: 1
             Input image components with at most this many voxels are skipped.
             The default skips single-voxel components; 0 keeps all components.
@@ -1501,7 +1502,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 region_map_arr = np.asanyarray(region_map.dataobj)
                 if apply_threshold:
                     # not in place: the array may belong to a cached image
-                    region_map_arr = np.where(region_map_arr < lower_threshold, 0, region_map_arr)
+                    region_map_arr = np.where(region_map_arr <= lower_threshold, 0, region_map_arr)
                 # the shape and affine are checked by `nilearn.image.resample_to_img()`
                 # and returns the original data if resampling is not necessary.
                 queryimgarr_res = np.asanyarray(

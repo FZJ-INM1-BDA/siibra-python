@@ -551,7 +551,8 @@ class TestMapAssignLowerThreshold(unittest.TestCase):
 class TestMapAssignScoreColumns(unittest.TestCase):
     """
     `Map` and `SparseMap` compute the image scores separately. Both must fill
-    the score columns of `Map.assign` with the same quantities (#717).
+    the score columns of `Map.assign` with the same quantities and apply
+    `lower_threshold` the same way (#717).
 
     The case is asymmetric so that swapped columns differ: the regional map
     (64 voxels of 0.5) is a strict subset of the input (128 voxels of 1).
@@ -615,6 +616,12 @@ class TestMapAssignScoreColumns(unittest.TestCase):
         self.assertAlmostEqual(row["map weighted mean"], 0.25)
         # input values (1) averaged over the regional map
         self.assertAlmostEqual(row["input weighted mean"], 1.0)
+
+    @parameterized.expand(product(("statistical_map", "sparse_map"), ((0.4, 1), (0.5, 0))))
+    def test_only_map_values_above_threshold_count(self, factory, threshold_and_rows):
+        threshold, expected_rows = threshold_and_rows
+        df = getattr(self, factory)().assign(self.queryvolume, lower_threshold=threshold)
+        self.assertEqual(len(df), expected_rows)
 
 
 class TestMapAssignVolume(unittest.TestCase):

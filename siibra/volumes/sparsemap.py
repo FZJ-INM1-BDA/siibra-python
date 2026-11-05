@@ -352,9 +352,9 @@ class SparseMap(parcellationmap.Map):
             the volume to be compared with maps
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
-        lower_threshold: float, default: 0
-            Lower threshold on values in the statistical map. Values smaller than
-            this threshold will be excluded from the assignment computation.
+        lower_threshold: float
+            Lower threshold on the map values. Map values at or below the
+            threshold are set to zero before the comparison.
         split_components: bool, default: True
             Whether to split the query volume into disjoint components.
         """
@@ -418,7 +418,7 @@ class SparseMap(parcellationmap.Map):
                     (X1 - x0, Y1 - y0, Z1 - z0), bbshape
                 )
                 v1[indices1] = [spind.probs[i][volume] for i in spind.voxels[X1, Y1, Z1]]
-                v1[v1 < lower_threshold] = 0
+                v1[v1 <= lower_threshold] = 0
 
                 # build flattened vector of input image mode
                 v2 = np.zeros(np.prod(bbshape))
