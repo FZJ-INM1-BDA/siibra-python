@@ -449,13 +449,7 @@ class SparseMap(parcellationmap.Map):
                     (v1 > 0) | (v2 > 0)
                 )  # np.maximum(v1, v2).sum()
 
-                v1d = v1 - v1.mean()
-                v2d = v2 - v2.mean()
-                rho = (
-                    (v1d * v2d).sum()
-                    / np.sqrt((v1d ** 2).sum())
-                    / np.sqrt((v2d ** 2).sum())
-                )
+                rho = parcellationmap._pearson_correlation(v1, v2)
 
                 maxval = v1.max()
 

@@ -14,6 +14,7 @@ from parameterized import parameterized
 import random
 from itertools import product
 import inspect
+import warnings
 import numpy as np
 from nibabel import Nifti1Image
 from siibra.volumes.volume import Volume
@@ -640,7 +641,7 @@ class TestMapAssignScoreColumns(unittest.TestCase):
         df = getattr(self, factory)().assign(self.queryvolume, minsize_voxel=minsize_voxel)
         self.assertEqual(len(df), expected_rows)
 
-    @parameterized.expand(product(("sparse_map", ), (0.0, 0.5)))
+    @parameterized.expand(product(("statistical_map", "sparse_map"), (0.0, 0.5)))
     def test_correlation_over_bounding_box_of_both(self, factory, threshold):
         self.region_arr[0, 0:4, 0:4] = 0.2  # removed by a threshold of 0.5
         self.region_arr[1:4, 0:4, 0:4] = 0.8
@@ -653,6 +654,15 @@ class TestMapAssignScoreColumns(unittest.TestCase):
         expected = np.corrcoef(map_values.ravel(), query_arr[domain].ravel())[0, 1]
         [result] = getattr(self, factory)()._assign(self.queryvolume, lower_threshold=threshold)
         self.assertAlmostEqual(result.correlation, expected)
+
+    @parameterized.expand([("statistical_map", ), ("sparse_map", )])
+    def test_undefined_correlation_is_nan_without_warning(self, factory):
+        # the input covers the whole bounding box with constant values
+        mp = getattr(self, factory)()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            [result] = mp._assign(self.queryvolume)
+        self.assertTrue(np.isnan(result.correlation))
 
     @parameterized.expand(product(("statistical_map", "sparse_map"), ("single_voxel", "block")))
     def test_component_touching_a_map_in_its_corner_voxel(self, factory, shape):

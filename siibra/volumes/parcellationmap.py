@@ -74,6 +74,34 @@ class AssignImageResult(CompareMapsResult, MapAssignment):
     """
 
 
+def _pearson_correlation(map_values: np.ndarray, input_values: np.ndarray) -> float:
+    """
+    Pearson correlation coefficient between a regional map and an input.
+
+    Parameters
+    ----------
+    map_values: np.ndarray
+        Values of the regional map at every voxel of the comparison domain,
+        including zeros.
+    input_values: np.ndarray
+        Values of the input at the same voxels, in the same order.
+
+    Returns
+    -------
+    float
+        The correlation coefficient, or NaN if either array is constant on
+        the domain.
+    """
+    x = np.asarray(map_values, dtype="float64").ravel()
+    y = np.asarray(input_values, dtype="float64").ravel()
+    x = x - x.mean()
+    y = y - y.mean()
+    sum_x2, sum_y2 = (x ** 2).sum(), (y ** 2).sum()
+    if sum_x2 == 0 or sum_y2 == 0:
+        return float("nan")
+    return float((x * y).sum() / np.sqrt(sum_x2) / np.sqrt(sum_y2))
+
+
 class _CompressedMapSpec(NamedTuple):
     """What a compression produces, before `compress()` wraps it as a Map."""
     volumes: List[_volume.Volume]
@@ -1212,8 +1240,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
               For image inputs, the label of the region (labelled maps) or the
               maximum value of the regional map (sparse maps).
             - correlation: Pearson correlation coefficient between the
-              regional map and the input. Statistical maps only: the regional
-              maps of labelled maps are binary masks.
+              regional map and the input, over the bounding box of both (the
+              regional map taken before thresholding). NaN if either is
+              constant there. Statistical maps only: the regional maps of
+              labelled maps are binary masks.
             - intersection over union: of the nonzero voxels of the regional
               map and the input.
             - map containedness: fraction of the nonzero voxels of the
@@ -1504,7 +1534,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 leave=False
             ):
                 region_map = self.fetch(index=index)
-                region_map_arr = np.asanyarray(region_map.dataobj)
+                region_map_arr = unthresholded_arr = np.asanyarray(region_map.dataobj)
+                # correlation domain, as in SparseMap: includes the bounding box
+                # of the regional map before thresholding. Computed on first use.
+                map_bbox = None
                 if apply_threshold:
                     # not in place: the array may belong to a cached image
                     region_map_arr = np.where(region_map_arr <= lower_threshold, 0, region_map_arr)
@@ -1526,12 +1559,26 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     )
                     if scores.intersection_over_union == 0:
                         continue
+                    component_voxels = np.array(np.nonzero(voxelmask))
                     if labelled:
                         # a correlation with a binary region mask only restates the overlap
                         scores.correlation = None
+                    else:
+                        if map_bbox is None:
+                            map_voxels = np.array(np.nonzero(unthresholded_arr))
+                            map_bbox = (map_voxels.min(1), map_voxels.max(1))
+                        domain = tuple(
+                            slice(start, stop + 1) for start, stop in zip(
+                                np.minimum(map_bbox[0], component_voxels.min(1)),
+                                np.maximum(map_bbox[1], component_voxels.max(1)),
+                            )
+                        )
+                        scores.correlation = _pearson_correlation(
+                            region_map_arr[domain], voxelmask[domain]
+                        )
                     # the component is in the voxel space of the regional map
                     component_position = np.dot(
-                        region_map.affine, np.r_[np.array(np.where(voxelmask)).T.mean(0), 1]
+                        region_map.affine, np.r_[component_voxels.T.mean(0), 1]
                     )[:3]
                     assignments.append(
                         AssignImageResult(
