@@ -631,6 +631,15 @@ class TestMapAssignScoreColumns(unittest.TestCase):
         df = getattr(self, factory)().assign(self.queryvolume, split_components=split_components)
         self.assertEqual(df["input structure"].tolist(), [1])
 
+    @parameterized.expand(product(("statistical_map", "sparse_map"), ((0, 1), (1, 0))))
+    def test_minsize_voxel_skips_components_of_at_most_that_size(self, factory, minsize_and_rows):
+        minsize_voxel, expected_rows = minsize_and_rows
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[1, 1, 1] = 1  # a single-voxel component inside the regional map
+        self.queryvolume.fetch.return_value = Nifti1Image(query_arr, np.eye(4))
+        df = getattr(self, factory)().assign(self.queryvolume, minsize_voxel=minsize_voxel)
+        self.assertEqual(len(df), expected_rows)
+
     @parameterized.expand([("statistical_map", ), ("sparse_map", )])
     def test_rows_are_ordered_by_component_then_map(self, factory):
         # two regional maps, each overlapped by both input components

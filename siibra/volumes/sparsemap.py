@@ -350,8 +350,9 @@ class SparseMap(parcellationmap.Map):
         ----------
         queryvolume: Volume
             The volume to be compared with the regional maps.
-        minsize_voxel: int, default: 1
-            Minimum voxel size of image components to be taken into account.
+        minsize_voxel: int
+            Input image components with at most this many voxels are skipped.
+            1 skips single-voxel components; 0 keeps all components.
         lower_threshold: float
             Lower threshold on the map values. Map values at or below the
             threshold are set to zero before the comparison.
