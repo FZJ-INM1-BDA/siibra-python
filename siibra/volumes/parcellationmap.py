@@ -16,6 +16,7 @@
 
 from collections import defaultdict
 from dataclasses import dataclass, asdict
+import warnings
 from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, Literal, NamedTuple, Optional
 import numpy as np
 import pandas as pd
@@ -1191,6 +1192,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         item: location.Location,
         minsize_voxel: int = 1,
         lower_threshold: float = 0.0,
+        *,
+        split_components: bool = True,
         **kwargs
     ) -> "pd.DataFrame":
         """Assign an input Location to brain regions.
@@ -1216,10 +1219,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             assigned to maps whose value at the point exceeds it, and for image
             inputs, map values at or below it are set to zero before the
             comparison. Must be 0 for labelled maps.
+        split_components: bool, default: True
+            For image inputs: whether to split the input into connected
+            components and assign each separately.
         **kwargs
-            split_components: bool, default: True
-                For image inputs: whether to split the input into connected
-                components and assign each separately.
+            Deprecated. Other keyword arguments are ignored with a
+            FutureWarning; from siibra 1.0.1-alpha.28 on, they raise TypeError.
 
         Returns
         -------
@@ -1261,7 +1266,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             are assigned as images of a Gaussian kernel and receive them too.
         """
 
-        assignments = self._assign(item, minsize_voxel, lower_threshold, **kwargs)
+        if kwargs:
+            warnings.warn(
+                f"Map.assign() ignores the keyword arguments {sorted(kwargs)}. "
+                "From siibra 1.0.1-alpha.28 on, unknown keyword arguments raise TypeError.",
+                FutureWarning,
+                stacklevel=2,
+            )
+        assignments = self._assign(
+            item, minsize_voxel, lower_threshold, split_components=split_components
+        )
 
         # format assignments as pandas dataframe
         columns = [

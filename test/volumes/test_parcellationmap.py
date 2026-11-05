@@ -704,6 +704,13 @@ class TestMapAssignScoreColumns(unittest.TestCase):
         self.assertEqual(df[["input structure", "volume"]].values.tolist(), [[0, 0], [0, 1], [1, 0], [1, 1]])
 
     @parameterized.expand([("statistical_map", ), ("sparse_map", )])
+    def test_unknown_keyword_arguments_are_ignored_with_a_warning(self, factory):
+        mp = getattr(self, factory)()
+        with self.assertWarnsRegex(FutureWarning, "unknown_argument"):
+            df = mp.assign(self.queryvolume, unknown_argument=1)
+        self.assertEqual(len(df), 1)
+
+    @parameterized.expand([("statistical_map", ), ("sparse_map", )])
     def test_rejects_query_in_other_space(self, factory):
         mp = getattr(self, factory)()
         self.queryvolume.space = MagicMock()
