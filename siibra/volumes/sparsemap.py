@@ -23,7 +23,6 @@ import nibabel
 from . import parcellationmap, volume as _volume
 from .providers import provider
 from ..commons import MapIndex, logger, connected_components, siibra_tqdm, resample_img_to_img
-from ..locations import boundingbox
 from ..retrieval.cache import CACHE
 from ..retrieval.requests import HttpRequest, FileLoader
 
@@ -401,10 +400,8 @@ class SparseMap(parcellationmap.Map):
             if XYZ2.shape[0] <= minsize_voxel:
                 continue
             X2, Y2, Z2 = [v.squeeze() for v in np.split(XYZ2, 3, axis=1)]
-
-            bbox2 = boundingbox.BoundingBox(XYZ2.min(0), XYZ2.max(0) + 1, space=None)
-            if bbox2.volume == 0:
-                continue
+            # voxel bounding box of the mode, both corners inclusive
+            min2, max2 = XYZ2.min(0), XYZ2.max(0)
 
             spind = self.sparse_index
             timeindexstr = f"-t={time}" if time else ""
@@ -414,18 +411,15 @@ class SparseMap(parcellationmap.Map):
                 total=len(self),
                 unit=" map"
             ):
-                bbox1 = boundingbox.BoundingBox(
-                    self.sparse_index.bboxes[volume]["minpoint"],
-                    self.sparse_index.bboxes[volume]["maxpoint"],
-                    space=None,
-                )
-                if bbox1.intersection(bbox2) is None:
+                # voxel bounding box of the regional map, both corners inclusive
+                min1 = np.array(spind.bboxes[volume]["minpoint"])
+                max1 = np.array(spind.bboxes[volume]["maxpoint"])
+                if np.any(min1 > max2) or np.any(min2 > max1):
                     continue
 
-                # compute union of voxel space bounding boxes
-                bbox = bbox1.union(bbox2)
-                bbshape = np.array(bbox.shape, dtype="int") + 1
-                x0, y0, z0 = map(int, bbox.minpoint)
+                # union of both bounding boxes: the domain of the comparison
+                x0, y0, z0 = map(int, np.minimum(min1, min2))
+                bbshape = np.maximum(max1, max2) - (x0, y0, z0) + 1
 
                 # build flattened vector of map values
                 v1 = np.zeros(np.prod(bbshape))

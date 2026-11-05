@@ -640,6 +640,32 @@ class TestMapAssignScoreColumns(unittest.TestCase):
         df = getattr(self, factory)().assign(self.queryvolume, minsize_voxel=minsize_voxel)
         self.assertEqual(len(df), expected_rows)
 
+    @parameterized.expand(product(("sparse_map", ), (0.0, 0.5)))
+    def test_correlation_over_bounding_box_of_both(self, factory, threshold):
+        self.region_arr[0, 0:4, 0:4] = 0.2  # removed by a threshold of 0.5
+        self.region_arr[1:4, 0:4, 0:4] = 0.8
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[2:6, 0:4, 0:4] = 1
+        self.queryvolume.fetch.return_value = Nifti1Image(query_arr, np.eye(4))
+        # bounding box of the unthresholded regional map and the input
+        domain = (slice(0, 6), slice(0, 4), slice(0, 4))
+        map_values = np.where(self.region_arr <= threshold, 0, self.region_arr)[domain]
+        expected = np.corrcoef(map_values.ravel(), query_arr[domain].ravel())[0, 1]
+        [result] = getattr(self, factory)()._assign(self.queryvolume, lower_threshold=threshold)
+        self.assertAlmostEqual(result.correlation, expected)
+
+    @parameterized.expand(product(("statistical_map", "sparse_map"), ("single_voxel", "block")))
+    def test_component_touching_a_map_in_its_corner_voxel(self, factory, shape):
+        # the component overlaps the regional map (0:4 on each axis) in voxel (3, 3, 3) only
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        if shape == "single_voxel":
+            query_arr[3, 3, 3] = 1
+        else:
+            query_arr[3:6, 3:6, 3:6] = 1
+        self.queryvolume.fetch.return_value = Nifti1Image(query_arr, np.eye(4))
+        df = getattr(self, factory)().assign(self.queryvolume, minsize_voxel=0)
+        self.assertEqual(len(df), 1)
+
     @parameterized.expand([("statistical_map", ), ("sparse_map", )])
     def test_rows_are_ordered_by_component_then_map(self, factory):
         # two regional maps, each overlapped by both input components
