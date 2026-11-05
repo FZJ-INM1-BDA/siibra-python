@@ -645,6 +645,20 @@ class TestMapAssignScoreColumns(unittest.TestCase):
         self.assertEqual(df[["input structure", "volume"]].values.tolist(), [[1, 0], [1, 1], [2, 0], [2, 1]])
 
     @parameterized.expand([("statistical_map", ), ("sparse_map", )])
+    def test_point_rows_are_ordered_by_point_then_map(self, factory):
+        # two regional maps, each containing both points
+        self.region_arrs = [np.zeros(self.SHAPE, dtype="float32") for _ in range(2)]
+        self.region_arrs[0][0:6] = 0.7
+        self.region_arrs[1][3:10] = 0.4
+        mp = getattr(self, factory)()
+        points = PointCloud([(4, 1, 1), (5, 2, 2)], space=None, sigma_mm=0)
+        with patch.object(PointCloud, "space", new_callable=PropertyMock, return_value=self.space), \
+                patch.object(PointCloud, "warp", lambda pts, *args, **kwargs: pts), \
+                patch.object(Map, "affine", new_callable=PropertyMock, return_value=np.eye(4)):
+            df = mp.assign(points)
+        self.assertEqual(df[["input structure", "volume"]].values.tolist(), [[0, 0], [0, 1], [1, 0], [1, 1]])
+
+    @parameterized.expand([("statistical_map", ), ("sparse_map", )])
     def test_rejects_query_in_other_space(self, factory):
         mp = getattr(self, factory)()
         self.queryvolume.space = MagicMock()

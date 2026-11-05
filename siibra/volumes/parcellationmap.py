@@ -1225,7 +1225,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             - input weighted mean: mean of the input values, weighted by the
               regional map values.
 
-            For image inputs, rows are ordered by input component, then by
+            Rows are ordered by input coordinate or image component, then by
             map. The scores from "correlation" onwards are computed for image
             inputs only. Coordinates with an uncertainty of 3 voxels or more
             are assigned as images of a Gaussian kernel and receive them too.
@@ -1378,7 +1378,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 time=None,
                             )
                         )
-                return assignments
+                # `_read_voxel` of `Map` reads map by map: sort point by point
+                # (stable, so the map order is kept within a point), as the
+                # per-point readout below does
+                return sorted(assignments, key=lambda a: a.input_structure)
 
         # if we get here, we need to handle each point independently.
         # This is much slower but more precise in dealing with the uncertainties
