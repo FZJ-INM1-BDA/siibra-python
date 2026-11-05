@@ -1201,7 +1201,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             are dropped.
 
             - input structure: index of the input coordinate, or label of the
-              input image component.
+              input image component, numbered from 1. An input that is not
+              split into components has label 1.
             - time: time point of a time series input.
             - centroid: centroid of the input coordinate or image component,
               in physical coordinates of the map's space.
@@ -1479,7 +1480,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if split_components:
             iter_components = lambda arr: connected_components(arr)
         else:
-            iter_components = lambda arr: [(0, arr)]
+            iter_components = lambda arr: [(1, arr)]
 
         queryimg = queryvolume.fetch()
         assignments = []

@@ -623,6 +623,11 @@ class TestMapAssignScoreColumns(unittest.TestCase):
         df = getattr(self, factory)().assign(self.queryvolume, lower_threshold=threshold)
         self.assertEqual(len(df), expected_rows)
 
+    @parameterized.expand(product(("statistical_map", "sparse_map"), (True, False)))
+    def test_components_are_numbered_from_1(self, factory, split_components):
+        df = getattr(self, factory)().assign(self.queryvolume, split_components=split_components)
+        self.assertEqual(df["input structure"].tolist(), [1])
+
     @parameterized.expand([("statistical_map", ), ("sparse_map", )])
     def test_rejects_query_in_other_space(self, factory):
         mp = getattr(self, factory)()
