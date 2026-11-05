@@ -550,9 +550,9 @@ class TestMapAssignLowerThreshold(unittest.TestCase):
 
 class TestMapAssignScoreColumns(unittest.TestCase):
     """
-    `Map` and `SparseMap` compute the image scores separately. Both must fill
-    the score columns of `Map.assign` with the same quantities and apply
-    `lower_threshold` the same way (#717).
+    `Map` and `SparseMap` implement volume assignment separately. Both must
+    give the same results: the same quantities in the score columns, the
+    same handling of `lower_threshold` and of the query space (#717).
 
     The case is asymmetric so that swapped columns differ: the regional map
     (64 voxels of 0.5) is a strict subset of the input (128 voxels of 1).
@@ -622,6 +622,14 @@ class TestMapAssignScoreColumns(unittest.TestCase):
         threshold, expected_rows = threshold_and_rows
         df = getattr(self, factory)().assign(self.queryvolume, lower_threshold=threshold)
         self.assertEqual(len(df), expected_rows)
+
+    @parameterized.expand([("statistical_map", ), ("sparse_map", )])
+    def test_rejects_query_in_other_space(self, factory):
+        mp = getattr(self, factory)()
+        self.queryvolume.space = MagicMock()
+        with self.assertRaises(ValueError):
+            mp.assign(self.queryvolume)
+        self.queryvolume.fetch.assert_not_called()
 
 
 class TestMapAssignVolume(unittest.TestCase):

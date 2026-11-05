@@ -15,7 +15,7 @@
 """Represents lists of probabilistic brain region maps."""
 
 from os import path, makedirs
-from typing import Dict, List, TYPE_CHECKING
+from typing import Dict, List, TYPE_CHECKING, Optional
 
 import numpy as np
 import nibabel
@@ -341,15 +341,15 @@ class SparseMap(parcellationmap.Map):
         minsize_voxel: int,
         lower_threshold: float,
         split_components: bool = True,
-        time: int = None,
+        time: Optional[int] = None,
     ) -> List[parcellationmap.AssignImageResult]:
         """
         Assign an image volume to this sparse map.
 
         Parameters
-        -----------
+        ----------
         queryvolume: Volume
-            the volume to be compared with maps
+            The volume to be compared with the regional maps.
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float
@@ -357,8 +357,24 @@ class SparseMap(parcellationmap.Map):
             threshold are set to zero before the comparison.
         split_components: bool, default: True
             Whether to split the query volume into disjoint components.
+        time: int, optional
+            Time point of the query volume, if it is part of a time series.
+
+        Returns
+        -------
+        List[AssignImageResult]
+            One entry per pair of input component and regional map with a
+            non-empty intersection.
+
+        Raises
+        ------
+        ValueError
+            If the query volume is not in the space of this map.
         """
         from nibabel import Nifti1Image
+
+        if queryvolume.space != self.space:
+            raise ValueError("Assigned volume must be in the same space as the map.")
 
         queryimg = queryvolume.fetch()
         assert isinstance(queryimg, Nifti1Image)
