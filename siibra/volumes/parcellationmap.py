@@ -1180,8 +1180,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             parcellation map. Resampling will use linear interpolation for float
             image types, otherwise nearest neighbor.
         minsize_voxel: int, default: 1
-            Minimum number of voxels of an input image component to be taken
-            into account. Smaller components are skipped.
+            Input image components with at most this many voxels are skipped.
+            The default skips single-voxel components; 0 keeps all components.
         lower_threshold: float, default: 0
             Lower threshold on the values of statistical maps. For point
             inputs, only map values above the threshold are assigned. For image
@@ -1453,8 +1453,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             the threshold are set to zero before the comparison. Ignored for
             labelled maps.
         minsize_voxel: int, default: 1
-            Minimum number of voxels of an input image component to be taken
-            into account. Smaller components are skipped.
+            Input image components with at most this many voxels are skipped.
+            The default skips single-voxel components; 0 keeps all components.
         split_components: bool, default: True
             Whether to split the query volume into disjoint components.
         time: int, optional
@@ -1508,7 +1508,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     resample_img_to_img(queryimg, region_map).dataobj
                 )
                 for compmode, voxelmask in iter_components(queryimgarr_res):
-                    if np.count_nonzero(voxelmask) < minsize_voxel:
+                    if np.count_nonzero(voxelmask) <= minsize_voxel:
                         continue
                     # first = regional map, second = input (see AssignImageResult).
                     # After resampling, both have the same affine.

@@ -647,7 +647,7 @@ class TestMapAssignVolume(unittest.TestCase):
         queryvolume.fetch.return_value = Nifti1Image(query_arr, affine)
         return queryvolume
 
-    @parameterized.expand([(1, [8, 1]), (2, [8]), (9, [])])
+    @parameterized.expand([(0, [8, 1]), (1, [8]), (8, [])])
     def test_minsize_voxel_skips_small_components(self, minsize_voxel, expected_sizes):
         self.patch_fetch()
         query_arr = np.zeros(self.SHAPE, dtype="uint8")
