@@ -572,6 +572,7 @@ class TestMapAssignScoreColumns(unittest.TestCase):
 
         self.region_arr = np.zeros(self.SHAPE, dtype="float32")
         self.region_arr[0:4, 0:4, 0:4] = 0.5
+        self.region_arrs = [self.region_arr]
         query_arr = np.zeros(self.SHAPE, dtype="uint8")
         query_arr[0:8, 0:4, 0:4] = 1
         self.queryvolume = MagicMock(spec=Volume)
@@ -580,11 +581,12 @@ class TestMapAssignScoreColumns(unittest.TestCase):
 
     def statistical_map(self) -> Map:
         mp = TestMap.get_instance(
-            indices={"foo": [{"volume": 0}]},
-            volumes=[DummyCls(formats={"nii"}, provides_image=True)],
+            indices={f"region {i}": [{"volume": i}] for i in range(len(self.region_arrs))},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True) for _ in self.region_arrs],
         )
+        images = [Nifti1Image(arr, np.eye(4)) for arr in self.region_arrs]
         fetch_patcher = patch.object(
-            Map, "fetch", return_value=Nifti1Image(self.region_arr, np.eye(4))
+            Map, "fetch", side_effect=lambda *args, index=None, **kwargs: images[index.volume]
         )
         fetch_patcher.start()
         self.addCleanup(fetch_patcher.stop)
@@ -596,11 +598,12 @@ class TestMapAssignScoreColumns(unittest.TestCase):
             name="sparse-map-name",
             space_spec={},
             parcellation_spec={},
-            indices={"foo": [{"volume": 0}]},
-            volumes=[DummyCls(formats={"nii"}, provides_image=True)],
+            indices={f"region {i}": [{"volume": i}] for i in range(len(self.region_arrs))},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True) for _ in self.region_arrs],
         )
         spind = SparseIndex()
-        spind.add_img(self.region_arr, np.eye(4))
+        for arr in self.region_arrs:
+            spind.add_img(arr, np.eye(4))
         mp._sparse_index_cached = spind
         return mp
 
@@ -627,6 +630,19 @@ class TestMapAssignScoreColumns(unittest.TestCase):
     def test_components_are_numbered_from_1(self, factory, split_components):
         df = getattr(self, factory)().assign(self.queryvolume, split_components=split_components)
         self.assertEqual(df["input structure"].tolist(), [1])
+
+    @parameterized.expand([("statistical_map", ), ("sparse_map", )])
+    def test_rows_are_ordered_by_component_then_map(self, factory):
+        # two regional maps, each overlapped by both input components
+        self.region_arrs = [np.zeros(self.SHAPE, dtype="float32") for _ in range(2)]
+        self.region_arrs[0][:, 0:4, 0:4] = 0.5
+        self.region_arrs[1][:, 6:10, 0:4] = 0.5
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:3, :, 0:2] = 1  # component 1
+        query_arr[6:9, :, 0:2] = 1  # component 2
+        self.queryvolume.fetch.return_value = Nifti1Image(query_arr, np.eye(4))
+        df = getattr(self, factory)().assign(self.queryvolume)
+        self.assertEqual(df[["input structure", "volume"]].values.tolist(), [[1, 0], [1, 1], [2, 0], [2, 1]])
 
     @parameterized.expand([("statistical_map", ), ("sparse_map", )])
     def test_rejects_query_in_other_space(self, factory):

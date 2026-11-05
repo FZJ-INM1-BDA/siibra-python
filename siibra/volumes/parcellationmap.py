@@ -1225,7 +1225,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             - input weighted mean: mean of the input values, weighted by the
               regional map values.
 
-            The scores from "correlation" onwards are computed for image
+            For image inputs, rows are ordered by input component, then by
+            map. The scores from "correlation" onwards are computed for image
             inputs only. Coordinates with an uncertainty of 3 voxels or more
             are assigned as images of a Gaussian kernel and receive them too.
         """
@@ -1541,7 +1542,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         )
                     )
 
-        return assignments
+        # component-major, as in SparseMap. Each regional map is fetched only
+        # once, so the results are sorted instead of nesting the loops the other way.
+        return sorted(assignments, key=lambda a: a.input_structure)
 
     def _assign_timeseries_volume(
         self,
