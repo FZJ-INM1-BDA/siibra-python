@@ -387,7 +387,6 @@ class SparseMap(parcellationmap.Map):
                 np.zeros(self.shape), affine=self.affine, dtype=queryimg.dataobj.dtype
             )
         )
-        self.space.get_template()
         querydata = np.asanyarray(queryimg.dataobj).squeeze()
 
         iter_func = connected_components if split_components else lambda img: [(1, img)]
