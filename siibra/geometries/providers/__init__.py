@@ -16,3 +16,4 @@
 
 from .provider import GeometryProvider
 from .tractography import TrxProvider, TrkProvider
+from .points import TsvPointsProvider, CsvPointsProvider, NpyPointsProvider
