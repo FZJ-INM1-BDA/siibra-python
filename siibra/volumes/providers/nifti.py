@@ -168,8 +168,8 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
         voi : BoundingBox, optional
             Volume of interest in physical coordinates of this image. The
             result contains every voxel the box overlaps, i.e. its bounds are
-            rounded outward to whole voxels, and its affine is shifted to the
-            first voxel of the crop.
+            rounded outward to whole voxels and clipped to the image, and its
+            affine is shifted to the first voxel of the crop.
         label: int, default: None
             Optional: a label index can be provided. Then the mask of the
             3D volume will be returned, where voxels matching this label
@@ -178,6 +178,11 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
         Returns
         -------
         nibabel.Nifti1Image
+
+        Raises
+        ------
+        ValueError
+            If `voi` does not overlap with the image.
         """
 
         result = None
@@ -206,10 +211,15 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
 
         if voi is not None:
             bb_vox = voi.transform(np.linalg.inv(result.affine))  # voxel coordinates
-            x0, y0, z0 = np.floor(_snap_to_grid(bb_vox.minpoint.coordinate)).astype(int)
-            x1, y1, z1 = np.ceil(_snap_to_grid(bb_vox.maxpoint.coordinate)).astype(int)
+            # clip to the image, since negative indices would wrap around
+            shape = np.array(result.shape[:3])
+            start = np.clip(np.floor(_snap_to_grid(bb_vox.minpoint.coordinate)).astype(int), 0, shape)
+            stop = np.clip(np.ceil(_snap_to_grid(bb_vox.maxpoint.coordinate)).astype(int), 0, shape)
+            if np.any(stop <= start):
+                raise ValueError(f"The volume of interest {voi} does not overlap with the image.")
+            (x0, y0, z0), (x1, y1, z1) = start, stop
             shift = np.identity(4)
-            shift[:3, -1] = [x0, y0, z0]  # first voxel of the crop
+            shift[:3, -1] = start  # first voxel of the crop
             result = nib.Nifti1Image(
                 dataobj=result.dataobj[x0:x1, y0:y1, z0:z1],
                 affine=np.dot(result.affine, shift),

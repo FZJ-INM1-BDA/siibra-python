@@ -76,3 +76,41 @@ def test_voi_crop_keeps_time_axis() -> None:
     crop = provider.fetch(voi=BoundingBox((4, 4, 4), (10, 10, 10), space=None))
     assert crop.shape == (3, 3, 3, 3)
     np.testing.assert_array_equal(crop.affine[:3, 3], [4.0, 4.0, 4.0])
+
+
+@pytest.mark.parametrize("lo, hi, expected_shape, expected_origin", [
+    ((-5, -5, -5), (5, 5, 5), (5, 5, 5), (0, 0, 0)),
+    ((15, 15, 15), (25, 25, 25), (5, 5, 5), (15, 15, 15)),
+    ((-5, 2, 2), (5, 30, 8), (5, 18, 6), (0, 2, 2)),
+])
+def test_voi_crop_clipped_to_image(
+    lo: Tuple[float, ...], hi: Tuple[float, ...],
+    expected_shape: Tuple[int, ...], expected_origin: Tuple[float, ...],
+) -> None:
+    provider = make_provider((20, 20, 20), np.eye(4))
+    crop = provider.fetch(voi=BoundingBox(lo, hi, space=None))
+    assert crop.shape == expected_shape
+    np.testing.assert_array_equal(crop.affine[:3, 3], expected_origin)
+    assert_crop_consistent(provider.fetch(), crop)
+
+
+def test_voi_crop_clipped_with_flipped_affine() -> None:
+    affine = np.diag([-1.0, 1.0, 1.0, 1.0])
+    affine[0, 3] = 19.0  # voxel i spans physical x in [18 - i, 19 - i]
+    provider = make_provider((20, 20, 20), affine)
+    # physical x in [10, 30] covers voxels 0 to 8; voxel 9 only touches x = 10
+    crop = provider.fetch(voi=BoundingBox((10, 0, 0), (30, 5, 5), space=None))
+    assert crop.shape == (9, 5, 5)
+    np.testing.assert_array_equal(crop.affine[:3, 3], [19.0, 0.0, 0.0])
+    assert_crop_consistent(provider.fetch(), crop)
+
+
+@pytest.mark.parametrize("lo, hi", [
+    ((-5, -5, -5), (-2, -2, -2)),  # previously wrapped around to the image end
+    ((25, 25, 25), (30, 30, 30)),
+    ((-5, -5, -5), (0, 0, 0)),  # touches the first voxel's corner only
+])
+def test_voi_without_overlap_raises(lo: Tuple[float, ...], hi: Tuple[float, ...]) -> None:
+    provider = make_provider((20, 20, 20), np.eye(4))
+    with pytest.raises(ValueError):
+        provider.fetch(voi=BoundingBox(lo, hi, space=None))
