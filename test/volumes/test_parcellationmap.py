@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, PropertyMock
 from siibra.volumes.parcellationmap import (
     Map, space, parcellation, MapType, MapIndex
 )
@@ -14,6 +14,12 @@ from parameterized import parameterized
 import random
 from itertools import product
 import inspect
+import numpy as np
+from nibabel import Nifti1Image
+from siibra.volumes.volume import Volume
+from siibra.locations.point import Point
+from siibra.locations.pointcloud import PointCloud
+from siibra.volumes.sparsemap import SparseMap, SparseIndex
 
 
 class DummyParc():
@@ -453,3 +459,235 @@ class TestMapFragments(unittest.TestCase):
             volumes=[DummyCls(formats={"gii-label"}, provides_mesh=True)],
         )
         self.assertEqual(mp.fragments, ["left hemisphere", "right hemisphere"])
+
+
+class TestMapAssignLowerThreshold(unittest.TestCase):
+    """`lower_threshold` acts on map values (statistical maps) and is rejected for labelled maps (#717)."""
+
+    SHAPE = (10, 10, 10)
+
+    def setUp(self) -> None:
+        self.space = MagicMock()
+        space_patcher = patch.object(Map, "space", new_callable=PropertyMock, return_value=self.space)
+        space_patcher.start()
+        self.addCleanup(space_patcher.stop)
+
+        # regional map of "foo": a block of 0.8 next to a block of 0.2, 64 voxels each
+        self.foo_arr = np.zeros(self.SHAPE, dtype="float32")
+        self.foo_arr[0:4, 0:4, 0:4] = 0.8
+        self.foo_arr[4:8, 0:4, 0:4] = 0.2
+        # regional map of "bar": disjoint from the input
+        self.bar_arr = np.zeros(self.SHAPE, dtype="float32")
+        self.bar_arr[9, 9, 9] = 0.9
+
+        # input: one connected component of 256 voxels containing both blocks of "foo"
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:8, 0:8, 0:4] = 1
+        self.queryvolume = MagicMock(spec=Volume)
+        self.queryvolume.space = self.space
+        self.queryvolume.fetch.return_value = Nifti1Image(query_arr, np.eye(4))
+
+    def statistical_map(self) -> Map:
+        mp = TestMap.get_instance(
+            indices={"foo": [{"volume": 0}], "bar": [{"volume": 1}]},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True) for _ in range(2)],
+        )
+        images = {
+            0: Nifti1Image(self.foo_arr, np.eye(4)),
+            1: Nifti1Image(self.bar_arr, np.eye(4)),
+        }
+        fetch_patcher = patch.object(
+            Map, "fetch", side_effect=lambda *args, index=None, **kwargs: images[index.volume]
+        )
+        fetch_patcher.start()
+        self.addCleanup(fetch_patcher.stop)
+        return mp
+
+    def test_threshold_applies_to_map_values(self):
+        mp = self.statistical_map()
+        unthresholded = mp._assign(self.queryvolume, lower_threshold=0.0)
+        thresholded = mp._assign(self.queryvolume, lower_threshold=0.5)
+        self.assertEqual(len(unthresholded), 1)
+        self.assertEqual(len(thresholded), 1)
+        # only the 0.8 block remains: intersection 64, union 256.
+        # A threshold on the score would have dropped this result (0.25 < 0.5).
+        self.assertAlmostEqual(unthresholded[0].intersection_over_union, 128 / 256)
+        self.assertAlmostEqual(thresholded[0].intersection_over_union, 64 / 256)
+
+    def test_threshold_removing_all_overlap_yields_no_result(self):
+        mp = self.statistical_map()
+        self.assertEqual(mp._assign(self.queryvolume, lower_threshold=0.85), [])
+
+    def test_regions_without_overlap_are_excluded(self):
+        mp = self.statistical_map()
+        assignments = mp._assign(self.queryvolume)
+        self.assertEqual([a.volume for a in assignments], [0])
+
+    def test_map_array_is_not_modified(self):
+        mp = self.statistical_map()
+        original = self.foo_arr.copy()
+        mp._assign(self.queryvolume, lower_threshold=0.5)
+        np.testing.assert_array_equal(self.foo_arr, original)
+
+    @parameterized.expand(product((Point, PointCloud, Volume), (0.5, -1.0)))
+    def test_labelled_map_rejects_nonzero_threshold(self, item_cls, threshold):
+        mp = TestMapGuards.labelled_map()
+        with patch.object(Map, "_assign_points") as mock_points, \
+                patch.object(Map, "_assign_volume") as mock_volume:
+            with self.assertRaises(ValueError):
+                mp.assign(MagicMock(spec=item_cls), lower_threshold=threshold)
+        mock_points.assert_not_called()
+        mock_volume.assert_not_called()
+
+    @parameterized.expand([(PointCloud, ), (Volume, )])
+    def test_labelled_map_accepts_default_threshold(self, item_cls):
+        mp = TestMapGuards.labelled_map()
+        with patch.object(Map, "_assign_points", return_value=[]), \
+                patch.object(Map, "_assign_volume", return_value=[]):
+            result = mp.assign(MagicMock(spec=item_cls))
+        self.assertEqual(len(result), 0)
+
+
+class TestMapAssignScoreColumns(unittest.TestCase):
+    """
+    `Map` and `SparseMap` compute the image scores separately. Both must fill
+    the score columns of `Map.assign` with the same quantities (#717).
+
+    The case is asymmetric so that swapped columns differ: the regional map
+    (64 voxels of 0.5) is a strict subset of the input (128 voxels of 1).
+    """
+
+    SHAPE = (10, 10, 10)
+
+    def setUp(self) -> None:
+        self.space = MagicMock()
+        for cls in (Map, SparseMap):
+            patcher = patch.object(cls, "space", new_callable=PropertyMock, return_value=self.space)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        region_patcher = patch.object(Map, "get_region", return_value="foo")
+        region_patcher.start()
+        self.addCleanup(region_patcher.stop)
+
+        self.region_arr = np.zeros(self.SHAPE, dtype="float32")
+        self.region_arr[0:4, 0:4, 0:4] = 0.5
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:8, 0:4, 0:4] = 1
+        self.queryvolume = MagicMock(spec=Volume)
+        self.queryvolume.space = self.space
+        self.queryvolume.fetch.return_value = Nifti1Image(query_arr, np.eye(4))
+
+    def statistical_map(self) -> Map:
+        mp = TestMap.get_instance(
+            indices={"foo": [{"volume": 0}]},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True)],
+        )
+        fetch_patcher = patch.object(
+            Map, "fetch", return_value=Nifti1Image(self.region_arr, np.eye(4))
+        )
+        fetch_patcher.start()
+        self.addCleanup(fetch_patcher.stop)
+        return mp
+
+    def sparse_map(self) -> SparseMap:
+        mp = SparseMap(
+            identifier=str(uuid4()),
+            name="sparse-map-name",
+            space_spec={},
+            parcellation_spec={},
+            indices={"foo": [{"volume": 0}]},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True)],
+        )
+        spind = SparseIndex()
+        spind.add_img(self.region_arr, np.eye(4))
+        mp._sparse_index_cached = spind
+        return mp
+
+    @parameterized.expand([("statistical_map", ), ("sparse_map", )])
+    def test_score_columns(self, factory):
+        df = getattr(self, factory)().assign(self.queryvolume)
+        self.assertEqual(len(df), 1)
+        row = df.iloc[0]
+        self.assertAlmostEqual(row["intersection over union"], 64 / 128)
+        self.assertAlmostEqual(row["map containedness"], 1.0)
+        self.assertAlmostEqual(row["input containedness"], 64 / 128)
+        # map values (0.5) averaged over the input: 64 * 0.5 / 128
+        self.assertAlmostEqual(row["map weighted mean"], 0.25)
+        # input values (1) averaged over the regional map
+        self.assertAlmostEqual(row["input weighted mean"], 1.0)
+
+
+class TestMapAssignVolume(unittest.TestCase):
+    """Behaviour of `Map._assign_volume` beyond thresholds and score columns."""
+
+    SHAPE = (10, 10, 10)
+
+    def setUp(self) -> None:
+        self.space = MagicMock()
+        patcher = patch.object(Map, "space", new_callable=PropertyMock, return_value=self.space)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        self.region_arr = np.zeros(self.SHAPE, dtype="float32")
+        self.region_arr[0:4, 0:4, 0:4] = 0.5
+        self.mp = TestMap.get_instance(
+            indices={"foo": [{"volume": 0}]},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True)],
+        )
+
+    def patch_fetch(self, affine: np.ndarray = np.eye(4)) -> None:
+        image = Nifti1Image(self.region_arr, affine)
+        patcher = patch.object(Map, "fetch", return_value=image)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def queryvolume(self, query_arr: np.ndarray, affine: np.ndarray = np.eye(4)) -> MagicMock:
+        queryvolume = MagicMock(spec=Volume)
+        queryvolume.space = self.space
+        queryvolume.fetch.return_value = Nifti1Image(query_arr, affine)
+        return queryvolume
+
+    @parameterized.expand([(0, [8, 1]), (1, [8]), (8, [])])
+    def test_minsize_voxel_skips_small_components(self, minsize_voxel, expected_sizes):
+        self.patch_fetch()
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:2, 0:2, 0:2] = 1  # component of 8 voxels
+        query_arr[3, 0, 3] = 1  # component of 1 voxel
+        assignments = self.mp._assign(self.queryvolume(query_arr), minsize_voxel=minsize_voxel)
+        # both components lie within the 64-voxel regional map: size = IoU * 64
+        sizes = sorted(
+            (int(round(a.intersection_over_union * 64)) for a in assignments), reverse=True
+        )
+        self.assertEqual(sizes, expected_sizes)
+
+    def test_centroid_is_in_physical_coordinates(self):
+        affine = np.array([
+            [2., 0., 0., 10.],
+            [0., 2., 0., 20.],
+            [0., 0., 2., 30.],
+            [0., 0., 0., 1.],
+        ])
+        self.patch_fetch(affine=affine)
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:2, 0:2, 0:2] = 1  # voxel centroid (0.5, 0.5, 0.5)
+        assignments = self.mp._assign(self.queryvolume(query_arr, affine=affine))
+        self.assertEqual(len(assignments), 1)
+        np.testing.assert_allclose(assignments[0].centroid, (11., 21., 31.))
+
+    @parameterized.expand([("labelled", True), ("statistical", False)])
+    def test_correlation_only_for_statistical_maps(self, _, labelled):
+        index_spec = {"volume": 0, "label": 1} if labelled else {"volume": 0}
+        mp = TestMap.get_instance(
+            indices={"foo": [index_spec]},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True)],
+        )
+        if labelled:
+            self.region_arr = (self.region_arr > 0).astype("uint8")
+        self.patch_fetch()
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:6, 0:2, 0:2] = 1
+        with patch.object(Map, "get_region", return_value="foo"):
+            df = mp.assign(self.queryvolume(query_arr))
+        self.assertEqual(len(df), 1)
+        self.assertIn("intersection over union", df.columns)
+        self.assertEqual("correlation" in df.columns, not labelled)
