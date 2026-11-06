@@ -15,3 +15,4 @@
 """Multimodal data features based on geometries, such as tractograms."""
 
 from .streamline_fiber_bundles import StreamlineFiberBundles
+from .point_distribution import PointDistribution

@@ -22,4 +22,5 @@ grid or on a template's surface.
 
 from .geometry import Geometry
 from .tractogram import Tractogram
+from .points import Points
 from .providers import GeometryProvider

@@ -762,6 +762,31 @@ class Factory:
         )
 
     @classmethod
+    @build_type("siibra/feature/pointdistribution/v0.1")
+    def build_point_distribution(cls, spec):
+        provider_specs = spec["providers"]
+        first_source = next(iter(provider_specs.values()), None)
+        # without explicit links, fragments are named after their regions
+        fragment_names = list(first_source) if isinstance(first_source, dict) else None
+        fragment_regions = cls.extract_fragment_regions(spec, default_fragments=fragment_names)
+        return geometric.PointDistribution(
+            modality=spec["modality"],
+            space_spec=spec["space"],
+            providers=cls.build_geometryproviders(provider_specs),
+            anchor=cls.extract_geometry_anchor(
+                spec, fragment_regions, geometric.PointDistribution.REGION_QUALIFICATION
+            ),
+            name=spec.get("name", ""),
+            description=spec.get("description", ""),
+            subject=spec.get("subject"),
+            fragment_regions=fragment_regions,
+            affine=spec.get("affine"),
+            datasets=cls.extract_datasets(spec),
+            id=spec.get("@id"),
+            prerelease=spec.get("prerelease", False),
+        )
+
+    @classmethod
     def from_json(cls, spec: dict):
 
         if isinstance(spec, str):
