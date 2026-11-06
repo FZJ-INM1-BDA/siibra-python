@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List, Union
+from typing import Callable, Dict, List, Union
 
 import numpy as np
 import pandas as pd
@@ -51,6 +51,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         subject: str = "average",
         id: str = None,
         prerelease: bool = False,
+        unit: Dict[str, tabular.UnitSpec] = None,
     ):
         """
         """
@@ -63,6 +64,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
             data=None,  # lazy loading below
             id=id,
             prerelease=prerelease,
+            unit=unit,
         )
         self.cohort = cohort.upper()
         if isinstance(connector, str) and connector:
@@ -86,8 +88,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
     def name(self):
         return f"{self.subject} - " + super().name + f" cohort: {self.cohort}"
 
-    @property
-    def data(self) -> pd.DataFrame:
+    def _load_data(self) -> pd.DataFrame:
         """
         Returns a table as a pandas dataframe where the index is a timeseries.
         """
@@ -105,6 +106,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
     ):
         assert len({f.cohort for f in elements}) == 1
         assert len({f.timestep for f in elements}) == 1
+        assert all(f._units.resolved() == elements[0]._units.resolved() for f in elements)
         merged = cls(
             cohort=elements[0].cohort,
             regions=elements[0].regions,
@@ -116,6 +118,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
             description=description,
             modality=modality,
             anchor=anchor,
+            unit=elements[0]._units.resolved(),
             **{"paradigm": "average"} if getattr(elements[0], "paradigm") else {}
         )
         if isinstance(elements[0]._connector, HttpRequest):

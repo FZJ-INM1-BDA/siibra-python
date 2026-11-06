@@ -20,6 +20,6 @@ def test_dup_id():
 def test_receptor_fp(feat: ReceptorDensityFingerprint):
     assert isinstance(feat, ReceptorDensityFingerprint)
     print(feat.name, feat.id)
-    print(feat.unit)
+    print(feat.units)
     print(feat.neurotransmitters)
     print(feat.data)

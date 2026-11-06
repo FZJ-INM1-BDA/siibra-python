@@ -57,8 +57,8 @@ class LayerwiseCellDensity(
             data=None,  # lazy loading below
             id=id,
             prerelease=prerelease,
+            unit={"*": {"unit": "# detected cells / $0.1mm^3$"}},
         )
-        self.unit = "# detected cells / $0.1mm^3$"
         self._filepairs = list(zip(segmentfiles, layerfiles))
         self._densities = None
 
@@ -100,8 +100,7 @@ class LayerwiseCellDensity(
                     continue
         return pd.DataFrame(data)
 
-    @property
-    def data(self):
+    def _load_data(self) -> pd.DataFrame:
         if self._data_cached is None:
             self._data_cached = self._load_densities()
             # self._data_cached.index.name = 'layer'
@@ -117,10 +116,8 @@ class LayerwiseCellDensity(
             ))
         )
         kwargs["kind"] = kwargs.get("kind", "box")
-        kwargs["ylabel"] = kwargs.get(
-            "ylabel",
-            f"\n{self.unit}" if hasattr(self, 'unit') else ""
-        )
+        unit = self.unit_of("density")
+        kwargs["ylabel"] = kwargs.get("ylabel", f"\n{unit}" if unit else "")
         if backend == "matplotlib":
             if kwargs["kind"] == "box":
                 from matplotlib.pyplot import tight_layout

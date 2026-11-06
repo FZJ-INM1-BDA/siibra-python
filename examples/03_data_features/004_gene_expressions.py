@@ -56,6 +56,9 @@ try:
     # Take a peek at how the data looks
     print(features[0].data.head())
 
+    # Expression levels and z-scores come with different units:
+    print(features[0].units)
+
     # Since gene expressions are spatial features,
     # let's check the reference space of the results.
     space = features[0].anchor.space

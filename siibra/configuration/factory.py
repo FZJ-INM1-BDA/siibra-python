@@ -440,6 +440,7 @@ class Factory:
             datasets=cls.extract_datasets(spec),
             id=spec.get("@id", None),
             prerelease=spec.get("prerelease", False),
+            unit=spec.get("unit"),
         )
 
     @classmethod
@@ -623,6 +624,7 @@ class Factory:
             "datasets": cls.extract_datasets(spec),
             "timestep": spec.get("timestep"),
             "prerelease": spec.get("prerelease", False),
+            "unit": spec.get("unit"),
         }
         paradigm = spec.get("paradigm")
         if paradigm:

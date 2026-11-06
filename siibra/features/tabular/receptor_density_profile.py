@@ -57,12 +57,13 @@ class ReceptorDensityProfile(
             anchor=anchor,
             datasets=datasets,
             id=id,
-            prerelease=prerelease
+            prerelease=prerelease,
+            # the unit is the last column of the tsv file
+            unit=lambda: {"*": {"unit": self._loader.data.iloc[:, -1][0]}},
         )
         self.receptor = receptor
         self._data_cached = None
         self._loader = requests.HttpRequest(tsvfile, func=decoder_func)
-        self._unit_cached = None
 
     @property
     def key(self):
@@ -84,11 +85,6 @@ class ReceptorDensityProfile(
             vocabularies.RECEPTOR_SYMBOLS[self.receptor]['neurotransmitter']['label'],
             vocabularies.RECEPTOR_SYMBOLS[self.receptor]['neurotransmitter']['name'],
         )
-
-    @property
-    def unit(self):
-        # triggers lazy loading of the HttpRequest
-        return self._loader.data.iloc[:, -1][0]
 
     @property
     def _values(self):

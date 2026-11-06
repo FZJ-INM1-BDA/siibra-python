@@ -56,6 +56,17 @@ v1_fingerprints[0].plot()
 v1_fingerprints[0].data
 
 # %%
+# The unit of each column is available from the feature, either for one
+# column or as a table for all of them:
+print(v1_fingerprints[0].unit_of("mean"))
+v1_fingerprints[0].units
+
+# %%
+# The units also travel with the table itself, in ``data.attrs``. They describe
+# the values as returned by siibra, so they no longer hold after transforming them.
+v1_fingerprints[0].data.attrs["units"]
+
+# %%
 # Many of the receptor features also provide a profile of density measurements
 # at different cortical depths, resolving the change of
 # distribution from the white matter towards the pial surface.
