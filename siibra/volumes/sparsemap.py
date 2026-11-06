@@ -450,7 +450,8 @@ class SparseMap(parcellationmap.Map):
 
                 rho = parcellationmap._pearson_correlation(v1, v2)
 
-                maxval = v1.max()
+                # highest map value covered by the input
+                maxval = v1[(v1 > 0) & (v2 > 0)].max()
 
                 assignments.append(
                     parcellationmap.AssignImageResult(

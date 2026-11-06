@@ -1243,7 +1243,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             - region: the assigned brain region.
             - map value: for point inputs, the map value at the coordinate.
               For image inputs, the label of the region (labelled maps) or the
-              maximum value of the regional map (sparse maps).
+              maximum value of the regional map within its overlap with the
+              input (statistical maps). Uncertain coordinates, assigned as
+              Gaussian kernel images, get the value for image inputs.
             - correlation: Pearson correlation coefficient between the
               regional map and the input, over the bounding box of both (the
               regional map taken before thresholding). NaN if either is
@@ -1577,7 +1579,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     if labelled:
                         # a correlation with a binary region mask only restates the overlap
                         scores.correlation = None
+                        map_value = index.label
                     else:
+                        map_value = region_map_arr[(region_map_arr > 0) & (voxelmask > 0)].max()
                         if map_bbox is None:
                             map_voxels = np.array(np.nonzero(unthresholded_arr))
                             map_bbox = (map_voxels.min(1), map_voxels.max(1))
@@ -1600,7 +1604,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                             centroid=tuple(component_position.round(2)),
                             volume=index.volume,
                             fragment=index.fragment,
-                            map_value=index.label,
+                            map_value=map_value,
                             time=time,
                             **asdict(scores)
                         )

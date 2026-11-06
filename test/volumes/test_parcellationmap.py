@@ -676,6 +676,17 @@ class TestMapAssignScoreColumns(unittest.TestCase):
         df = getattr(self, factory)().assign(self.queryvolume, minsize_voxel=0)
         self.assertEqual(len(df), 1)
 
+    @parameterized.expand(product(("statistical_map", "sparse_map"), ((2, 0.2), (8, 0.8))))
+    def test_map_value_is_the_maximum_within_the_overlap(self, factory, extent_and_value):
+        extent, expected_value = extent_and_value
+        self.region_arr[0:2, 0:4, 0:4] = 0.2
+        self.region_arr[2:4, 0:4, 0:4] = 0.8
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:extent, 0:4, 0:4] = 1  # extent 2 overlaps only the 0.2 part
+        self.queryvolume.fetch.return_value = Nifti1Image(query_arr, np.eye(4))
+        [result] = getattr(self, factory)()._assign(self.queryvolume)
+        self.assertAlmostEqual(result.map_value, expected_value, places=6)
+
     @parameterized.expand([("statistical_map", ), ("sparse_map", )])
     def test_rows_are_ordered_by_component_then_map(self, factory):
         # two regional maps, each overlapped by both input components
@@ -793,3 +804,15 @@ class TestMapAssignVolume(unittest.TestCase):
         self.assertEqual(len(df), 1)
         self.assertIn("intersection over union", df.columns)
         self.assertEqual("correlation" in df.columns, not labelled)
+
+    def test_map_value_of_labelled_maps_is_the_label(self):
+        mp = TestMap.get_instance(
+            indices={"foo": [{"volume": 0, "label": 7}]},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True)],
+        )
+        self.region_arr = (self.region_arr > 0).astype("uint8")
+        self.patch_fetch()
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:2, 0:2, 0:2] = 1
+        [result] = mp._assign(self.queryvolume(query_arr))
+        self.assertEqual(result.map_value, 7)
