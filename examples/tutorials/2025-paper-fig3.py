@@ -94,7 +94,7 @@ np.random.seed(25)
 N = 10000  # number of random samples
 # drawing the samples results in a siibra PointCloud,
 # which has reference space attached and can model point uncertainties.
-samples = input_volume.draw_samples(N, e=5, sigma_mm=3)
+samples = input_volume.draw_samples(N, e=5, sigma_mm=5.625)
 
 # finding the clusters will result in a labelling of the point set.
 samples.find_clusters(min_fraction=1 / 300, max_fraction=1 / 2)
