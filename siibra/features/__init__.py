@@ -21,6 +21,7 @@ from . import (
     connectivity,
     tabular,
     image,
+    geometric,
     dataset,
 )
 

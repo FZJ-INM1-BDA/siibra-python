@@ -21,4 +21,5 @@ grid or on a template's surface.
 """
 
 from .geometry import Geometry
+from .tractogram import Tractogram
 from .providers import GeometryProvider
