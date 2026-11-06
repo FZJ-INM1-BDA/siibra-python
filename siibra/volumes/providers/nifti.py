@@ -14,7 +14,7 @@
 # limitations under the License.
 
 import os
-from typing import Union, Dict, Tuple
+from typing import Union, Dict, Tuple, Sequence, Optional
 
 import numpy as np
 import nibabel as nib
@@ -24,6 +24,29 @@ from . import provider as _provider
 from ...commons import logger, resample_img_to_img
 from ...retrieval import requests
 from ...locations import pointcloud, boundingbox as _boundingbox
+
+
+def _snap_to_grid(coordinate: Sequence[float], atol: float = 1e-6) -> np.ndarray:
+    """
+    Round voxel coordinates within `atol` of an integer to that integer.
+
+    Removes floating-point noise from coordinates on voxel boundaries, so that
+    rounding them outward does not add a voxel.
+
+    Parameters
+    ----------
+    coordinate : Sequence[float]
+        Voxel coordinates.
+    atol : float, default: 1e-6
+        Absolute tolerance in voxels.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+    coordinate = np.asarray(coordinate, dtype=float)
+    nearest = np.rint(coordinate)
+    return np.where(np.abs(coordinate - nearest) <= atol, nearest, coordinate)
 
 
 class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
@@ -129,10 +152,10 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
 
     def fetch(
         self,
-        fragment: str = None,
-        voi: _boundingbox.BoundingBox = None,
-        label: int = None
-    ):
+        fragment: Optional[str] = None,
+        voi: Optional[_boundingbox.BoundingBox] = None,
+        label: Optional[int] = None
+    ) -> nib.Nifti1Image:
         """
         Loads and returns a Nifti1Image object
 
@@ -142,12 +165,24 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
             Optional name of a fragment volume to fetch, if any.
             For example, some volumes are split into left and right hemisphere fragments.
             see :func:`~siibra.volumes.Volume.fragments`
-        voi : BoundingBox
-            optional specification of a volume of interest to fetch.
+        voi : BoundingBox, optional
+            Volume of interest in physical coordinates of this image. The
+            result contains every voxel the box overlaps, i.e. its bounds are
+            rounded outward to whole voxels and clipped to the image, and its
+            affine is shifted to the first voxel of the crop.
         label: int, default: None
             Optional: a label index can be provided. Then the mask of the
             3D volume will be returned, where voxels matching this label
             are marked as "1".
+
+        Returns
+        -------
+        nibabel.Nifti1Image
+
+        Raises
+        ------
+        ValueError
+            If `voi` does not overlap with the image.
         """
 
         result = None
@@ -175,12 +210,16 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
             result = loader()
 
         if voi is not None:
-            zoom_xyz = np.array(result.header.get_zooms())  # voxel dimensions in xyzt_units
-            bb_vox = voi.transform(np.linalg.inv(result.affine))
-            x0, y0, z0 = np.floor(np.array(bb_vox.minpoint.coordinate) / zoom_xyz).astype(int)
-            x1, y1, z1 = np.ceil(np.array(bb_vox.maxpoint.coordinate) / zoom_xyz).astype(int)
+            bb_vox = voi.transform(np.linalg.inv(result.affine))  # voxel coordinates
+            # clip to the image, since negative indices would wrap around
+            shape = np.array(result.shape[:3])
+            start = np.clip(np.floor(_snap_to_grid(bb_vox.minpoint.coordinate)).astype(int), 0, shape)
+            stop = np.clip(np.ceil(_snap_to_grid(bb_vox.maxpoint.coordinate)).astype(int), 0, shape)
+            if np.any(stop <= start):
+                raise ValueError(f"The volume of interest {voi} does not overlap with the image.")
+            (x0, y0, z0), (x1, y1, z1) = start, stop
             shift = np.identity(4)
-            shift[:3, -1] = bb_vox.minpoint
+            shift[:3, -1] = start  # first voxel of the crop
             result = nib.Nifti1Image(
                 dataobj=result.dataobj[x0:x1, y0:y1, z0:z1],
                 affine=np.dot(result.affine, shift),
