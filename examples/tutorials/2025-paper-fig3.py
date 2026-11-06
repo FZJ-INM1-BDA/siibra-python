@@ -36,8 +36,6 @@ from nilearn import plotting, image
 import seaborn as sns
 import siibra
 
-assert siibra.__version__ >= "1.0.1"
-
 sns.set_style("dark")
 
 
@@ -47,19 +45,19 @@ sns.set_style("dark")
 #
 # We compose an artificial input image by merging some functional maps from the DiFuMo atlas,
 # but the image could be any feature distribution map. The image is built as a NIfTI, but
-# then casted to a siibra volume so we have a reference space attached and can used it
+# then cast to a siibra volume so we have a reference space attached and can use it
 # properly in the siibra workflows. The NIfTI object can always be accessed via `.fetch()`.
 
 # obtain and merge a couple of functional statistical maps
-difumo128 = siibra.get_map(
+difumo64 = siibra.get_map(
     parcellation="difumo 64", space="mni152", maptype="statistical"
 )
 img = image.smooth_img(
     image.math_img(
         "np.maximum(np.maximum(im1, im2), im3)",
-        im1=difumo128.fetch(region="3"),
-        im2=difumo128.fetch(region="31"),
-        im3=difumo128.fetch(region="30"),
+        im1=difumo64.fetch(region="3"),
+        im2=difumo64.fetch(region="31"),
+        im3=difumo64.fetch(region="30"),
     ),
     10,
 )
@@ -81,9 +79,10 @@ plotting.plot_glass_brain(
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #
 # There are many ways to get components out of a feature map. Here we use siibra to
-# - draw random points from the distribution encoded by the input volume, then
-#  cluster them using DBSCAN, and
-# - build clusterwise featuremaps as Kernel Density estimates thereof.
+#
+# - draw random points from the distribution encoded by the input volume,
+# - cluster them using HDBSCAN, and
+# - build a feature map for each cluster as a kernel density estimate.
 #
 # In this example, this more or less inverts the composition of the input volume from
 # the DiFuMo maps, but the idea for a general input image is to separate it into
@@ -94,7 +93,7 @@ np.random.seed(25)
 N = 10000  # number of random samples
 # drawing the samples results in a siibra PointCloud,
 # which has reference space attached and can model point uncertainties.
-samples = input_volume.draw_samples(N, e=5, sigma_mm=3)
+samples = input_volume.draw_samples(N, e=5, sigma_mm=5.625)
 
 # finding the clusters will result in a labelling of the point set.
 samples.find_clusters(min_fraction=1 / 300, max_fraction=1 / 2)
@@ -102,7 +101,7 @@ clusterlabels = set(samples.labels) - {-1}
 
 # Let's have a look at the clustered pointcloud
 view = plotting.plot_glass_brain(
-    input_volume.fetch(), alpha=1, threshold=15, cmap="RdGy", colorbar=False
+    input_volume.fetch(), alpha=1, cmap="RdGy", colorbar=False
 )
 view.add_markers(
     np.array(samples.as_list())[samples.labels >= 0],
@@ -122,7 +121,6 @@ view.add_markers(
 # in the input volume to regions in the Julich-Brain atlas.
 
 min_correlation = 0.2
-min_map_value = 0.5
 pmaps = siibra.get_map(
     parcellation="julich 3.0.3", space="mni152", maptype="statistical"
 )
@@ -140,7 +138,7 @@ for cl in clusterlabels:
     )
     with siibra.QUIET:
         df = pmaps.assign(clustermap)
-    df.query(f"correlation >= {min_correlation}", engine="python", inplace=True)
+    df = df.query(f"correlation >= {min_correlation}")
     df['id'] = cl
     assignments.append(df[["id", "region", "correlation", "map value"]])
 
@@ -148,9 +146,9 @@ all_assignments = pd.concat(assignments).sort_values(by="correlation", ascending
 all_assignments[:9].round(2)
 
 # %%
-# plot the three primary assigned probability maps
+# Plot the three primary assigned probability maps.
 regions = set()
-for n, a in all_assignments.iterrows():
+for _, a in all_assignments.iterrows():
     if a.region in regions:
         continue
     pmap = pmaps.fetch(a.region)
@@ -164,7 +162,7 @@ for n, a in all_assignments.iterrows():
 # Find features
 # ^^^^^^^^^^^^^
 #
-# To demonstrate multimodal feature profiling, we choose one of the connected regions.
+# To demonstrate multimodal feature profiling, we choose one of the assigned regions.
 selected_region = siibra.get_region("julich 3.0.3", "Area hOc1 (V1, 17, CalcS) left")
 
 # %%
@@ -179,7 +177,7 @@ fp.plot(ax=axs, capsize=4)
 # %%
 # Now, query for gene expressions for the same region
 #
-# .. attention::::
+# .. attention::
 #    The service "web API of the Allen Brain Atlas for the human microarray expression"
 #    is not available at the moment, therefore siibra is not able to fetch
 #    gene expression features. This is a known issue tracked here:
@@ -201,7 +199,6 @@ cell_densities = siibra.features.get(selected_region, "LayerwiseCellDensity")
 print("\n".join(cell_densities[0].urls))
 fig, axs = plt.subplots(1, 1, figsize=(4, 2.8))
 cell_densities[0].plot(ax=axs, textwrap=30)
-# axs.set_title(axs.get_title().replace("in", "\n"))
 
 # %%
 # Lastly, we can obtain the regional profile of streamline count type
