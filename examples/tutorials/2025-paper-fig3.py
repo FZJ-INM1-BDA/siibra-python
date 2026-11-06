@@ -101,7 +101,7 @@ clusterlabels = set(samples.labels) - {-1}
 
 # Let's have a look at the clustered pointcloud
 view = plotting.plot_glass_brain(
-    input_volume.fetch(), alpha=1, cmap="RdGy", colorbar=False
+    input_volume.fetch(), alpha=1, threshold=15, cmap="RdGy", colorbar=False
 )
 view.add_markers(
     np.array(samples.as_list())[samples.labels >= 0],
