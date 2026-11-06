@@ -14,6 +14,7 @@ from parameterized import parameterized
 import random
 from itertools import product
 import inspect
+import warnings
 import numpy as np
 from nibabel import Nifti1Image
 from siibra.volumes.volume import Volume
@@ -550,8 +551,9 @@ class TestMapAssignLowerThreshold(unittest.TestCase):
 
 class TestMapAssignScoreColumns(unittest.TestCase):
     """
-    `Map` and `SparseMap` compute the image scores separately. Both must fill
-    the score columns of `Map.assign` with the same quantities (#717).
+    `Map` and `SparseMap` implement volume assignment separately. Both must
+    give the same results: the same quantities in the score columns, the
+    same handling of `lower_threshold` and of the query space (#717).
 
     The case is asymmetric so that swapped columns differ: the regional map
     (64 voxels of 0.5) is a strict subset of the input (128 voxels of 1).
@@ -571,6 +573,7 @@ class TestMapAssignScoreColumns(unittest.TestCase):
 
         self.region_arr = np.zeros(self.SHAPE, dtype="float32")
         self.region_arr[0:4, 0:4, 0:4] = 0.5
+        self.region_arrs = [self.region_arr]
         query_arr = np.zeros(self.SHAPE, dtype="uint8")
         query_arr[0:8, 0:4, 0:4] = 1
         self.queryvolume = MagicMock(spec=Volume)
@@ -579,11 +582,12 @@ class TestMapAssignScoreColumns(unittest.TestCase):
 
     def statistical_map(self) -> Map:
         mp = TestMap.get_instance(
-            indices={"foo": [{"volume": 0}]},
-            volumes=[DummyCls(formats={"nii"}, provides_image=True)],
+            indices={f"region {i}": [{"volume": i}] for i in range(len(self.region_arrs))},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True) for _ in self.region_arrs],
         )
+        images = [Nifti1Image(arr, np.eye(4)) for arr in self.region_arrs]
         fetch_patcher = patch.object(
-            Map, "fetch", return_value=Nifti1Image(self.region_arr, np.eye(4))
+            Map, "fetch", side_effect=lambda *args, index=None, **kwargs: images[index.volume]
         )
         fetch_patcher.start()
         self.addCleanup(fetch_patcher.stop)
@@ -595,11 +599,12 @@ class TestMapAssignScoreColumns(unittest.TestCase):
             name="sparse-map-name",
             space_spec={},
             parcellation_spec={},
-            indices={"foo": [{"volume": 0}]},
-            volumes=[DummyCls(formats={"nii"}, provides_image=True)],
+            indices={f"region {i}": [{"volume": i}] for i in range(len(self.region_arrs))},
+            volumes=[DummyCls(formats={"nii"}, provides_image=True) for _ in self.region_arrs],
         )
         spind = SparseIndex()
-        spind.add_img(self.region_arr, np.eye(4))
+        for arr in self.region_arrs:
+            spind.add_img(arr, np.eye(4))
         mp._sparse_index_cached = spind
         return mp
 
@@ -615,6 +620,103 @@ class TestMapAssignScoreColumns(unittest.TestCase):
         self.assertAlmostEqual(row["map weighted mean"], 0.25)
         # input values (1) averaged over the regional map
         self.assertAlmostEqual(row["input weighted mean"], 1.0)
+
+    @parameterized.expand(product(("statistical_map", "sparse_map"), ((0.4, 1), (0.5, 0))))
+    def test_only_map_values_above_threshold_count(self, factory, threshold_and_rows):
+        threshold, expected_rows = threshold_and_rows
+        df = getattr(self, factory)().assign(self.queryvolume, lower_threshold=threshold)
+        self.assertEqual(len(df), expected_rows)
+
+    @parameterized.expand(product(("statistical_map", "sparse_map"), (True, False)))
+    def test_components_are_numbered_from_1(self, factory, split_components):
+        df = getattr(self, factory)().assign(self.queryvolume, split_components=split_components)
+        self.assertEqual(df["input structure"].tolist(), [1])
+
+    @parameterized.expand(product(("statistical_map", "sparse_map"), ((0, 1), (1, 0))))
+    def test_minsize_voxel_skips_components_of_at_most_that_size(self, factory, minsize_and_rows):
+        minsize_voxel, expected_rows = minsize_and_rows
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[1, 1, 1] = 1  # a single-voxel component inside the regional map
+        self.queryvolume.fetch.return_value = Nifti1Image(query_arr, np.eye(4))
+        df = getattr(self, factory)().assign(self.queryvolume, minsize_voxel=minsize_voxel)
+        self.assertEqual(len(df), expected_rows)
+
+    @parameterized.expand(product(("statistical_map", "sparse_map"), (0.0, 0.5)))
+    def test_correlation_over_bounding_box_of_both(self, factory, threshold):
+        self.region_arr[0, 0:4, 0:4] = 0.2  # removed by a threshold of 0.5
+        self.region_arr[1:4, 0:4, 0:4] = 0.8
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[2:6, 0:4, 0:4] = 1
+        self.queryvolume.fetch.return_value = Nifti1Image(query_arr, np.eye(4))
+        # bounding box of the unthresholded regional map and the input
+        domain = (slice(0, 6), slice(0, 4), slice(0, 4))
+        map_values = np.where(self.region_arr <= threshold, 0, self.region_arr)[domain]
+        expected = np.corrcoef(map_values.ravel(), query_arr[domain].ravel())[0, 1]
+        [result] = getattr(self, factory)()._assign(self.queryvolume, lower_threshold=threshold)
+        self.assertAlmostEqual(result.correlation, expected)
+
+    @parameterized.expand([("statistical_map", ), ("sparse_map", )])
+    def test_undefined_correlation_is_nan_without_warning(self, factory):
+        # the input covers the whole bounding box with constant values
+        mp = getattr(self, factory)()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            [result] = mp._assign(self.queryvolume)
+        self.assertTrue(np.isnan(result.correlation))
+
+    @parameterized.expand(product(("statistical_map", "sparse_map"), ("single_voxel", "block")))
+    def test_component_touching_a_map_in_its_corner_voxel(self, factory, shape):
+        # the component overlaps the regional map (0:4 on each axis) in voxel (3, 3, 3) only
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        if shape == "single_voxel":
+            query_arr[3, 3, 3] = 1
+        else:
+            query_arr[3:6, 3:6, 3:6] = 1
+        self.queryvolume.fetch.return_value = Nifti1Image(query_arr, np.eye(4))
+        df = getattr(self, factory)().assign(self.queryvolume, minsize_voxel=0)
+        self.assertEqual(len(df), 1)
+
+    @parameterized.expand([("statistical_map", ), ("sparse_map", )])
+    def test_rows_are_ordered_by_component_then_map(self, factory):
+        # two regional maps, each overlapped by both input components
+        self.region_arrs = [np.zeros(self.SHAPE, dtype="float32") for _ in range(2)]
+        self.region_arrs[0][:, 0:4, 0:4] = 0.5
+        self.region_arrs[1][:, 6:10, 0:4] = 0.5
+        query_arr = np.zeros(self.SHAPE, dtype="uint8")
+        query_arr[0:3, :, 0:2] = 1  # component 1
+        query_arr[6:9, :, 0:2] = 1  # component 2
+        self.queryvolume.fetch.return_value = Nifti1Image(query_arr, np.eye(4))
+        df = getattr(self, factory)().assign(self.queryvolume)
+        self.assertEqual(df[["input structure", "volume"]].values.tolist(), [[1, 0], [1, 1], [2, 0], [2, 1]])
+
+    @parameterized.expand([("statistical_map", ), ("sparse_map", )])
+    def test_point_rows_are_ordered_by_point_then_map(self, factory):
+        # two regional maps, each containing both points
+        self.region_arrs = [np.zeros(self.SHAPE, dtype="float32") for _ in range(2)]
+        self.region_arrs[0][0:6] = 0.7
+        self.region_arrs[1][3:10] = 0.4
+        mp = getattr(self, factory)()
+        points = PointCloud([(4, 1, 1), (5, 2, 2)], space=None, sigma_mm=0)
+        with patch.object(PointCloud, "space", new_callable=PropertyMock, return_value=self.space), \
+                patch.object(PointCloud, "warp", lambda pts, *args, **kwargs: pts), \
+                patch.object(Map, "affine", new_callable=PropertyMock, return_value=np.eye(4)):
+            df = mp.assign(points)
+        self.assertEqual(df[["input structure", "volume"]].values.tolist(), [[0, 0], [0, 1], [1, 0], [1, 1]])
+
+    @parameterized.expand([("statistical_map", ), ("sparse_map", )])
+    def test_unknown_keyword_arguments_are_ignored_with_a_warning(self, factory):
+        mp = getattr(self, factory)()
+        with self.assertWarnsRegex(FutureWarning, "unknown_argument"):
+            df = mp.assign(self.queryvolume, unknown_argument=1)
+        self.assertEqual(len(df), 1)
+
+    @parameterized.expand([("statistical_map", ), ("sparse_map", )])
+    def test_rejects_query_in_other_space(self, factory):
+        mp = getattr(self, factory)()
+        self.queryvolume.space = MagicMock()
+        with self.assertRaises(ValueError):
+            mp.assign(self.queryvolume)
+        self.queryvolume.fetch.assert_not_called()
 
 
 class TestMapAssignVolume(unittest.TestCase):

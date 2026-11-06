@@ -15,7 +15,7 @@
 """Represents lists of probabilistic brain region maps."""
 
 from os import path, makedirs
-from typing import Dict, List, TYPE_CHECKING
+from typing import Dict, List, TYPE_CHECKING, Optional
 
 import numpy as np
 import nibabel
@@ -23,7 +23,6 @@ import nibabel
 from . import parcellationmap, volume as _volume
 from .providers import provider
 from ..commons import MapIndex, logger, connected_components, siibra_tqdm, resample_img_to_img
-from ..locations import boundingbox
 from ..retrieval.cache import CACHE
 from ..retrieval.requests import HttpRequest, FileLoader
 
@@ -341,24 +340,41 @@ class SparseMap(parcellationmap.Map):
         minsize_voxel: int,
         lower_threshold: float,
         split_components: bool = True,
-        time: int = None,
+        time: Optional[int] = None,
     ) -> List[parcellationmap.AssignImageResult]:
         """
         Assign an image volume to this sparse map.
 
         Parameters
-        -----------
+        ----------
         queryvolume: Volume
-            the volume to be compared with maps
-        minsize_voxel: int, default: 1
-            Minimum voxel size of image components to be taken into account.
-        lower_threshold: float, default: 0
-            Lower threshold on values in the statistical map. Values smaller than
-            this threshold will be excluded from the assignment computation.
+            The volume to be compared with the regional maps.
+        minsize_voxel: int
+            Input image components with at most this many voxels are skipped.
+            1 skips single-voxel components; 0 keeps all components.
+        lower_threshold: float
+            Lower threshold on the map values. Map values at or below the
+            threshold are set to zero before the comparison.
         split_components: bool, default: True
             Whether to split the query volume into disjoint components.
+        time: int, optional
+            Time point of the query volume, if it is part of a time series.
+
+        Returns
+        -------
+        List[AssignImageResult]
+            One entry per pair of input component and regional map with a
+            non-empty intersection.
+
+        Raises
+        ------
+        ValueError
+            If the query volume is not in the space of this map.
         """
         from nibabel import Nifti1Image
+
+        if queryvolume.space != self.space:
+            raise ValueError("Assigned volume must be in the same space as the map.")
 
         queryimg = queryvolume.fetch()
         assert isinstance(queryimg, Nifti1Image)
@@ -371,7 +387,6 @@ class SparseMap(parcellationmap.Map):
                 np.zeros(self.shape), affine=self.affine, dtype=queryimg.dataobj.dtype
             )
         )
-        self.space.get_template()
         querydata = np.asanyarray(queryimg.dataobj).squeeze()
 
         iter_func = connected_components if split_components else lambda img: [(1, img)]
@@ -384,10 +399,8 @@ class SparseMap(parcellationmap.Map):
             if XYZ2.shape[0] <= minsize_voxel:
                 continue
             X2, Y2, Z2 = [v.squeeze() for v in np.split(XYZ2, 3, axis=1)]
-
-            bbox2 = boundingbox.BoundingBox(XYZ2.min(0), XYZ2.max(0) + 1, space=None)
-            if bbox2.volume == 0:
-                continue
+            # voxel bounding box of the mode, both corners inclusive
+            min2, max2 = XYZ2.min(0), XYZ2.max(0)
 
             spind = self.sparse_index
             timeindexstr = f"-t={time}" if time else ""
@@ -397,18 +410,15 @@ class SparseMap(parcellationmap.Map):
                 total=len(self),
                 unit=" map"
             ):
-                bbox1 = boundingbox.BoundingBox(
-                    self.sparse_index.bboxes[volume]["minpoint"],
-                    self.sparse_index.bboxes[volume]["maxpoint"],
-                    space=None,
-                )
-                if bbox1.intersection(bbox2) is None:
+                # voxel bounding box of the regional map, both corners inclusive
+                min1 = np.array(spind.bboxes[volume]["minpoint"])
+                max1 = np.array(spind.bboxes[volume]["maxpoint"])
+                if np.any(min1 > max2) or np.any(min2 > max1):
                     continue
 
-                # compute union of voxel space bounding boxes
-                bbox = bbox1.union(bbox2)
-                bbshape = np.array(bbox.shape, dtype="int") + 1
-                x0, y0, z0 = map(int, bbox.minpoint)
+                # union of both bounding boxes: the domain of the comparison
+                x0, y0, z0 = map(int, np.minimum(min1, min2))
+                bbshape = np.maximum(max1, max2) - (x0, y0, z0) + 1
 
                 # build flattened vector of map values
                 v1 = np.zeros(np.prod(bbshape))
@@ -418,7 +428,7 @@ class SparseMap(parcellationmap.Map):
                     (X1 - x0, Y1 - y0, Z1 - z0), bbshape
                 )
                 v1[indices1] = [spind.probs[i][volume] for i in spind.voxels[X1, Y1, Z1]]
-                v1[v1 < lower_threshold] = 0
+                v1[v1 <= lower_threshold] = 0
 
                 # build flattened vector of input image mode
                 v2 = np.zeros(np.prod(bbshape))
@@ -438,13 +448,7 @@ class SparseMap(parcellationmap.Map):
                     (v1 > 0) | (v2 > 0)
                 )  # np.maximum(v1, v2).sum()
 
-                v1d = v1 - v1.mean()
-                v2d = v2 - v2.mean()
-                rho = (
-                    (v1d * v2d).sum()
-                    / np.sqrt((v1d ** 2).sum())
-                    / np.sqrt((v2d ** 2).sum())
-                )
+                rho = parcellationmap._pearson_correlation(v1, v2)
 
                 maxval = v1.max()
 
