@@ -23,6 +23,10 @@ Volumes
 =======
 .. autopackagesummary:: siibra.volumes
 
+Geometries
+==========
+.. autopackagesummary:: siibra.geometries
+
 Locations
 =========
 .. autopackagesummary:: siibra.locations

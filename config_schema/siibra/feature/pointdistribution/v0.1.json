@@ -1,0 +1,31 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/geometry_base.json"
+    }],
+    "properties": {
+        "@type": {
+            "const": "siibra/feature/pointdistribution/v0.1"
+        },
+        "subject": {
+            "type": "string"
+        },
+        "providers": {
+            "description": "Tables with columns x, y and z in mm, and optional attribute columns: one file, or one per fragment. Without fragment_regions, fragment names are region names.",
+            "type": "object",
+            "minProperties": 1,
+            "properties": {
+                "tsv": {
+                    "$ref": "/config_schema/geometry_base.json#/definitions/fragmentedSource"
+                },
+                "csv": {
+                    "$ref": "/config_schema/geometry_base.json#/definitions/fragmentedSource"
+                },
+                "npy": {
+                    "$ref": "/config_schema/geometry_base.json#/definitions/fragmentedSource"
+                }
+            },
+            "additionalProperties": false
+        }
+    }
+}

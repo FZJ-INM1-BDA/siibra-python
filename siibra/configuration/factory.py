@@ -21,7 +21,7 @@ from functools import wraps
 import numpy as np
 
 from ..commons import logger, Species
-from ..features import anchor, connectivity
+from ..features import anchor, connectivity, geometric
 from ..features.tabular import (
     tabular,
     receptor_density_profile,
@@ -33,10 +33,11 @@ from ..features.tabular import (
 from ..features.image import image, sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointcloud, boundingbox
-from ..retrieval.requests import find_suitable_decoder
+from ..retrieval.requests import FileLoader, HttpRequest, find_suitable_decoder
 from ..retrieval import datasets, repositories, bids
 from ..volumes import volume, sparsemap, parcellationmap
 from ..volumes.providers.provider import VolumeProvider
+from ..geometries.providers.provider import GeometryProvider
 
 
 _registered_build_fns: Dict[str, Callable] = {}
@@ -196,6 +197,94 @@ class Factory:
         )
 
     @classmethod
+    def _read_fragment_region_table(cls, src: str) -> Dict[str, List[str]]:
+        """
+        Read a table linking fragments to regions: one row per fragment, named
+        in the first column, one column per region name, and 1 where they are
+        linked. Rows without any 1 are kept, as fragments linked to no region.
+        """
+        decoder = find_suitable_decoder(src)
+        loader = FileLoader(src, func=decoder) if path.isfile(src) else HttpRequest(src, func=decoder)
+        table = loader.get()
+        table = table.set_index(table.columns[0])
+        linked = table.to_numpy(dtype=float) == 1
+        return {
+            str(fragment): [str(c) for c, is_linked in zip(table.columns, row) if is_linked]
+            for fragment, row in zip(table.index, linked)
+        }
+
+    @classmethod
+    def extract_fragment_regions(
+        cls, spec: dict, default_fragments: List[str] = None
+    ) -> Dict[str, List[region.Region]]:
+        """
+        Link the fragments of a geometry to regions of the spec's parcellation.
+
+        `spec["fragment_regions"]` is either the URL or path of a table (see
+        `_read_fragment_region_table`) or a mapping of fragment names to region
+        names. Without it, each of `default_fragments` is linked to the region
+        of the same name. Region names that cannot be resolved are skipped,
+        with one warning.
+        """
+        links_spec = spec.get("fragment_regions")
+        if links_spec is None:
+            names = {f: [f] for f in default_fragments or []}
+        elif isinstance(links_spec, str):
+            names = cls._read_fragment_region_table(links_spec)
+        elif isinstance(links_spec, dict):
+            names = {
+                str(f): [r] if isinstance(r, str) else list(r)
+                for f, r in links_spec.items()
+            }
+        else:
+            raise ValueError(f"Invalid fragment_regions specification: {links_spec!r}")
+        if not names:
+            return {}
+
+        parc = parcellation.Parcellation.get_instance(spec["parcellation"]["@id"])
+        resolved, unresolved = {}, []
+        for name in sorted({r for regions in names.values() for r in regions}):
+            try:
+                resolved[name] = parc.get_region(name)
+            except ValueError:
+                unresolved.append(name)
+        if unresolved:
+            logger.warning(
+                f"{len(unresolved)} region name(s) linked to fragments of "
+                f"'{spec.get('name', spec.get('filename', ''))}' are not in "
+                f"{parc.name} and are ignored: {', '.join(unresolved)}"
+            )
+        return {
+            f: [resolved[r] for r in regions if r in resolved]
+            for f, regions in names.items()
+        }
+
+    @classmethod
+    def extract_geometry_anchor(
+        cls,
+        spec: dict,
+        fragment_regions: Dict[str, List[region.Region]],
+        qualification: anchor.Qualification,
+    ) -> anchor.AnatomicalAnchor:
+        """
+        Anchor a geometry to all regions its fragments are linked to, or to
+        its parcellation if there are none. Species come from the spec or the
+        geometry's space.
+        """
+        regions = {}
+        for linked in fragment_regions.values():
+            for r in linked:
+                regions.setdefault(r, qualification)
+        if "species" in spec:
+            species = Species.decode(spec["species"])
+        else:
+            species = space.Space.get_instance(spec["space"]["@id"]).species
+        return anchor.AnatomicalAnchor(
+            species=species,
+            region=regions if regions else spec["parcellation"]["@id"],
+        )
+
+    @classmethod
     def extract_connector(cls, spec):
         repospec = spec.get("repository", {})
         spectype = repospec["@type"]
@@ -316,6 +405,20 @@ class Factory:
                     )
                     cls._warnings_issued.append(srctype)
         assert all([isinstance(p, VolumeProvider) for p in providers])
+        return providers
+
+    @classmethod
+    def build_geometryproviders(cls, provider_specs: Dict) -> List[GeometryProvider]:
+        providers: List[GeometryProvider] = []
+        for srctype, provider_spec in provider_specs.items():
+            for ProviderType in GeometryProvider._SUBCLASSES:
+                if srctype == ProviderType.srctype:
+                    providers.append(ProviderType(provider_spec))
+                    break
+            else:
+                if srctype not in cls._warnings_issued:
+                    logger.warning(f"No provider defined for geometry source type {srctype}")
+                    cls._warnings_issued.append(srctype)
         return providers
 
     @classmethod
@@ -637,6 +740,51 @@ class Factory:
             })
             timeseries_by_file.append(timeseries_cls(**kwargs))
         return timeseries_by_file
+
+    @classmethod
+    @build_type("siibra/feature/streamlinefiberbundles/v0.2")
+    def build_streamline_fiber_bundles(cls, spec):
+        fragment_regions = cls.extract_fragment_regions(spec)
+        return geometric.StreamlineFiberBundles(
+            modality=spec["modality"],
+            space_spec=spec["space"],
+            providers=cls.build_geometryproviders(spec["providers"]),
+            anchor=cls.extract_geometry_anchor(
+                spec, fragment_regions, geometric.StreamlineFiberBundles.REGION_QUALIFICATION
+            ),
+            name=spec.get("name", ""),
+            description=spec.get("description", ""),
+            fragment_regions=fragment_regions,
+            affine=spec.get("affine"),
+            datasets=cls.extract_datasets(spec),
+            id=spec.get("@id"),
+            prerelease=spec.get("prerelease", False),
+        )
+
+    @classmethod
+    @build_type("siibra/feature/pointdistribution/v0.1")
+    def build_point_distribution(cls, spec):
+        provider_specs = spec["providers"]
+        first_source = next(iter(provider_specs.values()), None)
+        # without explicit links, fragments are named after their regions
+        fragment_names = list(first_source) if isinstance(first_source, dict) else None
+        fragment_regions = cls.extract_fragment_regions(spec, default_fragments=fragment_names)
+        return geometric.PointDistribution(
+            modality=spec["modality"],
+            space_spec=spec["space"],
+            providers=cls.build_geometryproviders(provider_specs),
+            anchor=cls.extract_geometry_anchor(
+                spec, fragment_regions, geometric.PointDistribution.REGION_QUALIFICATION
+            ),
+            name=spec.get("name", ""),
+            description=spec.get("description", ""),
+            subject=spec.get("subject"),
+            fragment_regions=fragment_regions,
+            affine=spec.get("affine"),
+            datasets=cls.extract_datasets(spec),
+            id=spec.get("@id"),
+            prerelease=spec.get("prerelease", False),
+        )
 
     @classmethod
     def from_json(cls, spec: dict):
