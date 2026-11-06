@@ -15,3 +15,4 @@
 """Providers giving access to geometry data in different source formats."""
 
 from .provider import GeometryProvider
+from .tractography import TrxProvider, TrkProvider
