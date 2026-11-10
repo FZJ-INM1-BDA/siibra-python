@@ -15,3 +15,4 @@
 """Handles reconfiguration management and building instances"""
 
 from .configuration import Configuration
+from .templateflow import create_local_repository as create_templateflow_configs
