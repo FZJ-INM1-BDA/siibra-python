@@ -23,6 +23,7 @@ from ..features.tabular import (
     regional_timeseries_activity,
     interareal_connectivity,
     marmoset_cortical_profile,
+    regional_functional_activation,
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -362,6 +363,20 @@ class Factory:
             datasets=cls.extract_datasets(spec),
             prerelease=spec.get("prerelease", False),
             id=spec.get("@id", None),
+        )
+
+    @classmethod
+    @build_type("siibra/feature/tabular/regional_functional_activation/v0.1")
+    def build_regional_functional_activation(cls, spec):
+        return regional_functional_activation.RegionalFunctionalActivation(
+            file=spec["file"],
+            decoder=cls.extract_decoder(spec),
+            description=spec.get("description", ""),
+            modality=spec.get("modality", "regional functional activation"),
+            anchor=cls.extract_anchor(spec),
+            datasets=cls.extract_datasets(spec),
+            id=spec.get("@id", None),
+            prerelease=spec.get("prerelease", False),
         )
 
     @classmethod
