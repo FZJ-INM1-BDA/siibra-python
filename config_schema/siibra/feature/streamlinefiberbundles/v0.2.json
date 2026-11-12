@@ -1,0 +1,40 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_ebrainsrefs.json"
+    }],
+    "properties": {
+        "@type": {
+            "const": "siibra/feature/streamlinefiberbundles/v0.2"
+        },
+        "name": {
+            "type": "string"
+        },
+        "modality": {
+            "description": "Also names the folder of the bundles' terminal region tables, see BundleFilterQuery.",
+            "type": "string"
+        },
+        "description": {
+            "type": "string"
+        },
+        "prerelease": {
+            "type": "boolean"
+        },
+        "species": {
+            "type": "string"
+        },
+        "space": {
+            "$ref": "/config_schema/at_id.json"
+        },
+        "trx": {
+            "description": "URL or path of a TRX file whose groups are the bundles. Streamlines are in the space, in RAS+ mm.",
+            "type": "string"
+        }
+    },
+    "required": [
+        "@type",
+        "modality",
+        "space",
+        "trx"
+    ]
+}

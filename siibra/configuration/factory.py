@@ -33,7 +33,7 @@ from ..features.tabular import (
 from ..features.image import image, sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointcloud, boundingbox
-from ..retrieval.requests import find_suitable_decoder
+from ..retrieval.requests import FileLoader, HttpRequest, find_suitable_decoder
 from ..retrieval import datasets, repositories, bids
 from ..volumes import volume, sparsemap, parcellationmap
 from ..volumes.providers.provider import VolumeProvider
@@ -637,6 +637,32 @@ class Factory:
             })
             timeseries_by_file.append(timeseries_cls(**kwargs))
         return timeseries_by_file
+
+    @classmethod
+    @build_type("siibra/feature/streamlinefiberbundles/v0.2")
+    def build_streamline_fiber_bundles(cls, spec):
+        # Anchored to species only: such features are found by querying their
+        # space, and filtered by region through BundleFilterQuery.
+        if "species" in spec:
+            species = Species.decode(spec["species"])
+        elif "ebrains" in spec:
+            species = Species.decode(spec["ebrains"])
+        else:
+            species = space.Space.get_instance(spec["space"]["@id"]).species
+        src = spec["file"]
+        decoder = find_suitable_decoder(src)
+        loader = FileLoader(src, func=decoder) if path.exists(src) else HttpRequest(src, func=decoder)
+        return connectivity.StreamlineFiberBundles(
+            modality=spec["modality"],
+            space_spec=spec["space"],
+            loader=loader,
+            anchor=anchor.AnatomicalAnchor(species=species),
+            name=spec.get("name", ""),
+            description=spec.get("description", ""),
+            datasets=cls.extract_datasets(spec),
+            id=spec.get("@id"),
+            prerelease=spec.get("prerelease", False),
+        )
 
     @classmethod
     def from_json(cls, spec: dict):
