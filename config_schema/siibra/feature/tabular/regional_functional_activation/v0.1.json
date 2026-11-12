@@ -1,0 +1,55 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [
+        {
+            "$ref": "/config_schema/has_ebrainsrefs.json"
+        }
+    ],
+    "properties": {
+        "@type": {
+            "const": "siibra/feature/tabular/regional_functional_activation/v0.1"
+        },
+        "modality": {
+            "type": "string"
+        },
+        "description": {
+            "type": "string"
+        },
+        "parcellation": {
+            "$ref": "/config_schema/at_id.json"
+        },
+        "species": {
+            "type": "string"
+        },
+        "file": {
+            "type": "string"
+        },
+        "decoder": {
+            "type": "object",
+            "properties": {
+                "@type": {
+                    "const": "siibra/decoder/csv"
+                },
+                "delimiter": {
+                    "const": "\t"
+                },
+                "index_col": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "@type",
+                "delimiter",
+                "index_col"
+            ],
+            "additionalProperties": false
+        }
+    },
+    "required": [
+        "@type",
+        "parcellation",
+        "species",
+        "file",
+        "decoder"
+    ]
+}
