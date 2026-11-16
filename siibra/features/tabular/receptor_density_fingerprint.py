@@ -22,7 +22,7 @@ from ...retrieval import requests
 import pandas as pd
 import numpy as np
 from textwrap import wrap
-from typing import List
+from typing import List, Optional
 
 
 class ReceptorDensityFingerprint(
@@ -40,29 +40,35 @@ class ReceptorDensityFingerprint(
 
     def __init__(
         self,
-        tsvfile: str,
+        tsvfile: Optional[str],
         anchor: _anchor.AnatomicalAnchor,
         datasets: list = [],
         prerelease: bool = False,
         id: str = None,
+        data: pd.DataFrame = None,
+        unit: str = None,
     ):
         """ Generate a receptor fingerprint from a URL to a .tsv file
-        formatted according to the structure used by Palomero-Gallagher et al.
+        formatted according to the structure used by Palomero-Gallagher et al.,
+        or, with tsvfile=None, from a dataframe (index: receptor, columns: mean, std).
         """
         tabular.Tabular.__init__(
             self,
             description=self.DESCRIPTION,
             modality="Neurotransmitter receptor density",
             anchor=anchor,
-            data=None,  # lazy loading below
+            data=data,  # if None, lazy loading below
             datasets=datasets,
             prerelease=prerelease,
             id=id,
         )
-        self._loader = requests.HttpRequest(tsvfile)
+        self._loader = None if tsvfile is None else requests.HttpRequest(tsvfile)
+        self._unit = unit
 
     @property
     def unit(self) -> str:
+        if self._loader is None:
+            return self._unit
         return self._loader.data.iloc[:, -1][0]
 
     @property
