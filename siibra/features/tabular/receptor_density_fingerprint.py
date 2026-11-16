@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from textwrap import wrap
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -40,29 +40,36 @@ class ReceptorDensityFingerprint(
 
     def __init__(
         self,
-        tsvfile: str,
+        tsvfile: Optional[str],
         anchor: _anchor.AnatomicalAnchor,
         datasets: list = [],
         id: str = None,
         prerelease: bool = False,
+        data: pd.DataFrame = None,
+        unit: str = None,
+        modality: str = "Neurotransmitter receptor density",
     ):
         """ Generate a receptor fingerprint from a URL to a .tsv file
-        formatted according to the structure used by Palomero-Gallagher et al.
+        formatted according to the structure used by Palomero-Gallagher et al.,
+        or, with tsvfile=None, from a dataframe (index: receptor, columns: mean, std).
         """
         tabular.Tabular.__init__(
             self,
             description=self.DESCRIPTION,
-            modality="Neurotransmitter receptor density",
+            modality=modality,
             anchor=anchor,
             file=tsvfile,
-            data=None,  # lazy loading below
+            data=data,  # if None, lazy loading below
             datasets=datasets,
             id=id,
             prerelease=prerelease,
         )
+        self._unit = unit
 
     @property
     def unit(self) -> str:
+        if self._loader is None:
+            return self._unit
         return self._loader.data.iloc[:, -1][0]
 
     @property
