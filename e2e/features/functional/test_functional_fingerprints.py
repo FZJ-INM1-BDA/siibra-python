@@ -1,7 +1,6 @@
 import pytest
 
 import siibra
-from siibra.core.region import Region
 from siibra.features.feature import Feature
 from siibra.features.tabular import FunctionalFingerprint, RegionalFunctionalActivation
 
@@ -44,8 +43,8 @@ def test_func_activation_columns_resolve_to_regions(
     data = func_activation.data
     assert len(data.index) == 300
     # assert data.index.is_unique
-    assert all(isinstance(c, Region) for c in data.columns)
-    assert func_activation.activation_maps.index.equals(data.index)
+    for name in data.columns:
+        func_activation.parcellation.get_region(name)  # every column names a region
 
 
 def test_func_activation_ids_are_unique():

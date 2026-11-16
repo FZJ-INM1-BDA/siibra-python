@@ -45,11 +45,6 @@ print(julichbrain_func_activation.name)
 julichbrain_func_activation.data.iloc[:5, :4]
 
 # %%
-# Descriptive columns, such as the task and contrast of each activation map,
-# are kept apart from the regional values.
-julichbrain_func_activation.activation_maps.head()
-
-# %%
 # To compare activation maps meaningfully, we pick three with strong and
 # distinct regional patterns. Among the 30 maps that vary most across
 # regions, we start with the most variable one and then repeatedly add the
