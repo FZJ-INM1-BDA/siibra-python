@@ -19,6 +19,7 @@ from .bigbrain import LayerwiseBigBrainIntensityQuery, BigBrainProfileQuery
 from .ebrains import EbrainsFeatureQuery
 from .local_field_potential import LFPQuery, RegionalLFPQuery
 from .functional_fingerprint import FunctionalFingerprintQuery
+from .macaque_receptors import MacaqueReceptorFingerprintQuery
 
 
 def warm_cache():
