@@ -29,6 +29,7 @@ from ..features.tabular import (
     cell_density_profile,
     layerwise_cell_density,
     regional_timeseries_activity,
+    regional_functional_activation,
 )
 from ..features.image import image, sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -436,6 +437,20 @@ class Factory:
             decoder=find_suitable_decoder(spec["file"], spec.get("decoder")),
             description=spec.get("description"),
             modality=spec.get("modality"),
+            anchor=cls.extract_anchor(spec),
+            datasets=cls.extract_datasets(spec),
+            id=spec.get("@id", None),
+            prerelease=spec.get("prerelease", False),
+        )
+
+    @classmethod
+    @build_type("siibra/feature/tabular/regional_functional_activation/v0.1")
+    def build_regional_functional_activation(cls, spec):
+        return regional_functional_activation.RegionalFunctionalActivation(
+            file=spec["file"],
+            decoder=find_suitable_decoder(spec["file"], spec.get("decoder")),
+            description=spec.get("description", ""),
+            modality=spec.get("modality", "regional functional activation"),
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
             id=spec.get("@id", None),
