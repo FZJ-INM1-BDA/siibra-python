@@ -53,10 +53,10 @@ class FunctionalFingerprintQuery(
             if parcellation not in func_activation.anchor.represented_parcellations():
                 continue
             data = func_activation.data
-            with_data = {r for r in data.columns if data[r].notna().any()}
+            with_data = set(data.columns[data.notna().any()])
             fingerprints.extend(
                 tabular.FunctionalFingerprint(region=leaf, func_activation=func_activation)
                 for leaf in concept.leaves
-                if leaf in with_data
+                if leaf.name in with_data
             )
         return fingerprints
