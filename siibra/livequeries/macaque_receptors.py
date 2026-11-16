@@ -53,9 +53,9 @@ class MacaqueReceptorFingerprintQuery(
             cls._features = []
             for area, values in table.set_index(table.columns[0]).iterrows():
                 try:
-                    regionspec = area.replace("area_", "", 1).replace("_", " ")
+                    regionspec = area.replace("area_", "", 1).replace("_", " ").replace(" prime ", "'")
                     _ = parcellation.get_region(regionspec)
-                except ValueError:  # not (yet) published in the parcellation
+                except (ValueError, RuntimeError):  # not (yet) published in the parcellation
                     continue
                 data = pd.DataFrame({"mean": values})
                 data.index.name = "receptor"
