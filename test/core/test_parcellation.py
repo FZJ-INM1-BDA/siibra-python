@@ -1,17 +1,24 @@
-import unittest
-from uuid import uuid4
-from parameterized import parameterized
-from unittest.mock import patch, MagicMock
 import inspect
-from typing import Tuple, Union, NamedTuple
-from itertools import product, starmap
-import pytest
+import unittest
 
-from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType, find_regions
-from siibra.core.region import Region
-from siibra.commons import Species
-from siibra.exceptions import MapNotFound
+from itertools import product, starmap
+from typing import NamedTuple, Tuple, Union
+from unittest.mock import MagicMock, patch
+from uuid import uuid4
+
+import pytest
+from parameterized import parameterized
+
 import siibra
+from siibra.commons import Species
+from siibra.core.parcellation import (
+    MapType,
+    Parcellation,
+    ParcellationVersion,
+    find_regions,
+)
+from siibra.core.region import Region
+from siibra.exceptions import MapNotFound
 
 correct_json = {
     "name": "foobar",
@@ -51,15 +58,16 @@ class DummyRegion:
 
 class DummyMap:
     def __init__(
-        self, space_returns=True, parcellation_returns=True, maptype=MapType.LABELLED
+        self,
+        space_returns=True,
+        parcellation_returns=True,
+        maptype=MapType.LABELLED,
     ) -> None:
         self.space = DummySpace()
-        self.space.matches = MagicMock()
-        self.space.matches.return_value = space_returns
+        self.space.matches = MagicMock(return_value=space_returns)
 
         self.parcellation = DummySpace()
-        self.parcellation.matches = MagicMock()
-        self.parcellation.matches.return_value = parcellation_returns
+        self.parcellation.matches = MagicMock(return_value=parcellation_returns)
 
         self.maptype = maptype
         self.name = ""
@@ -125,12 +133,13 @@ class TestParcellation(unittest.TestCase):
             species=Species.HOMO_SAPIENS,
         )
 
-    # Because of the numerous dependencies of get_map, the parametrized.expand generates a product of most possible scenarios
+    # Because of the numerous dependencies of get_map,
+    # parameterized.expand generates a product of most possible scenarios.
     @parameterized.expand(
         product(
-            # input, space
+            # input space
             [None, "space arg", DummySpace()],
-            # input, maptype
+            # input maptype
             [
                 InputMapType(None, None),
                 InputMapType("labelled", MapType.LABELLED),
@@ -143,28 +152,29 @@ class TestParcellation(unittest.TestCase):
                 starmap(
                     MapConfig,
                     product(
-                        # maptype of the maps in the registry
+                        # maptype of maps in the registry
                         [MapType.LABELLED, MapType.STATISTICAL],
                         starmap(
-                            # whether map.{space,parcellation}.matches should return True/False
                             MapSPMatch,
                             product(
                                 [True, False],
-                                repeat=2,  # mock result of map.{space,parcellation}.matches
+                                repeat=2,
                             ),
                         ),
                     ),
                 ),
-                repeat=2,  # get 2 maps for each
+                repeat=2,
             ),
         )
     )
     def test_get_map(
-        self, space, maptype_input: InputMapType, vol_spec: Tuple[MapConfig, MapConfig]
+        self,
+        space,
+        maptype_input: InputMapType,
+        vol_spec: Tuple[MapConfig, MapConfig],
     ):
-        from siibra.volumes import Map
-
-        ExpectedException = None
+        expected_exception = None
+        expected_return_idx = None
 
         for idx, vol_s in enumerate(vol_spec):
             if (
@@ -175,54 +185,88 @@ class TestParcellation(unittest.TestCase):
                 expected_return_idx = idx
                 break
         else:
-            ExpectedException = MapNotFound
+            expected_exception = MapNotFound
 
         if maptype_input.alias is None:
-            ExpectedException = AssertionError if maptype_input.input is None else KeyError
+            expected_exception = (
+                AssertionError if maptype_input.input is None else KeyError
+            )
 
-        with patch.object(Map, "registry") as map_registry_mock:
-            registry_return = [
-                DummyMap(
-                    config.sp_match.space_match,
-                    config.sp_match.parc_match,
-                    config.map_type,
-                )
-                for config in list(vol_spec)
-            ]
+        registry_return = [
+            DummyMap(
+                config.sp_match.space_match,
+                config.sp_match.parc_match,
+                config.map_type,
+            )
+            for config in vol_spec
+        ]
 
-            map_registry_mock.return_value = registry_return
-            if inspect.isclass(ExpectedException) and issubclass(
-                ExpectedException, Exception
+        resolved_space = DummySpace()
+
+        space_registry = MagicMock()
+        space_registry.get.return_value = resolved_space
+
+        map_registry = MagicMock()
+        map_registry.__iter__.return_value = iter(registry_return)
+
+        def get_registry(name):
+            if name == "Space":
+                return space_registry
+            if name == "Map":
+                return map_registry
+            raise ValueError(name)
+
+        with patch(
+            "siibra.core.parcellation.get_registry",
+            side_effect=get_registry,
+        ):
+            if inspect.isclass(expected_exception) and issubclass(
+                expected_exception, Exception
             ):
-                with self.assertRaises(ExpectedException):
-                    map = self.parc.get_map(space, maptype_input.input)
+                with self.assertRaises(expected_exception):
+                    self.parc.get_map(
+                        space,
+                        maptype_input.input,
+                    )
                 return
 
             args = []
+
             if space is not None:
                 args.append(space)
+
             if maptype_input.input is not None:
                 args.append(maptype_input.input)
 
-            map = self.parc.get_map(*args)
-            map_registry_mock.assert_called_once()
+            map_ = self.parc.get_map(*args)
+
+            space_registry.get.assert_called_once()
+
             if expected_return_idx is not None:
-                self.assertIs(map, registry_return[expected_return_idx])
-            else:
-                self.assertRaises(ExpectedException)
+                self.assertIs(
+                    map_,
+                    registry_return[expected_return_idx],
+                )
 
     @parameterized.expand(
         [
-            (True, ),
-            (False, ),
+            (True,),
+            (False,),
         ]
     )
     def test_find_regions(self, filter_children):
-        find_topmost = False  # adds parents if children is matched but parent is not. works only if filter_children is True.
-        with patch.object(Parcellation, "registry") as parcellation_registry_mock:
+        # Adds parents if children are matched but parent is not.
+        # Works only if filter_children is True.
+        find_topmost = False
+
+        with patch.object(
+            Parcellation,
+            "registry",
+        ) as parcellation_registry_mock:
             parc1 = DummyParcellation([])
             parc2 = DummyParcellation([])
             parc3 = DummyParcellation([])
+
             parc3.children = [
                 DummyRegion(parc3, []),
                 DummyRegion(parc3, []),
@@ -230,7 +274,11 @@ class TestParcellation(unittest.TestCase):
                 DummyRegion(parc3, []),
             ]
 
-            parcellation_registry_mock.return_value = [parc1, parc2, parc3]
+            parcellation_registry_mock.return_value = [
+                parc1,
+                parc2,
+                parc3,
+            ]
 
             for p in [parc1, parc2, parc3]:
                 if filter_children:
@@ -238,39 +286,72 @@ class TestParcellation(unittest.TestCase):
                 else:
                     p.find.return_value = [p] + p.children
 
-            result = find_regions("fooz", filter_children, find_topmost)
+            result = find_regions(
+                "fooz",
+                filter_children,
+                find_topmost,
+            )
 
             parcellation_registry_mock.assert_called_once()
+
             for p in [parc1, parc2, parc3]:
                 p.find.assert_called_once_with(
                     regionspec="fooz",
                     filter_children=filter_children,
-                    find_topmost=find_topmost
+                    find_topmost=find_topmost,
                 )
 
-            expected_result = [parc1, parc2, parc3] if filter_children else [parc1, parc2, parc3] + parc3.children
-            self.assertEqual(result, expected_result)
+            expected_result = (
+                [parc1, parc2, parc3]
+                if filter_children
+                else [parc1, parc2, parc3] + parc3.children
+            )
 
-    @parameterized.expand([
-        # partial matches work
-        ("foo bar", False, False, region_parent),
+            self.assertEqual(
+                result,
+                expected_result,
+            )
 
-        # exact matches work
-        (region_child1.name, False, False, region_child1),
-
-        # regionspec work
-        (region_parent, False, False, region_parent),
-    ])
-    def test_get_region(self, regionspec, find_topmost, allow_tuple, result):
+    @parameterized.expand(
+        [
+            # partial matches work
+            ("foo bar", False, False, region_parent),
+            # exact matches work
+            (region_child1.name, False, False, region_child1),
+            # regionspec works
+            (region_parent, False, False, region_parent),
+        ]
+    )
+    def test_get_region(
+        self,
+        regionspec,
+        find_topmost,
+        allow_tuple,
+        result,
+    ):
         self.parc.children = [region_parent]
-        self.assertIs(self.parc.get_region(regionspec, find_topmost, allow_tuple), result)
+
+        self.assertIs(
+            self.parc.get_region(
+                regionspec,
+                find_topmost,
+                allow_tuple,
+            ),
+            result,
+        )
 
 
-@pytest.mark.parametrize('space_id,parc_id,map_type', [
-    ('waxholm', 'waxholm v4', 'labelled')
-])
-def test_should_be_able_to_fetch_map(space_id, parc_id, map_type):
-
+@pytest.mark.parametrize(
+    "space_id,parc_id,map_type",
+    [
+        ("waxholm", "waxholm v4", "labelled"),
+    ],
+)
+def test_should_be_able_to_fetch_map(
+    space_id,
+    parc_id,
+    map_type,
+):
     space = siibra.spaces[space_id]
     parc = siibra.parcellations[parc_id]
 
