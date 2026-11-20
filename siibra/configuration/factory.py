@@ -621,7 +621,6 @@ class Factory:
     @classmethod
     @build_type("siibra/feature/connectivitymatrix/v0.3")
     def build_connectivity_matrix(cls, spec):
-        files = spec.get("files", {})
         modality = spec["modality"]
         try:
             conn_cls = getattr(connectivity, modality)
@@ -630,16 +629,10 @@ class Factory:
                 f"No method for building connectivity matrix of type {modality}."
             )
 
-        repo_connector = (
-            cls.extract_connector(spec) if spec.get("repository", None) else None
-        )
-        if repo_connector is None:
-            base_url = spec.get("base_url", "")
         kwargs = {
             "cohort": spec.get("cohort", ""),
             "modality": modality,
             "regions": spec["regions"],
-            "connector": repo_connector,
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
@@ -650,25 +643,22 @@ class Factory:
             kwargs["paradigm"] = paradigm
         files_indexed_by = spec.get("files_indexed_by", "subject")
         assert files_indexed_by in ["subject", "feature"]
-        conn_by_file = []
-        for fkey, filename in files.items():
-            kwargs.update(
-                {
-                    "filename": filename,
-                    "subject": fkey if files_indexed_by == "subject" else "average",
-                    "feature": fkey if files_indexed_by == "feature" else None,
-                    "connector": repo_connector or base_url + filename,
-                    "decode_func": find_suitable_decoder(filename, spec.get("decoder", None)),
-                    "id": spec.get("@id", None),
-                }
+        return [
+            conn_cls(
+                **kwargs,
+                filename=entry.filename,
+                subject=entry.key if files_indexed_by == "subject" else "average",
+                feature=entry.key if files_indexed_by == "feature" else None,
+                connector=entry.connector,
+                decode_func=entry.decode_func,
+                id=entry.id,
             )
-            conn_by_file.append(conn_cls(**kwargs))
-        return conn_by_file
+            for entry in cls.expand_files(spec)
+        ]
 
     @classmethod
     @build_type("siibra/feature/timeseries/activity/v0.1")
     def build_activity_timeseries(cls, spec):
-        files = spec.get("files", {})
         modality = spec["modality"]
         try:
             timeseries_cls = getattr(regional_timeseries_activity, modality)
@@ -679,7 +669,6 @@ class Factory:
             "cohort": spec.get("cohort", ""),
             "modality": modality,
             "regions": spec["regions"],
-            "connector": cls.extract_connector(spec),
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
@@ -689,16 +678,17 @@ class Factory:
         paradigm = spec.get("paradigm")
         if paradigm:
             kwargs["paradigm"] = paradigm
-        timeseries_by_file = []
-        for fkey, filename in files.items():
-            kwargs.update({
-                "filename": filename,
-                "subject": fkey,
-                "id": spec.get("@id", None),
-                "decode_func": find_suitable_decoder(filename, spec.get("decoder", None)),
-            })
-            timeseries_by_file.append(timeseries_cls(**kwargs))
-        return timeseries_by_file
+        return [
+            timeseries_cls(
+                **kwargs,
+                filename=entry.filename,
+                subject=entry.key,
+                connector=entry.connector,
+                decode_func=entry.decode_func,
+                id=entry.id,
+            )
+            for entry in cls.expand_files(spec)
+        ]
 
     @classmethod
     def from_json(cls, spec: dict):
