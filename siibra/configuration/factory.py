@@ -15,7 +15,7 @@
 
 from os import path
 import json
-from typing import List, Dict, Callable, Optional
+from typing import List, Dict, Callable, NamedTuple, Optional
 from functools import wraps
 
 import numpy as np
@@ -33,7 +33,7 @@ from ..features.tabular import (
 from ..features.image import image, sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointcloud, boundingbox
-from ..retrieval.requests import find_suitable_decoder
+from ..retrieval.requests import Decoder, find_suitable_decoder
 from ..retrieval import datasets, repositories, bids
 from ..volumes import volume, sparsemap, parcellationmap
 from ..volumes.providers.provider import VolumeProvider
@@ -53,6 +53,21 @@ def build_type(type_str: str):
         return inner
 
     return outer
+
+
+class SpecFile(NamedTuple):
+    """One entry of the `files` of a spec that builds one feature per file."""
+
+    key: str
+    """Key of the entry in `files`, e.g. a subject."""
+    filename: str
+    """Path of the file in the repository, as given in `files`."""
+    connector: repositories.RepositoryConnector
+    """Connector of the repository of the spec, shared by all its files."""
+    decode_func: Optional[Decoder]
+    """Decoder for the file, from the `decoder` of the spec and the file name."""
+    id: Optional[str]
+    """Id of the feature, if the spec has an `@id`."""
 
 
 def extract_bids_info(
@@ -209,12 +224,59 @@ class Factory:
                 project=repospec["project"],
                 reftag=repospec["branch"],
             )
+        if spectype == "siibra/repository/dataproxy/v1.0.0":
+            return repositories.DataProxyConnector(
+                repospec["bucketname"],
+                main_folder=repospec.get("folder", ""),
+            )
 
         logger.warning(
             "Do not know how to create a repository "
             f"connector from specification type {spectype}."
         )
         return None
+
+    @classmethod
+    def expand_files(cls, spec) -> List[SpecFile]:
+        """
+        One entry per file in the `files` of a spec, for builders that create
+        one feature per file.
+
+        The files are linked exactly, relative to the `repository` of the
+        spec; nothing is listed. If the spec has an `@id`, each entry gets the
+        id `<@id>--<key>`, so that features of one spec never share an id.
+
+        Raises
+        ------
+        ValueError
+            If the spec has no repository, or one no connector can be created
+            for.
+        """
+        if "base_url" in spec:
+            raise ValueError(
+                f"{spec.get('@type')}: 'base_url' is not supported anymore. Give the "
+                "location of the files as a 'repository', e.g. of type "
+                "siibra/repository/dataproxy/v1.0.0."
+            )
+        if not spec.get("repository"):
+            raise ValueError(f"{spec.get('@type')}: the spec needs a 'repository' for its files.")
+        connector = cls.extract_connector(spec)
+        if connector is None:
+            raise ValueError(
+                f"{spec.get('@type')}: no connector for repository type "
+                f"{spec['repository'].get('@type')}."
+            )
+        spec_id = spec.get("@id")
+        return [
+            SpecFile(
+                key=key,
+                filename=filename,
+                connector=connector,
+                decode_func=find_suitable_decoder(filename, spec.get("decoder")),
+                id=None if spec_id is None else f"{spec_id}--{key}",
+            )
+            for key, filename in spec.get("files", {}).items()
+        ]
 
     @classmethod
     @build_type("juelich/iav/atlas/v1.0.0")
@@ -559,7 +621,6 @@ class Factory:
     @classmethod
     @build_type("siibra/feature/connectivitymatrix/v0.3")
     def build_connectivity_matrix(cls, spec):
-        files = spec.get("files", {})
         modality = spec["modality"]
         try:
             conn_cls = getattr(connectivity, modality)
@@ -568,16 +629,10 @@ class Factory:
                 f"No method for building connectivity matrix of type {modality}."
             )
 
-        repo_connector = (
-            cls.extract_connector(spec) if spec.get("repository", None) else None
-        )
-        if repo_connector is None:
-            base_url = spec.get("base_url", "")
         kwargs = {
             "cohort": spec.get("cohort", ""),
             "modality": modality,
             "regions": spec["regions"],
-            "connector": repo_connector,
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
@@ -588,25 +643,22 @@ class Factory:
             kwargs["paradigm"] = paradigm
         files_indexed_by = spec.get("files_indexed_by", "subject")
         assert files_indexed_by in ["subject", "feature"]
-        conn_by_file = []
-        for fkey, filename in files.items():
-            kwargs.update(
-                {
-                    "filename": filename,
-                    "subject": fkey if files_indexed_by == "subject" else "average",
-                    "feature": fkey if files_indexed_by == "feature" else None,
-                    "connector": repo_connector or base_url + filename,
-                    "decode_func": find_suitable_decoder(filename, spec.get("decoder", None)),
-                    "id": spec.get("@id", None),
-                }
+        return [
+            conn_cls(
+                **kwargs,
+                filename=entry.filename,
+                subject=entry.key if files_indexed_by == "subject" else "average",
+                feature=entry.key if files_indexed_by == "feature" else None,
+                connector=entry.connector,
+                decode_func=entry.decode_func,
+                id=entry.id,
             )
-            conn_by_file.append(conn_cls(**kwargs))
-        return conn_by_file
+            for entry in cls.expand_files(spec)
+        ]
 
     @classmethod
     @build_type("siibra/feature/timeseries/activity/v0.1")
     def build_activity_timeseries(cls, spec):
-        files = spec.get("files", {})
         modality = spec["modality"]
         try:
             timeseries_cls = getattr(regional_timeseries_activity, modality)
@@ -617,7 +669,6 @@ class Factory:
             "cohort": spec.get("cohort", ""),
             "modality": modality,
             "regions": spec["regions"],
-            "connector": cls.extract_connector(spec),
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
@@ -627,16 +678,17 @@ class Factory:
         paradigm = spec.get("paradigm")
         if paradigm:
             kwargs["paradigm"] = paradigm
-        timeseries_by_file = []
-        for fkey, filename in files.items():
-            kwargs.update({
-                "filename": filename,
-                "subject": fkey,
-                "id": spec.get("@id", None),
-                "decode_func": find_suitable_decoder(filename, spec.get("decoder", None)),
-            })
-            timeseries_by_file.append(timeseries_cls(**kwargs))
-        return timeseries_by_file
+        return [
+            timeseries_cls(
+                **kwargs,
+                filename=entry.filename,
+                subject=entry.key,
+                connector=entry.connector,
+                decode_func=entry.decode_func,
+                id=entry.id,
+            )
+            for entry in cls.expand_files(spec)
+        ]
 
     @classmethod
     def from_json(cls, spec: dict):
