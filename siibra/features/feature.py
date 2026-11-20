@@ -679,6 +679,9 @@ class Compoundable(ABC):
     """
     _filter_attrs = []  # the attributes to filter this instance of feature
     _compound_attrs = []  # `compound_key` has to be created from `filter_attributes`
+    # If True, features from different datasets are never compounded together,
+    # even if their compound keys are equal.
+    _compound_within_dataset = False
 
     def __init_subclass__(cls, **kwargs):
         assert len(cls._filter_attrs) > 0, "All compoundable classes have to have `_filter_attrs` defined."
@@ -709,6 +712,20 @@ class Compoundable(ABC):
         the same type.
         """
         return tuple([self.filter_attributes[attr] for attr in self._compound_attrs])
+
+    @property
+    def _compound_group(self) -> Tuple[Any]:
+        """
+        Features with equal groups are compounded together: the compound key,
+        extended by the ids of the feature's datasets if
+        `_compound_within_dataset` is set.
+        """
+        if not self._compound_within_dataset:
+            return self._compound_key
+        dataset_ids = frozenset(
+            ds.id for ds in getattr(self, "datasets", []) if hasattr(ds, "id")
+        )
+        return self._compound_key + (dataset_ids,)
 
     @property
     def _element_index(self) -> Any:
@@ -908,7 +925,8 @@ class CompoundFeature(Feature):
         queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
     ) -> List['CompoundFeature']:
         """
-        Compound features of the same the same type based on their `_compound_key`.
+        Compound features of the same the same type based on their `_compound_key`,
+        and on their datasets for types setting `_compound_within_dataset`.
 
         If there are features that are not of type `Compoundable`, they are
         returned as is.
@@ -928,7 +946,7 @@ class CompoundFeature(Feature):
         grouped_features = defaultdict(list)
         for f in features:
             if isinstance(f, Compoundable):
-                grouped_features[f._compound_key].append(f)
+                grouped_features[f._compound_group].append(f)
                 continue
             non_compound_features.append(f)
         return non_compound_features + [
