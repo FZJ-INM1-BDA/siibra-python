@@ -15,7 +15,7 @@
 
 from os import path
 import json
-from typing import List, Dict, Callable, Optional
+from typing import List, Dict, Callable, NamedTuple, Optional
 from functools import wraps
 
 import numpy as np
@@ -33,7 +33,7 @@ from ..features.tabular import (
 from ..features.image import image, sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointcloud, boundingbox
-from ..retrieval.requests import find_suitable_decoder
+from ..retrieval.requests import Decoder, find_suitable_decoder
 from ..retrieval import datasets, repositories, bids
 from ..volumes import volume, sparsemap, parcellationmap
 from ..volumes.providers.provider import VolumeProvider
@@ -53,6 +53,21 @@ def build_type(type_str: str):
         return inner
 
     return outer
+
+
+class SpecFile(NamedTuple):
+    """One entry of the `files` of a spec that builds one feature per file."""
+
+    key: str
+    """Key of the entry in `files`, e.g. a subject."""
+    filename: str
+    """Path of the file in the repository, as given in `files`."""
+    connector: repositories.RepositoryConnector
+    """Connector of the repository of the spec, shared by all its files."""
+    decode_func: Optional[Decoder]
+    """Decoder for the file, from the `decoder` of the spec and the file name."""
+    id: Optional[str]
+    """Id of the feature, if the spec has an `@id`."""
 
 
 def extract_bids_info(
@@ -220,6 +235,48 @@ class Factory:
             f"connector from specification type {spectype}."
         )
         return None
+
+    @classmethod
+    def expand_files(cls, spec) -> List[SpecFile]:
+        """
+        One entry per file in the `files` of a spec, for builders that create
+        one feature per file.
+
+        The files are linked exactly, relative to the `repository` of the
+        spec; nothing is listed. If the spec has an `@id`, each entry gets the
+        id `<@id>--<key>`, so that features of one spec never share an id.
+
+        Raises
+        ------
+        ValueError
+            If the spec has no repository, or one no connector can be created
+            for.
+        """
+        if "base_url" in spec:
+            raise ValueError(
+                f"{spec.get('@type')}: 'base_url' is not supported anymore. Give the "
+                "location of the files as a 'repository', e.g. of type "
+                "siibra/repository/dataproxy/v1.0.0."
+            )
+        if not spec.get("repository"):
+            raise ValueError(f"{spec.get('@type')}: the spec needs a 'repository' for its files.")
+        connector = cls.extract_connector(spec)
+        if connector is None:
+            raise ValueError(
+                f"{spec.get('@type')}: no connector for repository type "
+                f"{spec['repository'].get('@type')}."
+            )
+        spec_id = spec.get("@id")
+        return [
+            SpecFile(
+                key=key,
+                filename=filename,
+                connector=connector,
+                decode_func=find_suitable_decoder(filename, spec.get("decoder")),
+                id=None if spec_id is None else f"{spec_id}--{key}",
+            )
+            for key, filename in spec.get("files", {}).items()
+        ]
 
     @classmethod
     @build_type("juelich/iav/atlas/v1.0.0")
