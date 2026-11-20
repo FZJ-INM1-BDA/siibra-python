@@ -1,19 +1,57 @@
 name: '[siibra-cfg] setup custom config'
 author: 'Xiao Gui <xgui3783@gmail.com>'
-description: 'Setup siibra custom config for tests'
+description: >-
+  Use a ref of siibra-configurations in the following steps: the given ref,
+  or else the one named by a line "[ci:usecfg] <ref>" in the message of the
+  head commit (for a pull request, its head commit, not the merge commit).
+  The ref must be a branch or tag name, not a commit SHA. Pushes to main,
+  tags and releases always use the default configuration. The repository
+  must be checked out.
 inputs:
   siibra-cfg-ref:
-    description: 'git ref of siibra configuration to use'
-    required: true
+    description: 'git ref of siibra configuration to use; empty to read it from the head commit message'
+    required: false
+    default: ''
+outputs:
+  ref:
+    description: 'the ref used; empty for the default configuration'
+    value: ${{ steps.find-ref.outputs.ref }}
 runs:
   using: composite
   steps:
-  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+  - id: find-ref
+    shell: bash
+    env:
+      REF: ${{ inputs.siibra-cfg-ref }}
+      EVENT_NAME: ${{ github.event_name }}
+      REF_TYPE: ${{ github.ref_type }}
+      GIT_REF: ${{ github.ref }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    run: |
+      if [[ -z "$REF" && "$EVENT_NAME" != "release" && "$REF_TYPE" != "tag" && "$GIT_REF" != "refs/heads/main" ]]; then
+        # pull requests check out a merge commit, without the head commit
+        git cat-file -e "$HEAD_SHA^{commit}" 2>/dev/null \
+          || git fetch --quiet --no-tags --depth=1 origin "$HEAD_SHA"
+        REF=$(git log -1 --format=%B "$HEAD_SHA" \
+          | sed -n 's/^\[ci:usecfg\][[:space:]]*//p' | tail -n 1 | tr -d '[:space:]')
+      fi
+      # Only branch and tag names: a bare SHA may name a commit that only
+      # exists in a fork, since GitHub shares objects across forks.
+      if [[ -n "$REF" ]] && { [[ ! "$REF" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || [[ "$REF" =~ ^[0-9a-fA-F]{40}$ ]]; }; then
+        echo "Not a branch or tag name of siibra-configurations: $REF"
+        echo "::error::[ci:usecfg] needs a branch or tag name of siibra-configurations."
+        exit 1
+      fi
+      echo "siibra-configurations ref: ${REF:-default}"
+      echo "ref=$REF" >> "$GITHUB_OUTPUT"
+  - if: ${{ steps.find-ref.outputs.ref != '' }}
+    uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     with:
       repository: 'fzj-inm1-bda/siibra-configurations'
-      ref: ${{ inputs.siibra-cfg-ref }}
+      ref: ${{ steps.find-ref.outputs.ref }}
       path: ${{ github.workspace }}/siibra-configurations
-  - id: 'set-env'
+  - if: ${{ steps.find-ref.outputs.ref != '' }}
+    id: 'set-env'
     run: |
       echo "SIIBRA_USE_CONFIGURATION=${{ github.workspace }}/siibra-configurations" >> $GITHUB_ENV
     shell: bash

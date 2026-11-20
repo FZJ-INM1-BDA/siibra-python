@@ -14,33 +14,11 @@ permissions:
   contents: read
 
 env:
-  USE_CONFIG_COMMIT_KW: "[ci:usecfg]"
   SIIBRA_LOG_LEVEL: "INFO_WO_PROGRESS_BARS"
 
+# A line "[ci:usecfg] <ref>" in the head commit message selects a ref of
+# siibra-configurations to test with (see setup-custom-cfg).
 jobs:
-  use-custom-cfg:
-    runs-on: ubuntu-latest
-    outputs:
-      USE_REF: ${{ steps.use-ref.outputs.USE_REF }}
-    env:
-      # see https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-      COMMIT_MSG: ${{ github.event.head_commit.message }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # 7.0.1
-      - id: "use-ref"
-        run: |
-          SED_S_PATTERN=$(echo '${{ env.USE_CONFIG_COMMIT_KW }}' | sed 's/\[/\\[/' | sed 's/]/\\]/')
-          echo "$COMMIT_MSG" | while IFS= read -r line
-          do
-            if [[ "$line" == "${{ env.USE_CONFIG_COMMIT_KW }}"* ]]
-            then
-              echo "Found usecfg line in commit message: $line"
-              USE_REF=$(echo $line | sed "s/$SED_S_PATTERN *//")
-              echo "Use Ref: $USE_REF"
-              echo USE_REF=$USE_REF >> $GITHUB_OUTPUT
-            fi
-          done
-
   lint:
     uses: ./.github/workflows/_lint.yaml
     with:
@@ -48,12 +26,10 @@ jobs:
       python-version: "3.11"
 
   check-importable:
-    needs: "use-custom-cfg"
     uses: ./.github/workflows/_importable.yaml
     with:
       os: ${{ matrix.os || 'ubuntu-latest' }}
       python-version: ${{ matrix.python-version }}
-      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       fail-fast: false
       matrix:
@@ -65,12 +41,10 @@ jobs:
 
   unit-tests-full:
     if: ${{ github.event_name == 'pull_request' }}
-    needs: "use-custom-cfg"
     uses: ./.github/workflows/_unittest.yaml
     with:
       os: ${{ matrix.os || 'ubuntu-latest' }}
       python-version: ${{ matrix.python-version }}
-      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       fail-fast: false
       matrix:
@@ -78,21 +52,17 @@ jobs:
         include: *py-os-overrides
   unit-tests-fast:
     if: ${{ github.event.pull_request == null }}
-    needs: "use-custom-cfg"
     uses: ./.github/workflows/_unittest.yaml
     with:
       os: *py-min-os
       python-version: *py-min
-      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
 
   e2e-tests-full:
     if: ${{ github.event_name == 'pull_request' }}
-    needs: "use-custom-cfg"
     uses: ./.github/workflows/_e2e.yaml
     with:
       os: ${{ matrix.os || 'ubuntu-latest' }}
       python-version: ${{ matrix.python-version }}
-      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       matrix:
         python-version: *py-versions
@@ -100,18 +70,14 @@ jobs:
 
   e2e-tests-fast:
     if: ${{ github.event.pull_request == null }}
-    needs: "use-custom-cfg"
     uses: ./.github/workflows/_e2e.yaml
     with:
       os: *py-min-os
       python-version: *py-min
-      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
 
   test-examples:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-    needs: 'use-custom-cfg'
     uses: ./.github/workflows/_run_examples.yaml
     with:
       os: self-hosted
       python-version: ">=3.11.18,<3.12"
-      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
