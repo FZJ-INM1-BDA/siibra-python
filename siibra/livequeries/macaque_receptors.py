@@ -60,7 +60,7 @@ class MacaqueReceptorFingerprintQuery(
                 data = pd.DataFrame({"mean": values})
                 data.index.name = "receptor"
                 digest = hashlib.md5(
-                    (area + values.to_csv() + "ReceptorDensityFingerprint").encode()
+                    (area + values.to_csv() + "ReceptorDensityFingerprintPerNeuron").encode()
                 ).hexdigest()
                 cls._features.append(
                     ReceptorDensityFingerprint(
@@ -72,6 +72,7 @@ class MacaqueReceptorFingerprintQuery(
                         ],
                         id=f"{DATASET_VERSION_UUID}--{digest}",
                         unit="fmol/neuron",
+                        modality="Neurotransmitter receptor density per neuron",
                     )
                 )
         return cls._features
