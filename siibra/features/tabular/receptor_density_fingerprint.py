@@ -47,6 +47,7 @@ class ReceptorDensityFingerprint(
         id: str = None,
         data: pd.DataFrame = None,
         unit: str = None,
+        modality: str = "Neurotransmitter receptor density",
     ):
         """ Generate a receptor fingerprint from a URL to a .tsv file
         formatted according to the structure used by Palomero-Gallagher et al.,
@@ -55,7 +56,7 @@ class ReceptorDensityFingerprint(
         tabular.Tabular.__init__(
             self,
             description=self.DESCRIPTION,
-            modality="Neurotransmitter receptor density",
+            modality=modality,
             anchor=anchor,
             data=data,  # if None, lazy loading below
             datasets=datasets,
