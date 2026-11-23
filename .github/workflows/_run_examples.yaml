@@ -10,6 +10,7 @@ on:
         required: true
         type: string
       use-cfg:
+        description: "ref of siibra-configurations; empty to read it from the head commit message"
         required: false
         type: string
         default: ""
@@ -20,6 +21,9 @@ on:
 
 jobs:
   test_examples:
+    # Never run code of pull requests from forks on the self-hosted runner,
+    # whatever the caller does.
+    if: ${{ inputs.os != 'self-hosted' || github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ${{ inputs.os }}
 
     env:
@@ -61,7 +65,6 @@ jobs:
           echo "$VIRTUAL_ENV/bin" >> "$GITHUB_PATH"
 
       - name: Set up custom siibra configuration
-        if: ${{ inputs.use-cfg != '' }}
         uses: ./.github/workflows/setup-custom-cfg
         with:
           siibra-cfg-ref: ${{ inputs.use-cfg }}

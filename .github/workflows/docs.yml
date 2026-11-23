@@ -53,6 +53,11 @@ jobs:
           echo "$VIRTUAL_ENV/bin" >> "$GITHUB_PATH"
           "$VIRTUAL_ENV/bin/python" --version
 
+      # A line "[ci:usecfg] <ref>" in the head commit message selects a ref of
+      # siibra-configurations to build the docs with.
+      - name: Set up custom siibra configuration
+        uses: ./.github/workflows/setup-custom-cfg
+
       - name: Install dependencies
         shell: bash
         run: |
