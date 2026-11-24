@@ -73,6 +73,7 @@ class MacaqueReceptorFingerprintQuery(
                         id=f"{DATASET_VERSION_UUID}--{digest}",
                         unit="fmol/neuron",
                         modality="Neurotransmitter receptor density per neuron",
+                        prerelease=True,
                     )
                 )
         return cls._features
