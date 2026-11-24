@@ -44,14 +44,15 @@ runs:
       fi
       echo "siibra-configurations ref: ${REF:-default}"
       echo "ref=$REF" >> "$GITHUB_OUTPUT"
-  - if: ${{ steps.find-ref.outputs.ref != '' }}
-    uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-    with:
-      repository: 'fzj-inm1-bda/siibra-configurations'
-      ref: ${{ steps.find-ref.outputs.ref }}
-      path: ${{ github.workspace }}/siibra-configurations
+  # Plain git rather than actions/checkout: a nested action gets a post step,
+  # which reloads this action.yml after the job's clean-up removed the workspace.
   - if: ${{ steps.find-ref.outputs.ref != '' }}
     id: 'set-env'
-    run: |
-      echo "SIIBRA_USE_CONFIGURATION=${{ github.workspace }}/siibra-configurations" >> $GITHUB_ENV
     shell: bash
+    env:
+      REF: ${{ steps.find-ref.outputs.ref }}
+    run: |
+      cfg_dir="$GITHUB_WORKSPACE/siibra-configurations"
+      git clone --quiet --depth 1 --branch "$REF" \
+        https://github.com/fzj-inm1-bda/siibra-configurations.git "$cfg_dir"
+      echo "SIIBRA_USE_CONFIGURATION=$cfg_dir" >> "$GITHUB_ENV"
