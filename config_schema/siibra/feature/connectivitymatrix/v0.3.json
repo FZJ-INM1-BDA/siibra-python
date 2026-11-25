@@ -3,18 +3,23 @@
     "allOf": [{
         "$ref": "/config_schema/has_ebrainsrefs.json"
     }],
-    "anyOf": [
-        {
-            "base_url": {
-                "type": "string"
-            }
-        },{
-            "$ref": "/config_schema/has_zipped_csv.json"
-        }
-    ],
     "properties": {
         "@type": {
             "const": "siibra/feature/connectivitymatrix/v0.3"
+        },
+        "repository": {
+            "anyOf": [{
+                "$ref": "/config_schema/siibra/repository/zippedfile/v1.0.0.json"
+            }, {
+                "$ref": "/config_schema/siibra/repository/dataproxy/v1.0.0.json"
+            }]
+        },
+        "files": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+                "type": "string"
+            }
         },
         "modality": {
             "$ref": "#/definitions/connectivityModalities"
@@ -36,6 +41,8 @@
         }
     },
     "required": [
+        "repository",
+        "files"
     ],
     "definitions": {
         "connectivityModalities": {

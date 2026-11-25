@@ -803,20 +803,26 @@ class DataProxyConnector(RepositoryConnector):
         super().__init__(
             base_url=f"https://data-proxy.ebrains.eu/api/v1/buckets/{_extracted_bucketname}"
         )
-        client = BucketApiClient()
-        self._bucket = client.buckets.get_bucket(_extracted_bucketname)
         self.bucketname = _extracted_bucketname
         self.main_folder = main_folder
+        self._bucket_cached = None
 
-        def ls(prefix: str = ""):
+        # The bucket name is an argument only to be part of the cache key:
+        # listings of the same prefix in different buckets must not mix.
+        def ls(bucketname: str, prefix: str = ""):
             return list(self._bucket.ls(prefix=prefix))
 
-        self._ls = cache_user_fn(ls)
+        self._ls_cached = cache_user_fn(ls)
 
-    # only defined for typing purpose
-    # actual ._ls is defined in __init__ function for joblib caching
+    @property
+    def _bucket(self):
+        """The bucket, looked up on first use: only listing files needs it."""
+        if self._bucket_cached is None:
+            self._bucket_cached = BucketApiClient().buckets.get_bucket(self.bucketname)
+        return self._bucket_cached
+
     def _ls(self, prefix: str):
-        return list(self._bucket.ls(prefix=prefix))
+        return self._ls_cached(self.bucketname, prefix)
 
     def search_files(self, folder: str = "", suffix: str = "", recursive: bool = False):
         if recursive is False:
