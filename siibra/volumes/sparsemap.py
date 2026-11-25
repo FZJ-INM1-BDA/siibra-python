@@ -227,6 +227,7 @@ class SparseMap(parcellationmap.Map):
         publications: list = [],
         datasets: list = [],
         prerelease: bool = False,
+        aggregation: parcellationmap.Aggregation = None,
     ):
         parcellationmap.Map.__init__(
             self,
@@ -242,6 +243,7 @@ class SparseMap(parcellationmap.Map):
             datasets=datasets,
             volumes=volumes,
             prerelease=prerelease,
+            aggregation=aggregation,
         )
         self._sparse_index_cached = None
 

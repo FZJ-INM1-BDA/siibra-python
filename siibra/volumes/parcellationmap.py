@@ -33,7 +33,7 @@ from ..locations import point, pointset
 from ..retrieval import requests
 
 import numpy as np
-from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
+from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, ClassVar, NamedTuple
 from scipy.ndimage import distance_transform_edt
 from collections import defaultdict
 from nibabel import Nifti1Image
@@ -71,6 +71,9 @@ class Assignment:
 @dataclass
 class AssignImageResult(CompareMapsResult, Assignment): pass
 
+class Aggregation(NamedTuple):
+    id: str
+    name: str
 
 class Map(concept.AtlasConcept, configuration_folder="maps"):
 
@@ -88,6 +91,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         publications: list = [],
         datasets: list = [],
         prerelease: bool = False,
+        aggregation: Aggregation = None
     ):
         """
         Constructs a new parcellation object.
@@ -176,6 +180,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             for p in v._providers.values():
                 p.parcellation_map = self
             v._space_spec = space_spec
+        
+        self.aggregation = aggregation
 
     @property
     def species(self) -> Species:

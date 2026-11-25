@@ -292,6 +292,12 @@ class Factory:
         identifier = f"{spec['@type'].replace('/','-')}_{basename}"
         volumes = cls.extract_volumes(spec)
 
+        aggregation = (
+            parcellationmap.Aggregation(aggregation_spec["@id"], aggregation_spec.get("name", None))
+            if (aggregation_spec := spec.get("aggregation"))
+            else None
+        )
+
         if spec.get("sparsemap", {}).get("is_sparsemap"):
             Maptype = sparsemap.SparseMap
         else:
@@ -309,6 +315,7 @@ class Factory:
             publications=spec.get("publications", []),
             datasets=cls.extract_datasets(spec),
             prerelease=spec.get("prerelease", False),
+            aggregation=aggregation,
         )
 
     @classmethod
