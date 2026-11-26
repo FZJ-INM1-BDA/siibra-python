@@ -21,6 +21,8 @@ import numpy as np
 import pandas as pd
 
 from . import tabular
+from ..feature import Compoundable
+from ...commons import siibra_tqdm
 from ...retrieval.requests import HttpRequest
 
 if TYPE_CHECKING:
@@ -140,4 +142,78 @@ class PointDistribution(tabular.Tabular):
         raise NotImplementedError(
             f"Plotting is not implemented for {self.__class__.__name__}. "
             "Its data holds the coordinates in the columns x, y and z."
+        )
+
+
+class CellDistribution(
+    PointDistribution,
+    Compoundable,
+    configuration_folder="features/tabular/point_distribution/cell_distribution",
+    category="cellular",
+):
+    """
+    Positions of cells of one subject, within one region or across a larger
+    extent such as the whole brain.
+
+    Like all point distributions, cell distributions are anchored to their
+    space and, if they have one, their region: a region query finds the
+    cells of matching regions, a space query all cells in that space.
+
+    Cell distributions are compounded by subject: a query returns one
+    compound per subject and dataset, with one element per region matching
+    the query. The data of a compound has the cells of all its regions, with
+    the region of each cell in a ``region`` column.
+    """
+
+    _default_modality = "cell distribution"
+    _filter_attrs = ["modality", "subject", "region"]
+    _compound_attrs = ["modality", "subject"]
+    _compound_within_dataset = True
+
+    def __init__(self, subject: str, **kwargs):
+        """
+        Parameters
+        ----------
+        subject : str
+            Identifier of the subject the cells belong to.
+        **kwargs
+            See PointDistribution.
+        """
+        PointDistribution.__init__(self, **kwargs)
+        self.subject = str(subject)
+
+    @property
+    def region(self) -> Union[str, None]:
+        """
+        The region the cells are in, as the anchor specifies it: a region or
+        a parcellation, or None if the anchor has neither, e.g. for a
+        whole-brain table anchored to its space only. Indexes the elements of
+        a subject's compound.
+        """
+        return self.anchor._regionspec
+
+    @property
+    def name(self) -> str:
+        return f"{super().name}, subject: {self.subject}"
+
+    @classmethod
+    def _merge_elements(cls, elements, description, modality, anchor):
+        """The cells of all elements, with the region of each cell."""
+        frames = [
+            element.data.assign(region=element.region)
+            for element in siibra_tqdm(
+                elements,
+                desc=f"Reading cell distributions of subject {elements[0].subject}",
+                unit="region",
+                disable=all(getattr(element._loader, "cached", True) for element in elements),
+            )
+        ]
+        return cls(
+            subject=elements[0].subject,
+            anchor=anchor,
+            modality=modality,
+            description=description,
+            datasets=list(dict.fromkeys(ds for element in elements for ds in element.datasets)),
+            prerelease=all(element._prerelease for element in elements),
+            data=pd.concat(frames, ignore_index=True),
         )
