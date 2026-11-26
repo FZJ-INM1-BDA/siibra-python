@@ -14,18 +14,22 @@
 # limitations under the License.
 """Coordinates of observations, such as cells, in a reference space."""
 
+from dataclasses import dataclass
 from hashlib import md5
-from typing import TYPE_CHECKING, List, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
 from . import tabular
+from ...core.assignment import Qualification
 from ...retrieval.requests import HttpRequest
 
 if TYPE_CHECKING:
     from ..anchor import AnatomicalAnchor
+    from ...core.region import Region
     from ...core.space import Space
+    from ...locations.location import Location
 
 
 class PointDistribution(tabular.Tabular):
@@ -173,3 +177,47 @@ class CellDistribution(
     def name(self) -> str:
         where = f" in {self.anchor._regionspec}" if self.anchor._regionspec else ""
         return f"{super().name}{where}, subject: {self.subject}"
+
+
+@dataclass(frozen=True)
+class InjectionSite:
+    """
+    Where the tracer of a tracer distribution was injected. The regions, the
+    location, both or neither may be known.
+    """
+
+    regions: Tuple["Region", ...] = ()
+    """Regions the injection site is specified as; may be several."""
+
+    location: Optional["Location"] = None
+    """Location of the injection, e.g. a point, in its space."""
+
+
+class TracerDistribution(
+    PointDistribution,
+    configuration_folder="features/tabular/point_distribution/tracer_distribution",
+    category="connectivity",
+):
+    """
+    Positions of tracer labels of one experiment.
+
+    Besides its space, the anchor of a tracer distribution is its injection
+    site, not where its labels are: a query for a region finds the
+    experiments injected there, and their labels may lie anywhere in the
+    brain. A space query finds all experiments in that space. Tracer
+    distributions are not compounded; each experiment is a feature of its
+    own.
+    """
+
+    _default_modality = "tracer distribution"
+
+    @property
+    def injection_site(self) -> InjectionSite:
+        """Regions and location of the injection, as far as they are known."""
+        return InjectionSite(
+            regions=tuple(
+                region for region, qualification in self.anchor.regions.items()
+                if qualification == Qualification.EXACT
+            ),
+            location=self.anchor.location,
+        )

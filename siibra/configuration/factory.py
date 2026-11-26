@@ -741,6 +741,13 @@ class Factory:
         )
 
     @classmethod
+    @build_type("siibra/feature/point_distribution/tracer_distribution/v0.1")
+    def build_tracer_distribution(cls, spec):
+        if not (spec.get("region") or spec.get("location")):
+            raise ValueError("A tracer distribution spec needs its injection site as a 'region' or 'location'.")
+        return cls._build_point_distributions(spec, point_distribution.TracerDistribution)
+
+    @classmethod
     def from_json(cls, spec: dict):
 
         if isinstance(spec, str):
