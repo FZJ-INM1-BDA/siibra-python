@@ -14,7 +14,7 @@
 # limitations under the License.
 """Handles the relation between study targets and BrainStructures."""
 
-from typing import Union, List, Dict, Iterable
+from typing import Callable, Union, List, Dict, Iterable
 
 from ..commons import Species, logger
 from ..core.structure import BrainStructure
@@ -43,10 +43,23 @@ class AnatomicalAnchor:
     def __init__(
         self,
         species: Union[List[Species], Species, str],
-        location: Location = None,
+        location: Union[Location, Callable[[], Location]] = None,
         region: Union[str, Region] = None,
         space: Union[str, Space] = None,
     ):
+        """
+        Parameters
+        ----------
+        species : Species, str or list of Species
+        location : Location or callable, optional
+            The location, or a function without arguments returning it if
+            computing it is expensive, e.g. the bounding box of an image. The
+            function is called at most once, when the location is first
+            needed.
+        region : str or Region, optional
+        space : str or Space, optional
+            The reference space of the anchor, e.g. of a feature's data.
+        """
 
         if isinstance(species, (str, Species)):
             self.species = {Species.decode(species)}
@@ -59,7 +72,13 @@ class AnatomicalAnchor:
                 raise ValueError(f"Invalid species specification: {species}")
             else:
                 self.species = {sp}
-        self._location_cached = location
+        if location is None or isinstance(location, Location):
+            self._location_cached, self._location_getter = location, None
+        elif callable(location):
+            self._location_cached, self._location_getter = None, location
+        else:
+            raise ValueError(f"Invalid location specification: {location}")
+        self._location_deferred = self._location_getter is not None
         self._space_spec = space
         self._space_cached = space if isinstance(space, Space) else None
         self._assignments: Dict[BrainStructure, List[AnatomicalAssignment]] = {}
@@ -82,8 +101,15 @@ class AnatomicalAnchor:
 
     @property
     def location(self) -> Location:
-        # allow to overwrite in derived classes
+        if self._location_getter is not None:
+            self._location_cached = self._location_getter()
+            self._location_getter = None
         return self._location_cached
+
+    @property
+    def _has_location(self) -> bool:
+        """Whether the anchor has a location, without computing a deferred one."""
+        return self._location_cached is not None or self._location_getter is not None
 
     @property
     def parcellations(self) -> List[Parcellation]:
@@ -159,12 +185,11 @@ class AnatomicalAnchor:
             region = parcs[self._regionspec]  # if parcellation was anchored with the id instead of the name
         else:
             region = "" if self._regionspec is None else str(self._regionspec)
-        if self.location is not None:
-            location = str(self.location)
-        elif self._space_spec is not None:
-            location = f"in {self.space.name}"
-        else:
-            location = ""
+        if self._space_spec is not None and (self._location_deferred or not self._has_location):
+            # described by the space, so that a deferred location is never
+            # computed for it, and the text does not depend on whether it was
+            return " ".join(filter(None, [region, f"in {self.space.name}"]))
+        location = str(self.location) if self._has_location else ""
         separator = " " if min(len(region), len(location)) > 0 else ""
         if region and location:
             return region + " with " + location
@@ -182,7 +207,7 @@ class AnatomicalAnchor:
                 if self.space.matches(concept):
                     return [AnatomicalAssignment(concept, self.space, Qualification.CONTAINED)]
                 return []
-            if self.location is not None and self.location.space.matches(concept):
+            if self._has_location and self.location.space.matches(concept):
                 return [AnatomicalAssignment(concept, self.location, Qualification.CONTAINED)]
             else:
                 return []
@@ -193,7 +218,7 @@ class AnatomicalAnchor:
             skip_location_assignment = False
             if (
                 len(self.regions) > 0
-                and self.location is not None
+                and self._has_location
                 and isinstance(concept, Region)
             ):
                 skip_location_assignment = True
@@ -204,7 +229,7 @@ class AnatomicalAnchor:
                     skip_location_assignment = True
                     assignments.append(region_assignment)
 
-            if self.location is not None and not skip_location_assignment:
+            if self._has_location and not skip_location_assignment:
                 try:
                     assignments.append(self.location.assign(concept))
                 except SpaceWarpingFailedError as e:
