@@ -733,6 +733,14 @@ class Factory:
         ]
 
     @classmethod
+    @build_type("siibra/feature/point_distribution/cell_distribution/v0.1")
+    def build_cell_distribution(cls, spec):
+        # the files of a cell distribution spec are keyed by subject
+        return cls._build_point_distributions(
+            spec, point_distribution.CellDistribution, key_attribute="subject"
+        )
+
+    @classmethod
     def from_json(cls, spec: dict):
 
         if isinstance(spec, str):

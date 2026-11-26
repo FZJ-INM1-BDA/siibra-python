@@ -135,3 +135,41 @@ class PointDistribution(tabular.Tabular):
             f"Plotting is not implemented for {self.__class__.__name__}. "
             "Its data holds the coordinates in the columns x, y and z."
         )
+
+
+class CellDistribution(
+    PointDistribution,
+    configuration_folder="features/tabular/point_distribution/cell_distribution",
+    category="cellular",
+):
+    """
+    Positions of cells of one subject, within one region or across a larger
+    extent such as the whole brain.
+
+    Every cell distribution has a subject. Like all point distributions, it
+    is anchored to its space and, if it has one, its region: a region query
+    finds the cells of matching regions, a space query all cells in that
+    space. Cell distributions are not compounded; each subject and region is
+    a feature of its own.
+    """
+
+    _default_modality = "cell distribution"
+
+    def __init__(self, subject: str, **kwargs):
+        """
+        Parameters
+        ----------
+        subject : str
+            Identifier of the subject the cells belong to.
+        **kwargs
+            See PointDistribution.
+        """
+        if subject is None or str(subject) == "":
+            raise ValueError("A cell distribution needs a subject.")
+        PointDistribution.__init__(self, **kwargs)
+        self.subject = str(subject)
+
+    @property
+    def name(self) -> str:
+        where = f" in {self.anchor._regionspec}" if self.anchor._regionspec else ""
+        return f"{super().name}{where}, subject: {self.subject}"
