@@ -23,4 +23,4 @@ from .receptor_density_fingerprint import ReceptorDensityFingerprint
 from .receptor_density_profile import ReceptorDensityProfile
 from .regional_timeseries_activity import RegionalBOLD
 from .local_field_potential import LocalFieldPotential, RegionalLocalFieldPotential
-from .point_distribution import PointDistribution, CellDistribution
+from .point_distribution import PointDistribution, CellDistribution, TracerDistribution, InjectionSite

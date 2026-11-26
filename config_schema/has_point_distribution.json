@@ -26,6 +26,16 @@
         "parcellation": {
             "$ref": "/config_schema/at_id.json"
         },
+        "location": {
+            "description": "A location the points are anchored to, e.g. the injection site of a tracer.",
+            "type": "object",
+            "properties": {
+                "@type": {
+                    "type": "string"
+                }
+            },
+            "required": ["@type"]
+        },
         "space": {
             "description": "The reference space of the points, which anchors them; a region or parcellation is optional.",
             "$ref": "/config_schema/at_id.json"

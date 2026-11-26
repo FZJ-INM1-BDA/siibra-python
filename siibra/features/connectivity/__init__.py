@@ -21,6 +21,8 @@ from .functional_connectivity import (
 from .streamline_counts import StreamlineCounts
 from .streamline_lengths import StreamlineLengths
 from .tracing_connectivity import TracingConnectivity
+# point data, but in this category; siibra.features.connectivity is this module
+from ..tabular.point_distribution import TracerDistribution
 
 
 def __dir__():
@@ -29,5 +31,6 @@ def __dir__():
         "StreamlineCounts",
         "StreamlineLengths",
         "TracingConnectivity",
+        "TracerDistribution",
         "AnatomoFunctionalConnectivity"
     ]

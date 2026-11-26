@@ -740,6 +740,11 @@ class Factory:
         )
 
     @classmethod
+    @build_type("siibra/feature/point_distribution/tracer_distribution/v0.1")
+    def build_tracer_distribution(cls, spec):
+        return cls._build_point_distributions(spec, point_distribution.TracerDistribution)
+
+    @classmethod
     def from_json(cls, spec: dict):
 
         if isinstance(spec, str):
