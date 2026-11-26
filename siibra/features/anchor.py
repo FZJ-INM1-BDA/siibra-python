@@ -23,6 +23,7 @@ from ..locations.location import Location
 from ..core.parcellation import Parcellation, find_regions
 from ..core.region import Region
 from ..core.space import Space
+from ..core.concept import get_registry
 from ..exceptions import SpaceWarpingFailedError
 from ..vocabularies import REGION_ALIASES
 
@@ -30,7 +31,11 @@ from ..vocabularies import REGION_ALIASES
 class AnatomicalAnchor:
     """
     Anatomical anchor to an atlas region, a geometric primitive in an atlas
-    reference space, or both.
+    reference space, a reference space, or a combination of these.
+
+    A space anchors a feature to a reference space as a whole: space queries
+    match it, while region and location queries only match the anchor's
+    region or location.
     """
 
     _MATCH_MEMO: Dict[str, Dict[Region, Qualification]] = {}
@@ -39,7 +44,8 @@ class AnatomicalAnchor:
         self,
         species: Union[List[Species], Species, str],
         location: Location = None,
-        region: Union[str, Region] = None
+        region: Union[str, Region] = None,
+        space: Union[str, Space] = None,
     ):
 
         if isinstance(species, (str, Species)):
@@ -54,6 +60,8 @@ class AnatomicalAnchor:
             else:
                 self.species = {sp}
         self._location_cached = location
+        self._space_spec = space
+        self._space_cached = space if isinstance(space, Space) else None
         self._assignments: Dict[BrainStructure, List[AnatomicalAssignment]] = {}
         self._last_matched_concept = None
         if isinstance(region, dict):
@@ -86,7 +94,11 @@ class AnatomicalAnchor:
 
     @property
     def space(self) -> Space:
-        # may be overridden by derived classes, e.g. in features.VolumeOfInterest
+        """The reference space of the anchor: its own, or else its location's."""
+        if self._space_spec is not None:
+            if self._space_cached is None:
+                self._space_cached = get_registry("Space").get(self._space_spec)
+            return self._space_cached
         return None if self.location is None else self.location.space
 
     @property
@@ -147,7 +159,12 @@ class AnatomicalAnchor:
             region = parcs[self._regionspec]  # if parcellation was anchored with the id instead of the name
         else:
             region = "" if self._regionspec is None else str(self._regionspec)
-        location = "" if self.location is None else str(self.location)
+        if self.location is not None:
+            location = str(self.location)
+        elif self._space_spec is not None:
+            location = f"in {self.space.name}"
+        else:
+            location = ""
         separator = " " if min(len(region), len(location)) > 0 else ""
         if region and location:
             return region + " with " + location
@@ -160,6 +177,11 @@ class AnatomicalAnchor:
         so repeated assignment with the same concept will be cheap.
         """
         if isinstance(concept, Space):
+            # an anchor's own space decides, without needing its location
+            if self._space_spec is not None:
+                if self.space.matches(concept):
+                    return [AnatomicalAssignment(concept, self.space, Qualification.CONTAINED)]
+                return []
             if self.location is not None and self.location.space.matches(concept):
                 return [AnatomicalAssignment(concept, self.location, Qualification.CONTAINED)]
             else:
@@ -227,7 +249,10 @@ class AnatomicalAnchor:
 
         location = Location.union(self.location, other.location)
 
-        return AnatomicalAnchor(species, location, regions)
+        both_spaces = self._space_spec is not None and other._space_spec is not None
+        space = self.space if both_spaces and self.space == other.space else None
+
+        return AnatomicalAnchor(species, location, regions, space=space)
 
     def __radd__(self, other) -> 'AnatomicalAnchor':
         # required to enable `sum`
