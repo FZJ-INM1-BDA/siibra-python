@@ -176,7 +176,11 @@ class Factory:
         return list(map(cls.build_volume, volume_specs))
 
     @classmethod
-    def extract_anchor(cls, spec):
+    def extract_anchor(cls, spec, space=None):
+        """
+        The anatomical anchor of a spec: its region (or parcellation) and its
+        location, and the given space, if any. One of them is required.
+        """
         if spec.get("region"):
             region = spec["region"]
         elif spec.get("parcellation", {}).get("@id"):
@@ -193,10 +197,9 @@ class Factory:
         else:
             location = None
 
-        if (region is None) and (location is None):
-            print(spec)
+        if (region is None) and (location is None) and (space is None):
             raise RuntimeError(
-                "Spec provides neither region or location - no anchor can be extracted."
+                "Spec provides neither region, location nor space - no anchor can be extracted."
             )
 
         if "species" in spec:
@@ -207,7 +210,7 @@ class Factory:
             raise ValueError(f"No species information found in spec {spec}")
 
         return anchor.AnatomicalAnchor(
-            region=region, location=location, species=species
+            region=region, location=location, species=species, space=space
         )
 
     @classmethod
