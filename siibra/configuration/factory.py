@@ -472,7 +472,14 @@ class Factory:
     @classmethod
     @build_type("siibra/location/boundingbox/v0.1")
     def build_boundingbox(cls, spec):
-        bboxspec = spec.get("boundingbox", None)
+        """
+        Build the bounding box of a spec: the spec itself if it is a bounding
+        box, e.g. a 'location', or else its 'boundingbox', e.g. of a volume.
+        """
+        if spec.get("@type") == "siibra/location/boundingbox/v0.1":
+            bboxspec = spec
+        else:
+            bboxspec = spec.get("boundingbox", None)
         if bboxspec is None:
             return None
         space_spec = bboxspec.get("space")
