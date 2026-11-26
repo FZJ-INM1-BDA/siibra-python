@@ -1,0 +1,86 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "description": "One point distribution per entry of 'files': a subject and the path of its table of x, y and z coordinates.",
+    "allOf": [{
+        "$ref": "/config_schema/has_ebrainsrefs.json"
+    }],
+    "properties": {
+        "@id": {
+            "type": "string"
+        },
+        "modality": {
+            "type": "string"
+        },
+        "description": {
+            "type": "string"
+        },
+        "prerelease": {
+            "type": "boolean"
+        },
+        "species": {
+            "type": "string"
+        },
+        "region": {
+            "type": "string"
+        },
+        "parcellation": {
+            "$ref": "/config_schema/at_id.json"
+        },
+        "space": {
+            "description": "The reference space of the points, which anchors them; a region or parcellation is optional.",
+            "$ref": "/config_schema/at_id.json"
+        },
+        "repository": {
+            "anyOf": [{
+                "$ref": "/config_schema/siibra/repository/dataproxy/v1.0.0.json"
+            }, {
+                "$ref": "/config_schema/siibra/repository/localfolder/v1.0.0.json"
+            }]
+        },
+        "files": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+                "description": "A plain path relative to the repository.",
+                "type": "string",
+                "pattern": "^(?![a-z]+://)[^/]"
+            }
+        },
+        "decoder": {
+            "description": "Keyword arguments for pandas.read_csv. The table needs x, y and z columns.",
+            "type": "object",
+            "properties": {
+                "@type": {
+                    "const": "siibra/decoder/csv"
+                }
+            },
+            "required": ["@type"]
+        },
+        "transform": {
+            "type": "object",
+            "properties": {
+                "affine": {
+                    "description": "Maps the stored coordinates to millimetres in the reference space.",
+                    "type": "array",
+                    "minItems": 4,
+                    "maxItems": 4,
+                    "items": {
+                        "type": "array",
+                        "minItems": 4,
+                        "maxItems": 4,
+                        "items": {
+                            "type": "number"
+                        }
+                    }
+                }
+            },
+            "additionalProperties": false
+        }
+    },
+    "required": [
+        "@type",
+        "repository",
+        "files",
+        "space"
+    ]
+}

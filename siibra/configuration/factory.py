@@ -29,6 +29,7 @@ from ..features.tabular import (
     cell_density_profile,
     layerwise_cell_density,
     regional_timeseries_activity,
+    point_distribution,
 )
 from ..features.image import image, sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -695,6 +696,37 @@ class Factory:
                 subject=entry.key,
                 connector=entry.connector,
                 decode_func=entry.decode_func,
+                id=entry.id,
+            )
+            for entry in cls.expand_files(spec)
+        ]
+
+    @classmethod
+    def _build_point_distributions(
+        cls, spec, feature_cls, key_attribute: str = None
+    ) -> List["point_distribution.PointDistribution"]:
+        """
+        One feature per file of the spec, each with a loader of exactly that
+        file. If given, `key_attribute` names the keyword argument that gets
+        the key of the file in `files`, e.g. "subject".
+        """
+        if "space" not in spec:
+            raise ValueError("A point distribution spec needs the reference space of its points in 'space'.")
+        # one anchor and one list of datasets for all features of the spec;
+        # the anchor's space is the space of the points
+        common = {
+            "anchor": cls.extract_anchor(spec, space=spec["space"]["@id"]),
+            "affine": (spec.get("transform") or {}).get("affine"),
+            "modality": spec.get("modality"),
+            "description": spec.get("description", ""),
+            "datasets": cls.extract_datasets(spec),
+            "prerelease": spec.get("prerelease", False),
+        }
+        return [
+            feature_cls(
+                **common,
+                **({key_attribute: entry.key} if key_attribute else {}),
+                loader=entry.connector.get_loader(entry.filename, decode_func=entry.decode_func),
                 id=entry.id,
             )
             for entry in cls.expand_files(spec)
