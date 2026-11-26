@@ -376,7 +376,7 @@ class BigBrain1MicronPatchQuery(
                     )
                     anchor._assignments[concept] = _anchor.AnatomicalAssignment(
                         query_structure=query_vol,
-                        assigned_structure=s.anchor.volume,
+                        assigned_structure=s,
                         qualification=_anchor.Qualification.CONTAINED
                     )
                     features.append(

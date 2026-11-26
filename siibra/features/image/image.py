@@ -12,8 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Base type of features in volume format and related anatomical anchor."""
+"""Base type of features in volume format."""
 
+from functools import partial
 from typing import List, TYPE_CHECKING
 from zipfile import ZipFile
 
@@ -24,33 +25,6 @@ from ...volumes import volume as _volume
 if TYPE_CHECKING:
     from ...locations.boundingbox import BoundingBox
     from ...volumes.providers import provider
-
-
-class ImageAnchor(_anchor.AnatomicalAnchor):
-
-    def __init__(self, volume: _volume.Volume, region: str = None):
-        _anchor.AnatomicalAnchor.__init__(
-            self, species=volume.space.species, location=None, region=region
-        )
-        self.volume = volume
-
-    @property
-    def location(self):
-        """
-        Loads the bounding box only if required, since it demands image data access.
-        """
-        if self._location_cached is None:
-            self._location_cached = self.volume.get_boundingbox(
-                clip=False
-            )  # use unclipped to preserve existing behaviour
-        return self._location_cached
-
-    @property
-    def space(self):
-        return self.volume.space
-
-    def __str__(self):
-        return f"Bounding box of image in {self.space.name}"
 
 
 class Image(
@@ -95,7 +69,15 @@ class Image(
         else:
             _volume.Volume.__init__(self, **vol_kwargs)
 
-        self._anchor_cached = ImageAnchor(self, region=region)
+        # Anchored to the image's space and, if given, its region. The bounding
+        # box locates it for location queries and for region queries without
+        # a region; computing it may need the image, so only when needed.
+        self._anchor_cached = _anchor.AnatomicalAnchor(
+            species=self.space.species,
+            region=region,
+            space=self.space,
+            location=partial(self.get_boundingbox, clip=False),
+        )
         self._description_cached = None
 
     def _to_zip(self, fh: ZipFile):
@@ -116,6 +98,6 @@ class Image(
     def description(self):
         if self._description_cached is None:
             self._description_cached = (
-                f"Image feature with modality {self.modality} " f"at {self.anchor}"
+                f"Image feature with modality {self.modality}, {self.anchor}"
             )
         return self._description_cached
