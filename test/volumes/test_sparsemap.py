@@ -1,6 +1,8 @@
 from siibra.volumes.sparsemap import SparseIndex, SparseMap, parcellationmap
+from siibra.locations.pointcloud import PointCloud
+import numpy as np
 import pytest
-from unittest.mock import patch, PropertyMock
+from unittest.mock import patch, PropertyMock, MagicMock
 from uuid import uuid4
 from itertools import product
 
@@ -166,3 +168,79 @@ def test_sparse_index_prefixes(mock_sparse_map_spc_parc, mock_sparse_index_load)
 
             assert call0 != call1, "Prefix used should be different, based on not just space, parcellation, maptype, but also id"
             assert foo._cache_prefix != bar._cache_prefix
+
+
+def _build_sparse_map_with_two_regions():
+    arr0 = np.zeros((6, 6, 6), dtype="float32")
+    arr0[1, 1, 1] = 0.7
+    arr1 = np.zeros((6, 6, 6), dtype="float32")
+    arr1[4, 4, 4] = 0.9
+
+    spind = SparseIndex()
+    spind.add_img(arr0, np.eye(4))
+    spind.add_img(arr1, np.eye(4))
+
+    mp = SparseMap(
+        identifier=str(uuid4()),
+        name="sparse-read-voxel-test",
+        space_spec={},
+        parcellation_spec={},
+        indices={"region 0": [{"volume": 0}], "region 1": [{"volume": 1}]},
+        volumes=[DCls(formats={"nii"}, provides_image=True) for _ in range(2)],
+    )
+    mp._sparse_index_cached = spind
+    return mp
+
+
+def test_read_voxel_ignores_unmapped_in_bounds_voxel():
+    mp = _build_sparse_map_with_two_regions()
+    # (0, 0, 0) is in bounds but unmapped (voxels[0, 0, 0] == -1);
+    # it must not wrap around to spind.probs[-1].
+    assert mp._read_voxel(np.array([0]), np.array([0]), np.array([0])) == []
+
+
+def test_read_voxel_skips_unmapped_and_out_of_bounds_points():
+    mp = _build_sparse_map_with_two_regions()
+    # index 0: unmapped (-1 in spind.voxels), index 1: out of bounds (negative),
+    # index 2: out of bounds (>= shape), index 3: mapped to volume 0
+    X = np.array([0, -1, 10, 1])
+    Y = np.array([0, 0, 0, 1])
+    Z = np.array([0, 0, 0, 1])
+
+    result = mp._read_voxel(X, Y, Z)
+    assert len(result) == 1
+    pointindex, volume, fragment, value = result[0]
+    assert pointindex == 3
+    assert volume == 0
+    assert fragment is None
+    assert value == pytest.approx(0.7)
+
+
+def test_read_voxel_accepts_scalar_coordinates():
+    mp = _build_sparse_map_with_two_regions()
+
+    mapped = mp._read_voxel(1, 1, 1)
+    assert len(mapped) == 1
+    assert mapped[0][:3] == (None, 0, None)
+    assert mapped[0][3] == pytest.approx(0.7)
+
+    assert mp._read_voxel(0, 0, 0) == []
+    assert mp._read_voxel(-1, 0, 0) == []
+    assert mp._read_voxel(6, 0, 0) == []
+
+
+def test_assign_pointcloud_does_not_assign_unmapped_or_out_of_bounds_points():
+    mp = _build_sparse_map_with_two_regions()
+    mock_space = MagicMock()
+    points = PointCloud([(0, 0, 0), (-5, 0, 0), (1, 1, 1), (20, 20, 20)], space=None, sigma_mm=0)
+
+    with patch.object(SparseMap, "space", new_callable=PropertyMock, return_value=mock_space), \
+            patch.object(PointCloud, "space", new_callable=PropertyMock, return_value=mock_space), \
+            patch.object(PointCloud, "warp", lambda pts, *args, **kwargs: pts), \
+            patch.object(SparseMap, "get_region", side_effect=lambda index=None, **kw: f"region {index.volume}"):
+        df = mp.assign(points)
+
+    assert len(df) == 1
+    assert df.iloc[0]["input structure"] == 2
+    assert df.iloc[0]["region"] == "region 0"
+    assert df.iloc[0]["map value"] == pytest.approx(0.7)
