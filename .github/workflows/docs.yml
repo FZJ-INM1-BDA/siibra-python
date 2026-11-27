@@ -1,17 +1,30 @@
 name: '[Docs and examples] Create docs and run examples'
-on: [push, release]
+on:
+  push:
+    branches: ["v0.4EOL"]
+  release:
+    types: ["published"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   notebooks:
     name: "Build and run the notebooks for the docs"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: 3.8
+          python-version: "3.11"
+          check-latest: true
 
       - name: Install dependencies
         run: |
@@ -33,13 +46,13 @@ jobs:
         run: |
           sphinx-build docs ./docs/_build/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sphinx-docs-built-in-github-${{ github.sha }}
           path: docs
 
       - name: Trigger RTDs build
-        uses: dfm/rtds-action@v1
+        uses: dfm/rtds-action@e028de3bdec9ae8e4bda371425986df0fb6cc4bf # v1.1.0
         with:
           webhook_url: ${{ secrets.RTDS_WEBHOOK_URL }}
           webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
