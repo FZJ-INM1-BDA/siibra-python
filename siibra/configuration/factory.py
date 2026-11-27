@@ -29,6 +29,7 @@ from ..features.tabular import (
     cell_density_profile,
     layerwise_cell_density,
     regional_timeseries_activity,
+    point_distribution,
 )
 from ..features.image import image, sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -176,7 +177,11 @@ class Factory:
         return list(map(cls.build_volume, volume_specs))
 
     @classmethod
-    def extract_anchor(cls, spec):
+    def extract_anchor(cls, spec, space=None):
+        """
+        The anatomical anchor of a spec: its region (or parcellation) and its
+        location, and the given space, if any. One of them is required.
+        """
         if spec.get("region"):
             region = spec["region"]
         elif spec.get("parcellation", {}).get("@id"):
@@ -193,10 +198,9 @@ class Factory:
         else:
             location = None
 
-        if (region is None) and (location is None):
-            print(spec)
+        if (region is None) and (location is None) and (space is None):
             raise RuntimeError(
-                "Spec provides neither region or location - no anchor can be extracted."
+                "Spec provides neither region, location nor space - no anchor can be extracted."
             )
 
         if "species" in spec:
@@ -207,7 +211,7 @@ class Factory:
             raise ValueError(f"No species information found in spec {spec}")
 
         return anchor.AnatomicalAnchor(
-            region=region, location=location, species=species
+            region=region, location=location, species=species, space=space
         )
 
     @classmethod
@@ -696,6 +700,52 @@ class Factory:
             )
             for entry in cls.expand_files(spec)
         ]
+
+    @classmethod
+    def _build_point_distributions(
+        cls, spec, feature_cls, key_attribute: str = None
+    ) -> List["point_distribution.PointDistribution"]:
+        """
+        One feature per file of the spec, each with a loader of exactly that
+        file. If given, `key_attribute` names the keyword argument that gets
+        the key of the file in `files`, e.g. "subject".
+        """
+        if "space" not in spec:
+            raise ValueError("A point distribution spec needs the reference space of its points in 'space'.")
+        # one anchor and one list of datasets for all features of the spec;
+        # the anchor's space is the space of the points
+        common = {
+            "anchor": cls.extract_anchor(spec, space=spec["space"]["@id"]),
+            "affine": (spec.get("transform") or {}).get("affine"),
+            "modality": spec.get("modality"),
+            "description": spec.get("description", ""),
+            "datasets": cls.extract_datasets(spec),
+            "prerelease": spec.get("prerelease", False),
+        }
+        return [
+            feature_cls(
+                **common,
+                **({key_attribute: entry.key} if key_attribute else {}),
+                loader=entry.connector.get_loader(entry.filename, decode_func=entry.decode_func),
+                id=entry.id,
+            )
+            for entry in cls.expand_files(spec)
+        ]
+
+    @classmethod
+    @build_type("siibra/feature/point_distribution/cell_distribution/v0.1")
+    def build_cell_distribution(cls, spec):
+        # the files of a cell distribution spec are keyed by subject
+        return cls._build_point_distributions(
+            spec, point_distribution.CellDistribution, key_attribute="subject"
+        )
+
+    @classmethod
+    @build_type("siibra/feature/point_distribution/tracer_distribution/v0.1")
+    def build_tracer_distribution(cls, spec):
+        if not (spec.get("region") or spec.get("location")):
+            raise ValueError("A tracer distribution spec needs its injection site as a 'region' or 'location'.")
+        return cls._build_point_distributions(spec, point_distribution.TracerDistribution)
 
     @classmethod
     def from_json(cls, spec: dict):

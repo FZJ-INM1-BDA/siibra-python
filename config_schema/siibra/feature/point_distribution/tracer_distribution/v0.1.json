@@ -1,0 +1,17 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_point_distribution.json"
+    }],
+    "properties": {
+        "@type": {
+            "const": "siibra/feature/point_distribution/tracer_distribution/v0.1"
+        }
+    },
+    "anyOf": [{
+        "description": "The injection site.",
+        "required": ["region"]
+    }, {
+        "required": ["location"]
+    }]
+}

@@ -1,0 +1,17 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_point_distribution.json"
+    }],
+    "properties": {
+        "@type": {
+            "const": "siibra/feature/point_distribution/cell_distribution/v0.1"
+        },
+        "files": {
+            "description": "Keyed by subject: every cell distribution has one.",
+            "propertyNames": {
+                "minLength": 1
+            }
+        }
+    }
+}
