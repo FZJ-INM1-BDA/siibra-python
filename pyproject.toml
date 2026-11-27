@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools >= 77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "siibra"
+dynamic = ["version"]
+description = "siibra - Software interfaces for interacting with brain atlases"
+readme = "README.rst"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Big Data Analytics Group, Forschungszentrum Juelich, Institute of Neuroscience and Medicine (INM-1)", email = "inm1-bda@fz-juelich.de" },
+]
+requires-python = ">= 3.9"
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+]
+# Lower bounds only where a version is needed: to exclude releases with known
+# vulnerabilities (same bounds as main), or for features siibra uses. The
+# fixed requests/filelock releases need Python >= 3.10, so Python 3.9 gets
+# the best versions available to it.
+dependencies = [
+    "anytree",
+    "nibabel",
+    "appdirs",
+    "scikit-image",
+    'requests >= 2.33.0; python_version >= "3.10"',
+    'requests >= 2.32.4; python_version < "3.10"',
+    "neuroglancer-scripts",
+    "nilearn",
+    'filelock >= 3.20.3; python_version >= "3.10"',
+    'filelock >= 3.16.1; python_version < "3.10"',
+    "certifi >= 2026.10.19",
+    "packaging",
+    "ebrains-drive >= 0.6.0",
+    "h5py",
+]
+
+[project.urls]
+Homepage = "https://github.com/FZJ-INM1-BDA/siibra-python"
+
+[tool.setuptools.dynamic]
+version = { file = "siibra/VERSION" }
+
+[tool.setuptools.packages.find]
+include = ["siibra", "siibra.*"]
+
+[tool.setuptools.package-data]
+siibra = [
+    "VERSION",
+    "vocabularies/gene_names.json",
+    "vocabularies/receptor_symbols.json",
+    "vocabularies/region_aliases.json",
+]
