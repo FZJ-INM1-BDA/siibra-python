@@ -1,28 +1,30 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
-
 name: '[release] Publish release to pypi'
 
+# Publishing the GitHub release runs the tests, builds the sdist and wheel
+# and, if the tests pass, uploads them to PyPI.
 on:
   release:
-    types:
-      - created
+    types: [published]
+
+permissions: {}
 
 jobs:
-  build:
-
+  test:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
     env:
       KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
       KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
-      
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
-        python-version: 3.9
+        persist-credentials: false
+    - name: Set up Python 3.11
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: "3.11"
+        check-latest: true
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -37,18 +39,70 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
-    - name: Build the package
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      # Passed to publish through job outputs, a channel separate from the
+      # artifact, so changing the files in transit can't change these too.
+      sha256sums: ${{ steps.hashes.outputs.sha256sums }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: "3.12"
+        check-latest: true
+    - name: Build sdist and wheel
       run: |
-        echo "Installing and upgrading twine, setuptools and wheel"
-        python -m pip install --user --upgrade twine setuptools wheel
-        echo "Package the project"
-        python setup.py sdist bdist_wheel
-    - name: Prepare pypi settings
+        python -m pip install --upgrade pip
+        python --version
+        python -m pip --version
+        python -m pip install -r .github/requirements-build.txt
+        python -m build
+    - name: Record artifact hashes
+      id: hashes
+      shell: bash
       run: |
-        echo "[pypi]" >~/.pypirc
-        echo "username = __token__" >>~/.pypirc
-        echo "password = ${{ secrets.PYPI_PUSH }}" >>~/.pypirc
-    - name: Upload to pypi
+        sha256sum dist/*
+        {
+          echo 'sha256sums<<EOF'
+          sha256sum dist/*
+          echo 'EOF'
+        } >> "$GITHUB_OUTPUT"
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: dist
+        path: dist/
+        if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/siibra/
+    permissions: {}
+    steps:
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        name: dist
+        path: dist/
+
+    - name: Verify artifact hashes
+      shell: bash
+      env:
+        EXPECTED: ${{ needs.build.outputs.sha256sums }}
       run: |
-        echo "Uploading to pypi"
-        python -m twine upload dist/*
+        sha256sum dist/*
+        diff <(printf '%s\n' "$EXPECTED" | awk '{print $2}' | sort) \
+             <(ls -1 dist/* | sort)
+        printf '%s\n' "$EXPECTED" | sha256sum --check --strict
+
+    - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+      with:
+        password: ${{ secrets.PYPI_PUSH }}
