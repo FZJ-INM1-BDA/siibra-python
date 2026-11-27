@@ -321,18 +321,23 @@ class SparseMap(parcellationmap.Map):
 
     def _read_voxel(self, x, y, z):
         spind = self.sparse_index
-        vx = spind.voxels[x, y, z]
-        if isinstance(vx, int):
-            return list(
-                (None, volume, None, value)
-                for volume, value in spind.probs[vx].items()
-            )
-        else:
-            return list(
-                (pointindex, volume, None, value)
-                for pointindex, voxel in enumerate(vx)
-                for volume, value in spind.probs[voxel].items()
-            )
+        is_scalar = np.ndim(x) == 0 and np.ndim(y) == 0 and np.ndim(z) == 0
+        x_arr, y_arr, z_arr = np.atleast_1d(x), np.atleast_1d(y), np.atleast_1d(z)
+        valid = (
+            (0 <= x_arr) & (x_arr < spind.voxels.shape[0])
+            & (0 <= y_arr) & (y_arr < spind.voxels.shape[1])
+            & (0 <= z_arr) & (z_arr < spind.voxels.shape[2])
+        )
+        valid_indices = np.flatnonzero(valid)
+        if len(valid_indices) == 0:
+            return []
+        voxels = spind.voxels[x_arr[valid], y_arr[valid], z_arr[valid]]
+        return [
+            (None if is_scalar else int(pointindex), volume, None, value)
+            for pointindex, voxel in zip(valid_indices, voxels)
+            if voxel >= 0
+            for volume, value in spind.probs[voxel].items()
+        ]
 
     def _assign_volume(
         self,
