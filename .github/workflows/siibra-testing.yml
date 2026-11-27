@@ -1,30 +1,43 @@
 name: '[test] unit test'
 
-on: [push]
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["v0.4EOL"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   unit-tests:
-    runs-on: ubuntu-22.04  # use ubuntu-latest when python 3.7 is dropped
+    runs-on: ubuntu-latest
     env:
       # unit tests should not need tokens
-
       SIIBRA_LOG_LEVEL: DEBUG
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ '3.10', '3.9', '3.8', '3.7' ]
+        python-version: ["3.14", "3.13", "3.12", "3.11"]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: ${{ matrix.python-version }}
+        check-latest: true
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         python -m pip install -U .
         pip install -r requirements-test.txt
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
@@ -34,81 +47,68 @@ jobs:
     - name: Install test dependencies
       run:  pip install pytest pytest-cov coverage
     - name: Run test with pytest
-      run: |
-        echo "Using github.ref: $GITHUB_REF"
-        if [[ "$GITHUB_REF" != "refs/heads/main" ]]
-        then
-          export FAST_RUN=1
-        fi
-        pytest -rx
-  
+      run: pytest -rx
+
   e2e-tests:
     runs-on: ${{ matrix.os }}
-    env:
-      # KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
-      # KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
-      FOO: BAR
     strategy:
       fail-fast: false
       matrix:
-        os: [ 'ubuntu-22.04', 'windows-latest' ]
-        python-version: [ '3.10', '3.9', '3.8']
+        os: ["ubuntu-latest", "windows-latest"]
+        python-version: ["3.14", "3.13", "3.12", "3.11"]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: ${{ matrix.python-version }}
+        check-latest: true
 
     - name: Cache SIIBRA_CACHEDIR
-      uses: actions/cache@v3
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ runner.temp }}
         key: ${{ runner.os }}
         restore-keys: |
           ${{ runner.os }}
-          
+
     - name: Install dependencies
       shell: bash
       run: |
         python -m pip install --upgrade pip
         python -m pip install -U .
         pip install -r requirements-test.txt
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Install test dependencies
       run:  pip install pytest pytest-cov coverage
     - name: Run test with pytest
       shell: bash
-      run: |
-        export SIIBRA_CACHEDIR=${{ runner.temp }}
-        echo "Using github.ref: $GITHUB_REF"
-        if [[ "$GITHUB_REF" != "refs/heads/main" ]]
-        then
-          export FAST_RUN=1
-        fi
-        pytest -rx e2e
+      env:
+        SIIBRA_CACHEDIR: ${{ runner.temp }}
+      run: pytest -rx e2e
 
   check-importable:
-    runs-on: ubuntu-22.04
-    env:
-      KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
-      KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ '3.10', '3.9', '3.8']
+        python-version: ["3.14", "3.13", "3.12", "3.11"]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: ${{ matrix.python-version }}
+        check-latest: true
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         python -m pip install -U .
-    
+
     - name: cd to / and try to import
       run: |
         cd / && python -c 'import siibra'
